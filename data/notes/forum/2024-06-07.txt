@@ -1,0 +1,5 @@
+06-07-2024 Update
+https://forums.playdeadlock.com/threads/06-07-2024-update.4443/
+- Rejuv buff to candle troopers reduced from +100% HP to +50%
+- Fixed rejuv buff applying to objectives
+- Fixed various performance related issues from the previous update

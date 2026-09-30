@@ -1,0 +1,6 @@
+08-18-2024 Update
+https://forums.playdeadlock.com/threads/08-18-2024-update.18377/
+- Restorative Locket: Spirit Resist reduced from 10% to 8%
+- Restorative Locket: Cooldown increased from 24s to 28s
+- Restorative Locket: Heal reduced from 40 per stack to 35
+- Restorative Locket: Stamina restore changed from max stamina to 1 charge

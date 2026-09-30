@@ -1,0 +1,1814 @@
+[
+ {
+  "id": "2024-05-03",
+  "title": "05-03-2024 Update",
+  "date": "2024-05-03",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 72,
+   "fix": 10
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-05-10",
+  "title": "05-10-2024 Update",
+  "date": "2024-05-10",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 117,
+   "fix": 15
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-05-13",
+  "title": "05-13-2024 Update",
+  "date": "2024-05-13",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-05-16",
+  "title": "05-16-2024 Update",
+  "date": "2024-05-16",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 97,
+   "fix": 9
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-05-23",
+  "title": "05-23-2024 Update",
+  "date": "2024-05-23",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 138,
+   "fix": 18
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-05-30",
+  "title": "05-30-2024 Update",
+  "date": "2024-05-30",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 129,
+   "fix": 16
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-06-06",
+  "title": "06-06-2024 Update",
+  "date": "2024-06-06",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 135,
+   "fix": 11
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-06-13",
+  "title": "06-13-2024 Update",
+  "date": "2024-06-13",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 121,
+   "fix": 17
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-06-20",
+  "title": "06-20-2024 Update",
+  "date": "2024-06-20",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 140,
+   "fix": 11
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-06-23",
+  "title": "06-23-2024 Update",
+  "date": "2024-06-23",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 7
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-06-27",
+  "title": "06-27-2024 Update",
+  "date": "2024-06-27",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 140,
+   "fix": 15
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-07-04",
+  "title": "07-04-2024 Update",
+  "date": "2024-07-04",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 171,
+   "fix": 13
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-07-11",
+  "title": "07-11-2024 Update",
+  "date": "2024-07-11",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 164,
+   "fix": 18
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-07-18",
+  "title": "07-18-2024 Update",
+  "date": "2024-07-18",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 200,
+   "fix": 7
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-07-23",
+  "title": "07-23-2024 Update",
+  "date": "2024-07-23",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "fix": 5,
+   "unmatched": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-08-01",
+  "title": "08-01-2024 Update",
+  "date": "2024-08-01",
+  "builds": 0,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 175,
+   "fix": 30
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-08-06",
+  "title": "08-06-2024 Update",
+  "date": "2024-08-06",
+  "builds": 3,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 1
+  },
+  "line_counts": {
+   "unmatched": 10,
+   "fix": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-08-15",
+  "title": "08-15-2024 Update",
+  "date": "2024-08-15",
+  "builds": 1,
+  "counts": {
+   "documented": 130,
+   "described": 233,
+   "hidden": 289
+  },
+  "line_counts": {
+   "unmatched": 92,
+   "fix": 28,
+   "documented": 130,
+   "described": 60,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-08-16",
+  "title": "08-16-2024 Update",
+  "date": "2024-08-16",
+  "builds": 12,
+  "counts": {
+   "documented": 10,
+   "described": 19,
+   "hidden": 13
+  },
+  "line_counts": {
+   "fix": 8,
+   "unmatched": 2,
+   "documented": 9,
+   "described": 6
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-08-22",
+  "title": "08-22-2024 Update",
+  "date": "2024-08-22",
+  "builds": 2,
+  "counts": {
+   "documented": 7,
+   "described": 2,
+   "hidden": 11
+  },
+  "line_counts": {
+   "fix": 3,
+   "documented": 7,
+   "described": 2,
+   "unmatched": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-08-29",
+  "title": "08-29-2024 Update",
+  "date": "2024-08-29",
+  "builds": 9,
+  "counts": {
+   "documented": 117,
+   "described": 184,
+   "hidden": 231
+  },
+  "line_counts": {
+   "unmatched": 93,
+   "fix": 34,
+   "documented": 115,
+   "described": 51,
+   "mismatch": 1,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-09-01",
+  "title": "09-01-2024 Update",
+  "date": "2024-09-01",
+  "builds": 8,
+  "counts": {
+   "documented": 7,
+   "described": 4,
+   "hidden": 11
+  },
+  "line_counts": {
+   "described": 1,
+   "documented": 6,
+   "rounded": 1,
+   "unmatched": 2,
+   "fix": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-09-12",
+  "title": "09-12-2024 Update",
+  "date": "2024-09-12",
+  "builds": 6,
+  "counts": {
+   "documented": 110,
+   "described": 93,
+   "hidden": 728
+  },
+  "line_counts": {
+   "unmatched": 112,
+   "fix": 22,
+   "documented": 97,
+   "described": 44,
+   "rounded": 12
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-09-14",
+  "title": "09-14-2024 Update",
+  "date": "2024-09-14",
+  "builds": 7,
+  "counts": {
+   "documented": 8,
+   "described": 0,
+   "hidden": 25
+  },
+  "line_counts": {
+   "documented": 8
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-09-19",
+  "title": "09-19-2024 Update",
+  "date": "2024-09-19",
+  "builds": 3,
+  "counts": {
+   "documented": 1,
+   "described": 0,
+   "hidden": 3
+  },
+  "line_counts": {
+   "unmatched": 2,
+   "fix": 2,
+   "documented": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-09-26",
+  "title": "09-26-2024 Update",
+  "date": "2024-09-26",
+  "builds": 14,
+  "counts": {
+   "documented": 85,
+   "described": 142,
+   "hidden": 420
+  },
+  "line_counts": {
+   "unmatched": 101,
+   "fix": 44,
+   "described": 52,
+   "documented": 81,
+   "rounded": 4,
+   "mismatch": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-10-02",
+  "title": "10-02-2024 Update",
+  "date": "2024-10-02",
+  "builds": 4,
+  "counts": {
+   "documented": 5,
+   "described": 0,
+   "hidden": 9
+  },
+  "line_counts": {
+   "unmatched": 5,
+   "documented": 5,
+   "described": 1,
+   "fix": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-10-10",
+  "title": "10-10-2024 Update",
+  "date": "2024-10-10",
+  "builds": 1,
+  "counts": {
+   "documented": 111,
+   "described": 161,
+   "hidden": 328
+  },
+  "line_counts": {
+   "unmatched": 124,
+   "fix": 30,
+   "documented": 109,
+   "rounded": 1,
+   "described": 60,
+   "mismatch": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-10-11",
+  "title": "10-11-2024 Update",
+  "date": "2024-10-11",
+  "builds": 7,
+  "counts": {
+   "documented": 4,
+   "described": 2,
+   "hidden": 28
+  },
+  "line_counts": {
+   "described": 4,
+   "documented": 4,
+   "fix": 2,
+   "unmatched": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-10-15",
+  "title": "10-15-2024 Update",
+  "date": "2024-10-15",
+  "builds": 10,
+  "counts": {
+   "documented": 6,
+   "described": 0,
+   "hidden": 21
+  },
+  "line_counts": {
+   "unmatched": 6,
+   "documented": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-10-24",
+  "title": "10-24-2024 Update",
+  "date": "2024-10-24",
+  "builds": 13,
+  "counts": {
+   "documented": 118,
+   "described": 223,
+   "hidden": 331
+  },
+  "line_counts": {
+   "unmatched": 93,
+   "fix": 17,
+   "described": 63,
+   "documented": 112
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-10-27",
+  "title": "10-27-2024 Update",
+  "date": "2024-10-27",
+  "builds": 4,
+  "counts": {
+   "documented": 17,
+   "described": 1,
+   "hidden": 99
+  },
+  "line_counts": {
+   "unmatched": 1,
+   "documented": 15,
+   "described": 2,
+   "rounded": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-11-01",
+  "title": "11-01-2024 Update",
+  "date": "2024-11-01",
+  "builds": 4,
+  "counts": {
+   "documented": 7,
+   "described": 4,
+   "hidden": 12
+  },
+  "line_counts": {
+   "rounded": 1,
+   "documented": 6,
+   "described": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-11-07",
+  "title": "11-07-2024 Update",
+  "date": "2024-11-07",
+  "builds": 8,
+  "counts": {
+   "documented": 74,
+   "described": 186,
+   "hidden": 152
+  },
+  "line_counts": {
+   "unmatched": 65,
+   "fix": 18,
+   "documented": 71,
+   "described": 67
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-11-10",
+  "title": "11-10-2024 Update",
+  "date": "2024-11-10",
+  "builds": 3,
+  "counts": {
+   "documented": 4,
+   "described": 2,
+   "hidden": 1
+  },
+  "line_counts": {
+   "unmatched": 1,
+   "documented": 3,
+   "described": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-11-13",
+  "title": "11-13-2024 Update",
+  "date": "2024-11-13",
+  "builds": 4,
+  "counts": {
+   "documented": 7,
+   "described": 4,
+   "hidden": 69
+  },
+  "line_counts": {
+   "unmatched": 6,
+   "documented": 6,
+   "described": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-11-21",
+  "title": "11-21-2024 Update",
+  "date": "2024-11-21",
+  "builds": 16,
+  "counts": {
+   "documented": 136,
+   "described": 277,
+   "hidden": 491
+  },
+  "line_counts": {
+   "unmatched": 122,
+   "fix": 28,
+   "documented": 126,
+   "described": 76,
+   "rounded": 2,
+   "mismatch": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-12-06",
+  "title": "12-06-2024 Update",
+  "date": "2024-12-06",
+  "builds": 8,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0
+  },
+  "line_counts": {
+   "unmatched": 253,
+   "fix": 22
+  },
+  "has_notes": true
+ },
+ {
+  "id": "build-5433",
+  "title": "Unannounced update (build 5433)",
+  "date": "2024-12-14",
+  "builds": 4,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 948
+  },
+  "line_counts": {},
+  "has_notes": false
+ },
+ {
+  "id": "2024-12-21",
+  "title": "12-21-2024 Update",
+  "date": "2024-12-21",
+  "builds": 1,
+  "counts": {
+   "documented": 15,
+   "described": 30,
+   "hidden": 8
+  },
+  "line_counts": {
+   "fix": 5,
+   "unmatched": 3,
+   "documented": 12,
+   "described": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2024-12-31",
+  "title": "12-31-2024 Update",
+  "date": "2024-12-31",
+  "builds": 1,
+  "counts": {
+   "documented": 20,
+   "described": 0,
+   "hidden": 1
+  },
+  "line_counts": {
+   "documented": 18,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-01-12",
+  "title": "01-12-2025 Update",
+  "date": "2025-01-12",
+  "builds": 7,
+  "counts": {
+   "documented": 9,
+   "described": 1,
+   "hidden": 197
+  },
+  "line_counts": {
+   "described": 1,
+   "documented": 9,
+   "unmatched": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-01-19",
+  "title": "01-19-2025 Update",
+  "date": "2025-01-19",
+  "builds": 2,
+  "counts": {
+   "documented": 42,
+   "described": 13,
+   "hidden": 62
+  },
+  "line_counts": {
+   "documented": 39,
+   "mismatch": 2,
+   "described": 10,
+   "fix": 3,
+   "rounded": 1,
+   "unmatched": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-01-27",
+  "title": "01-27-2025 Update",
+  "date": "2025-01-27",
+  "builds": 5,
+  "counts": {
+   "documented": 31,
+   "described": 13,
+   "hidden": 79
+  },
+  "line_counts": {
+   "documented": 29,
+   "unmatched": 13,
+   "described": 21,
+   "fix": 2,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-02-11",
+  "title": "02-11-2025 Update",
+  "date": "2025-02-11",
+  "builds": 1,
+  "counts": {
+   "documented": 14,
+   "described": 6,
+   "hidden": 12
+  },
+  "line_counts": {
+   "documented": 11,
+   "described": 4,
+   "unmatched": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-02-25",
+  "title": "Map Rework Update",
+  "date": "2025-02-25",
+  "builds": 8,
+  "counts": {
+   "documented": 6,
+   "described": 50,
+   "hidden": 456
+  },
+  "line_counts": {
+   "unmatched": 317,
+   "documented": 6,
+   "described": 7,
+   "fix": 69
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-03-13",
+  "title": "03-13-2025 Update",
+  "date": "2025-03-13",
+  "builds": 1,
+  "counts": {
+   "documented": 9,
+   "described": 48,
+   "hidden": 26
+  },
+  "line_counts": {
+   "unmatched": 11,
+   "documented": 7,
+   "described": 6
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-03-16",
+  "title": "03-16-2025 Update",
+  "date": "2025-03-16",
+  "builds": 5,
+  "counts": {
+   "documented": 2,
+   "described": 2,
+   "hidden": 18
+  },
+  "line_counts": {
+   "unmatched": 2,
+   "fix": 1,
+   "described": 1,
+   "documented": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-04-04",
+  "title": "04-04-2025 Update",
+  "date": "2025-04-04",
+  "builds": 1,
+  "counts": {
+   "documented": 14,
+   "described": 8,
+   "hidden": 48
+  },
+  "line_counts": {
+   "unmatched": 13,
+   "fix": 8,
+   "documented": 14,
+   "described": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-04-17",
+  "title": "04-17-2025 Update",
+  "date": "2025-04-17",
+  "builds": 3,
+  "counts": {
+   "documented": 74,
+   "described": 39,
+   "hidden": 21
+  },
+  "line_counts": {
+   "unmatched": 17,
+   "documented": 68,
+   "fix": 11,
+   "described": 11,
+   "rounded": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-05-08",
+  "title": "Shop Rework Update",
+  "date": "2025-05-08",
+  "builds": 12,
+  "counts": {
+   "documented": 61,
+   "described": 212,
+   "hidden": 2541
+  },
+  "line_counts": {
+   "unmatched": 362,
+   "fix": 76,
+   "documented": 48,
+   "described": 46,
+   "mismatch": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-05-11",
+  "title": "05-11-2025 Update",
+  "date": "2025-05-11",
+  "builds": 10,
+  "counts": {
+   "documented": 55,
+   "described": 4,
+   "hidden": 313
+  },
+  "line_counts": {
+   "unmatched": 3,
+   "described": 1,
+   "documented": 25,
+   "rounded": 2,
+   "fix": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-05-19",
+  "title": "05-19-2025 Update",
+  "date": "2025-05-19",
+  "builds": 3,
+  "counts": {
+   "documented": 118,
+   "described": 49,
+   "hidden": 62
+  },
+  "line_counts": {
+   "unmatched": 17,
+   "documented": 118,
+   "described": 18
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-05-21",
+  "title": "05-21-2025 Update",
+  "date": "2025-05-21",
+  "builds": 5,
+  "counts": {
+   "documented": 20,
+   "described": 10,
+   "hidden": 11
+  },
+  "line_counts": {
+   "unmatched": 12,
+   "documented": 16,
+   "fix": 3,
+   "described": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-05-27",
+  "title": "05-27-2025 Update",
+  "date": "2025-05-27",
+  "builds": 12,
+  "counts": {
+   "documented": 59,
+   "described": 55,
+   "hidden": 91
+  },
+  "line_counts": {
+   "unmatched": 5,
+   "documented": 55,
+   "fix": 15,
+   "described": 19
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-06-17",
+  "title": "06-17-2025 Update",
+  "date": "2025-06-17",
+  "builds": 5,
+  "counts": {
+   "documented": 34,
+   "described": 75,
+   "hidden": 235
+  },
+  "line_counts": {
+   "unmatched": 29,
+   "described": 9,
+   "documented": 33,
+   "fix": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-07-04",
+  "title": "07-04-2025 Update",
+  "date": "2025-07-04",
+  "builds": 6,
+  "counts": {
+   "documented": 64,
+   "described": 81,
+   "hidden": 299
+  },
+  "line_counts": {
+   "unmatched": 25,
+   "documented": 63,
+   "described": 34,
+   "fix": 13,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-07-29",
+  "title": "07-29-2025 Update",
+  "date": "2025-07-29",
+  "builds": 5,
+  "counts": {
+   "documented": 102,
+   "described": 68,
+   "hidden": 183
+  },
+  "line_counts": {
+   "unmatched": 26,
+   "described": 28,
+   "documented": 98
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-08-08",
+  "title": "07-29-2025 Update · follow-up 2025-08-08",
+  "date": "2025-08-08",
+  "builds": 1,
+  "counts": {
+   "documented": 15,
+   "described": 0,
+   "hidden": 4
+  },
+  "line_counts": {
+   "unmatched": 3,
+   "documented": 13,
+   "fix": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "build-5747",
+  "title": "08-18-2025 Update",
+  "date": "2025-08-18",
+  "builds": 14,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 1441
+  },
+  "line_counts": {},
+  "has_notes": false
+ },
+ {
+  "id": "2025-08-22",
+  "title": "08-18-2025 Update · follow-up 2025-08-22",
+  "date": "2025-08-22",
+  "builds": 13,
+  "counts": {
+   "documented": 7,
+   "described": 2,
+   "hidden": 46
+  },
+  "line_counts": {
+   "documented": 6,
+   "rounded": 1,
+   "described": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-08-28",
+  "title": "08-18-2025 Update · follow-up 2025-08-28",
+  "date": "2025-08-28",
+  "builds": 8,
+  "counts": {
+   "documented": 12,
+   "described": 5,
+   "hidden": 39
+  },
+  "line_counts": {
+   "documented": 11,
+   "described": 4,
+   "unmatched": 2,
+   "fix": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-08-29",
+  "title": "08-18-2025 Update · follow-up 2025-08-29",
+  "date": "2025-08-29",
+  "builds": 7,
+  "counts": {
+   "documented": 7,
+   "described": 3,
+   "hidden": 27
+  },
+  "line_counts": {
+   "documented": 7,
+   "described": 4,
+   "unmatched": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-09-04",
+  "title": "09-04-2025 Update",
+  "date": "2025-09-04",
+  "builds": 9,
+  "counts": {
+   "documented": 126,
+   "described": 53,
+   "hidden": 75
+  },
+  "line_counts": {
+   "unmatched": 6,
+   "documented": 121,
+   "rounded": 3,
+   "described": 20
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-10-02",
+  "title": "10-02-2025 Update",
+  "date": "2025-10-02",
+  "builds": 1,
+  "counts": {
+   "documented": 132,
+   "described": 164,
+   "hidden": 144
+  },
+  "line_counts": {
+   "unmatched": 26,
+   "documented": 125,
+   "fix": 4,
+   "described": 38,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-10-03",
+  "title": "10-02-2025 Update · follow-up 2025-10-03",
+  "date": "2025-10-03",
+  "builds": 6,
+  "counts": {
+   "documented": 3,
+   "described": 0,
+   "hidden": 2
+  },
+  "line_counts": {
+   "documented": 3,
+   "described": 1,
+   "fix": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-10-05",
+  "title": "10-02-2025 Update · follow-up 2025-10-05",
+  "date": "2025-10-05",
+  "builds": 6,
+  "counts": {
+   "documented": 4,
+   "described": 3,
+   "hidden": 9
+  },
+  "line_counts": {
+   "documented": 4,
+   "described": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-10-24",
+  "title": "10-24-2025 Update",
+  "date": "2025-10-24",
+  "builds": 4,
+  "counts": {
+   "documented": 46,
+   "described": 18,
+   "hidden": 6
+  },
+  "line_counts": {
+   "unmatched": 4,
+   "documented": 45,
+   "described": 5,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-11-21",
+  "title": "11-21-2025 Update",
+  "date": "2025-11-21",
+  "builds": 1,
+  "counts": {
+   "documented": 162,
+   "described": 97,
+   "hidden": 350
+  },
+  "line_counts": {
+   "described": 33,
+   "unmatched": 58,
+   "documented": 148,
+   "fix": 4,
+   "mismatch": 1,
+   "rounded": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-11-22",
+  "title": "11-21-2025 Update · follow-up 2025-11-22",
+  "date": "2025-11-22",
+  "builds": 9,
+  "counts": {
+   "documented": 5,
+   "described": 0,
+   "hidden": 72
+  },
+  "line_counts": {
+   "unmatched": 2,
+   "documented": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-11-27",
+  "title": "11-21-2025 Update · follow-up 2025-11-27",
+  "date": "2025-11-27",
+  "builds": 2,
+  "counts": {
+   "documented": 4,
+   "described": 0,
+   "hidden": 50
+  },
+  "line_counts": {
+   "unmatched": 5,
+   "documented": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-12-03",
+  "title": "11-21-2025 Update · follow-up 2025-12-03",
+  "date": "2025-12-03",
+  "builds": 4,
+  "counts": {
+   "documented": 14,
+   "described": 7,
+   "hidden": 44
+  },
+  "line_counts": {
+   "unmatched": 12,
+   "documented": 11,
+   "fix": 1,
+   "described": 7
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-12-16",
+  "title": "12-16-2025 Update",
+  "date": "2025-12-16",
+  "builds": 5,
+  "counts": {
+   "documented": 54,
+   "described": 11,
+   "hidden": 110
+  },
+  "line_counts": {
+   "unmatched": 27,
+   "documented": 40,
+   "described": 8,
+   "fix": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-12-17",
+  "title": "12-16-2025 Update · follow-up 2025-12-17",
+  "date": "2025-12-17",
+  "builds": 2,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 9
+  },
+  "line_counts": {
+   "unmatched": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-12-29",
+  "title": "12-29-2025 Update",
+  "date": "2025-12-29",
+  "builds": 1,
+  "counts": {
+   "documented": 30,
+   "described": 22,
+   "hidden": 12
+  },
+  "line_counts": {
+   "documented": 30,
+   "described": 10,
+   "fix": 1,
+   "unmatched": 1,
+   "mismatch": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2025-12-30",
+  "title": "12-29-2025 Update · follow-up 2025-12-30",
+  "date": "2025-12-30",
+  "builds": 9,
+  "counts": {
+   "documented": 11,
+   "described": 4,
+   "hidden": 9
+  },
+  "line_counts": {
+   "documented": 10,
+   "rounded": 1,
+   "described": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-01-20",
+  "title": "12-29-2025 Update · follow-up 2026-01-20",
+  "date": "2026-01-20",
+  "builds": 17,
+  "counts": {
+   "documented": 6,
+   "described": 0,
+   "hidden": 2339
+  },
+  "line_counts": {
+   "unmatched": 9,
+   "documented": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "build-6169",
+  "title": "Rem Enters The City That Never Sleeps",
+  "date": "2026-01-26",
+  "builds": 8,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 45
+  },
+  "line_counts": {},
+  "has_notes": false
+ },
+ {
+  "id": "2026-01-30",
+  "title": "01-30-2026 Update",
+  "date": "2026-01-30",
+  "builds": 8,
+  "counts": {
+   "documented": 76,
+   "described": 124,
+   "hidden": 262
+  },
+  "line_counts": {
+   "unmatched": 38,
+   "described": 47,
+   "documented": 75,
+   "rounded": 1,
+   "fix": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-02-02",
+  "title": "01-30-2026 Update · follow-up 2026-02-02",
+  "date": "2026-02-02",
+  "builds": 4,
+  "counts": {
+   "documented": 9,
+   "described": 12,
+   "hidden": 83
+  },
+  "line_counts": {
+   "described": 5,
+   "documented": 8
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-02-04",
+  "title": "01-30-2026 Update · follow-up 2026-02-04",
+  "date": "2026-02-04",
+  "builds": 14,
+  "counts": {
+   "documented": 25,
+   "described": 17,
+   "hidden": 108
+  },
+  "line_counts": {
+   "documented": 23,
+   "described": 12,
+   "fix": 4,
+   "unmatched": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-02-12",
+  "title": "01-30-2026 Update · follow-up 2026-02-12",
+  "date": "2026-02-12",
+  "builds": 2,
+  "counts": {
+   "documented": 32,
+   "described": 43,
+   "hidden": 18
+  },
+  "line_counts": {
+   "unmatched": 10,
+   "described": 22,
+   "documented": 31
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-02-13",
+  "title": "01-30-2026 Update · follow-up 2026-02-13",
+  "date": "2026-02-13",
+  "builds": 11,
+  "counts": {
+   "documented": 4,
+   "described": 58,
+   "hidden": 33
+  },
+  "line_counts": {
+   "documented": 4,
+   "described": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-02-17",
+  "title": "01-30-2026 Update · follow-up 2026-02-17",
+  "date": "2026-02-17",
+  "builds": 11,
+  "counts": {
+   "documented": 13,
+   "described": 9,
+   "hidden": 542
+  },
+  "line_counts": {
+   "fix": 2,
+   "documented": 12,
+   "described": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-03-06",
+  "title": "Gameplay Update - 03-06-2026",
+  "date": "2026-03-06",
+  "builds": 7,
+  "counts": {
+   "documented": 447,
+   "described": 1764,
+   "hidden": 627
+  },
+  "line_counts": {
+   "unmatched": 149,
+   "documented": 430,
+   "fix": 19,
+   "described": 547,
+   "rounded": 15,
+   "mismatch": 20
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-03-10",
+  "title": "03-06-2026 Update · follow-up 2026-03-10",
+  "date": "2026-03-10",
+  "builds": 5,
+  "counts": {
+   "documented": 56,
+   "described": 46,
+   "hidden": 177
+  },
+  "line_counts": {
+   "unmatched": 8,
+   "documented": 49,
+   "described": 18,
+   "fix": 4
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-03-21",
+  "title": "03-21-2026 Update",
+  "date": "2026-03-21",
+  "builds": 5,
+  "counts": {
+   "documented": 127,
+   "described": 197,
+   "hidden": 240
+  },
+  "line_counts": {
+   "unmatched": 18,
+   "documented": 126,
+   "described": 47,
+   "mismatch": 1,
+   "fix": 5,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-03-25",
+  "title": "03-25-2026 Update",
+  "date": "2026-03-25",
+  "builds": 12,
+  "counts": {
+   "documented": 36,
+   "described": 16,
+   "hidden": 95
+  },
+  "line_counts": {
+   "documented": 34,
+   "described": 10,
+   "unmatched": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-04-10",
+  "title": "04-10-2026 Update",
+  "date": "2026-04-10",
+  "builds": 7,
+  "counts": {
+   "documented": 85,
+   "described": 47,
+   "hidden": 95
+  },
+  "line_counts": {
+   "unmatched": 10,
+   "documented": 80,
+   "described": 20,
+   "fix": 5
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-04-30",
+  "title": "04-30-2026 Update",
+  "date": "2026-04-30",
+  "builds": 9,
+  "counts": {
+   "documented": 101,
+   "described": 107,
+   "hidden": 239
+  },
+  "line_counts": {
+   "unmatched": 17,
+   "documented": 96,
+   "fix": 10,
+   "described": 37,
+   "mismatch": 1,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-05-22",
+  "title": "05-22-2026 Update",
+  "date": "2026-05-22",
+  "builds": 3,
+  "counts": {
+   "documented": 160,
+   "described": 321,
+   "hidden": 414
+  },
+  "line_counts": {
+   "unmatched": 52,
+   "documented": 149,
+   "described": 82,
+   "fix": 19,
+   "mismatch": 4,
+   "rounded": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-05-25",
+  "title": "05-22-2026 Update · follow-up 2026-05-25",
+  "date": "2026-05-25",
+  "builds": 4,
+  "counts": {
+   "documented": 2,
+   "described": 0,
+   "hidden": 44
+  },
+  "line_counts": {
+   "unmatched": 11,
+   "documented": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-05-28",
+  "title": "05-22-2026 Update · follow-up 2026-05-28",
+  "date": "2026-05-28",
+  "builds": 2,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 49
+  },
+  "line_counts": {
+   "unmatched": 11,
+   "fix": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-05-31",
+  "title": "05-22-2026 Update · follow-up 2026-05-31",
+  "date": "2026-05-31",
+  "builds": 4,
+  "counts": {
+   "documented": 20,
+   "described": 1,
+   "hidden": 174
+  },
+  "line_counts": {
+   "documented": 19,
+   "unmatched": 1,
+   "described": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-06-04",
+  "title": "05-22-2026 Update · follow-up 2026-06-04",
+  "date": "2026-06-04",
+  "builds": 5,
+  "counts": {
+   "documented": 0,
+   "described": 3,
+   "hidden": 54
+  },
+  "line_counts": {
+   "unmatched": 15,
+   "described": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-06-11",
+  "title": "05-22-2026 Update · follow-up 2026-06-11",
+  "date": "2026-06-11",
+  "builds": 9,
+  "counts": {
+   "documented": 50,
+   "described": 74,
+   "hidden": 46
+  },
+  "line_counts": {
+   "documented": 48,
+   "unmatched": 5,
+   "fix": 8,
+   "described": 21
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-06-30",
+  "title": "06-30-2026 Update",
+  "date": "2026-06-30",
+  "builds": 2,
+  "counts": {
+   "documented": 80,
+   "described": 112,
+   "hidden": 213
+  },
+  "line_counts": {
+   "unmatched": 29,
+   "described": 33,
+   "documented": 80,
+   "fix": 1,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-07-01",
+  "title": "06-30-2026 Update · follow-up 2026-07-01",
+  "date": "2026-07-01",
+  "builds": 6,
+  "counts": {
+   "documented": 2,
+   "described": 14,
+   "hidden": 4
+  },
+  "line_counts": {
+   "documented": 2,
+   "described": 3
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-07-09",
+  "title": "06-30-2026 Update · follow-up 2026-07-09",
+  "date": "2026-07-09",
+  "builds": 5,
+  "counts": {
+   "documented": 38,
+   "described": 12,
+   "hidden": 12
+  },
+  "line_counts": {
+   "documented": 39,
+   "unmatched": 8,
+   "described": 7
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-07-28",
+  "title": "06-30-2026 Update · follow-up 2026-07-28",
+  "date": "2026-07-28",
+  "builds": 3,
+  "counts": {
+   "documented": 71,
+   "described": 73,
+   "hidden": 54
+  },
+  "line_counts": {
+   "documented": 67,
+   "unmatched": 3,
+   "fix": 2,
+   "described": 28
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-07-30",
+  "title": "Matchmaking Update",
+  "date": "2026-07-30",
+  "builds": 14,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 3
+  },
+  "line_counts": {
+   "unmatched": 46
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-08-12",
+  "title": "08-12-2026 Update",
+  "date": "2026-08-12",
+  "builds": 2,
+  "counts": {
+   "documented": 20,
+   "described": 39,
+   "hidden": 60
+  },
+  "line_counts": {
+   "documented": 19,
+   "described": 9,
+   "fix": 1,
+   "unmatched": 2
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-08-22",
+  "title": "08-22-2026 Update",
+  "date": "2026-08-22",
+  "builds": 4,
+  "counts": {
+   "documented": 10,
+   "described": 6,
+   "hidden": 1
+  },
+  "line_counts": {
+   "documented": 9,
+   "described": 2,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-09-16",
+  "title": "09-16-2026 Update",
+  "date": "2026-09-16",
+  "builds": 4,
+  "counts": {
+   "documented": 87,
+   "described": 173,
+   "hidden": 24
+  },
+  "line_counts": {
+   "unmatched": 14,
+   "documented": 81,
+   "described": 22,
+   "fix": 4,
+   "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "build-6711",
+  "title": "City Never Sleeps",
+  "date": "2026-09-29",
+  "builds": 3,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 2454
+  },
+  "line_counts": {},
+  "has_notes": false
+ }
+]

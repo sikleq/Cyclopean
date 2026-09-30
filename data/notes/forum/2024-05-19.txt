@@ -1,0 +1,6 @@
+05-19-2024 Update
+https://forums.playdeadlock.com/threads/05-19-2024-update.1033/
+[ Item Gameplay Changes ]
+
+- Kinetic Dash passive now has a 14s cooldown
+- Silence Glyph duration reduced from 5s to 3.5s

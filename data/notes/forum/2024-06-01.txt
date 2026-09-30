@@ -1,0 +1,4 @@
+06-01-2024 Update
+https://forums.playdeadlock.com/threads/06-01-2024-update.3004/
+- Return Fire: No longer applies procs
+- Return Fire: Bullet damage return increased from 60% to 70%

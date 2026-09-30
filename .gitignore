@@ -1,0 +1,6 @@
+vendor/
+.cache/
+dist/
+__pycache__/
+*.pyc
+*.tmp
