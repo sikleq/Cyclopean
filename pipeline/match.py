@@ -707,15 +707,21 @@ def sentence(name: str, c: dict) -> str:
     return f'{name}: {label} {verb} from {c.get("old_s", "")} to {c.get("new_s", "")}'
 
 
+KEY_MAX_PCT = 300          # bigger jumps are format changes (0.99 -> 99), not balance
+_TEST_ENTITY = re.compile(r'test|dummy|debug|_base$', re.I)
+
+
 def key_changes(ents: list[dict]) -> list[dict]:
     """The biggest balance moves of the window (by |percent|) for a summary."""
     rows = []
     for e in ents:
-        if e.get('kind') not in KEY_KINDS:
+        if e.get('kind') not in KEY_KINDS or _TEST_ENTITY.search(e.get('id', '')) \
+                or _TEST_ENTITY.search(e.get('name') or ''):
             continue
         for c in e['changes']:
-            if c.get('cat') == 'balance' and isinstance(c.get('pct'), (int, float)) and abs(c['pct']) >= 5 \
-                    and c.get('dir') in ('buff', 'nerf'):
+            if c.get('cat') == 'balance' and isinstance(c.get('pct'), (int, float)) \
+                    and 5 <= abs(c['pct']) <= KEY_MAX_PCT and c.get('dir') in ('buff', 'nerf') \
+                    and c.get('status') not in ('unreleased',):
                 rows.append({'entity': e['key'], 'name': e['name'], 'kind': e.get('kind'), 'owner': e.get('owner'),
                              'change': c})
     rows.sort(key=lambda r: -abs(r['change']['pct']))

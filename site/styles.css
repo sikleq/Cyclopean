@@ -478,7 +478,7 @@ table.notes tr:hover td { background: var(--bg-hover); }
 .hero-strip a { display: block; background: var(--bg-panel-2); padding: 3px; }
 .hero-strip a:hover { background: var(--bg-hover); outline: var(--px) solid var(--patina-dim); }
 .hero-strip img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
-@media (max-width: 980px) { .home-grid, .hero-head { grid-template-columns: 1fr; } }
+@media (max-width: 980px) { .home-grid, .hero-head { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- 10. Utilities ---------- */
 .muted { color: var(--text-dim); }
@@ -498,7 +498,6 @@ footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px 16
 table.hist img.gi { width: 22px; height: 22px; vertical-align: -5px; margin-right: 6px; object-fit: contain; }
 ul.gen-notes { margin: 0; padding-left: 18px; font-size: 13px; }
 ul.gen-notes li { margin: 2px 0; }
-grep -c 'style=' builders/home_page.py; printf '.home-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }\n.home-brand .mark { width: 54px; height: 54px; }\n.home-brand .mark svg { width: 54px; height: 54px; }\n.home-brand h1 { font: 52px/1 var(--font-brand); margin: 0; }\nh2.flush { margin-top: 0; }\n'  
 .home-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
 .home-brand .mark { width: 54px; height: 54px; }
 .home-brand .mark svg { width: 54px; height: 54px; }
@@ -509,5 +508,8 @@ h2.flush { margin-top: 0; }
 .flag.add { color: var(--tag-buff); }
 .flag.rem { color: var(--tag-nerf); }
 table.hist td.ov { white-space: nowrap; min-width: 150px; }
-printf '.item-hdr { margin-bottom: 10px; }\n'  
 .item-hdr { margin-bottom: 10px; }
+@media (max-width: 860px) {
+  table.hist, table.notes, table.kvt { display: block; max-width: 100%; overflow-x: auto; }
+  .hero-head .portrait { width: 110px; }
+}
