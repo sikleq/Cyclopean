@@ -54,7 +54,9 @@ def esc(s) -> str:
 
 
 def mark(status: str) -> str:
-    cls, svg, tip = STATUS_MARK.get(status, STATUS_MARK['hidden'])
+    if status not in STATUS_MARK:
+        return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
+    cls, svg, tip = STATUS_MARK[status]
     return f'<span class="mark {cls}" data-tooltip="{esc(tip)}">{svg}</span>'
 
 
@@ -110,7 +112,7 @@ def asset_version() -> str:
 
 
 def page(title: str, body: str, rel: str = '', active: str = '', build: int | None = None,
-         description: str = '') -> str:
+         description: str = '', wide: bool = False) -> str:
     tabs = ''.join(
         f'<a class="nav-tab{" active" if key == active else ""}" href="{rel}{href}">{label}</a>'
         for key, label, href in NAV)
@@ -136,7 +138,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
 <div class="nav-tabs">{tabs}</div>
 {build_s}
 </div></nav>
-<main class="page">
+<main class="page{' wide' if wide else ''}">
 {body}
 </main>
 <footer class="site-foot">Data: SteamTracking GameTracking-Deadlock, Steam News, the official Deadlock forum; icons from the game files. Not affiliated with Valve. · <a href="{rel}changelog.html">Site changelog</a> · <a href="https://github.com/sikleq/Cyclopean" rel="noopener">Source</a></footer>

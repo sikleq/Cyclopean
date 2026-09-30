@@ -168,6 +168,23 @@
     });
   });
 
+  /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
+  safe('tabs', function () {
+    var buttons = document.querySelectorAll('[data-tab]');
+    function open(id) {
+      buttons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === id); });
+      document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('on', p.id === id); });
+    }
+    buttons.forEach(function (b) {
+      b.addEventListener('click', function () {
+        open(b.getAttribute('data-tab'));
+        try { history.replaceState(null, '', '#' + b.getAttribute('data-tab')); } catch (e) { /* file:// */ }
+      });
+    });
+    var start = location.hash.replace('#', '');
+    if (start && document.getElementById(start) && document.getElementById(start).classList.contains('tab-panel')) open(start);
+  });
+
   /* ---------- search: filters elements with data-search ---------- */
   safe('search', function () {
     document.querySelectorAll('input[data-search-target]').forEach(function (input) {

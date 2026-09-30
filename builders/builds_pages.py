@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 from .common import build_pages, esc, load_json, page, write
-from .patches_pages import _loc_li, convar_li
-from .render import entity_block, group_by_owner
+from .patches_pages import _changes_table, _loc_li, convar_li
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 COSMETIC = ('visual', 'audio', 'ui', 'meta')
@@ -52,15 +51,13 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     head.append('<div class="stat-strip">' + ''.join(
         f'<div class="stat-box px-frame"><div class="n">{n}</div><div class="l">{esc(l)}</div></div>' for _, n, l in boxes) + '</div>')
     body = head
-    body.append('<div class="toolbar"><input type="search" placeholder="Filter…" data-search-target="#build-body .entity-block"></div>')
+    body.append('<div class="toolbar"><input type="search" placeholder="Hero, item…" data-search-target="#build-body tr[data-search]"></div>')
     body.append('<div id="build-body">')
     if ents:
         body.append('<section class="section"><h2>Gameplay data</h2>')
-        grouped = group_by_owner(ents)
-        for ent, children in grouped[:ENTITY_LIMIT]:
-            body.append(entity_block(ent, rel, children))
-        if len(grouped) > ENTITY_LIMIT:
-            body.append(f'<p class="muted">{len(grouped) - ENTITY_LIMIT} more entities not shown.</p>')
+        body.append(_changes_table(ents[:ENTITY_LIMIT], rel))
+        if len(ents) > ENTITY_LIMIT:
+            body.append(f'<p class="muted">{len(ents) - ENTITY_LIMIT} more entities not shown.</p>')
         body.append('</section>')
     if cosmetic:
         body.append('<p class="muted">Cosmetic fields changed: ' + ', '.join(f'{k} {v}' for k, v in sorted(cosmetic.items())) + '.</p>')

@@ -32,12 +32,13 @@ STEPS = (
 
 
 def refresh_data(sync: bool) -> None:
-    from pipeline import catalog, enrich, hero_table, history, item_table, match, news, tracker, unit_table
+    from pipeline import abilities, catalog, enrich, hero_table, history, item_table, match, news, tracker, unit_table
     if sync:
         print('tracker ->', tracker.sync()[:8])
     history.run()
     enrich.run()
     catalog.build()
+    abilities.build()
     hero_table.build()
     unit_table.build()
     item_table.build()

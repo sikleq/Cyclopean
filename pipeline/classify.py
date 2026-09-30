@@ -5,7 +5,8 @@ Categories (what kind of change a field path represents):
   balance      — a number that affects gameplay (values, scaling, costs, tiers)
   mechanic     — non-numeric gameplay data (flags, enums, classes, new/removed props)
   meta         — testing/recommendation flags, hero role/tags, template links
-  streetbrawl  — values that only apply in the Street Brawl mode
+  streetbrawl  — values that only apply in the Street Brawl mode (incl. item draft weights)
+  technical    — engine plumbing: scale-function wiring, state masks, curve spline points
   ui           — tooltip layout, CSS classes, display units, shop/stat panels
   visual       — particles, models, materials, images, colours, animations, camera
   audio        — sounds, voice lines, music
@@ -39,12 +40,29 @@ META_RE = re.compile(
 CAMERA_RE = re.compile(r'camera|recoil|punch|viewkick|shake', re.I)
 
 
-STREET_BRAWL_RE = re.compile(r'StreetBrawl', re.I)
+STREET_BRAWL_RE = re.compile(r'StreetBrawl|ItemDraft', re.I)
+
+# Engine plumbing that changes with refactors but carries no balance meaning:
+# scale-function wiring, state bit masks, property-type plumbing, spline
+# internals of curves (the gameplay value, e.g. m_flBulletSpeed, is kept).
+TECHNICAL_RE = re.compile(
+    r'(\.(_class|_my_subclass_name)$|m_eSpecificStatScaleType|m_vecScalingStats|'
+    r'm_bits\w*Mask|m_nEnabledStateMask|m_UsageFlags|m_eProvidedPropertyType|m_ValueType|'
+    r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|m_AutoIntrinsicModifiers|'
+    r'm_strAG2SourceName|m_nShopVersion|m_strSelectionNameOverride|m_eShopFilters|m_eAdditionalShopFilters|'
+    r'm_strDisableItemTarget|m_strPropertyName$|'
+    r'Curve\.|m_spline|m_flSlope|flPercentOnGraph|m_vDomainM(in|ax)s|\.(x|y)$|'
+    r'm_strContext$|m_strModifierContext|_editor)')
+UI_EXTRA_RE = re.compile(r'(^|\.)m_bIsHidden$')
 
 
 def category(path: str, old, new) -> str:
     if STREET_BRAWL_RE.search(path):
         return 'streetbrawl'
+    if TECHNICAL_RE.search(path):
+        return 'technical'
+    if UI_EXTRA_RE.search(path):
+        return 'ui'
     if AVAILABILITY_RE.search(path):
         return 'availability'
     if META_RE.search(path):

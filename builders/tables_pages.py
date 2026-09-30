@@ -76,7 +76,7 @@ def heroes_table() -> str:
                          lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [])
     body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', True) + table
     return page('Hero Stats', body, rel, 'tables', build=t['build'],
-                description='Deadlock hero stats with the full history of every value')
+                description='Deadlock hero stats with the full history of every value', wide=True)
 
 
 def units_table() -> str:
@@ -93,7 +93,7 @@ def units_table() -> str:
     table = render_table(t['columns'], t['units'], name_cell, 'Unit')
     body = '<h1>Units & Buildings</h1>' + tabs('units') + _toolbar('Unit…', False) + table
     return page('Units & Buildings', body, rel, 'tables', build=t['build'],
-                description='Deadlock troopers, guardians, walkers, patron and neutrals with the history of every value')
+                description='Deadlock troopers, guardians, walkers, patron and neutrals with the history of every value', wide=True)
 
 
 def items_table() -> str:
@@ -110,7 +110,7 @@ def items_table() -> str:
     table = render_table(t['columns'], t['items'], name_cell, 'Item')
     body = '<h1>Items</h1>' + tabs('items') + _toolbar('Item…', False) + table
     return page('Item Stats', body, rel, 'tables', build=t['build'],
-                description='Deadlock shop items with the history of every value')
+                description='Deadlock shop items with the history of every value', wide=True)
 
 
 def tabs(active: str) -> str:

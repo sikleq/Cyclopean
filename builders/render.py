@@ -1,7 +1,7 @@
 """Rendering of change records shared by patch, build and entity pages."""
 from __future__ import annotations
 
-from .common import entity_icon, esc, img, mark, slug
+from .common import esc, mark
 
 TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'changed': 6}
 KIND_LABEL = {
@@ -70,51 +70,3 @@ def change_li(c: dict, show_status: bool = True, show_builds: bool = False) -> s
         builds = f'<span class="bld">{esc(", ".join(str(b) for b in c["builds"]))}</span>'
     return (f'<li class="st-{esc(st)} cat-{esc(c.get("cat", ""))}">{status}{tag_html(c)}'
             f'<span class="lbl">{esc(c.get("label"))}</span>{vals_html(c)}{builds}</li>')
-
-
-def entity_block(ent: dict, rel: str, children: list[dict] | None = None, show_builds: bool = False) -> str:
-    """One entity (hero/item/unit) with its changes and optional child entities (abilities, weapon)."""
-    changes = sort_changes(ent.get('changes', []))
-    has_hidden = any(c.get('status') == 'hidden' for c in changes) or any(
-        c.get('status') == 'hidden' for ch in (children or []) for c in ch.get('changes', []))
-    href = slug(ent['file'], ent['id'])
-    name = esc(ent.get('name') or ent['id'])
-    name_html = f'<a href="{rel}{href}">{name}</a>' if href else name
-    ic = entity_icon(ent['file'], ent['id'], ent.get('kind', ''), rel)
-    kind = KIND_LABEL.get(ent.get('kind') or '', ent.get('kind') or '')
-    parts = [f'<div class="entity-block px-frame{" has-hidden" if has_hidden else ""}" data-search="{name.lower()}">',
-             f'<div class="entity-head">{img(ic, "", "px")}<span class="nm">{name_html}</span>'
-             f'<span class="chip kind">{esc(kind)}</span></div>']
-    if changes:
-        parts.append('<ul class="change-list">' + ''.join(change_li(c, show_builds=show_builds) for c in changes) + '</ul>')
-    for ch in children or []:
-        cic = entity_icon(ch['file'], ch['id'], ch.get('kind', ''), rel)
-        ck = KIND_LABEL.get(ch.get('kind') or '', '')
-        parts.append(f'<div class="entity-sub"><div class="entity-sub-head">{img(cic, "", "px")}'
-                     f'{esc(ch.get("name") or ch["id"])}<span class="chip">{esc(ck)}</span></div>'
-                     '<ul class="change-list">' + ''.join(change_li(c, show_builds=show_builds)
-                                                         for c in sort_changes(ch.get('changes', []))) + '</ul></div>')
-    parts.append('</div>')
-    return ''.join(parts)
-
-
-def group_by_owner(entities: list[dict]) -> list[tuple[dict, list[dict]]]:
-    """Nest ability/weapon entities under their hero; others stand alone."""
-    heroes = {e['id']: e for e in entities if e.get('file') == 'heroes.vdata'}
-    children: dict[str, list[dict]] = {}
-    standalone = []
-    for e in entities:
-        if e.get('file') == 'heroes.vdata':
-            continue
-        owner = e.get('owner')
-        if owner and e.get('kind') in ('ability', 'weapon', 'melee'):
-            children.setdefault(owner, []).append(e)
-            if owner not in heroes:
-                heroes[owner] = {'file': 'heroes.vdata', 'id': owner, 'kind': 'hero', 'name': e.get('owner_name') or owner,
-                                 'changes': []}
-        else:
-            standalone.append(e)
-    out = [(h, sorted(children.get(hid, []), key=lambda x: x.get('name') or '')) for hid, h in heroes.items()]
-    out.sort(key=lambda x: (x[0].get('name') or '').lower())
-    out += [(e, []) for e in standalone]
-    return out

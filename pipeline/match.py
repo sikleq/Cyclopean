@@ -490,7 +490,7 @@ def entity_events(extras: dict, notes_text: str, tok: dict[str, str]) -> list[di
 def count_statuses(changes: list[MChange], events: list[dict]) -> dict[str, int]:
     """Gameplay changes by status; a change repeated across many entities
     ('@shared') counts once, an added/removed entity counts once."""
-    counts = {'documented': 0, 'described': 0, 'hidden': 0}
+    counts = {'documented': 0, 'described': 0, 'hidden': 0, 'unannounced': 0}
     seen_shared: set[tuple] = set()
     for c in changes:
         if c.cat not in GAMEPLAY_CATS or c.file == 'convars':
@@ -515,20 +515,37 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     sections = annotate(p, changes, cat, tok)
     notes_text = ' '.join(ln for s in (p.notes.sections if p.notes else []) for ln in s.lines).lower()
     events = entity_events(extras, notes_text, tok)
+    if not p.notes:
+        # no changelog exists for this window: nothing can be "hidden from" notes
+        for c in changes:
+            c.status = 'unannounced'
+        for ev in events:
+            ev['change']['status'] = 'unannounced'
     entities: dict[str, dict] = {}
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}
     for cv in extras['convars']:
-        cv['status'] = cv_status.get(cv['name'], 'hidden')
+        cv['status'] = cv_status.get(cv['name'], 'unannounced' if not p.notes else 'hidden')
+    shared_groups: dict[tuple, dict] = {}
     for c in changes:
         if c.file == 'convars':
+            continue
+        name = (loc.plain(loc.hero_name(tok, c.eid) if c.file == 'heroes.vdata' else loc.entity_name(tok, c.eid))
+                if c.eid else c.eid)
+        if c.shared:
+            # one edit copied into many entities (a global rule): one block, not N
+            sig = (c.file, c.path, repr(c.old), repr(c.new))
+            grp = shared_groups.get(sig)
+            if grp is None:
+                grp = shared_groups[sig] = {'change': change_json(c), 'targets': []}
+            grp['targets'].append(name)
+            if STATUS_RANK[c.status] > STATUS_RANK[grp['change']['status']]:
+                grp['change']['status'] = c.status
             continue
         k = ent_key(c)
         e = cat.get(k, {})
         ent = entities.setdefault(k, {
             'key': k, 'file': c.file, 'id': c.eid, 'kind': e.get('kind'), 'owner': e.get('owner'),
-            'name': loc.plain(loc.hero_name(tok, c.eid) if c.file == 'heroes.vdata' else loc.entity_name(tok, c.eid))
-            if c.eid else c.eid,
-            'changes': [],
+            'name': name, 'changes': [],
         })
         ent['changes'].append(change_json(c))
     for ev in events:
@@ -536,21 +553,75 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         ent = entities.setdefault(k, {'key': k, 'file': ev['file'], 'id': ev['id'], 'kind': ev.get('kind'),
                                       'owner': ev.get('owner'), 'name': ev['name'], 'changes': []})
         ent['changes'].insert(0, ev['change'])
+    for (file, *_), grp in shared_groups.items():
+        targets = sorted(set(grp['targets']))
+        label = SHARED_NAMES.get(file, 'Many entries')
+        key = f"@shared:{file}:{len(targets)}:{','.join(targets[:3])}"
+        ent = entities.setdefault(key, {'key': key, 'file': file, 'id': '@shared', 'kind': 'shared',
+                                        'owner': None, 'name': f'{label} ({len(targets)})',
+                                        'targets': targets, 'changes': []})
+        ent['changes'].append(grp['change'])
+    for ent in entities.values():
+        for c in ent['changes']:
+            c['sentence'] = sentence(ent['name'], c)
     counts = count_statuses(changes, events)
     line_counts: dict[str, int] = {}
     for s in sections:
         for ln in s['lines']:
             line_counts[ln['status']] = line_counts.get(ln['status'], 0) + 1
+    ents = sorted(entities.values(), key=lambda e: (e['file'], e['name'] or ''))
     return {
         'id': p.id, 'title': p.title, 'date': p.date[:10],
         'url': p.notes.url if p.notes else p.link, 'source': p.notes.source if p.notes else ('announcement' if p.link else None),
         'builds': [{'build': b['build'], 'date': b['date'], 'file': b['file']} for b in p.builds],
         'sections': sections,
-        'entities': sorted(entities.values(), key=lambda e: (e['file'], e['name'] or '')),
+        'entities': ents,
+        'key_changes': key_changes(ents),
         'extras': slim_extras(extras),
         'counts': counts,
         'line_counts': line_counts,
     }
+
+
+STATUS_RANK = {'hidden': 0, 'unannounced': 0, 'described': 1, 'documented': 2}
+SHARED_NAMES = {'heroes.vdata': 'All heroes', 'abilities.vdata': 'Many abilities & items',
+                'npc_units.vdata': 'Many units', 'misc.vdata': 'Many map objects', 'modifiers.vdata': 'Many modifiers'}
+KEY_KINDS = {'hero', 'ability', 'weapon', 'item', 'building', 'trooper', 'neutral'}
+KEY_LIMIT = 24
+
+
+def sentence(name: str, c: dict) -> str:
+    """Valve-style line for a change: 'Abrams: Health increased from 780 to 800'."""
+    label = c.get('label') or ''
+    if c.get('path') == '@add':
+        return f'{name}: added to the game'
+    if c.get('path') == '@remove':
+        return f'{name}: removed from the game'
+    if c['op'] == 'add':
+        return f'{name}: {label} added ({c.get("new_s", "")})'
+    if c['op'] == 'remove':
+        return f'{name}: {label} removed (was {c.get("old_s", "")})'
+    try:
+        up = float(str(c.get('new_s')).rstrip('m%s')) > float(str(c.get('old_s')).rstrip('m%s'))
+        verb = 'increased' if up else 'reduced'
+    except ValueError:
+        verb = 'changed'
+    return f'{name}: {label} {verb} from {c.get("old_s", "")} to {c.get("new_s", "")}'
+
+
+def key_changes(ents: list[dict]) -> list[dict]:
+    """The biggest balance moves of the window (by |percent|) for a summary."""
+    rows = []
+    for e in ents:
+        if e.get('kind') not in KEY_KINDS:
+            continue
+        for c in e['changes']:
+            if c.get('cat') == 'balance' and isinstance(c.get('pct'), (int, float)) and abs(c['pct']) >= 5 \
+                    and c.get('dir') in ('buff', 'nerf'):
+                rows.append({'entity': e['key'], 'name': e['name'], 'kind': e.get('kind'), 'owner': e.get('owner'),
+                             'change': c})
+    rows.sort(key=lambda r: -abs(r['change']['pct']))
+    return rows[:KEY_LIMIT]
 
 
 LOC_GROUPS = ('citadel_heroes', 'citadel_mods', 'citadel_attributes', 'citadel_main',

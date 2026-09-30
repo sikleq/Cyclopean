@@ -14,6 +14,8 @@ pipeline/loc.py        english localization per build (names, labels, text diffs
 pipeline/history.py    -> data/builds/<build>_<commit8>.json.gz  (one record per tracker commit)
 pipeline/enrich.py     adds labels / display values / BUFF-NERF direction using THAT build's loc
 pipeline/catalog.py    -> data/entities.json  (every entity ever: kind, owner, first/last build, name)
+pipeline/abilities.py  -> data/abilities.json (current ability/item cards: the in-game tooltip rebuilt —
+                          m_AbilityTooltipDetails / m_vecTooltipSectionInfo, labels, units, spirit scaling, T1-T3 text)
 pipeline/hero_table.py -> data/tables/heroes.json (columns evaluated on every build -> cell histories)
 pipeline/unit_table.py -> data/tables/units.json  (troopers, buildings, neutrals; same idea)
 pipeline/item_table.py -> data/tables/items.json  (tier, cost from generic_data, main properties)
@@ -50,6 +52,14 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 | hidden | nothing in the notes covers it — the eye marker |
 | mismatch (line) | the line names a property of the entity but the files say other numbers |
 | fix (line) | a bug-fix line ("Fixed …") — usually no data change |
+| rounded (line) | the notes round a value (0.54 → "0.5"); exact values shown |
+| unannounced | a window with no changelog (e.g. City Never Sleeps): nothing can be "hidden"; the page shows
+  the biggest changes and patch notes written from the files |
+
+Field categories that never count as gameplay (so never "hidden"): `technical` (scale-function wiring,
+state masks, curve spline points), `streetbrawl` (incl. item draft weights), `ui`, `visual`, `audio`, `meta`.
+Changes copied into many entities (`@shared`, e.g. soul-investment bonuses in every hero) show once as
+"All heroes (N)".
 
 Matching rules live in `pipeline/match.py`; every fix to matching gets a test in
 `tests/test_pipeline.py`. Rules so far:
