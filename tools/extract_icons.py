@@ -222,7 +222,7 @@ def main() -> int:
     unexpected = [m for m in missing if m['key'] not in allowed]
     if not args.check:
         MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-        MANIFEST.write_text(json.dumps(dict(sorted(manifest.items())), indent=1), encoding='utf-8')
+        MANIFEST.write_text(json.dumps(dict(sorted(manifest.items())), indent=1), encoding='utf-8', newline='\n')
     print(f'icons: {len(manifest)} stored, {len(missing)} missing ({len(unexpected)} not allow-listed)')
     for m in unexpected[:40]:
         print('  MISSING', m['key'], m['ref'])

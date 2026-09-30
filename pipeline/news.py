@@ -53,7 +53,7 @@ def refresh() -> list[dict]:
             it['contents'] = ''
     merged = sorted(by_gid.values(), key=lambda it: it['date'])
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(merged, ensure_ascii=False, indent=1), encoding='utf-8')
+    OUT.write_text(json.dumps(merged, ensure_ascii=False, indent=1), encoding='utf-8', newline='\n')
     return merged
 
 

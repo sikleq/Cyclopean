@@ -21,7 +21,7 @@ def dump(path: Path, obj, indent: int | None = None) -> None:
         with open(tmp, 'wb') as raw, gzip.GzipFile(filename='', fileobj=raw, mode='wb', mtime=0, compresslevel=9) as f:
             f.write(text.encode('utf-8'))
     else:
-        tmp.write_text(text, encoding='utf-8')
+        tmp.write_text(text, encoding='utf-8', newline='\n')
     tmp.replace(path)
 
 
