@@ -18,6 +18,7 @@ from pipeline import jsonio  # noqa: E402
 DATA = ROOT / 'data'
 TRACKER_START = '2024-08-10'
 MISMATCH_WARN = 0.25            # share of note lines that disagree with the files
+NOT_MATCHABLE = ('heading', 'untracked', 'nodata', 'repeated')
 
 
 def main() -> int:
@@ -26,7 +27,9 @@ def main() -> int:
     for p in patches:
         if p['has_notes'] and p['date'] >= TRACKER_START and p['builds'] == 0:
             issues.append(('MEDIUM', f'patch {p["id"]} ({p["title"]}) has notes but no builds in its window'))
-        lines = sum(p['line_counts'].values())
+        # only lines that could match data: headings, untracked topics, lines without game
+        # files and repeated lines from edited posts would dilute the ratio
+        lines = sum(n for st, n in p['line_counts'].items() if st not in NOT_MATCHABLE)
         mis = p['line_counts'].get('mismatch', 0)
         if lines >= 20 and mis / lines > MISMATCH_WARN:
             issues.append(('MEDIUM', f'patch {p["id"]}: {mis}/{lines} lines mismatch the files — check the matcher'))

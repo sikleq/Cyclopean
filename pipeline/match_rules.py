@@ -169,6 +169,74 @@ def global_line(text: str, changes: list, cat: dict, num) -> list | None:
 COMPONENT_RE = re.compile(r'builds? (from|into)|no longer builds|component', re.I)
 AFFECTS_UPGRADES_RE = re.compile(r'affects? (its )?upgrades', re.I)
 
+# ---- 8. lines the compared data cannot carry ----
+# Sound, effects, client UI, map geometry, bots, forum links: these live in sound
+# events, particles, panorama and map files, not in the vdata we diff. Such a line
+# is 'untracked' (with a topic), not a matcher failure. Lines with numbers are never
+# untracked: "Side Walkers HP increased from 5,175 to 7,000" is data we should find.
+_LINK = re.compile(r'^\s*inspired by\b|\(?(thanks to )?https?://\S+\)?', re.I)
+UNTRACKED_TOPICS = (
+    ('sound', re.compile(r'\b(sounds?|audio|music|vo|voice ?lines?|voiceover|whizby|footsteps?|pings?)\b', re.I)),
+    # 'effects' alone is gameplay ("removes movement effects"): only the visual kinds
+    ('visual', re.compile(r'\b(visuals?|vfx|(visual|particle|impact|cast|trail|ambient|preview|screen|hit|updated)'
+                          r' effects?|effects? revisions?|particles?|animations?|models?|lighting|textures?|art|'
+                          r'muzzle flash|tracers?|glow|cosmetics?|skins?|outline|silhouette|ragdoll)\b', re.I)),
+    # never bare 'setting' (a verb: "rather than setting it to a low cap"), 'hotkey', 'indicator'
+    ('interface', re.compile(r'\b(ui|hud|interface|scoreboard|tooltips?|icons?|menus?|dashboard|leaderboards?|'
+                             r'build (browser|authoring|editor)|builds? browser|quickbuy|settings (menu|page|panel)|'
+                             r'(in|to) (the )?settings|keybinds?|replays?|spectat\w*|dialog|minimap|crosshair|'
+                             r'kill ?feed|chat|party|friends?|invites?|matchmaking|queue|lobby|profile|localization|'
+                             r'translations?|sandbox|hero labs?|tutorial|camera|mouse|controller|damage report|'
+                             r'default builds?|suggested|hud message|voice chat|text chat|mute|report(ing)? players?)\b',
+                             re.I)),
+    # map geometry only: "walls"/"cover"/"zipline"/"bounce pad"/"geometry" appear in gameplay
+    # lines ("can be cast through walls", "no longer prevents zipline usage", Holliday's Bounce Pad)
+    ('map', re.compile(r'\b(map|rooftops?|veils? (to|at|in|on|near|around)|terrain|garage|night ?club|courtyard|'
+                       r'traversal|navigat\w*|spawn area|fountain|stairs|ledges?|balcon(y|ies)|alley|juke)\b', re.I)),
+    ('bots', re.compile(r'\bbots?\b', re.I)),
+    ('performance', re.compile(r'\b(performance|optimi[sz]\w*|fps|memory|crash(es)?|stability|servers?|network\w*|'
+                               r'netcode|tick ?rate|latency|hitch\w*|stutter\w*|loading|shaders?|dlss|fsr\d?|'
+                               r'reflex|anti-?lag|upscal\w*|anti-?aliasing|vulkan|directx|dx1[12]|gpu|cpu|'
+                               r'preload\w*|vram)\b', re.I)),
+)
+# engine vocabulary that is never balance data, even with numbers ("tick rate from 60hz to
+# 64hz"); 'server' / 'latency' are not in it ("Soul Orbs have a 90ms buffer to allow the server")
+_ENGINE_WITH_DIGITS = re.compile(r'\b(tick ?rate|fps|\d+ ?hz|shaders?|dlss|fsr\d?|reflex|anti-?lag|upscal\w*|'
+                                 r'anti-?aliasing|vulkan|directx|dx1[12]|gpu|cpu|vram)\b', re.I)
+# a line about a hero or an ability can only be untracked for its sound or looks:
+# "Holliday: Bounce Pad now provides air control" is gameplay whatever the words
+SUBJECT_TOPICS = ('sound', 'visual')
+SECTION_TOPICS = (
+    ('sound', re.compile(r'sound|music|\bvo\b|audio', re.I)),
+    ('visual', re.compile(r'visual|art|cosmetic', re.I)),
+    ('interface', re.compile(r'interface|\bui\b|build authoring|localization|social|client|spectat', re.I)),
+    ('map', re.compile(r'\bmap\b', re.I)),
+)
+_DIGIT = re.compile(r'\d')
+
+
+def untracked_topic(text: str, section: str = '', has_subject: bool = False) -> str | None:
+    rest = _LINK.sub(' ', text).strip()
+    if not rest.strip(' .:-') or (_LINK.search(text) and not _DIGIT.search(rest) and len(rest) < 40):
+        return 'link'           # "Inspired by: https://…" — a numbered line with a link stays gameplay
+    has_digit = bool(_DIGIT.search(rest))
+    if has_digit:
+        if not has_subject and _ENGINE_WITH_DIGITS.search(rest):
+            return 'performance'
+        return None
+    for topic, rx in UNTRACKED_TOPICS:
+        if has_subject and topic not in SUBJECT_TOPICS:
+            continue
+        if rx.search(rest):
+            return topic
+    if has_subject:
+        return None
+    for topic, rx in SECTION_TOPICS:
+        if rx.search(section or ''):
+            return topic
+    return None
+
+
 # ---- 7. one line = one feature = many fields ----
 _CAMEL = re.compile(r'^m_[a-z]*((?:[A-Z][a-z0-9]+){1,3})')
 

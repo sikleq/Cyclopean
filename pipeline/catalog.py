@@ -93,7 +93,7 @@ def build() -> dict:
             elif e['file'] == 'npc_units.vdata':
                 e['name'] = loc.plain(tok.get(e.get('loc_key', ''))) or tok.get(e['id'].lower()) or e['id']
             else:
-                e['name'] = loc.entity_name(tok, e['id'])
+                e['name'] = loc.entity_name(tok, e['id'], e.get('owner'))
     for e in ents.values():
         e['last'] = e['last'][:2]
     data = {'build': head.build, 'entities': sorted(ents.values(), key=lambda e: (e['file'], e['id']))}

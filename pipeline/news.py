@@ -80,6 +80,7 @@ class Notes:
 
 
 _TAG_RE = re.compile(r'\[/?(?:b|i|u|p|h\d|list|olist|url[^\]]*|img[^\]]*|previewyoutube[^\]]*|hr|strike|spoiler|quote[^\]]*|code|table|tr|td|th)\]', re.I)
+_IMAGE_LINE = re.compile(r'^\{STEAM_CLAN_IMAGE\}\S*$|^https?://\S+\.(jpe?g|png|gif|webp)$', re.I)
 _SECTION_RE = re.compile(r'^\[\s*(.+?)\s*\]$')
 
 
@@ -89,7 +90,8 @@ def bbcode_lines(text: str) -> list[str]:
     t = re.sub(r'\[/p\]|\[br\]|\[/h\d\]|\[/list\]|\[/olist\]', '\n', t, flags=re.I)
     t = _TAG_RE.sub('', t)
     t = html.unescape(t).replace('\x00', '[').replace('\x01', ']')
-    return [ln.strip() for ln in t.splitlines() if ln.strip()]
+    # '{STEAM_CLAN_IMAGE}/…/x.jpg' is an inline picture left after the [img] tag is stripped
+    return [ln.strip() for ln in t.splitlines() if ln.strip() and not _IMAGE_LINE.match(ln.strip())]
 
 
 def parse_lines(lines: list[str]) -> list[Section]:

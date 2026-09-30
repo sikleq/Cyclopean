@@ -3,38 +3,46 @@ from __future__ import annotations
 
 import re
 
-from .common import esc, mark
+from .common import esc, ids_to_names, mark
 
-TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'changed': 6}
+# The tag set, chosen from what the data actually contains (all patches, 2026-10-01):
+# NEW 20k, DEL 11k, NERF 5.2k, BUFF 4k, CHANGED 2.5k, MECH 0.9k, availability 92.
+# The percentage is NOT in the badge: the value cell already shows it.
+TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'on': 5, 'off': 5, 'mech': 6, 'changed': 7}
 KIND_LABEL = {
     'hero': 'Hero', 'ability': 'Ability', 'weapon': 'Weapon', 'melee': 'Melee', 'item': 'Item',
     'ability_other': 'Ability', 'trooper': 'Trooper', 'building': 'Building', 'neutral': 'Neutral',
     'unit': 'Unit', 'modifier': 'Modifier', 'global': 'Game rules',
 }
+# availability fields where a truthy value means "switched OFF" ('Disabled', 'In Development');
+# for the rest ('Player Selectable', 'Enabled') truthy means ON
+_OFF_WHEN_TRUE = re.compile(r'disabled|in development|prerelease|pre-release', re.I)
+_TRUE = ('true', '1', 'yes')
+_FALSE = ('false', '0', 'no')
 
 
 def tag_of(c: dict) -> tuple[str, str]:
     """(css class, badge text) for one change dict (from data/patches or build pages)."""
     op, cat = c.get('op'), c.get('cat')
+    if op == 'rework':
+        return 'rework', 'REWORK'
     if cat == 'availability':
-        new = str(c.get('new')).lower()
-        if new in ('true', '1'):
-            return 'del', 'DISABLED'
-        if new in ('false', '0', 'ehherodevstate_release', 'eherodevstate_release'):
-            return 'new', 'ENABLED'
-        return 'changed', 'STATE'
+        new = str(c.get('new_s', c.get('new'))).lower()
+        if 'release' in new:          # EHeroDevState_Release / _PreRelease
+            return ('off', 'OFF') if 'pre' in new else ('on', 'ON')
+        truthy = True if new in _TRUE else False if new in _FALSE else None
+        if truthy is None:
+            return 'changed', 'CHANGED'
+        off = truthy if _OFF_WHEN_TRUE.search(str(c.get('label', '')) + str(c.get('path', ''))) else not truthy
+        return ('off', 'OFF') if off else ('on', 'ON')
     if op == 'add':
         return 'new', 'NEW'
     if op == 'remove':
         return 'del', 'DEL'
     d = c.get('dir')
-    pct = c.get('pct')
     if d in ('buff', 'nerf'):
-        txt = 'BUFF' if d == 'buff' else 'NERF'
-        if pct is not None:
-            txt += f' {abs(pct):.0f}%' if abs(pct) >= 1 else ''
-        return d, txt
-    return 'changed', 'MECH' if cat == 'mechanic' else 'CHANGED'
+        return d, d.upper()
+    return ('mech', 'MECH') if cat == 'mechanic' else ('changed', 'CHANGED')
 
 
 def tag_html(c: dict) -> str:
@@ -44,7 +52,101 @@ def tag_html(c: dict) -> str:
 
 
 def sort_changes(changes: list[dict]) -> list[dict]:
-    return sorted(changes, key=lambda c: (TAG_ORDER.get(tag_of(c)[0], 7), c.get('label', '')))
+    return sorted(changes, key=lambda c: (TAG_ORDER.get(tag_of(c)[0], 9), c.get('label', '')))
+
+
+# ---- grouping: one header per entity, tier swaps folded into REWORK rows ----
+
+_TIER = re.compile(r'^T(\d): (.+)$')
+# which status the folded row takes: the least documented one wins, so "Only hidden" keeps it
+_STATUS_WEIGHT = {'mismatch': 0, 'unreleased': 1, 'unannounced': 2, 'hidden': 3, 'described': 4,
+                  'rounded': 5, 'documented': 6, 'fix': 7}
+HIDDEN_LIKE = ('hidden', 'unreleased', 'unannounced')
+
+
+def fold_tier_swaps(changes: list[dict]) -> list[dict]:
+    """An upgrade tier whose bonuses were both removed and added in one patch was
+    replaced, not tweaked: 'T2: Buff Duration DEL, T2: Stun Duration NEW' becomes one
+    REWORK row 'T2 upgrade: Buff Duration 25, … → Stun Duration 0.6'."""
+    by_tier: dict[str, list[dict]] = {}
+    for c in changes:
+        m = _TIER.match(str(c.get('label', '')))
+        if m:
+            by_tier.setdefault(m.group(1), []).append(c)
+    swapped = {t for t, cs in by_tier.items()
+               if any(c.get('op') == 'add' for c in cs) and any(c.get('op') == 'remove' for c in cs)}
+    if not swapped:
+        return changes
+    out, done = [], set()
+    for c in changes:
+        m = _TIER.match(str(c.get('label', '')))
+        if not m or m.group(1) not in swapped:
+            out.append(c)
+            continue
+        t = m.group(1)
+        if t in done:
+            continue
+        done.add(t)
+        cs = by_tier[t]
+
+        def part(x: dict, side: str) -> str:
+            return f'{_TIER.match(x["label"]).group(2)} {x.get(side) or ""}'.strip()
+        old = ', '.join(part(x, 'old_s') for x in cs if x.get('op') != 'add')
+        new = ', '.join(part(x, 'new_s') for x in cs if x.get('op') != 'remove')
+        status = min((x.get('status', 'hidden') for x in cs), key=lambda s: _STATUS_WEIGHT.get(s, 9))
+        out.append({'op': 'rework', 'cat': cs[0].get('cat'), 'label': f'T{t} upgrade', 'old_s': old,
+                    'new_s': new, 'status': status, 'grad': 8, 'folded': len(cs)})
+    return out
+
+
+def tag_summary(changes: list[dict]) -> str:
+    """Tiny counters for an entity header: '3 BUFF 1 NERF'."""
+    counts: dict[str, int] = {}
+    for c in changes:
+        cls = tag_of(c)[0]
+        counts[cls] = counts.get(cls, 0) + 1
+    return '<span class="tsum">' + ''.join(
+        f'<span class="pip {cls}">{n}</span>' for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))
+    ) + '</span>'
+
+
+def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | None = None) -> str:
+    """'Biggest changes' table rows: icon + entity (+ its hero, dimmed) | tag | label | values."""
+    from .common import entity_icon, pretty_id
+    out = []
+    for r in rows:
+        file, _, eid = r['entity'].partition(':')
+        ic = entity_icon(file, eid, r.get('kind') or '', rel, r.get('name'), r.get('owner'))
+        pic = f'<img class="px" src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
+        name = r['name'] if r.get('name') and r['name'] != eid else pretty_id(eid, r.get('owner'))
+        who = (owner_names or {}).get(r.get('owner') or '')
+        who = f'<span class="own">{esc(who)}</span>' if who and who != name else ''
+        c = r['change']
+        out.append(f'<tr class="ch"><td class="sc">{pic}{esc(name)}{who}</td><td class="tg">{tag_html(c)}</td>'
+                   f'<td>{esc(c["label"])}</td><td class="ov">{vals_html(c)}</td></tr>')
+    return ''.join(out)
+
+
+def change_row(c: dict, extra_cls: str = '', search: str = '') -> str:
+    st = c.get('status', 'hidden')
+    ds = f' data-search="{esc(search)}"' if search else ''
+    return (f'<tr class="ch st-{esc(st)}{extra_cls}"{ds}><td class="st">{mark(st)}</td><td class="tg">{tag_html(c)}</td>'
+            f'<td class="lb">{esc(c.get("label"))}</td><td class="ov">{vals_html(c)}</td></tr>')
+
+
+def entity_rows(name: str, icon_url: str | None, changes: list[dict], search: str = '', href: str = '') -> list[str]:
+    """Header row (icon, name, tag counters) + one row per change, name not repeated."""
+    rows = sort_changes(fold_tier_swaps(changes))
+    if not rows:
+        return []
+    ic = f'<img class="px" src="{esc(icon_url)}" alt="" loading="lazy">' if icon_url else '<span class="px noimg"></span>'
+    nm = f'<a href="{esc(href)}">{esc(name)}</a>' if href else esc(name)
+    hidden = ' has-hidden' if any(c.get('status', 'hidden') in HIDDEN_LIKE for c in rows) else ''
+    dev = ' dev' if any(c.get('status') == 'unreleased' for c in rows) else ''
+    ds = f' data-search="{esc(search)}"' if search else ''
+    head = (f'<tr class="eh{hidden}{dev}"{ds}><td colspan="4"><span class="en">{ic}{nm}</span>'
+            f'{tag_summary(rows)}</td></tr>')
+    return [head] + [change_row(c, '', search) for c in rows]
 
 
 _FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|MODIFIER_STATE_|MODIFIER_VALUE_|EAbility|E[A-Z][a-z]+_|DOTA_)')
@@ -64,6 +166,9 @@ def _flags(s) -> list[str] | None:
 
 
 def _short_flag(f: str) -> str:
+    named = ids_to_names(f)
+    if named != f:
+        return named
     return _FLAG_PREFIX.sub('', f).replace('_', ' ').lower()
 
 
@@ -79,7 +184,7 @@ def flags_html(old_s, new_s) -> str | None:
 
 
 def _clip(s) -> str:
-    s = '' if s is None else str(s)
+    s = '' if s is None else ids_to_names(str(s))
     return s if len(s) <= LONG_VALUE else s[:LONG_VALUE - 1] + '…'
 
 
@@ -89,6 +194,9 @@ def vals_html(c: dict) -> str:
         return f'<span class="vals muted">{esc(op)}</span>'
     old_s = c.get('old_s', c.get('old'))
     new_s = c.get('new_s', c.get('new'))
+    if op == 'rework':            # folded tier swap: bonus lists, may wrap
+        return (f'<span class="vals wrap"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
+                f'<span class="new">{esc(new_s)}</span></span>')
     fl = flags_html(old_s, new_s)
     if fl:
         return fl

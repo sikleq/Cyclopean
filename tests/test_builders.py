@@ -1,5 +1,6 @@
 """Rendering helpers: tags, order, escaping."""
-from builders.render import change_li, sort_changes, tag_of
+from builders.hero_page import _strip_subject
+from builders.render import change_li, entity_rows, fold_tier_swaps, sort_changes, tag_of
 
 
 def ch(**kw):
@@ -10,18 +11,55 @@ def ch(**kw):
 
 
 def test_tags():
-    assert tag_of(ch()) == ('nerf', 'NERF 7%')
+    # no percentage in the badge: the value cell already shows it
+    assert tag_of(ch()) == ('nerf', 'NERF')
     assert tag_of(ch(op='add'))[0] == 'new'
     assert tag_of(ch(op='remove'))[0] == 'del'
-    assert tag_of(ch(cat='availability', new='true')) == ('del', 'DISABLED')
-    assert tag_of(ch(cat='mechanic', dir='changed', pct=None)) == ('changed', 'MECH')
+    assert tag_of(ch(cat='mechanic', dir='changed', pct=None)) == ('mech', 'MECH')
+    assert tag_of(ch(dir='changed', pct=None)) == ('changed', 'CHANGED')
+
+
+def test_availability_tags_follow_field_meaning():
+    # 'Disabled: no -> yes' switches OFF, 'Player Selectable: no -> yes' switches ON
+    assert tag_of(ch(cat='availability', label='Disabled', new_s='yes')) == ('off', 'OFF')
+    assert tag_of(ch(cat='availability', label='In Development', new_s='no')) == ('on', 'ON')
+    assert tag_of(ch(cat='availability', label='Player Selectable', new_s='yes')) == ('on', 'ON')
+    assert tag_of(ch(cat='availability', label='State', new_s='EHeroDevState_PreRelease')) == ('off', 'OFF')
+    assert tag_of(ch(cat='availability', label='State', new_s='EHeroDevState_Release')) == ('on', 'ON')
 
 
 def test_order_new_buff_nerf_del_changed():
     order = [tag_of(c)[0] for c in sort_changes([
         ch(cat='mechanic', dir='changed', label='a'), ch(op='remove', label='b'), ch(dir='nerf', label='c'),
-        ch(dir='buff', label='d'), ch(op='add', label='e')])]
-    assert order == ['new', 'buff', 'nerf', 'del', 'changed']
+        ch(dir='buff', label='d'), ch(op='add', label='e'), ch(dir='changed', label='f')])]
+    assert order == ['new', 'buff', 'nerf', 'del', 'mech', 'changed']
+
+
+def test_tier_swap_folds_into_one_rework_row():
+    rows = fold_tier_swaps([
+        ch(op='remove', label='T2: Buff Duration', old_s='25', new_s=None, status='described'),
+        ch(op='remove', label='T2: Fire Rate', old_s='14', new_s=None, status='described'),
+        ch(op='add', label='T2: Stun Duration', old_s=None, new_s='0.6', status='hidden'),
+        ch(op='add', label='T3: Impact Radius', old_s=None, new_s='6', status='documented'),
+        ch(label='Damage', old_s='75', new_s='100', dir='buff', status='documented'),
+    ])
+    rework = [r for r in rows if r['op'] == 'rework']
+    assert len(rework) == 1 and rework[0]['label'] == 'T2 upgrade'
+    assert rework[0]['old_s'] == 'Buff Duration 25, Fire Rate 14' and rework[0]['new_s'] == 'Stun Duration 0.6'
+    assert rework[0]['status'] == 'hidden'          # the least documented part decides
+    assert {r['label'] for r in rows} == {'T2 upgrade', 'T3: Impact Radius', 'Damage'}   # T3 only added: kept
+
+
+def test_entity_rows_name_once_with_counters():
+    html = ''.join(entity_rows('Seismic Impact', None, [ch(label='a'), ch(label='b', dir='buff'), ch(label='c')]))
+    assert html.count('Seismic Impact') == 1
+    assert 'class="pip nerf">2<' in html and 'class="pip buff">1<' in html
+    assert 'eh has-hidden' in html
+
+
+def test_unreleased_rows_marked_and_kept_in_hidden_view():
+    html = ''.join(entity_rows('Test', None, [ch(status='unreleased')]))
+    assert 'mark unreleased' in html and ' dev' in html and 'has-hidden' in html
 
 
 def test_change_li_escapes_and_marks_hidden():
@@ -34,3 +72,36 @@ def test_flag_lists_show_only_the_difference():
     html = vals_html(ch(cat='mechanic', old_s='CITADEL_ABILITY_BEHAVIOR_A | CITADEL_ABILITY_BEHAVIOR_B',
                         new_s='CITADEL_ABILITY_BEHAVIOR_B | CITADEL_ABILITY_BEHAVIOR_MOVEMENT', dir='changed', pct=None))
     assert '+movement' in html and '−a' in html and 'CITADEL' not in html
+
+
+def test_text_change_keys_read_as_names(monkeypatch):
+    from builders import patches_pages
+    monkeypatch.setattr(patches_pages, 'names_by_id', lambda: {'ability_afterburn': 'Afterburn', 'hero_atlas': 'Abrams'})
+    assert patches_pages.loc_key_label('ability_afterburn_t1_desc') == 'Afterburn · T1 description'
+    assert patches_pages.loc_key_label('ability_afterburn_burn_header') == 'Afterburn · burn header'
+    assert patches_pages.loc_key_label('hero_atlas:n') == 'Abrams · name'
+    assert patches_pages.loc_key_label('citadel_commend_toast_seconds') == 'commend toast seconds'
+
+
+def test_unnamed_entities_never_show_internal_ids():
+    from builders.common import pretty_id
+    assert pretty_id('citadel_weapon_frank_set', 'hero_frank') == 'Weapon'
+    assert pretty_id('citadel_weapon_viscous_alt', 'hero_viscous') == 'Alt weapon'
+    assert pretty_id('ability_druid_sprout', 'hero_druid') == 'Sprout'
+    assert pretty_id('citadel_ability_shiv_dive', 'hero_shiv') == 'Dive'
+    assert pretty_id('ability_doorman_ult', 'hero_doorman') == 'Ultimate'
+    assert pretty_id('ability_doorman_ability03', 'hero_doorman') == 'Ability 3'
+
+
+def test_id_lists_in_values_show_names(monkeypatch):
+    from builders import common
+    monkeypatch.setattr(common, 'names_by_id', lambda: {'ability_blood_bomb': 'Blood Bomb'})
+    assert common.ids_to_names('ability_blood_bomb, ability_blood_bomb') == 'Blood Bomb, Blood Bomb'
+    assert common.ids_to_names('CITADEL_ABILITY_BEHAVIOR_CLEAVE') == 'CITADEL_ABILITY_BEHAVIOR_CLEAVE'
+
+
+def test_hero_page_lines_drop_the_hero_name():
+    assert _strip_subject('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
+        'Melee damage per boon increased by 10%'
+    # another subject stays: the line is about the ability, not the hero
+    assert _strip_subject('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'

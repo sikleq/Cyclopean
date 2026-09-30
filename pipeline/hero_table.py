@@ -276,7 +276,7 @@ def build() -> dict:
             'type': str(hero.get('m_eHeroType') or '').replace('EHeroType_', ''),
             'complexity': hero.get('m_nComplexity'),
             'weapon': wid,
-            'weapon_name': loc.entity_name(tok, wid) if wid else None,
+            'weapon_name': loc.plain(loc.entity_name(tok, wid, hid)) if wid else None,
             'first_seen': first_seen.get(hid),
             'values': {k: pts[-1][2] for k, pts in hs.items()},
             'history': history,

@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 from .common import EYE_SVG, build_pages, esc, hero_icon, load_json, mark, page, write
-from .render import tag_html, vals_html
+from .patches_pages import hero_names
+from .render import key_change_rows
 
 
 def _latest_card(latest: dict | None) -> str:
@@ -17,9 +18,7 @@ def _latest_card(latest: dict | None) -> str:
                 f'<span class="chip">{mark("mismatch")}{lc.get("mismatch", 0)} mismatches</span>')
     else:
         nums = f'<span class="chip">{mark("hidden")}{c.get("unannounced", 0)} changes, no official numbers</span>'
-    rows = ''.join(f'<tr class="ch"><td class="sc">{esc(r["name"])}</td><td class="tg">{tag_html(r["change"])}</td>'
-                   f'<td>{esc(r["change"]["label"])}</td><td class="ov">{vals_html(r["change"])}</td></tr>'
-                   for r in (p.get('key_changes') or [])[:10])
+    rows = key_change_rows((p.get('key_changes') or [])[:10], '', hero_names())
     table = f'<table class="hist">{rows}</table>' if rows else ''
     return (f'<section class="section px-frame bright"><div class="crumbs">Latest update · {esc(latest["date"])}</div>'
             f'<h2 class="flush"><a href="patches/{esc(latest["id"])}.html">{esc(latest["title"])}</a></h2>'

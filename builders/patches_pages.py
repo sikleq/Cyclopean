@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from .common import build_href, esc, load_json, mark, page, write
+from .common import build_href, esc, ids_to_names, load_json, mark, names_by_id, page, pretty_id, write
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 
@@ -14,6 +14,8 @@ def _counts_html(p: dict) -> str:
     lc = p.get('line_counts', {})
     if not p.get('sections'):
         boxes = [('hidden', c.get('unannounced', 0), 'changes in the files — no official numbers published')]
+        if c.get('documented'):     # notes of an earlier patch that only landed in these builds
+            boxes.append(('documented', c['documented'], 'announced in earlier patch notes'))
     else:
         boxes = [
             ('documented', c.get('documented', 0), 'changes with exact numbers in the notes'),
@@ -22,6 +24,8 @@ def _counts_html(p: dict) -> str:
             ('mismatch', lc.get('mismatch', 0), 'note lines that disagree with the files'),
             ('fix', lc.get('fix', 0), 'bug fixes listed'),
         ]
+        if c.get('unreleased'):
+            boxes.insert(3, ('unreleased', c['unreleased'], 'changes to heroes still in development'))
     return '<div class="stat-strip">' + ''.join(
         f'<div class="stat-box px-frame {cls}"><div class="n">{n}</div><div class="l">{esc(lbl)}</div></div>'
         for cls, n, lbl in boxes) + '</div>'
@@ -35,14 +39,30 @@ def _notes_table(p: dict, change_by_key: dict) -> str:
     return f'<table class="notes">{"".join(rows)}</table>'
 
 
+TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
+               'map': 'map', 'bots': 'bots', 'performance': 'performance'}
+
+
 def _note_row(ln: dict, change_by_key: dict) -> str:
     """status | the official line | what the game files say."""
     st = ln['status']
-    m = mark(st) if st in ('documented', 'rounded', 'described', 'mismatch', 'fix') else ''
+    if st == 'heading':
+        return f'<tr class="sub"><td></td><td colspan="2">{esc(ln["text"])}</td></tr>'
+    m = mark(st) if st in ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata',
+                           'repeated') else ''
     files = ''
+    if st == 'repeated':
+        files = f'also in <a href="{esc(ln["see"]["patch"])}.html">{esc(ln["see"]["title"])}</a>'
+    elif st == 'untracked':
+        files = f'<span class="topic">{esc(TOPIC_LABEL.get(ln.get("topic"), ln.get("topic") or ""))}</span>'
     if st in ('mismatch', 'rounded') and ln.get('data'):
         files = f'<span class="v">{esc(ln["data"][0])}</span><span class="arrow">→</span><span class="v">{esc(ln["data"][1])}</span>'
         files = ('files: ' if st == 'mismatch' else 'exact: ') + files
+    elif st == 'documented' and ln.get('late'):
+        # the value changed in a later build than the notes (a follow-up days after)
+        late = ln['late']
+        blds = ', '.join(str(b) for b in late.get('builds', []))
+        files = (f'landed later: build {esc(blds)} · <a href="{esc(late["patch"])}.html">{esc(late["title"])}</a>')
     elif st == 'documented' and ln.get('changes'):
         c = change_by_key.get(ln['changes'][0])
         if c:
@@ -65,10 +85,26 @@ def hero_names() -> dict[str, str]:
             if e['file'] == 'heroes.vdata'}
 
 
+@lru_cache(maxsize=1)
+def catalog_names() -> dict[str, str]:
+    """entity key -> the latest known name: an ability localized only after the patch
+    still shows a name, not its internal id."""
+    return {f"{e['file']}:{e['id']}": e['name'] for e in load_json('entities.json')['entities']
+            if e.get('name') and e['name'] != e['id']}
+
+
+def _display_name(e: dict) -> str:
+    """Name at the patch's build; else the latest known name; else a readable stand-in, never the id."""
+    name = e.get('name') or e['id']
+    if name != e['id']:
+        return name
+    return catalog_names().get(f"{e['file']}:{e['id']}") or pretty_id(e['id'], e.get('owner'))
+
+
 def _changes_table(ents: list[dict], rel: str) -> str:
     """All gameplay changes: one table, grouped by hero (with its abilities), then items, units, rules."""
     from .common import entity_icon, hero_icon
-    from .render import sort_changes, tag_html, vals_html
+    from .render import HIDDEN_LIKE, change_row, entity_rows, fold_tier_swaps, sort_changes
     heroes = {e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
     by_owner: dict[str, list] = {}
     rest = []
@@ -94,32 +130,43 @@ def _changes_table(ents: list[dict], rel: str) -> str:
         hname = hero_label(hid)
         groups.append((hname, hero_icon(hid, rel), by_owner[hid]))
     for e in rest:
-        groups.append((e.get('name') or e['id'], entity_icon(e['file'], e['id'], e.get('kind', ''), rel), [e]))
+        groups.append((_display_name(e), entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'),
+                                                     e.get('owner')), [e]))
     trs = []
     for gname, gicon, members in groups:
-        n_h = sum(1 for e in members for c in e['changes'] if c.get('status') == 'hidden')
+        all_ch = [c for e in members for c in e['changes']]
+        n_h = sum(1 for c in all_ch if c.get('status') == 'hidden')
+        n_dev = sum(1 for c in all_ch if c.get('status') == 'unreleased')
         icon_html = f'<img class="px gi" src="{esc(gicon)}" alt="">' if gicon else ''
-        hid_chip = f' <span class="chip">{mark("hidden")}{n_h}</span>' if n_h else ''
-        trs.append(f'<tr class="ph" data-search="{esc(gname.lower())}"><td colspan="5"><span class="t">{icon_html}{esc(gname)}</span>{hid_chip}</td></tr>')
+        chips = f' <span class="chip">{mark("hidden")}{n_h}</span>' if n_h else ''
+        if n_dev:
+            chips += f' <span class="chip dev">{mark("unreleased")}{n_dev} in development</span>'
+        search = gname.lower()
+        dev = ' dev' if n_dev else ''
+        dev += ' has-hidden' if any(c.get('status', 'hidden') in HIDDEN_LIKE for c in all_ch) else ''
+        trs.append(f'<tr class="ph{dev}" data-search="{esc(search)}"><td colspan="4"><span class="t">{icon_html}'
+                   f'{esc(gname)}</span>{chips}</td></tr>')
+        solo = len(members) == 1 and members[0].get('kind') not in ('ability', 'weapon', 'melee')
         for e in members:
-            scope = e.get('name') or e['id']
+            if solo:          # an item / unit group: its header already names it
+                trs.extend(change_row(c, '', search) for c in sort_changes(fold_tier_swaps(e['changes'])))
+                continue
+            scope = _display_name(e)
+            if e['file'] == 'heroes.vdata' and e['id'] != '@shared':
+                scope = 'Base stats'
             if e.get('targets'):
                 scope += f' ({len(e["targets"])})'
-            for c in sort_changes(e['changes']):
-                st = c.get('status', 'hidden')
-                trs.append(f'<tr class="ch st-{esc(st)}" data-search="{esc(gname.lower())}"><td class="st">{mark(st)}</td>'
-                           f'<td class="sc">{esc(scope)}</td><td class="tg">{tag_html(c)}</td>'
-                           f'<td>{esc(c.get("label"))}</td><td class="ov">{vals_html(c)}</td></tr>')
-    return f'<table class="hist">{"".join(trs)}</table>'
+            ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
+            trs.extend(entity_rows(scope, ic, e['changes'], search))
+    return f'<table class="hist grouped">{"".join(trs)}</table>'
 
 
 def _key_changes(p: dict, rel: str) -> str:
     rows = p.get('key_changes') or []
     if not rows:
         return ''
-    from .render import tag_html, vals_html
-    trs = ''.join(f'<tr class="ch"><td class="sc">{esc(r["name"])}</td><td class="tg">{tag_html(r["change"])}</td>'
-                  f'<td>{esc(r["change"]["label"])}</td><td class="ov">{vals_html(r["change"])}</td></tr>' for r in rows)
+    from .render import key_change_rows
+    trs = key_change_rows(rows, rel, hero_names())
     return f'<h2>Biggest changes</h2><table class="hist px-frame">{trs}</table>'
 
 
@@ -132,7 +179,7 @@ def _generated_notes(p: dict) -> str:
                 lines.append(c['sentence'])
     if not lines:
         return ''
-    lis = ''.join(f'<li>{esc(s)}</li>' for s in lines[:1500])
+    lis = ''.join(f'<li>{esc(ids_to_names(s))}</li>' for s in lines[:1500])
     more = f'<p class="muted">+{len(lines) - 1500} more lines.</p>' if len(lines) > 1500 else ''
     return (f'<h2>Patch notes written from the files</h2><p class="muted">Valve published no numbers for this update; '
             f'every line below is read from the game files.</p><ul class="gen-notes cols-2">{lis}</ul>{more}')
@@ -150,7 +197,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     change_by_key = {}
     for e in p['entities']:
         for c in e['changes']:
-            c['ent_name'] = e.get('name')
+            c['ent_name'] = _display_name(e)
             change_by_key[c['key']] = c
     parts = [f'<div class="crumbs"><a href="index.html">Patches</a> / {esc(p["date"])}</div>',
              f'<h1>{esc(p["title"])}</h1>']
@@ -226,12 +273,44 @@ def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
     return out
 
 
+_KEY_HINT = re.compile(r"\{g:citadel_binding:'([^']*)'\}")
+
+
 def _plain(s) -> str:
-    return re.sub(r'<[^>]+>', '', str(s or ''))[:400]
+    """Loc text for display: no markup; key-binding tokens as [Attack]."""
+    t = re.sub(r'<[^>]+>', '', str(s or ''))
+    return _KEY_HINT.sub(r' [\1] ', t)[:400]
+
+
+_LOC_SUFFIX = re.compile(r'^(?P<base>.+?)(?P<suf>(?:_t(?P<tier>[1-3]))?_(?P<kind>desc|quip|header|lore|name|label|'
+                         r'tooltip|note)|_t(?P<tier2>[1-3])|:n)?$')
+_LOC_KIND = {'desc': 'description', 'quip': 'quip', 'header': 'header', 'lore': 'lore', 'name': 'name',
+             'label': 'label', 'tooltip': 'tooltip', 'note': 'note'}
+
+
+def loc_key_label(key: str) -> str:
+    """'ability_afterburn_t1_desc' -> 'Afterburn · T1 description'; unknown keys are
+    humanised ('citadel_commend_toast_seconds' -> 'commend toast seconds'). The raw key
+    stays available as the chip's tooltip."""
+    m = _LOC_SUFFIX.match(key.lower())
+    base, tier = m.group('base'), m.group('tier') or m.group('tier2')
+    part = ' '.join(p for p in (f'T{tier}' if tier else '', _LOC_KIND.get(m.group('kind') or '', '')) if p)
+    if m.group('suf') == ':n':
+        part = 'name'
+    names = names_by_id()
+    name, extra = names.get(base), []
+    while not name and '_' in base:       # 'ability_afterburn_burn' -> 'Afterburn' + 'burn'
+        base, _, tail = base.rpartition('_')
+        extra.insert(0, tail)
+        name = names.get(base)
+    if not name:
+        return re.sub(r'^(citadel_|ability_|modifier_|upgrade_)+', '', key.lower()).replace('_', ' ').replace(':', ' ')
+    part = ' '.join(extra + ([part] if part else []))
+    return f'{name} · {part}' if part else name
 
 
 def _loc_li(x: dict) -> str:
-    key = f'<span class="chip">{esc(x["key"])}</span>'
+    key = f'<span class="chip" data-tooltip="{esc(x["key"])}">{esc(loc_key_label(x["key"]))}</span>'
     old, new = x.get('old'), x.get('new')
     if old and new:
         body = (f'<span class="old">{esc(_plain(old))}</span><span class="arrow">→</span>'

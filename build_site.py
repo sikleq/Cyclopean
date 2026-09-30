@@ -29,12 +29,20 @@ STEPS = (
     ('tables', tables_pages.build_all),
     ('home', home_page.build_all),
 )
+# page folders each step owns: emptied first, so a patch that no longer exists
+# (merged or renamed window) leaves no stale page behind
+STEP_DIRS = {'patches': ('patches',), 'builds': ('builds',), 'entities': ('heroes', 'items', 'units'),
+             'tables': ('tables',)}
 
 
 def refresh_data(sync: bool) -> None:
     from pipeline import abilities, catalog, enrich, hero_table, history, item_table, match, news, tracker, unit_table
     if sync:
         print('tracker ->', tracker.sync()[:8])
+    # the last processed tracker commit: update-data.yml compares it with
+    # `git ls-remote` every 15 minutes and only clones when the tracker moved
+    head = tracker.git('rev-parse', 'HEAD').strip()
+    (ROOT / 'data' / 'tracker_head.txt').write_text(head + '\n', encoding='utf-8')
     history.run()
     enrich.run()
     catalog.build()
@@ -84,6 +92,8 @@ def main() -> int:
         return 2
     for key, fn in STEPS:
         if key in wanted:
+            for d in STEP_DIRS.get(key, ()):
+                shutil.rmtree(DIST / d, ignore_errors=True)
             t = time.time()
             n = fn()
             print(f'  {key:9s} {n} ({time.time() - t:.1f}s)')

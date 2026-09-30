@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Weapon block, grouped history, readable tags, new builds within 15 minutes",
+    "items": [
+      "Hero pages: the weapon comes first as its own block with its in-game name (Abrams: Case Closed) and every gun number; abilities follow; the other stats are compact panels with the game's stat icons.",
+      "History and patch changes are grouped by ability: one header with counters, the rows below without repeating the name; a tier whose bonuses were swapped shows as one REWORK row.",
+      "Tags: smaller, readable, no duplicated percentage; availability shows ON / OFF; mechanic changes MECH.",
+      "Changes to heroes still in development are marked with a flask and a violet tint, and counted on patch pages.",
+      "Patch notes: sub-headings are recognised, lines about sound, visuals, interface, the map or the engine are marked as not part of the compared data, May 2024 lines as having no game files, lines that an edited Steam post copied from a later update point to it; unlinked note lines went from 3,716 to about 1,700.",
+      "Notes that reached the game files days later are tied to the build where they landed: the 12-06-2024 update now includes its 12-14 builds instead of a separate 'unannounced' update.",
+      "Text-change lists show names ('Afterburn · T1 description') instead of localization keys.",
+      "Hero pages drop the hero's name from note lines; abilities re-created under a new id keep their icon.",
+      "Hero Stats table: thin grid lines and centred numbers.",
+      "New game builds are picked up automatically within about 15 minutes."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "History from June 2024, sharper hidden-change detection, new hero and patch pages",
     "items": [
       "Game data now starts on 2024-06-06 (the predecessor tracker): 11 more early patches are checked against the files.",

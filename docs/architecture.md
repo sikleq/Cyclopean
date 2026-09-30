@@ -22,6 +22,9 @@ pipeline/item_table.py -> data/tables/items.json  (tier, cost from generic_data,
 pipeline/news.py       -> data/notes/steam.json (Steam News API); forum notes in data/notes/forum/*.txt
 pipeline/patches.py    groups builds into patch windows (changelogs; notes-less big builds get their own)
 pipeline/match.py      -> data/patches/<id>.json.gz  notes lines ⇄ data changes; documented/described/hidden/mismatch/fix
+                          (+ line statuses heading/untracked/nodata; change status unreleased)
+data/tracker_head.txt  last processed tracker commit: update-data.yml checks it against `git ls-remote`
+                          every 15 min and only clones + rebuilds when the tracker moved
 pipeline/jsonio.py     JSON I/O; *.json.gz is gzip (deterministic, mtime=0) — indexes stay plain JSON
         │
         ▼  (data/ is committed; the site never needs the tracker)
@@ -55,6 +58,30 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 | rounded (line) | the notes round a value (0.54 → "0.5"); exact values shown |
 | unannounced | a window with no changelog (e.g. City Never Sleeps): nothing can be "hidden"; the page shows
   the biggest changes and patch notes written from the files |
+| unreleased | a change to a hero still in development at that build — flask mark, violet rows; kept in "Only hidden" |
+| heading (line) | a bare entity name ("Sinclair") heading the lines below it: those lines get it as their subject |
+| untracked (line) | sound / visuals / interface / map / bots / performance / forum links: not in the diffed vdata, so not a matcher failure (`match_rules.untracked_topic`; a line with numbers is never untracked) |
+| nodata (line) | the patch predates every tracker (May 2024): nothing to compare with |
+| repeated (line) | an edited Steam post carries a line that a later patch's notes have and match (the 2026-03-06 post holds 03-21 lines): points to that patch |
+| unmatched (line) | should be in the data but no change was found — a real matcher gap |
+
+## Tags (badges)
+
+Chosen from what the data contains (all patches, 2026-10-01): NEW 20k, DEL 11k, NERF 5.2k, BUFF 4k,
+CHANGED 2.5k, MECH 0.9k, availability 92. The badge never repeats the percentage (the value cell has it).
+
+| Tag | When |
+|---|---|
+| NEW / DEL | field or entity added / removed |
+| BUFF / NERF | numeric change, direction by the field's polarity (`pipeline/semantics.py`) |
+| REWORK | an upgrade tier whose bonuses were removed and added in one patch (`render.fold_tier_swaps`) |
+| MECH | mechanic field (behaviour flags, dependencies) without a direction |
+| CHANGED | value without a known direction |
+| ON / OFF | availability: `Disabled`/`In Development` truthy = OFF, `Player Selectable`/release state = ON |
+
+On hero and patch pages changes are grouped: patch or hero → one header per ability (icon, name, tag
+counters) → its rows without the name repeated. Abilities re-created under a new id borrow the icon of
+their namesake with the same owner (`common.entity_icon`).
 
 Field categories that never count as gameplay (so never "hidden"): `technical` (scale-function wiring,
 state masks, curve spline points), `streetbrawl` (incl. item draft weights), `ui`, `visual`, `audio`, `meta`.
@@ -91,6 +118,9 @@ hidden changes stay hidden (2026-10-01: coverage 76%, real hidden kept 90%).
 | one line about a new mechanic | sibling fields added/removed together (same block / same field prefix) |
 | "Bullets no longer have gravity" | word links need a specific word (not just bullet/damage/spirit) |
 | changes to heroes not released at that build | status `unreleased`, not `hidden` |
+| "from 5,175 to 7,000" | thousands separators are stripped before reading pairs |
+| a bare "Sinclair" line, then "Now has +1% Spirit Resist per Boon." | the name is a sub-heading (`heading`): lines below get it as subject |
+| notes published days before the files change (2024-12-06 notes, values in build 5433 on 12-14) | a notes-less window right after a changelog that carries ≥10 of its numbered lines exactly is merged into it (`absorb_late_windows`); single lines link to a hidden change of the same subject with exactly their numbers within 14 days (`late_landings`, shown as "landed later: build N") |
 
 ## Patch windows
 

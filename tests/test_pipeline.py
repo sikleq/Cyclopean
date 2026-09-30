@@ -285,3 +285,115 @@ def test_forum_follow_ups_become_separate_notes(tmp_path, monkeypatch):
 def test_parse_pairs_words_between_number_and_to():
     assert parse_pairs('Flog T3 reduced from +40 degrees angle to +25') == [(40.0, 25.0)]
     assert parse_pairs('Wrecking Ball: Increase base Damage from 80 to 150') == [(80.0, 150.0)]
+
+
+def test_note_that_landed_in_a_later_build_is_linked():
+    from types import SimpleNamespace
+    from pipeline.match import late_landings
+    cat = {'heroes.vdata:hero_x': {'file': 'heroes.vdata', 'id': 'hero_x', 'name': 'X'}}
+    line = {'text': "Diviner's Kevlar: Cooldown Reduction reduced from 12% to 10%", 'subject': "Diviner's Kevlar",
+            'status': 'unmatched', 'changes': []}
+    early = (SimpleNamespace(id='a', date='2024-12-06', title='A'),
+             {'sections': [{'title': 'Items', 'lines': [line]}], 'entities': [],
+              'counts': {'hidden': 0}, 'line_counts': {'unmatched': 1}})
+    change = {'key': 'k', 'label': 'Cooldown Reduction', 'old_s': '12', 'new_s': '10', 'cat': 'balance',
+              'status': 'hidden', 'builds': [5433]}
+    later = (SimpleNamespace(id='b', date='2024-12-14', title='B'),
+             {'sections': [], 'entities': [{'name': "Diviner's Kevlar", 'owner': None, 'changes': [change]}],
+              'counts': {'hidden': 1, 'documented': 0}, 'line_counts': {}})
+    too_late = (SimpleNamespace(id='c', date='2025-02-01', title='C'), later[1])
+    assert late_landings([early, too_late], cat) == 0
+    assert late_landings([early, later], cat) == 1
+    assert line['status'] == 'documented' and line['late']['builds'] == [5433]
+    assert change['status'] == 'documented' and later[1]['counts'] == {'hidden': 0, 'documented': 1}
+
+
+def test_notes_less_window_implementing_a_changelog_is_merged(monkeypatch):
+    from pipeline import match
+    from pipeline.patches import Patch
+    monkeypatch.setattr(match, 'ABSORB_MIN', 2)
+    monkeypatch.setattr(match, 'build_patch', lambda p, cat: {'rebuilt': [b['build'] for b in p.builds]})
+    lines = [{'text': f'Kevlar: Stat{w} increased from {i} to {i + 1}', 'subject': 'Kevlar', 'status': 'unmatched',
+              'changes': []} for w, i in (('alpha', 1), ('beta', 5))]
+    notes = match.Patch('2024-12-06', 'A', '2024-12-06', notes=object(), builds=[{'build': 1, 'date': '2024-12-06'}])
+    later = Patch('build-2', 'B', '2024-12-14', notes=None, builds=[{'build': 2, 'date': '2024-12-14'}])
+    changes = [{'label': f'Stat{w}', 'old_s': str(i), 'new_s': str(i + 1), 'cat': 'balance', 'status': 'unannounced'}
+               for w, i in (('alpha', 1), ('beta', 5))]
+    results = [(notes, {'sections': [{'lines': lines}]}),
+               (later, {'sections': [], 'entities': [{'name': 'Kevlar', 'owner': None, 'changes': changes}]})]
+    merged, absorbed = match.absorb_late_windows(results, {})
+    assert absorbed == ['build-2'] and len(merged) == 1 and merged[0][1] == {'rebuilt': [1, 2]}
+
+
+def test_line_of_an_edited_post_points_to_the_later_patch():
+    from types import SimpleNamespace
+    from pipeline.match import repeated_lines
+    text = 'Celestial Blessing: Heal min increased from 300 to 400'
+    early = {'sections': [{'lines': [{'text': text, 'status': 'unmatched'}]}], 'line_counts': {'unmatched': 1}}
+    later = {'sections': [{'lines': [{'text': text, 'status': 'documented'}]}], 'line_counts': {'documented': 1}}
+    results = [(SimpleNamespace(id='2026-03-06', title='A'), early), (SimpleNamespace(id='2026-03-21', title='B'), later)]
+    assert repeated_lines(results) == 1
+    ln = early['sections'][0]['lines'][0]
+    assert ln['status'] == 'repeated' and ln['see']['patch'] == '2026-03-21'
+    assert early['line_counts'] == {'unmatched': 0, 'repeated': 1}
+
+
+def test_parse_pairs_thousands_separator():
+    assert parse_pairs('Side Walkers HP increased from 5,175 to 7,000.') == [(5175.0, 7000.0)]
+    assert parse_pairs('Patron health from 12,000 to 13,500') == [(12000.0, 13500.0)]
+    # an unspaced per-tier list is not a thousands number
+    assert parse_pairs('Bounty from 160,180,200 to 170,190,210') != [(160180200.0, 170190210.0)]
+
+
+def test_weapon_name_comes_from_the_owning_hero():
+    from pipeline import loc
+    tok = {'citadel_weapon_atlas_set': 'Case Closed', 'citadel_weapon_atlas_set_desc': 'Reloads single shells'}
+    assert loc.entity_name(tok, 'citadel_weapon_bull_set', 'hero_atlas') == 'Case Closed'
+    assert loc.loc_base(tok, 'citadel_weapon_bull_set', 'hero_atlas') == 'citadel_weapon_atlas_set'
+    assert loc.entity_name(tok, 'citadel_weapon_bull_set') == 'citadel_weapon_bull_set'   # no owner: id
+    assert loc.entity_name({'x': 'Own'}, 'x', 'hero_atlas') == 'Own'                      # own name first
+    tok = {'citadel_weapon_shiv_set': 'Busted Flush'}
+    assert loc.entity_name(tok, 'citadel_weapon_shiv_alt', 'hero_shiv') == 'citadel_weapon_shiv_alt'  # alt fire
+
+
+def test_bare_entity_name_line_is_a_heading():
+    from pipeline.match import heading
+    idx = {'sinclair': ['heroes.vdata:hero_magician'], 'boundless spirit': ['abilities.vdata:upgrade_x']}
+    assert heading('Sinclair', idx) == 'Sinclair'
+    assert heading('Boundless Spirit:', idx) == 'Boundless Spirit'
+    assert heading('Now has +1% Spirit Resist per Boon.', idx) is None
+    assert heading('Mo & Krill', idx) is None           # unknown name: not a heading
+
+
+def test_untracked_topics_never_swallow_numbers():
+    from pipeline.match_rules import untracked_topic
+    assert untracked_topic('Updated sounds for Wraith Card Trick projectile') == 'sound'
+    assert untracked_topic('New slam animation.') == 'visual'
+    assert untracked_topic('Pass at making rooftops smoother to navigate') == 'map'
+    assert untracked_topic('Inspired by: https://forums.playdeadlock.com/threads/x.1539/') == 'link'
+    assert untracked_topic('Abandon Match dialog is now more clear') == 'interface'
+    assert untracked_topic('Updated effects revisions') == 'visual'
+    # gameplay lines stay unmatched (a matcher gap to fix, not "not in data")
+    assert untracked_topic('Side Walkers HP increased from 5,175 to 7,000 on the map') is None
+    assert untracked_topic('Burrow is no longer affected by Shoulder Charge') is None
+    assert untracked_topic('Knockdown now removes movement effects') is None
+    assert untracked_topic('No longer blocked by Veil Walker') is None
+    # the section decides for a bare line in "Sound, Music, and VO Changes"
+    assert untracked_topic('Added for most heroes.', 'Sound, Music, and VO Changes') == 'sound'
+    # engine words are never balance data, numbers or not; 'server' with a number is
+    assert untracked_topic('Increased tick rate from 60hz to 64hz') == 'performance'
+    assert untracked_topic('Added support for DLSS as an FSR2 alternative') == 'performance'
+    assert untracked_topic('Trooper Soul Orbs now have a 90ms buffer to allow the server to catch up') is None
+    # zipline / bounce pad / geometry / 'setting' are gameplay words too (review 2026-10-01)
+    assert untracked_topic('Damage over time no longer prevents zipline usage') is None
+    assert untracked_topic('Reduces your speed rather than setting it to a low cap') is None
+    # a hero or ability line is only untracked for its sound or looks
+    assert untracked_topic('Bounce Pad now provides allies with air control', has_subject=True) is None
+    assert untracked_topic('Leap gets stuck on the map geometry', has_subject=True) is None
+    assert untracked_topic('New slam animation.', has_subject=True) == 'visual'
+    # a numbered line that merely credits a forum thread is gameplay
+    assert untracked_topic('Spirit Snatch: steal 12% Spirit Resist (Thanks to https://forums.x/t/1)') is None
+
+
+def test_inline_images_are_not_note_lines():
+    assert bbcode_lines('[img]{STEAM_CLAN_IMAGE}/45164767/8b22ee.jpg[/img]\n[*] Real line') == ['Real line']

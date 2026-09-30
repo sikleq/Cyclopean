@@ -8,6 +8,11 @@ each note line to changes:
   described  — the line talks about the entity / a global keyword without
                exact numbers ("All slows reduced by ~20%", "Now builds from X")
   hidden     — (per change) nothing in the notes covers it
+  heading    — (line) a bare entity name heading the lines below it
+  untracked  — (line) sound / effects / UI / map / bots / links: not in the diffed data
+  nodata     — (line) the patch predates every tracker, nothing to compare with
+  repeated   — (line) an edited post repeats a line that a later patch's notes carry and match
+  unmatched  — (line) should be in the data, but no change was found: a matcher gap
 
     python -m pipeline.match   ->  data/patches/<id>.json.gz + data/patches/index.json
 """
@@ -171,7 +176,13 @@ def expand_words(ws: set[str]) -> set[str]:
     return out
 
 
+# "5,175" / "12,000" but not the unspaced list "160,180,200"
+_THOUSANDS = re.compile(r'(?<![\d,])(\d{1,3}),(\d{3})(?![\d,])')
+
+
 def parse_pairs(text: str) -> list[tuple[float, float]]:
+    # "from 5,175 to 7,000": thousands separators; list commas ("5, 6") keep their space
+    text = _THOUSANDS.sub(r'\1\2', text)
     pairs = []
     for m in _PAIR_RE.finditer(text):
         a = [float(x) for x in re.findall(_NUM, m.group('a'))]
@@ -279,7 +290,7 @@ def name_index(changes: list[MChange], cat: dict[str, dict], tok: dict[str, str]
         if e['file'] == 'heroes.vdata':
             nm = loc.hero_name(tok, e['id'])
         elif e['file'] == 'abilities.vdata':
-            nm = loc.entity_name(tok, e['id'])
+            nm = loc.entity_name(tok, e['id'], e.get('owner'))
         if nm and nm != e['id']:
             for variant in rules.name_variants(loc.plain(nm)):
                 idx.setdefault(variant, []).append(key)
@@ -349,11 +360,39 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
     sections = []
     for sec in (p.notes.sections if p.notes else []):
         out_lines = []
+        head = None
         for text in sec.lines:
-            out_lines.append(annotate_line(text, changes, by_ent, idx, cat, tok))
+            h = heading(text, idx)
+            if h:
+                # the 2025 layout: a bare 'Sinclair' line heads the lines below it
+                head = h
+                out_lines.append({'text': text, 'subject': h, 'status': 'heading', 'changes': []})
+                continue
+            own_prefix = ':' in text[:48] and resolve_subject(text.split(':', 1)[0], idx, cat)
+            probe = f'{head}: {text}' if head and not own_prefix else text
+            res = annotate_line(probe, changes, by_ent, idx, cat, tok)
+            res['text'] = text
+            if res['status'] == 'unmatched':
+                topic = rules.untracked_topic(text.split(':', 1)[1] if own_prefix else text, sec.title,
+                                              has_subject=bool(res.get('subject')))
+                if topic:
+                    res['status'] = 'untracked'
+                    res['topic'] = topic
+            out_lines.append(res)
         sections.append({'title': sec.title, 'lines': out_lines})
     post_pass(changes, by_ent)
     return sections
+
+
+_HEADING_MAX = 40
+
+
+def heading(text: str, idx: dict[str, list[str]]) -> str | None:
+    """A line that is only an entity name ('Boundless Spirit') is a sub-heading."""
+    t = text.strip().rstrip(':').strip()
+    if not t or len(t) > _HEADING_MAX or ':' in t or re.search(r'\d', t):
+        return None
+    return t if idx.get(t.lower()) else None
 
 
 def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
@@ -409,7 +448,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         low = rest.lower()
         for k in subject.ids:
             e = cat.get(k, {})
-            nm = loc.plain(loc.entity_name(tok, e.get('id', ''))).lower()
+            nm = loc.plain(loc.entity_name(tok, e.get('id', ''), e.get('owner'))).lower()
             if nm and len(nm) > 2 and any(v in low for v in rules.name_variants(nm)):
                 ability_hits.add(k)
         if lw & WEAPON_WORDS:
@@ -608,7 +647,8 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     for c in changes:
         if c.file == 'convars':
             continue
-        name = (loc.plain(loc.hero_name(tok, c.eid) if c.file == 'heroes.vdata' else loc.entity_name(tok, c.eid))
+        name = (loc.plain(loc.hero_name(tok, c.eid) if c.file == 'heroes.vdata'
+                          else loc.entity_name(tok, c.eid, cat.get(ent_key(c), {}).get('owner')))
                 if c.eid else c.eid)
         if c.shared:
             # one edit copied into many entities (a global rule): one block, not N
@@ -647,6 +687,8 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     line_counts: dict[str, int] = {}
     for s in sections:
         for ln in s['lines']:
+            if ln['status'] == 'unmatched' and not p.builds:
+                ln['status'] = 'nodata'     # May 2024: no tracker holds game files for these dates
             line_counts[ln['status']] = line_counts.get(ln['status'], 0) + 1
     ents = sorted(entities.values(), key=lambda e: (e['file'], e['name'] or ''))
     return {
@@ -783,6 +825,132 @@ def reassign_ambiguous(patches: list[Patch], cat: dict[str, dict]) -> int:
     return moved
 
 
+# Notes sometimes precede the files: "Diviner's Kevlar: Cooldown Reduction reduced from 12% to 10%"
+# is in the 2024-12-06 notes, the value changed in a build of 2024-12-14 (the next window).
+LATE_DAYS = 14
+
+
+def _days(a: str, b: str) -> int:
+    from datetime import date
+    return (date.fromisoformat(b[:10]) - date.fromisoformat(a[:10])).days
+
+
+def _late_hit(later: list[tuple[Patch, dict]], p: Patch, subj: str, pairs, lw: set[str],
+              hero_name: dict[str, str]) -> tuple | None:
+    for q, qd in later:
+        if _days(p.date, q.date) > LATE_DAYS:
+            break
+        for e in qd['entities']:
+            names = {(e.get('name') or '').lower(), (hero_name.get(e.get('owner') or '') or '').lower()}
+            if subj not in names:
+                continue
+            for c in e['changes']:
+                # 'unannounced': the later build may be a notes-less window of its own (build-5433)
+                if c.get('status') not in ('hidden', 'unannounced') or c.get('shared') or c.get('cat') != 'balance':
+                    continue
+                if not rules.expand_label_words(words(c['label'])) & lw:
+                    continue
+                o, n = num(c.get('old_s')), num(c.get('new_s'))
+                if o is not None and n is not None and \
+                        any(value_matches(o, a, False) and value_matches(n, b, False) for a, b in pairs):
+                    return q, qd, c
+    return None
+
+
+def late_landings(results: list[tuple[Patch, dict]], cat: dict[str, dict]) -> int:
+    """Link a numbered line left unmatched in its own window to a still-hidden change
+    of the same subject within LATE_DAYS that has exactly its numbers and shares a
+    label word. The line becomes documented (with where it landed), the change too."""
+    hero_name = {e['id']: e.get('name') or '' for e in cat.values() if e['file'] == 'heroes.vdata'}
+    linked = 0
+    for i, (p, data) in enumerate(results):
+        for s in data['sections']:
+            for ln in s['lines']:
+                if ln['status'] != 'unmatched' or not ln.get('subject'):
+                    continue
+                rest = ln['text'].split(':', 1)[1] if ':' in ln['text'][:48] else ln['text']
+                pairs = parse_pairs(rest)
+                if not pairs:
+                    continue
+                hit = _late_hit(results[i + 1:], p, ln['subject'].lower(), pairs, expand_words(words(rest)), hero_name)
+                if not hit:
+                    continue
+                q, qd, c = hit
+                ln['status'] = 'documented'
+                ln['changes'] = [c['key']]
+                ln['late'] = {'patch': q.id, 'title': q.title, 'builds': c.get('builds', [])}
+                qd['counts'][c['status']] -= 1
+                qd['counts']['documented'] = qd['counts'].get('documented', 0) + 1
+                c['status'] = 'documented'
+                c['noted_in'] = {'patch': p.id, 'title': p.title}
+                data['line_counts']['unmatched'] -= 1
+                data['line_counts']['documented'] = data['line_counts'].get('documented', 0) + 1
+                linked += 1
+    return linked
+
+
+# A notes-less window right after a changelog that carries this many of its numbered
+# lines exactly is that changelog's update shipping late (2024-12-06 notes: 81 lines landed
+# in the notes-less build 5433 of 12-14): merge the windows instead of calling it unannounced.
+ABSORB_MIN = 10
+
+
+def _late_count(p: Patch, data: dict, later: list[tuple[Patch, dict]], hero_name: dict[str, str]) -> int:
+    n = 0
+    for s in data['sections']:
+        for ln in s['lines']:
+            if ln['status'] != 'unmatched' or not ln.get('subject'):
+                continue
+            rest = ln['text'].split(':', 1)[1] if ':' in ln['text'][:48] else ln['text']
+            pairs = parse_pairs(rest)
+            if pairs and _late_hit(later, p, ln['subject'].lower(), pairs, expand_words(words(rest)), hero_name):
+                n += 1
+    return n
+
+
+def absorb_late_windows(results: list[tuple[Patch, dict]], cat: dict[str, dict]) -> tuple[list, list[str]]:
+    hero_name = {e['id']: e.get('name') or '' for e in cat.values() if e['file'] == 'heroes.vdata'}
+    out, absorbed, i = [], [], 0
+    while i < len(results):
+        p, data = results[i]
+        if i + 1 < len(results):
+            q, qd = results[i + 1]
+            if p.notes and not q.notes and p.builds and _days(p.date, q.date) <= LATE_DAYS \
+                    and _late_count(p, data, [(q, qd)], hero_name) >= ABSORB_MIN:
+                p.builds = sorted(p.builds + q.builds, key=lambda b: b['date'])
+                out.append((p, build_patch(p, cat)))
+                absorbed.append(q.id)
+                i += 2
+                continue
+        out.append((p, data))
+        i += 1
+    return out, absorbed
+
+
+def repeated_lines(results: list[tuple[Patch, dict]]) -> int:
+    """Steam posts get edited: the 2026-03-06 post later carried the 03-21 lines too.
+    An unmatched line whose exact text is matched in a LATER patch's notes belongs
+    there: status 'repeated' with a pointer, not a matcher gap."""
+    later_home: dict[str, tuple[str, str]] = {}
+    moved = 0
+    for p, data in reversed(results):
+        for s in data['sections']:
+            for ln in s['lines']:
+                key = ln['text'].strip().lower()
+                if ln['status'] == 'unmatched' and key in later_home:
+                    pid, title = later_home[key]
+                    ln['status'] = 'repeated'
+                    ln['see'] = {'patch': pid, 'title': title}
+                    data['line_counts']['unmatched'] -= 1
+                    data['line_counts']['repeated'] = data['line_counts'].get('repeated', 0) + 1
+                    moved += 1
+        for s in data['sections']:
+            for ln in s['lines']:
+                if ln['status'] not in ('unmatched', 'repeated', 'heading', 'untracked', 'nodata'):
+                    later_home[ln['text'].strip().lower()] = (p.id, p.title)
+    return moved
+
+
 def run() -> None:
     cat = catalog.load()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -791,8 +959,12 @@ def run() -> None:
     index = []
     patches = group()
     print('re-assigned boundary builds:', reassign_ambiguous(patches, cat))
-    for p in patches:
-        data = build_patch(p, cat)
+    results = [(p, build_patch(p, cat)) for p in patches]
+    results, absorbed = absorb_late_windows(results, cat)
+    print('notes-less windows merged into the changelog they implement:', absorbed)
+    print('notes that landed in a later build:', late_landings(results, cat))
+    print('lines repeated from a later patch (edited posts):', repeated_lines(results))
+    for p, data in results:
         jsonio.dump(OUT / f'{p.id}.json.gz', data)
         index.append({'id': p.id, 'title': p.title, 'date': p.date[:10], 'builds': len(p.builds),
                       'counts': data['counts'], 'line_counts': data['line_counts'], 'has_notes': p.has_notes})

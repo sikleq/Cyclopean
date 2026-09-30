@@ -144,11 +144,12 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
             key = str(attr.get('m_strLocString') or '').lstrip('#').lower()
             sections.append({'type': kind_s, 'desc': fill(tok.get(key), base_vals) if key else '',
                              'props': [r for r in rows if r]})
+    base = loc.loc_base(tok, aid, owner)
     return {
         'id': aid, 'kind': kind, 'owner': owner,
-        'name': loc.plain(loc.entity_name(tok, aid)),
-        'quip': loc.plain(tok.get(f'{aid}_quip'.lower())),
-        'desc': fill(tok.get(f'{aid}_desc'.lower()), base_vals),
+        'name': loc.plain(loc.entity_name(tok, aid, owner)),
+        'quip': loc.plain(tok.get(f'{base}_quip')),
+        'desc': fill(tok.get(f'{base}_desc'), base_vals),
         'header': header,
         'important': [r for r in (row(p) for p in important) if r and r['prop'] not in header_props],
         'basic': [r for r in (row(p) for p in basic) if r and r['prop'] not in header_props],

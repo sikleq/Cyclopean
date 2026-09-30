@@ -12,7 +12,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 72,
+   "nodata": 61,
+   "untracked": 11,
    "fix": 10
   },
   "has_notes": true
@@ -30,7 +31,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 117,
+   "untracked": 15,
+   "nodata": 102,
    "fix": 15
   },
   "has_notes": true
@@ -48,7 +50,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 5
+   "untracked": 2,
+   "nodata": 3
   },
   "has_notes": true
  },
@@ -65,7 +68,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 97,
+   "nodata": 85,
+   "untracked": 12,
    "fix": 9
   },
   "has_notes": true
@@ -83,7 +87,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 138,
+   "nodata": 117,
+   "untracked": 21,
    "fix": 18
   },
   "has_notes": true
@@ -101,7 +106,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 129,
+   "nodata": 111,
+   "untracked": 18,
    "fix": 16
   },
   "has_notes": true
@@ -119,7 +125,8 @@
    "unreleased": 23
   },
   "line_counts": {
-   "unmatched": 58,
+   "untracked": 22,
+   "unmatched": 36,
    "described": 17,
    "fix": 11,
    "documented": 60
@@ -139,7 +146,8 @@
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 58,
+   "untracked": 23,
+   "unmatched": 35,
    "fix": 17,
    "documented": 47,
    "described": 15,
@@ -160,7 +168,8 @@
    "unreleased": 3
   },
   "line_counts": {
-   "unmatched": 51,
+   "unmatched": 37,
+   "untracked": 14,
    "fix": 11,
    "documented": 71,
    "described": 17,
@@ -200,7 +209,8 @@
    "unreleased": 84
   },
   "line_counts": {
-   "unmatched": 48,
+   "untracked": 12,
+   "unmatched": 36,
    "fix": 15,
    "described": 17,
    "documented": 73,
@@ -222,7 +232,8 @@
    "unreleased": 17
   },
   "line_counts": {
-   "unmatched": 68,
+   "unmatched": 52,
+   "untracked": 16,
    "fix": 13,
    "described": 38,
    "documented": 65
@@ -242,7 +253,8 @@
    "unreleased": 3
   },
   "line_counts": {
-   "unmatched": 70,
+   "unmatched": 48,
+   "untracked": 22,
    "fix": 18,
    "documented": 67,
    "described": 27
@@ -262,7 +274,8 @@
    "unreleased": 34
   },
   "line_counts": {
-   "unmatched": 74,
+   "unmatched": 50,
+   "untracked": 24,
    "fix": 7,
    "documented": 97,
    "described": 27,
@@ -302,7 +315,8 @@
    "unreleased": 100
   },
   "line_counts": {
-   "unmatched": 75,
+   "unmatched": 37,
+   "untracked": 38,
    "fix": 30,
    "documented": 74,
    "described": 26
@@ -322,7 +336,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 6,
+   "unmatched": 3,
+   "untracked": 3,
    "fix": 4,
    "mismatch": 1,
    "described": 1,
@@ -343,7 +358,8 @@
    "unreleased": 44
   },
   "line_counts": {
-   "unmatched": 108,
+   "unmatched": 59,
+   "untracked": 49,
    "fix": 28,
    "described": 41,
    "documented": 133,
@@ -365,7 +381,7 @@
   },
   "line_counts": {
    "fix": 8,
-   "unmatched": 2,
+   "untracked": 2,
    "documented": 9,
    "described": 6
   },
@@ -404,7 +420,8 @@
    "unreleased": 83
   },
   "line_counts": {
-   "unmatched": 103,
+   "unmatched": 64,
+   "untracked": 39,
    "fix": 34,
    "described": 39,
    "documented": 116,
@@ -447,7 +464,8 @@
    "unreleased": 273
   },
   "line_counts": {
-   "unmatched": 120,
+   "unmatched": 64,
+   "untracked": 56,
    "fix": 22,
    "described": 37,
    "documented": 96,
@@ -504,12 +522,14 @@
    "unreleased": 34
   },
   "line_counts": {
-   "unmatched": 116,
+   "unmatched": 71,
    "described": 33,
    "fix": 44,
+   "untracked": 44,
    "documented": 85,
    "rounded": 4,
-   "mismatch": 1
+   "mismatch": 1,
+   "repeated": 1
   },
   "has_notes": true
  },
@@ -546,7 +566,8 @@
    "unreleased": 62
   },
   "line_counts": {
-   "unmatched": 121,
+   "unmatched": 72,
+   "untracked": 49,
    "fix": 30,
    "described": 61,
    "rounded": 2,
@@ -571,7 +592,8 @@
    "described": 4,
    "documented": 4,
    "fix": 2,
-   "unmatched": 3
+   "unmatched": 2,
+   "untracked": 1
   },
   "has_notes": true
  },
@@ -607,7 +629,8 @@
    "unreleased": 161
   },
   "line_counts": {
-   "unmatched": 107,
+   "unmatched": 66,
+   "untracked": 41,
    "fix": 17,
    "described": 49,
    "documented": 112
@@ -667,7 +690,8 @@
    "unreleased": 37
   },
   "line_counts": {
-   "unmatched": 79,
+   "untracked": 35,
+   "unmatched": 44,
    "fix": 18,
    "documented": 71,
    "described": 53
@@ -724,7 +748,8 @@
    "unreleased": 90
   },
   "line_counts": {
-   "unmatched": 130,
+   "untracked": 49,
+   "unmatched": 81,
    "fix": 28,
    "documented": 127,
    "rounded": 2,
@@ -737,34 +762,24 @@
   "id": "2024-12-06",
   "title": "12-06-2024 Update",
   "date": "2024-12-06",
-  "builds": 8,
+  "builds": 12,
   "counts": {
-   "documented": 0,
-   "described": 0,
-   "hidden": 0,
+   "documented": 117,
+   "described": 125,
+   "hidden": 102,
    "unannounced": 0,
-   "unreleased": 0
+   "unreleased": 34
   },
   "line_counts": {
-   "unmatched": 253,
-   "fix": 22
+   "untracked": 24,
+   "unmatched": 49,
+   "fix": 22,
+   "documented": 113,
+   "described": 64,
+   "rounded": 1,
+   "mismatch": 2
   },
   "has_notes": true
- },
- {
-  "id": "build-5433",
-  "title": "Unannounced update (build 5433)",
-  "date": "2024-12-14",
-  "builds": 4,
-  "counts": {
-   "documented": 0,
-   "described": 0,
-   "hidden": 0,
-   "unannounced": 376,
-   "unreleased": 0
-  },
-  "line_counts": {},
-  "has_notes": false
  },
  {
   "id": "2024-12-21",
@@ -859,10 +874,11 @@
   },
   "line_counts": {
    "documented": 28,
-   "unmatched": 12,
+   "unmatched": 9,
    "described": 23,
    "fix": 2,
-   "rounded": 1
+   "rounded": 1,
+   "untracked": 3
   },
   "has_notes": true
  },
@@ -881,28 +897,31 @@
   "line_counts": {
    "documented": 10,
    "described": 3,
-   "unmatched": 7
+   "unmatched": 5,
+   "untracked": 2
   },
   "has_notes": true
  },
  {
   "id": "2025-02-25",
-  "title": "Map Rework Update",
+  "title": "02-25-2025 Update",
   "date": "2025-02-25",
   "builds": 8,
   "counts": {
-   "documented": 24,
-   "described": 26,
-   "hidden": 83,
+   "documented": 28,
+   "described": 104,
+   "hidden": 69,
    "unannounced": 0,
-   "unreleased": 89
+   "unreleased": 26
   },
   "line_counts": {
-   "unmatched": 310,
-   "documented": 11,
-   "described": 9,
+   "untracked": 156,
+   "unmatched": 81,
+   "documented": 13,
+   "described": 37,
    "rounded": 1,
-   "fix": 68
+   "fix": 68,
+   "heading": 42
   },
   "has_notes": true
  },
@@ -957,10 +976,11 @@
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 11,
+   "unmatched": 9,
    "fix": 8,
    "documented": 14,
-   "described": 4
+   "described": 4,
+   "untracked": 2
   },
   "has_notes": true
  },
@@ -977,32 +997,35 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 17,
+   "unmatched": 15,
    "rounded": 3,
    "documented": 67,
    "fix": 11,
-   "described": 11
+   "described": 11,
+   "untracked": 2
   },
   "has_notes": true
  },
  {
   "id": "2025-05-08",
-  "title": "Shop Rework Update",
+  "title": "05-08-2025 Update",
   "date": "2025-05-08",
   "builds": 12,
   "counts": {
-   "documented": 70,
-   "described": 66,
-   "hidden": 1314,
+   "documented": 71,
+   "described": 168,
+   "hidden": 1318,
    "unannounced": 0,
    "unreleased": 187
   },
   "line_counts": {
-   "unmatched": 385,
+   "unmatched": 77,
+   "untracked": 242,
    "fix": 76,
-   "described": 23,
-   "documented": 47,
-   "mismatch": 2
+   "described": 34,
+   "documented": 48,
+   "mismatch": 2,
+   "heading": 53
   },
   "has_notes": true
  },
@@ -1040,8 +1063,9 @@
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 25,
+   "unmatched": 22,
    "documented": 119,
+   "untracked": 3,
    "described": 9
   },
   "has_notes": true
@@ -1059,10 +1083,11 @@
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 14,
+   "unmatched": 5,
    "fix": 3,
    "documented": 15,
-   "described": 2
+   "described": 2,
+   "untracked": 9
   },
   "has_notes": true
  },
@@ -1079,8 +1104,9 @@
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 11,
+   "unmatched": 10,
    "fix": 15,
+   "untracked": 1,
    "described": 14,
    "documented": 54
   },
@@ -1099,9 +1125,10 @@
    "unreleased": 39
   },
   "line_counts": {
-   "unmatched": 26,
+   "untracked": 15,
    "described": 9,
    "documented": 35,
+   "unmatched": 11,
    "mismatch": 1,
    "fix": 2
   },
@@ -1144,7 +1171,8 @@
   "line_counts": {
    "documented": 99,
    "described": 22,
-   "unmatched": 31
+   "unmatched": 27,
+   "untracked": 4
   },
   "has_notes": true
  },
@@ -1274,7 +1302,8 @@
   },
   "line_counts": {
    "described": 39,
-   "unmatched": 22,
+   "unmatched": 18,
+   "untracked": 4,
    "documented": 128,
    "fix": 4,
    "rounded": 1
@@ -1351,7 +1380,8 @@
    "unreleased": 6
   },
   "line_counts": {
-   "unmatched": 50,
+   "unmatched": 49,
+   "untracked": 1,
    "documented": 152,
    "described": 36,
    "fix": 4,
@@ -1540,11 +1570,12 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 48,
+   "unmatched": 47,
    "documented": 76,
    "described": 36,
    "rounded": 1,
-   "fix": 4
+   "fix": 4,
+   "untracked": 1
   },
   "has_notes": true
  },
@@ -1599,8 +1630,9 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 10,
+   "unmatched": 9,
    "documented": 33,
+   "untracked": 1,
    "described": 20
   },
   "has_notes": true
@@ -1656,12 +1688,14 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 121,
+   "unmatched": 59,
    "documented": 444,
    "described": 556,
+   "untracked": 1,
    "fix": 19,
    "rounded": 16,
-   "mismatch": 24
+   "mismatch": 24,
+   "repeated": 61
   },
   "has_notes": true
  },
@@ -1699,11 +1733,12 @@
   },
   "line_counts": {
    "described": 51,
-   "unmatched": 15,
+   "unmatched": 14,
    "documented": 125,
    "mismatch": 1,
    "fix": 5,
-   "rounded": 1
+   "rounded": 1,
+   "untracked": 1
   },
   "has_notes": true
  },
@@ -1781,8 +1816,9 @@
    "unreleased": 8
   },
   "line_counts": {
-   "unmatched": 62,
+   "unmatched": 59,
    "described": 75,
+   "untracked": 3,
    "fix": 19,
    "documented": 147,
    "mismatch": 4,
@@ -1899,8 +1935,9 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 24,
+   "unmatched": 23,
    "described": 38,
+   "untracked": 1,
    "documented": 80,
    "fix": 1,
    "rounded": 1
@@ -1939,7 +1976,8 @@
   },
   "line_counts": {
    "documented": 39,
-   "unmatched": 6,
+   "unmatched": 5,
+   "untracked": 1,
    "described": 9
   },
   "has_notes": true
@@ -1977,7 +2015,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 46
+   "untracked": 12,
+   "unmatched": 34
   },
   "has_notes": true
  },
@@ -2045,12 +2084,12 @@
   "id": "build-6711",
   "title": "City Never Sleeps",
   "date": "2026-09-29",
-  "builds": 3,
+  "builds": 4,
   "counts": {
    "documented": 0,
    "described": 0,
    "hidden": 0,
-   "unannounced": 1480,
+   "unannounced": 1481,
    "unreleased": 0
   },
   "line_counts": {},

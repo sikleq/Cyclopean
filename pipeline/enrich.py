@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 4
+ENRICH_VERSION = 6
 
 
 def _num(v):
@@ -56,7 +56,8 @@ def enrich_record(rec: dict) -> dict:
                     prev_abilities = cache.vdata(rec['prev_commit'], tracker.SCRIPTS + 'abilities.vdata')
                 data = prev_abilities.get(eid, {})
             e['kind'] = ability_kind(eid, data, owners) if eid != '@shared' else 'shared'
-            e['name'] = loc.plain(loc.entity_name(tok, eid)) if eid != '@shared' else 'Many abilities & items'
+            e['name'] = (loc.plain(loc.entity_name(tok, eid, owners.get(eid))) if eid != '@shared'
+                         else 'Many abilities & items')
         elif f == 'npc_units.vdata':
             data = units.get(eid, {})
             e['kind'] = unit_kind(eid, data) if eid != '@shared' else 'shared'

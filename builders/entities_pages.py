@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import entity_icon, esc, hero_icon, img, load_json, page, slug, write
+from .common import entity_icon, esc, hero_icon, img, load_json, page, pretty_id, slug, write
 from .hero_page import hero_page, history_table, stat_tables
 from .render import KIND_LABEL
 
@@ -25,14 +25,15 @@ def _history() -> tuple[dict, dict]:
                 by_ent[e['key']].append((row, ch))
         for s in p['sections']:
             for ln in s['lines']:
-                if ln.get('subject'):
+                # a heading is a bare name, a repeated line lives on its later patch
+                if ln.get('subject') and ln['status'] not in ('heading', 'repeated'):
                     by_subject[ln['subject'].strip().lower()].append((row, ln))
     return by_ent, by_subject
 
 
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
-    name = it.get('name') or it['id']
+    name = it['name'] if it.get('name') and it['name'] != it['id'] else pretty_id(it['id'])
     ic = entity_icon(it['file'], it['id'], it['kind'], rel)
     gone = '' if it.get('alive') else ' <span class="tag del">REMOVED</span>'
     disabled = ' <span class="chip">not in shop</span>' if it.get('disabled') else ''
@@ -47,7 +48,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'<div class="meta">First seen: build {it["first"][0]} ({esc(it["first"][1])}) · <code>{esc(it["id"])}</code></div></div></div>')
+            f'<div class="meta">First seen: build {it["first"][0]} ({esc(it["first"][1])})</div></div></div>')
     sections = ''
     if card:
         blocks = []
@@ -71,16 +72,16 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
 
 def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) -> str:
     rel = '../'
-    name = u.get('name') or u['id']
+    name = u['name'] if u.get('name') and u['name'] != u['id'] else pretty_id(u['id'])
     ic = entity_icon(u['file'], u['id'], u['kind'], rel)
     gone = '' if u.get('alive') else ' <span class="tag del">REMOVED</span>'
     head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips"><span class="chip">{esc(KIND_LABEL.get(u["kind"], u["kind"]))}</span></div>'
-            f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])}) · <code>{esc(u["id"])}</code></div></div></div>')
+            f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])})</div></div></div>')
     stats = ''
     if trow:
-        stats = '<h2>Stats</h2>' + stat_tables(trow, cols, name)
+        stats = '<h2>Stats</h2>' + stat_tables(trow, cols, name, rel)
     hist = history_table([(f'npc_units.vdata:{u["id"]}', name, ic)], [name], by_ent, by_subject, rel)
     return page(name, head + stats + '<h2>History</h2>' + hist, rel, 'units')
 
@@ -88,8 +89,9 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) 
 def _card(e: dict, rel_icon: str | None, sub: str = '') -> str:
     href = slug(e['file'], e['id']).split('/', 1)[1]
     cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
-    return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc((e.get("name") or "").lower())} {esc(e["id"])}">'
-            f'{img(rel_icon, "", "px")}<span class="nm">{esc(e.get("name") or e["id"])}</span>'
+    name = e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
+    return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc(name.lower())} {esc(e["id"])}">'
+            f'{img(rel_icon, "", "px")}<span class="nm">{esc(name)}</span>'
             f'<span class="sub">{esc(sub)}</span></a>')
 
 
@@ -154,7 +156,8 @@ def build_all() -> dict[str, int]:
         sel = sorted((u for u in units if u['kind'] == kind), key=lambda u: (not u.get('alive'), u.get('name') or ''))
         if sel:
             groups.append(f'<div class="grid-group-title">{esc(title)}</div><div class="grid units">'
-                          + ''.join(_card(u, entity_icon(u['file'], u['id'], kind, rel), u['id']) for u in sel) + '</div>')
+                          + ''.join(_card(u, entity_icon(u['file'], u['id'], kind, rel), '' if u.get('alive') else 'removed')
+                                    for u in sel) + '</div>')
     body = ('<h1>Units</h1><div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card"></div>'
             + ''.join(groups))
     write('units/index.html', page('Units', body, rel, 'units'))

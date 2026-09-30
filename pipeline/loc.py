@@ -107,8 +107,23 @@ def hero_name(tok: dict[str, str], hid: str) -> str:
     return tok.get(hid) or tok.get(hid + '_search') or hid
 
 
-def entity_name(tok: dict[str, str], eid: str) -> str:
-    return tok.get(eid.lower()) or tok.get(eid.lower() + ':n') or eid
+def loc_base(tok: dict[str, str], eid: str, owner: str | None = None) -> str:
+    """Localization key of an entity. Weapons are localized under the owning hero's
+    name, not their own id: Abrams' `citadel_weapon_bull_set` is `citadel_weapon_atlas_set`."""
+    if tok.get(eid.lower()) or tok.get(eid.lower() + ':n'):
+        return eid.lower()
+    # alt fire (`_alt`, `_set2`, `_set_2`) must not borrow the primary gun's name
+    if owner and owner.startswith('hero_') and eid.startswith('citadel_weapon_') \
+            and not eid.endswith(('_alt', '_set2', '_set_2')):
+        key = f'citadel_weapon_{owner[5:]}_set'.lower()
+        if tok.get(key):
+            return key
+    return eid.lower()
+
+
+def entity_name(tok: dict[str, str], eid: str, owner: str | None = None) -> str:
+    base = loc_base(tok, eid, owner)
+    return tok.get(base) or tok.get(base + ':n') or eid
 
 
 _HTML_RE = re.compile(r'<[^>]+>')

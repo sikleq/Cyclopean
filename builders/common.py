@@ -5,6 +5,7 @@ import gzip
 import hashlib
 import html
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -39,9 +40,26 @@ TILDE_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden=
 WRENCH_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
               'd="M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z"/></svg>')
 
+FLASK_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
+             'd="M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3z'
+             'M12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z"/></svg>')
+NOTES_OFF_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
+                 'd="M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9z'
+                 'M6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z"/></svg>')
+
+NA_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
+          'd="M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3z'
+          'M12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7z'
+          'M6 9h1v1H6zM5 10h1v1H5z"/></svg>')
+
 STATUS_MARK = {
+    'untracked': ('untracked', NA_SVG, 'Sound, effects, interface or map: not part of the game data compared here'),
+    'nodata': ('nodata', NA_SVG, 'No game files survive for this date — nothing to compare with'),
+    'repeated': ('repeated', TILDE_SVG, 'The post was edited later: this line belongs to a later update'),
     'fix': ('fix', WRENCH_SVG, 'Bug fix in the patch notes'),
     'hidden': ('hidden', EYE_SVG, 'Not in the patch notes — found only in the game files'),
+    'unreleased': ('unreleased', FLASK_SVG, 'Hero still in development at this build — not in the patch notes'),
+    'unannounced': ('unannounced', NOTES_OFF_SVG, 'Update shipped without patch notes — found only in the game files'),
     'documented': ('documented', CHECK_SVG, 'Patch notes list these exact numbers'),
     'rounded': ('rounded', CHECK_SVG, 'Patch notes list rounded numbers; exact values from the files are shown'),
     'described': ('described', TILDE_SVG, 'Covered by a patch-note line without exact numbers'),
@@ -73,14 +91,74 @@ def icon(key: str, rel: str) -> str | None:
 
 
 def hero_icon(hid: str, rel: str) -> str | None:
-    return icon(f'heroes:{hid}', rel)
+    # heroes in development often ship only a minimap or card image
+    return icon(f'heroes:{hid}', rel) or icon(f'heroes/minimap:{hid}', rel) or icon(f'heroes/card:{hid}', rel)
 
 
-def entity_icon(file: str, eid: str, kind: str, rel: str) -> str | None:
+@lru_cache(maxsize=1)
+def names_by_id() -> dict[str, str]:
+    """lower-case entity id -> its latest localized name (only entities that have one)."""
+    return {e['id'].lower(): e['name'] for e in load_json('entities.json')['entities']
+            if e.get('name') and e['name'] != e['id']}
+
+
+# lower-case only: 'CITADEL_ABILITY_BEHAVIOR_*' flags are not entity ids
+_ID_IN_TEXT = re.compile(r'\b(?:citadel_(?:ability|weapon)_|ability_|upgrade_|hero_)[a-z0-9_]+\b')
+
+
+def ids_to_names(s: str) -> str:
+    """'ability_blood_bomb, ability_blood_shards' -> 'Blood Bomb, Blood Shards' in shown values."""
+    names = names_by_id()
+    return _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
+
+
+_ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_)')
+
+
+def pretty_id(eid: str, owner: str | None = None) -> str:
+    """A readable stand-in for an entity that has no localized name yet (heroes in
+    development): internal ids are never shown. 'citadel_weapon_frank_set' -> 'Weapon',
+    'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'."""
+    if eid.startswith('citadel_weapon_'):
+        return 'Alt weapon' if eid.endswith(('_alt', '_set2', '_set_2')) else 'Weapon'
+    s = _ID_PREFIX.sub('', eid)
+    code = (owner or '').removeprefix('hero_')
+    if code and s.startswith(code + '_'):
+        s = s[len(code) + 1:]
+    s = re.sub(r'^ult(imate)?$', 'ultimate', s)
+    s = re.sub(r'ability0?(\d)', r'ability \1', s).replace('_', ' ').strip()
+    return s[:1].upper() + s[1:] if s else eid
+
+
+def _ability_icon_key(eid: str) -> str | None:
+    man = icon_manifest()
+    return next((k for k in (f'item:{eid}', f'ability:{eid}') if k in man), None)
+
+
+@lru_cache(maxsize=1)
+def _icon_by_name() -> dict[tuple, str]:
+    """(owner, lower-case name) -> manifest key of an ability that has art. Valve
+    re-creates abilities under new ids (the same 'Seismic Impact' under two ids across
+    patches); the id without art borrows its namesake's, never across owners."""
+    out: dict[tuple, str] = {}
+    for e in load_json('entities.json')['entities']:
+        if e['file'] != 'abilities.vdata' or not e.get('name') or e['name'] == e['id']:
+            continue
+        key = _ability_icon_key(e['id'])
+        if key:
+            out.setdefault((e.get('owner'), e['name'].lower()), key)
+    return out
+
+
+def entity_icon(file: str, eid: str, kind: str, rel: str, name: str | None = None,
+                owner: str | None = None) -> str | None:
     if file == 'heroes.vdata':
         return hero_icon(eid, rel)
     if file == 'abilities.vdata':
-        return icon(f'item:{eid}', rel) or icon(f'ability:{eid}', rel)
+        key = _ability_icon_key(eid)
+        if not key and name and name != eid:
+            key = _icon_by_name().get((owner, name.lower()))
+        return icon(key, rel) if key else None
     if file == 'npc_units.vdata':
         return icon(f'unit:{eid}', rel)
     return None
