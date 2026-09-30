@@ -128,6 +128,15 @@ def run(rebuild: bool = False) -> None:
     print(f'{len(index)} build records, {time.time() - t0:.0f}s')
 
 
+def reindex() -> None:
+    """Rewrite index.json from the records on disk. Must run after
+    pipeline.enrich: enrichment re-derives field categories, and the index
+    summaries count fields per category."""
+    old = jsonio.load(OUT / 'index.json') if (OUT / 'index.json').exists() else []
+    index = [summary(jsonio.load(OUT / row['file']), row['file']) for row in old if (OUT / row['file']).exists()]
+    jsonio.dump(OUT / 'index.json', index, indent=0)
+
+
 if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--rebuild', action='store_true')

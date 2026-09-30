@@ -17,6 +17,7 @@ from . import cache, jsonio, loc, semantics, tracker
 from .classify import ability_kind, category, hero_bound_abilities, unit_kind
 from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
+from .history import reindex
 
 ENRICH_VERSION = 2
 
@@ -99,6 +100,7 @@ def run(all_records: bool = False) -> None:
             enrich_record(rec)
         jsonio.dump(p, rec)
         n += 1
+    reindex()
     print(f'enriched {n} build records')
 
 

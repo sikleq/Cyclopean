@@ -22,8 +22,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -31,7 +31,7 @@ jobs:
       - name: Clone tracker
         run: git clone --quiet https://github.com/SteamTracking/GameTracking-Deadlock.git vendor/GameTracking-Deadlock
       - name: Restore parse cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .cache
           key: kv3-${{ github.run_id }}
@@ -47,6 +47,7 @@ jobs:
             echo "no new data"
           else
             git commit -m "data: tracker $(git -C vendor/GameTracking-Deadlock log -1 --format=%s | cut -d' ' -f1)"
+            git pull --rebase origin main
             git push
             gh workflow run build.yml --ref main
           fi

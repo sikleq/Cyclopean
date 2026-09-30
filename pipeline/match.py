@@ -344,7 +344,8 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     tier = int(tm.group(1)) if tm else None
 
     if subject:
-        pool = [c for k in subject.ids for c in by_ent.get(k, [])]
+        # sorted: set order changes between runs (hash randomisation) -> unstable output
+        pool = [c for k in sorted(subject.ids) for c in by_ent.get(k, [])]
     else:
         pool = changes
     ability_hits = set()
