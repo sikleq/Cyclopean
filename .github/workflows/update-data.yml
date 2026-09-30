@@ -30,6 +30,15 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Clone tracker
         run: git clone --quiet https://github.com/SteamTracking/GameTracking-Deadlock.git vendor/GameTracking-Deadlock
+      - name: Restore predecessor tracker (archived, Jun-Aug 2024)
+        id: pre
+        uses: actions/cache@v6
+        with:
+          path: vendor/Deadlocked
+          key: deadlocked-archive-v1
+      - name: Clone predecessor tracker
+        if: steps.pre.outputs.cache-hit != 'true'
+        run: git clone --quiet https://github.com/Lifeismana/Deadlocked.git vendor/Deadlocked
       - name: Restore parse cache
         uses: actions/cache@v6
         with:

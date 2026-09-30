@@ -43,16 +43,30 @@ def asset_category(path: str) -> str:
     return 'other'
 
 
+_LIST_LINE = re.compile(r'^(\S+) CRC:(\S+) size:(\d+)')
+
+
+def _asset_changes(prev: str, cur: str) -> tuple[dict[str, str], dict[str, str]]:
+    """(added, removed) asset lines. Within one tracker clone git diffs the
+    list; across the two clones (predecessor -> main) both lists are compared."""
+    if tracker._repo_of(prev) == tracker._repo_of(cur):
+        out = tracker.git('diff', '-U0', '--no-color', prev, cur, '--', tracker.ASSET_LIST, repo=tracker._repo_of(cur))
+        added: dict[str, str] = {}
+        removed: dict[str, str] = {}
+        for line in out.splitlines():
+            m = _ASSET_LINE.match(line)
+            if m:
+                (added if m.group(1) == '+' else removed)[m.group(2)] = m.group(3)
+        return added, removed
+    a = {m.group(1): m.group(2) for m in map(_LIST_LINE.match, (tracker.read(prev, tracker.ASSET_LIST) or '').splitlines()) if m}
+    b = {m.group(1): m.group(2) for m in map(_LIST_LINE.match, (tracker.read(cur, tracker.ASSET_LIST) or '').splitlines()) if m}
+    added = {p: c for p, c in b.items() if a.get(p) != c}
+    removed = {p: c for p, c in a.items() if b.get(p) != c}
+    return added, removed
+
+
 def asset_diff(prev: str, cur: str) -> dict | None:
-    out = tracker.git('diff', '-U0', '--no-color', prev, cur, '--', tracker.ASSET_LIST)
-    removed: dict[str, str] = {}
-    added: dict[str, str] = {}
-    for line in out.splitlines():
-        m = _ASSET_LINE.match(line)
-        if not m:
-            continue
-        sign, path, crc = m.group(1), m.group(2), m.group(3)
-        (added if sign == '+' else removed)[path] = crc
+    added, removed = _asset_changes(prev, cur)
     if not added and not removed:
         return None
     counts: dict[str, dict[str, int]] = defaultdict(lambda: {'added': 0, 'removed': 0, 'modified': 0})

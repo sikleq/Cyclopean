@@ -124,11 +124,15 @@ def _to_webp(src: Path, dst: Path, max_side: int) -> None:
         im.save(dst, 'WEBP', quality=92, method=4)
 
 
+RAW_OWNER: dict[str, str] = {}      # decompiled file -> manifest key of the entity that uses it
+
+
 def _store(ref, out_rel: str, max_side: int, manifest: dict, missing: list, key: str) -> None:
     src = raw_path(ref) if ref else None
     if src is None or not src.exists():
         missing.append({'key': key, 'ref': ref})
         return
+    RAW_OWNER.setdefault(str(src), key)
     if src.suffix == '.svg':
         dst = ICONS / f'{out_rel}.svg'
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -185,6 +189,9 @@ def convert(rev: str = 'HEAD') -> tuple[dict, list]:
         if isinstance(u, dict) and u.get('m_strCustomUnitIcon'):
             _store(u['m_strCustomUnitIcon'], f'units/{uid}', 128, manifest, missing, f'unit:{uid}')
 
+    historical_icons(manifest, missing)
+    external_icons(manifest, missing)
+
     stat_map = json.loads((ROOT / 'data' / 'reference' / 'stat_icons.json').read_text(encoding='utf-8'))
     for group, entries in stat_map.items():
         if not isinstance(entries, dict):
@@ -206,6 +213,89 @@ def convert(rev: str = 'HEAD') -> tuple[dict, list]:
                 _to_webp(src, dst, 64)
             manifest[f'{group}:{cls}'] = dst.relative_to(ICONS).as_posix()
     return manifest, missing
+
+
+GENERIC_ICONS = ('weapon_damage', 'base_utility', 'base_weapon', 'base_tech', 'base_armor')
+FIELDS_BY_FILE = {
+    'heroes.vdata': [(f, f'{sub}:{{id}}', side) for f, sub, side in HERO_FIELDS],
+    'abilities.vdata': [('m_strShopIconLarge', 'item:{id}', 128), ('m_strAbilityImage', 'ability:{id}', 128)],
+}
+
+
+def historical_icons(manifest: dict, missing: list) -> None:
+    """Entities no longer in the game: use the image path from the last build they
+    existed in, if that file is still packed. Skip placeholders: art that belongs
+    to another entity today (a hero in development borrowing Nano's icons) or
+    generic art (weapon_damage)."""
+    ents = json.loads((ROOT / 'data' / 'entities.json').read_text(encoding='utf-8'))['entities']
+    commit_of = {b.build: b.commit for b in tracker.builds() if b.build is not None}
+    live_owner = dict(RAW_OWNER)        # art of entities in the game today (dead ones may share art)
+    by_commit: dict[str, list[dict]] = {}
+    for e in ents:
+        if e.get('alive') or e['file'] not in FIELDS_BY_FILE or e.get('template'):
+            continue
+        commit = commit_of.get(e['last'][0])
+        if commit:
+            by_commit.setdefault(commit, []).append(e)
+    for commit, group in by_commit.items():
+        data = {f: cache.vdata(commit, tracker.SCRIPTS + f) for f in {e['file'] for e in group}}
+        for e in group:
+            val = data[e['file']].get(e['id'])
+            if not isinstance(val, dict):
+                continue
+            for field, key_t, side in FIELDS_BY_FILE[e['file']]:
+                key = key_t.format(id=e['id'])
+                ref = val.get(field)
+                if key in manifest or not ref:
+                    continue
+                src = raw_path(ref)
+                if src is None or not src.exists() or any(g in src.stem.lower() for g in GENERIC_ICONS):
+                    continue
+                # an ability borrowing art that belongs to another entity today is a placeholder
+                # (heroes in development used Nano's icons); a removed ITEM whose art went to its
+                # reworked successor keeps that art
+                if str(src) in live_owner and e.get('kind') != 'item' and not _art_of(e, src):
+                    continue
+                sub = key.split(':', 1)[0].replace('item', 'items').replace('ability', 'abilities')
+                _store(ref, f'{sub}/{e["id"]}', side, manifest, missing, key)
+
+
+_HERO_ART = re.compile(r'[\\/]hud[\\/]abilities[\\/]([a-z0-9_]+)[\\/]', re.I)
+
+
+def _art_of(e: dict, src: Path) -> bool:
+    """Art in hud/abilities/<hero>/ belongs to that hero's abilities, whoever borrows it today."""
+    m = _HERO_ART.search(str(src))
+    if not m:
+        return False
+    code = m.group(1).lower()
+    owner = (e.get('owner') or '').removeprefix('hero_')
+    return code == owner or e['id'].lower().startswith(code + '_')
+
+
+EXTERNAL = ROOT / 'data' / 'overrides' / 'external_icons.json'
+EXTERNAL_RAW = ROOT / '.cache' / 'external_raw'
+
+
+def external_icons(manifest: dict, missing: list) -> None:
+    """Approved copies of removed game art (see data/overrides/external_icons.json)."""
+    if not EXTERNAL.exists():
+        return
+    for key, url in json.loads(EXTERNAL.read_text(encoding='utf-8')).items():
+        if key.startswith('_') or key in manifest:
+            continue
+        src = EXTERNAL_RAW / (key.replace(':', '__').replace('/', '_') + '.png')
+        if not src.exists():
+            import urllib.request
+            req = urllib.request.Request(url, headers={'User-Agent': 'cyclopean-site-builder'})
+            EXTERNAL_RAW.mkdir(parents=True, exist_ok=True)
+            src.write_bytes(urllib.request.urlopen(req, timeout=30).read())
+        sub, eid = key.split(':', 1)
+        folder = {'item': 'items', 'ability': 'abilities'}.get(sub, sub)
+        side = 280 if 'card' in sub else 64 if 'minimap' in sub else 128
+        dst = ICONS / folder / f'{eid}.webp'
+        _to_webp(src, dst, side)
+        manifest[key] = dst.relative_to(ICONS).as_posix()
 
 
 def main() -> int:

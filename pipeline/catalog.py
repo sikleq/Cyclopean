@@ -50,6 +50,12 @@ def build() -> dict:
         if 'heroes.vdata' in snap:
             heroes = snap['heroes.vdata'][1]
         owners = hero_bound_abilities(heroes)
+        ability_slots = {}
+        for h in heroes.values():
+            if isinstance(h, dict):
+                for slot, aid in (h.get('m_mapBoundAbilities') or {}).items():
+                    if isinstance(aid, str):
+                        ability_slots.setdefault(aid, slot.replace('ESlot_', ''))
         for f, (_, data) in snap.items():
             for eid, val in data.items():
                 if not isinstance(val, dict) or eid in ('generic_data_type', '_include'):
@@ -62,6 +68,8 @@ def build() -> dict:
                 e['kind'] = _kind(f, eid, val, owners)
                 if eid in owners:
                     e['owner'] = owners[eid]
+                if eid in ability_slots:
+                    e['ability_slot'] = ability_slots[eid]     # Signature_4 = ultimate
                 if val.get('_not_pickable'):
                     e['template'] = True
                 if val.get('m_sLocUnitName'):

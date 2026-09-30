@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from .common import build_href, esc, load_json, mark, page, write
 
@@ -57,6 +58,13 @@ def _note_row(ln: dict, change_by_key: dict) -> str:
     return f'<tr class="st-{esc(st)}"><td class="st">{m}</td><td>{esc(ln["text"])}</td><td class="fv">{files}</td></tr>'
 
 
+@lru_cache(maxsize=1)
+def hero_names() -> dict[str, str]:
+    """hero id -> display name from the entity catalog (heroes that did not change themselves)."""
+    return {e['id']: e.get('name') or e['id'] for e in load_json('entities.json')['entities']
+            if e['file'] == 'heroes.vdata'}
+
+
 def _changes_table(ents: list[dict], rel: str) -> str:
     """All gameplay changes: one table, grouped by hero (with its abilities), then items, units, rules."""
     from .common import entity_icon, hero_icon
@@ -74,8 +82,16 @@ def _changes_table(ents: list[dict], rel: str) -> str:
     order_rest = {'shared': 0, 'item': 1, 'building': 2, 'trooper': 3, 'neutral': 4, 'unit': 5}
     rest.sort(key=lambda e: (order_rest.get(e.get('kind'), 9), e.get('name') or ''))
     groups = []
-    for hid in sorted(by_owner, key=lambda h: (heroes.get(h, {}).get('name') or h).lower()):
-        hname = heroes.get(hid, {}).get('name') or next((x.get('owner_name') for x in by_owner[hid] if x.get('owner_name')), hid)
+    names = hero_names()
+
+    def hero_label(hid: str) -> str:
+        if hid == 'hero_base':
+            return 'Common abilities (all heroes)'
+        return (heroes.get(hid, {}).get('name') or names.get(hid)
+                or next((x.get('owner_name') for x in by_owner[hid] if x.get('owner_name')), hid))
+
+    for hid in sorted(by_owner, key=lambda h: hero_label(h).lower()):
+        hname = hero_label(hid)
         groups.append((hname, hero_icon(hid, rel), by_owner[hid]))
     for e in rest:
         groups.append((e.get('name') or e['id'], entity_icon(e['file'], e['id'], e.get('kind', ''), rel), [e]))

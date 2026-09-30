@@ -1,5 +1,18 @@
 [
   {
+    "date": "2026-10-01",
+    "title": "History from June 2024, sharper hidden-change detection, new hero and patch pages",
+    "items": [
+      "Game data now starts on 2024-06-06 (the predecessor tracker): 11 more early patches are checked against the files.",
+      "Hidden changes re-checked against an audit of ~1000 changes: global lines ('all ultimates +15% cooldown'), item components, tier rewrites, unit names and multi-field mechanics are now recognised as described.",
+      "Engine plumbing, Street Brawl draft weights and changes to unreleased heroes no longer count as hidden.",
+      "Updates without official numbers (City Never Sleeps) get patch notes written from the files and a list of the biggest changes.",
+      "Hero pages: key stats, stat tables with history, ability cards rebuilt from the in-game tooltip (values, spirit scaling, T1-T3 text), history as one table.",
+      "Patch pages: tabs, the files' values next to every note line, changes grouped by hero.",
+      "Icons for removed items and abilities (e.g. Tokamak) from older game files."
+    ]
+  },
+  {
     "date": "2026-09-30",
     "title": "Cyclopean launches",
     "items": [

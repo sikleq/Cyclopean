@@ -23,6 +23,17 @@ Units: Source units → metres ÷ 39.37 (hero stats in `m_mapStartingStats` are 
 Noise excluded from diffs: `m_PopularItems` (pick rates, change every build), Street Brawl draft
 buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 
+### 1b. Predecessor tracker — Lifeismana/Deadlocked (archived)
+
+- Cloned into `vendor/Deadlocked`. Same layout, builds 4243 (2024-06-06) … 5044; `tracker.builds()` puts its
+  builds older than GameTracking's first build in front, each `Build` carries `repo` ('pre' / 'main').
+- Builds 5034–5043 have no vdata (only the asset list and localization): a missing file means "no data",
+  the next build is compared with the LAST KNOWN version (`history.last_known`).
+- Localization lived in `game/citadel/resource/citadel_english.txt` (single file) and
+  `pak01_dir/resource/localization/…` before the current layout; `loc.diff` compares tokens across all
+  files so tokens that moved between files are not reported.
+- Patches of May 2024 (before build 4243) still have no game data.
+
 ## 2. Official patch notes
 
 - Steam News API: `ISteamNews/GetNewsForApp/v2/?appid=1422450&feeds=steam_community_announcements`,
@@ -43,7 +54,12 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 - `-f` is a case-sensitive prefix; `heroes/` root is passed as a file list (the folder also has 1.7 GB of backgrounds).
 - **Never** pass `--vpk_cache`: it writes a manifest into the game folder.
 - Missing icons must be allow-listed with a reason in `data/overrides/missing_icons.json`, otherwise the tool exits 1.
-- Only the current build's icons exist locally; entities removed long ago have no icon (shown as blank).
+- Removed entities: the image path from the last build they existed in is used if the file is still packed
+  (`historical_icons`). Placeholders are skipped: an ability borrowing art that belongs to another entity today
+  (heroes in development used Nano's icons) or generic art (`weapon_damage`); art in `hud/abilities/<hero>/`
+  always belongs to that hero's abilities.
+- A few removed-entity images no longer packed anywhere come from `data/overrides/external_icons.json`
+  (copies of the game files extracted by deadlock-api; downloaded once with the user's approval).
 
 ## 4. Reference
 

@@ -58,10 +58,12 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             desc = f'<div class="ac-desc">{esc(s["desc"])}</div>' if s.get('desc') else ''
             blocks.append(f'<div class="ability-card px-frame"><div class="ac-head"><div class="ac-name">{esc(s["type"])}</div></div>'
                           f'{desc}<table class="kvt">{rows}</table></div>')
+        hdr = ''
         if card.get('header'):
-            hdr = ''.join(f'<span class="chip">{esc(h["label"])} {esc(h["value"])}</span>' for h in card['header'])
-            blocks.insert(0, f'<div class="chips">{hdr}</div>')
-        sections = '<h2>Current values</h2><div class="ability-grid">' + ''.join(blocks) + '</div>' if blocks else ''
+            hdr = '<div class="chips item-hdr">' + ''.join(
+                f'<span class="chip">{esc(h["label"])} {esc(h["value"])}</span>' for h in card['header']) + '</div>'
+        sections = ('<h2>Current values</h2>' + hdr + '<div class="ability-grid">' + ''.join(blocks) + '</div>'
+                    if blocks or hdr else '')
     hist = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel)
     body = head + sections + '<h2>History</h2>' + hist
     return page(name, body, rel, 'items')

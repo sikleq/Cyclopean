@@ -27,3 +27,10 @@ def test_order_new_buff_nerf_del_changed():
 def test_change_li_escapes_and_marks_hidden():
     html = change_li(ch(label='<b>x</b>'))
     assert '&lt;b&gt;' in html and 'mark hidden' in html and 'st-hidden' in html
+
+
+def test_flag_lists_show_only_the_difference():
+    from builders.render import vals_html
+    html = vals_html(ch(cat='mechanic', old_s='CITADEL_ABILITY_BEHAVIOR_A | CITADEL_ABILITY_BEHAVIOR_B',
+                        new_s='CITADEL_ABILITY_BEHAVIOR_B | CITADEL_ABILITY_BEHAVIOR_MOVEMENT', dir='changed', pct=None))
+    assert '+movement' in html and '−a' in html and 'CITADEL' not in html

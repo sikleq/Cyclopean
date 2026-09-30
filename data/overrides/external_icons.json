@@ -1,0 +1,8 @@
+{
+  "_why": "Game art of entities removed from the game: no longer in the current VPK. Copies of the game's own files extracted by deadlock-api (same Source2Viewer pipeline). Downloaded once with the user's approval (2026-09-30).",
+  "heroes:hero_tokamak": "https://assets-bucket.deadlock-api.com/assets-api-res/images/heroes/tokamak_sm.png",
+  "heroes/card:hero_tokamak": "https://assets-bucket.deadlock-api.com/assets-api-res/images/heroes/tokamak_card.png",
+  "heroes/minimap:hero_tokamak": "https://assets-bucket.deadlock-api.com/assets-api-res/images/heroes/tokamak_mm.png",
+  "ability:tokamak_crimson_cannon": "https://assets-bucket.deadlock-api.com/assets-api-res/images/abilities/tokamak/tokamak_crimson_cannon.png",
+  "ability:mirage_ethereal_bullets": "https://assets-bucket.deadlock-api.com/assets-api-res/images/abilities/mirage/mirage_ethereal_bullets.png"
+}

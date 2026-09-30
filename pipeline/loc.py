@@ -7,13 +7,12 @@ are skipped — 4.7 MB of dialogue with no balance value.
 """
 from __future__ import annotations
 
-import pickle
 import re
+from functools import lru_cache
 
-from . import tracker
+from . import cache, tracker
 
 SKIP_GROUPS = ('citadel_generated_vo',)
-CACHE_DIR = tracker.ROOT / '.cache' / 'loc'
 
 _TOKEN_RE = re.compile(r'"((?:[^"\\\n]|\\.)+)"[ \t]+"((?:[^"\\]|\\.)*)"', re.S)
 _TAG_RE = re.compile(r':[a-z]+$')
@@ -31,25 +30,32 @@ def parse(text: str) -> dict[str, str]:
     return out
 
 
+@lru_cache(maxsize=256)
+def _file_tokens_cached(blob: str) -> dict[str, str]:
+    return cache.cached_json('loc', blob, lambda: parse(tracker.read_blob(blob).decode('utf-8-sig', 'replace')))
+
+
 def _file_tokens(blob: str) -> dict[str, str]:
-    path = CACHE_DIR / f'{blob}.pkl'
-    if path.exists():
-        with open(path, 'rb') as f:
-            return pickle.load(f)
-    data = parse(tracker.read_blob(blob).decode('utf-8-sig', 'replace'))
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    with open(path, 'wb') as f:
-        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-    return data
+    return _file_tokens_cached(blob)
+
+
+# Where english token files lived over time (the predecessor tracker, mid-2024):
+#   game/citadel/resource/citadel_english.txt            (single file, before build 5042)
+#   game/citadel/pak01_dir/resource/localization/...      (packed copies)
+#   game/citadel/resource/localization/<group>/...        (current layout)
+LOC_ROOTS = ('game/citadel/resource/', 'game/citadel/pak01_dir/resource/')
+_LOC_FILE = re.compile(r'(resource/localization/([^/]+/)?[^/]+_english\.txt|resource/[^/]+_english\.txt)$')
+SKIP_FILES = ('closecaption_', 'citadel_generated_vo', 'generated_vo')
 
 
 def english_files(rev: str) -> dict[str, str]:
-    """{path: blob} of every english token file at `rev` (minus skipped groups)."""
-    blobs = tracker.tree_blobs(rev, tracker.LOC)
-    return {
-        p: b for p, b in blobs.items()
-        if p.endswith('_english.txt') and not any(g in p for g in SKIP_GROUPS)
-    }
+    """{path: blob} of every english token file at `rev` (minus voice-line / caption files)."""
+    out = {}
+    for root in LOC_ROOTS:
+        for p, b in tracker.tree_blobs(rev, root).items():
+            if _LOC_FILE.search(p) and not any(x in p for x in SKIP_FILES + SKIP_GROUPS):
+                out[p] = b
+    return out
 
 
 def tokens(rev: str) -> dict[str, str]:
@@ -60,19 +66,38 @@ def tokens(rev: str) -> dict[str, str]:
     return merged
 
 
+LEGACY_GROUPS = {'citadel': 'citadel_main', 'citadel_common': 'citadel_main', 'items': 'citadel_mods'}
+
+
+def _group(path: str) -> str:
+    name = path.rsplit('/', 1)[-1].removesuffix('_english.txt')
+    return LEGACY_GROUPS.get(name, name)
+
+
+def _grouped_tokens(rev: str) -> tuple[dict[str, str], dict[str, str], tuple]:
+    files = english_files(rev)
+    values: dict[str, str] = {}
+    groups: dict[str, str] = {}
+    for path, blob in sorted(files.items()):
+        g = _group(path)
+        for k, v in _file_tokens(blob).items():
+            if k not in values:
+                values[k] = v
+                groups[k] = g
+    return values, groups, tuple(sorted(files.values()))
+
+
 def diff(old_rev: str, new_rev: str) -> list[dict]:
-    """Changed tokens between two builds, per file (only files whose blob changed)."""
-    a, b = english_files(old_rev), english_files(new_rev)
+    """Changed tokens between two builds, compared key by key across ALL files,
+    so tokens that moved between files (the 2024 layout change) are not reported."""
+    va, ga, blobs_a = _grouped_tokens(old_rev)
+    vb, gb, blobs_b = _grouped_tokens(new_rev)
+    if blobs_a == blobs_b or not va or not vb:
+        return []
     out = []
-    for path in sorted(a.keys() | b.keys()):
-        if a.get(path) == b.get(path):
-            continue
-        ta = _file_tokens(a[path]) if path in a else {}
-        tb = _file_tokens(b[path]) if path in b else {}
-        group = path.split('/')[-2]
-        for k in sorted(ta.keys() | tb.keys()):
-            if ta.get(k) != tb.get(k):
-                out.append({'group': group, 'key': k, 'old': ta.get(k), 'new': tb.get(k)})
+    for k in sorted(va.keys() | vb.keys()):
+        if va.get(k) != vb.get(k):
+            out.append({'group': gb.get(k) or ga.get(k), 'key': k, 'old': va.get(k), 'new': vb.get(k)})
     return out
 
 

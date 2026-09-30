@@ -202,10 +202,18 @@ def stat_unit(tok: dict[str, str], stat: str) -> str:
 
 _TIER_RE = re.compile(r'^m_vecAbilityUpgrades\[(\d+)\]\.m_vecPropertyUpgrades\{([^}]+)\}\.(\w+)$')
 _PROP_RE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.(.+)$')
+_CORRUPTED_RE = re.compile(r'^m_CorruptedItemInfo\.m_Upgrade\.m_vecPropertyUpgrades\{([^}]+)\}\.m_strBonus$')
 
 
 def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -> dict:
     """{label, meters, group} for a field path of an entity."""
+    m = _CORRUPTED_RE.match(path)
+    if m:
+        prop = m.group(1).split('|')[0]
+        label = _loc_label(tok, prop, entity) or humanize(prop)
+        return {'label': f'Corrupted: {label}', 'meters': False, 'group': 'corrupted', 'prop': prop}
+    if path.startswith('m_CorruptedItemInfo.'):
+        return {'label': 'Corrupted: ' + context_label(path.split('.', 1)[1], 2), 'meters': False, 'group': 'corrupted'}
     m = _PROP_RE.match(path)
     if m:
         prop, rest = m.group(1), m.group(2)

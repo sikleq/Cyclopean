@@ -205,9 +205,31 @@ def test_global_slow_line_describes_every_slow_not_one():
              mk('b', 'm_mapAbilityProperties.SlowPercent.m_strValue', 99, 66),
              mk('c', 'm_mapAbilityProperties.GroundDashReductionPercent.m_strValue', -20, -18)]
     res = general_line('All move slow values reduced by ~20% globally', slows)
-    assert res['status'] == 'described' and len(res['changes']) == 2
+    # 25 -> 20 is the announced ~20%; 99 -> 66 (-33%) is NOT what the line says: it stays hidden
+    assert res['status'] == 'described' and len(res['changes']) == 1
     res = general_line('All ground dash slows reduced by ~10% globally', slows)
     assert len(res['changes']) == 1
+
+
+def test_ultimate_cooldown_line_covers_only_ultimates_with_that_ratio():
+    from pipeline.match import general_line
+    cat = {'abilities.vdata:ult': {'kind': 'ability', 'ability_slot': 'Signature_4'},
+           'abilities.vdata:q': {'kind': 'ability', 'ability_slot': 'Signature_1'}}
+    mk = lambda eid, a, b: MChange('abilities.vdata', eid, 'm_mapAbilityProperties.AbilityCooldown.m_strValue',
+                                   'change', a, b, 'balance', 'ability', None, 'Cooldown', False)
+    res = general_line("All ultimate abilities' cooldowns increased by 15%", [mk('ult', 150, 170), mk('q', 20, 23)], cat)
+    assert res['changes'] == ['abilities.vdata:ult:m_mapAbilityProperties.AbilityCooldown.m_strValue']
+
+
+def test_unit_named_inside_a_line_without_colon():
+    from pipeline.match_rules import alias_keys
+    assert 'npc_units.vdata:npc_boss_tier2' in alias_keys('Walker bounty increased by 5%')
+
+
+def test_feature_fields_cluster():
+    from pipeline.match_rules import cluster_root
+    assert cluster_root('m_flParryCancelAirGlideDuration') == cluster_root('m_flParryCancelAirGravityScale')
+    assert cluster_root('m_mapWeaponInfos.primary.m_iBullets') == 'm_mapWeaponInfos'
 
 
 def test_small_coefficients_keep_decimals():

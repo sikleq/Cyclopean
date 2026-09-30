@@ -2,30 +2,37 @@
 
 The same blob appears in many builds (a file only changes in some of them),
 so keying by blob sha means every distinct file version is parsed once.
+
+Stored as plain JSON (not pickle): antivirus heuristics flag .pkl files, and
+JSON cannot carry code.
 """
 from __future__ import annotations
 
-import pickle
+import json
 from pathlib import Path
+from typing import Callable
 
 from . import kv3, tracker
 
-CACHE_DIR = tracker.ROOT / '.cache' / 'kv3'
+CACHE_ROOT = tracker.ROOT / '.cache'
+CACHE_DIR = CACHE_ROOT / 'kv3'
+
+
+def cached_json(folder: str, key: str, compute: Callable[[], object]):
+    """Load `<.cache>/<folder>/<key>.json`, or compute, store and return it."""
+    path = CACHE_ROOT / folder / f'{key}.json'
+    if path.exists():
+        return json.loads(path.read_text(encoding='utf-8'))
+    data = compute()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix('.tmp')
+    tmp.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+    tmp.replace(path)
+    return data
 
 
 def vdata_blob(blob: str) -> dict:
-    path = CACHE_DIR / f'{blob}.pkl'
-    if path.exists():
-        with open(path, 'rb') as f:
-            return pickle.load(f)
-    text = tracker.read_blob(blob).decode('utf-8-sig')
-    data = kv3.loads(text) or {}
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix('.tmp')
-    with open(tmp, 'wb') as f:
-        pickle.dump(data, f, protocol=pickle.HIGHEST_PROTOCOL)
-    tmp.replace(path)
-    return data
+    return cached_json('kv3', blob, lambda: kv3.loads(tracker.read_blob(blob).decode('utf-8-sig')) or {})
 
 
 def vdata(rev: str, path: str) -> dict:
@@ -34,5 +41,5 @@ def vdata(rev: str, path: str) -> dict:
 
 
 def clear() -> None:
-    for p in Path(CACHE_DIR).glob('*.pkl'):
+    for p in Path(CACHE_DIR).glob('*.json'):
         p.unlink()

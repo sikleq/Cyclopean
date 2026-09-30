@@ -17,7 +17,8 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from . import catalog, jsonio, loc, semantics, tracker
+from . import cache, catalog, jsonio, loc, semantics, tracker
+from . import match_rules as rules
 from . import patches as patches_mod
 from .patches import Patch, group
 
@@ -28,7 +29,7 @@ GAMEPLAY_CATS = ('balance', 'mechanic', 'availability')
 _NUM = r'[-+]?\d*\.?\d+'
 # "from 50% to 40%", "from +40 degrees angle to +25", "from 18m->54m to 16m->48m",
 # "from 100+1.5 to 120+1.75" (base + spirit scaling)
-_COMPOUND = rf'{_NUM}(?:\s*[a-z%]*\s*(?:->|→|\+)\s*{_NUM})*'
+_COMPOUND = rf'{_NUM}(?:\s*[a-z%]*\s*(?:->|→|\+|/)\s*{_NUM})*'     # "6800/9350/11900" = per-phase values
 _PAIR_RE = re.compile(
     rf'from\s+(?P<a>{_COMPOUND})(?:\s*[a-z%°.\'/]+){{0,4}}?\s*(?:to|->|→)\s*(?P<b>{_COMPOUND})',
     re.I)
@@ -51,6 +52,12 @@ _STOP = {'the', 'and', 'from', 'now', 'with', 'for', 'increased', 'reduced', 'de
          'damage', 'when', 'that', 'this', 'are', 'was', 'has', 'into', 'than', 'also', 'its', 'you', 'your'}
 WEAPON_WORDS = {'gun', 'weapon', 'bullet', 'bullets', 'clip', 'ammo', 'reload', 'fire', 'falloff', 'pellets',
                 'spread', 'alt', 'altfire', 'headshot', 'velocity'}
+# words too common to tie a line to one field on their own
+GENERIC_WORDS = {'damage', 'bounty', 'soul', 'souls', 'gold', 'health', 'value', 'bonu', 'bonus', 'amount', 'time',
+                 'rate', 'hero', 'heroe', 'trooper', 'walker', 'guardian', 'patron', 'shrine', 'boss', 'attack',
+                 'player', 'enemy', 'nearby', 'max', 'min', 'resist', 'resistance', 'bullet', 'spirit', 'weapon',
+                 'ability', 'abilitie', 'also', 'longer', 'more', 'less', 'able', 'will', 'when', 'target', 'unit'}
+SYNONYM_ONLY = {'armor', 'resistance', 'healing', 'time', 'cd'}
 HERO_STAT_WORDS = {'health', 'regen', 'move', 'sprint', 'stamina', 'boon', 'melee', 'resist', 'dash', 'speed'}
 GENERAL_KEYWORDS = {
     'slow': re.compile(r'slow', re.I),
@@ -180,7 +187,13 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
 
 
 def words(text: str) -> set[str]:
-    return {w for w in _WORD_RE.findall(text.lower()) if w not in _STOP}
+    """Content words, lightly stemmed (pellet/pellets, charge/charges)."""
+    out = set()
+    for w in _WORD_RE.findall(text.lower()):
+        if w in _STOP:
+            continue
+        out.add(w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w)
+    return out
 
 
 # ---- window merge ---------------------------------------------------------
@@ -268,14 +281,16 @@ def name_index(changes: list[MChange], cat: dict[str, dict], tok: dict[str, str]
         elif e['file'] == 'abilities.vdata':
             nm = loc.entity_name(tok, e['id'])
         if nm and nm != e['id']:
-            idx.setdefault(loc.plain(nm).lower(), []).append(key)
+            for variant in rules.name_variants(loc.plain(nm)):
+                idx.setdefault(variant, []).append(key)
     return idx
 
 
 def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]) -> Subject | None:
     keys = idx.get(prefix.strip().lower())
     if not keys:
-        return None
+        aliased = rules.alias_keys(prefix)
+        return Subject(aliased, prefix, 'alias') if aliased else None
     heroes = [k for k in keys if k.startswith('heroes.vdata:')]
     if heroes:
         hid = heroes[0].split(':', 1)[1]
@@ -286,6 +301,18 @@ def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]
 
 def ent_key(c: MChange) -> str:
     return f'{c.file}:{c.eid}'
+
+
+def label_words(c: MChange) -> set[str]:
+    return rules.expand_label_words(words(c.label))
+
+
+def pct_close(c: MChange, by_pct: float) -> bool:
+    for o, n in c.steps():
+        o, n = num(o), num(n)
+        if o and n is not None and abs(abs(n / o - 1) * 100 - by_pct) <= max(1.0, 0.1 * by_pct):
+            return True
+    return False
 
 
 def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, ability_hits: set[str]) -> int:
@@ -300,11 +327,9 @@ def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, 
             s += 8          # value made explicit: "stacks from +2 to +3" where 2 was the default
         elif c.op == 'remove' and value_matches(c.old, a, c.meters):
             s += 8
-    if by_pct is not None:
-        o, n = num(c.old), num(c.new)
-        if o and n and close(abs(n / o - 1) * 100, by_pct):
-            s += 6
-    overlap = len(words(c.label) & lw)
+    if by_pct is not None and pct_close(c, by_pct):
+        s += 6
+    overlap = len(label_words(c) & lw)
     s += min(overlap, 3)
     t = re.match(r'T([1-3]):', c.label)
     if tier is not None:
@@ -327,7 +352,29 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
         for text in sec.lines:
             out_lines.append(annotate_line(text, changes, by_ent, idx, cat, tok))
         sections.append({'title': sec.title, 'lines': out_lines})
+    post_pass(changes, by_ent)
     return sections
+
+
+def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
+    """Rules that look at matches as a whole (audit patterns 2 and 7)."""
+    for c in list(changes):
+        if c.status not in ('documented', 'described') or not c.lines:
+            continue
+        line = c.lines[0]
+        # 7: a feature added in one go: the matched field's siblings (added/removed together)
+        root = rules.cluster_root(c.path)
+        for sib in by_ent.get(ent_key(c), []):
+            if sib.status == 'hidden' and sib.cat in GAMEPLAY_CATS and sib.op in ('add', 'remove') \
+                    and rules.cluster_root(sib.path) == root:
+                sib.status = 'described'
+                sib.lines.append(line)
+        # 2: "(affects upgrades)": items built from this one moved the same way
+        if c.status == 'documented' and rules.AFFECTS_UPGRADES_RE.search(line):
+            for other in changes:
+                if other.status == 'hidden' and other.path == c.path and other.old == c.old and other.new == c.new:
+                    other.status = 'described'
+                    other.lines.append(line)
 
 
 def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
@@ -342,6 +389,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     by_pct = float(m.group('p')) if m else None
     tm = _TIER_RE.search(rest)
     tier = int(tm.group(1)) if tm else None
+    result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
+
+    if not subject:
+        covered = rules.global_line(text, changes, cat, num)
+        if covered:
+            return _link(result, covered, text, 'described')
+        aliased = rules.alias_keys(text)
+        if aliased:            # "Walker bounty increased by 5%": the unit is named inside the line
+            subject = Subject(aliased, None, 'alias_inline')
 
     if subject:
         # sorted: set order changes between runs (hash randomisation) -> unstable output
@@ -354,7 +410,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         for k in subject.ids:
             e = cat.get(k, {})
             nm = loc.plain(loc.entity_name(tok, e.get('id', ''))).lower()
-            if nm and len(nm) > 2 and nm in low:
+            if nm and len(nm) > 2 and any(v in low for v in rules.name_variants(nm)):
                 ability_hits.add(k)
         if lw & WEAPON_WORDS:
             ability_hits |= {k for k in subject.ids if cat.get(k, {}).get('kind') == 'weapon'}
@@ -366,12 +422,6 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         ability_hits = set(subject.ids)     # an item / unit line is about that entity
     pool = [c for c in pool if c.cat in GAMEPLAY_CATS]
 
-    result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
-    if not subject:
-        general = general_line(text, changes)
-        if general is not None:
-            result.update(general)
-            return result
     if (pairs or by_pct is not None) and pool:
         scored = sorted(((score(c, rest, pairs, by_pct, lw, tier, ability_hits), c) for c in pool),
                         key=lambda x: -x[0])
@@ -392,7 +442,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         # names a property of this entity and one side of the numbers agrees,
         # the other does not: the notes and the files disagree
         top = [c for s, c in scored
-               if num(c.old) is not None and words(c.label) & lw
+               if num(c.old) is not None and label_words(c) & lw
                and (not ability_hits or ent_key(c) in ability_hits)
                and half_match(c, pairs)]
         if subject and top:
@@ -404,45 +454,63 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             result['changes'] = [c.key]
             result['data'] = data_values(c, pairs)
             return result
-    # textual line: link changes of the subject whose label shares words with the line
-    if subject:
-        if _FIX_RE.search(text):
-            return _fix_or(result, text)
-        linked = [c for c in pool if words(c.label) & lw] or ([c for c in pool if ent_key(c) in ability_hits] if ability_hits else [])
-        for c in linked:
-            if c.status == 'hidden':
-                c.status = 'described'
-            c.lines.append(text)
-        if linked:
-            result['status'] = 'described'
-            result['changes'] = [c.key for c in linked]
-        return result
-    return _fix_or(result, text)
+    if not subject:
+        return _fix_or(result, text)
+    if _FIX_RE.search(text):
+        return _fix_or(result, text)
+    specific = lw - GENERIC_WORDS
+
+    def on_topic(c: MChange) -> bool:
+        """The field shares a specific word with the line (not just 'bullet' or 'damage')."""
+        return bool(words(c.label) & specific) or bool(label_words(c) & specific - SYNONYM_ONLY)
+
+    if subject.kind == 'alias_inline':
+        # a unit merely named inside a sentence: link only on specific property words
+        linked = [c for c in pool if on_topic(c)]
+        return _link(result, linked, text, 'described') if linked and not pairs else result
+    # 3: "T2 changed from 'A' to 'B'" / "T3 also increases radius": that tier's fields of the ability
+    if tier is not None:
+        scope = [c for c in pool if (not ability_hits or ent_key(c) in ability_hits)
+                 and re.match(rf'T{tier}:', c.label)]
+        topical = [c for c in scope if on_topic(c)]
+        whole_tier = re.search(r'changed from|reworked|replaced|swapped', text, re.I)
+        chosen = topical or (scope if whole_tier else [])
+        if chosen:
+            return _link(result, chosen, text, 'described')
+    # 2: "Now builds from Sprint Boots": component list of the item
+    if rules.COMPONENT_RE.search(text):
+        comp = [c for c in pool if 'ComponentItems' in c.path]
+        if comp:
+            linked = comp + [c for c in pool if c not in comp and on_topic(c)]
+            return _link(result, linked, text, 'described')
+    # textual line: link changes of the subject that share a specific word with the line
+    linked = [c for c in pool if on_topic(c)] or \
+             ([c for c in pool if ent_key(c) in ability_hits] if ability_hits and subject.kind == 'hero' else [])
+    if linked:
+        return _link(result, linked, text, 'described')
+    return result
 
 
-def general_line(text: str, changes: list[MChange]) -> dict | None:
-    """'All move slow values reduced by ~20% globally' covers every slow field:
-    link them all as 'described' (with their exact values) instead of letting
-    the ~20% pick one field that happens to be exactly 20%."""
-    low = text.lower()
-    if not ('all ' in low or 'global' in low):
+def _link(result: dict, changes: list[MChange], text: str, status: str) -> dict:
+    for c in changes:
+        if c.status == 'hidden':
+            c.status = 'described'
+        c.lines.append(text)
+    result['status'] = status
+    result['changes'] = [c.key for c in changes]
+    return result
+
+
+def general_line(text: str, changes: list[MChange], cat: dict | None = None) -> dict | None:
+    """Kept for callers/tests: global lines ('All move slow values reduced by ~20% globally')."""
+    covered = rules.global_line(text, changes, cat or {}, num)
+    if not covered:
         return None
-    for kw, rx in GENERAL_KEYWORDS.items():
-        if kw not in low:
-            continue
-        if kw == 'slow' and 'dash' in low:
-            rx = GENERAL_KEYWORDS['ground dash']
-        linked = [c for c in changes if c.cat == 'balance' and rx.search(c.path)]
-        if kw == 'slow' and 'dash' not in low:
-            linked = [c for c in linked if not GENERAL_KEYWORDS['ground dash'].search(c.path)]
-        if not linked:
-            return None
-        for c in linked:
-            if c.status == 'hidden':
-                c.status = 'described'
-            c.lines.append(text)
-        return {'status': 'described', 'changes': [c.key for c in linked]}
-    return None
+    for c in covered:
+        if c.status == 'hidden':
+            c.status = 'described'
+        c.lines.append(text)
+    return {'status': 'described', 'changes': [c.key for c in covered]}
 
 
 def _fix_or(result: dict, text: str) -> dict:
@@ -490,7 +558,7 @@ def entity_events(extras: dict, notes_text: str, tok: dict[str, str]) -> list[di
 def count_statuses(changes: list[MChange], events: list[dict]) -> dict[str, int]:
     """Gameplay changes by status; a change repeated across many entities
     ('@shared') counts once, an added/removed entity counts once."""
-    counts = {'documented': 0, 'described': 0, 'hidden': 0, 'unannounced': 0}
+    counts = {'documented': 0, 'described': 0, 'hidden': 0, 'unannounced': 0, 'unreleased': 0}
     seen_shared: set[tuple] = set()
     for c in changes:
         if c.cat not in GAMEPLAY_CATS or c.file == 'convars':
@@ -521,6 +589,17 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
             c.status = 'unannounced'
         for ev in events:
             ev['change']['status'] = 'unannounced'
+    elif commit:
+        # work on heroes that are not in the game yet is not "hidden from the notes"
+        unreleased = unreleased_heroes(commit)
+        for c in changes:
+            owner = c.eid if c.file == 'heroes.vdata' else cat.get(ent_key(c), {}).get('owner')
+            if c.status == 'hidden' and owner in unreleased:
+                c.status = 'unreleased'
+        for ev in events:
+            owner = ev['id'] if ev['file'] == 'heroes.vdata' else ev.get('owner')
+            if ev['change']['status'] == 'hidden' and owner in unreleased:
+                ev['change']['status'] = 'unreleased'
     entities: dict[str, dict] = {}
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}
     for cv in extras['convars']:
@@ -583,7 +662,26 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     }
 
 
-STATUS_RANK = {'hidden': 0, 'unannounced': 0, 'described': 1, 'documented': 2}
+STATUS_RANK = {'hidden': 0, 'unannounced': 0, 'unreleased': 0, 'described': 1, 'documented': 2}
+RELEASED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
+
+
+def unreleased_heroes(commit: str) -> set[str]:
+    """Heroes not playable at that build (in development / disabled)."""
+    heroes = cache.vdata(commit, tracker.SCRIPTS + 'heroes.vdata')
+    out = set()
+    for hid, h in heroes.items():
+        if not hid.startswith('hero_') or not isinstance(h, dict):
+            continue
+        state = h.get('m_eHeroDevelopmentState')
+        if state is not None:
+            released = state in RELEASED_STATES
+        else:   # builds before the field existed
+            released = not (str(h.get('m_bDisabled')).lower() in ('true', '1')
+                            or str(h.get('m_bInDevelopment')).lower() in ('true', '1'))
+        if not released:
+            out.add(hid)
+    return out
 SHARED_NAMES = {'heroes.vdata': 'All heroes', 'abilities.vdata': 'Many abilities & items',
                 'npc_units.vdata': 'Many units', 'misc.vdata': 'Many map objects', 'modifiers.vdata': 'Many modifiers'}
 KEY_KINDS = {'hero', 'ability', 'weapon', 'item', 'building', 'trooper', 'neutral'}

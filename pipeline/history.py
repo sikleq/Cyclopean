@@ -29,13 +29,28 @@ def record_path(build: tracker.Build) -> Path:
     return OUT / f'{build.build}_{build.short}{SUFFIX}'
 
 
-def entity_changes(prev: tracker.Build, cur: tracker.Build) -> list[dict]:
+def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, str] | None = None) -> list[dict]:
+    """Diff each tracked vdata file against its LAST KNOWN version.
+
+    Some predecessor builds (5034-5043) carry no vdata at all: a missing file
+    means "no data for this build", never "everything was removed", and the
+    next build is compared with the last version seen. The first version of a
+    file is the baseline, not a change."""
     entities = []
+    boundary = prev.repo != cur.repo
     for path in tracker.VDATA_PATHS:
-        if path not in cur.files:
+        if path not in cur.files and not boundary:
             continue
-        old_blob = tracker.blob_id(prev.commit, path)
         new_blob = tracker.blob_id(cur.commit, path)
+        if new_blob is None:
+            continue
+        if last_known is not None:
+            old_blob = last_known.get(path)
+            last_known[path] = new_blob
+            if old_blob is None:
+                continue                      # first time we see this file: baseline
+        else:
+            old_blob = tracker.blob_id(prev.commit, path)
         if old_blob == new_blob:
             continue
         old = cache.vdata_blob(old_blob) if old_blob else {}
@@ -56,11 +71,40 @@ def is_baseline(prev: tracker.Build) -> bool:
     return all(tracker.blob_id(prev.commit, p) is None for p in tracker.VDATA_PATHS)
 
 
-def build_record(prev: tracker.Build, cur: tracker.Build) -> dict | None:
-    entities = entity_changes(prev, cur)
-    loc_changes = loc.diff(prev.commit, cur.commit) if any(f.startswith(tracker.LOC) for f in cur.files) else []
-    convars = extras.convar_diff(prev.commit, cur.commit) if tracker.CONVARS in cur.files else []
-    assets = extras.asset_diff(prev.commit, cur.commit) if tracker.ASSET_LIST in cur.files else None
+def _source_base(last_known: dict | None, key: str, prev: tracker.Build, cur: tracker.Build,
+                 present: bool) -> str | None:
+    """Commit to diff a non-vdata source against: the last build that had it.
+    Returns None when this build has no such data or it is the first sighting."""
+    if last_known is None:
+        return prev.commit if present else None
+    base = last_known.get(key)
+    if present:
+        last_known[key] = cur.commit
+    return base if present else None
+
+
+def touches(cur: tracker.Build, prev: tracker.Build) -> dict[str, bool]:
+    boundary = prev.repo != cur.repo
+    return {
+        '@loc': boundary or any(f.endswith('_english.txt') and any(f.startswith(r) for r in loc.LOC_ROOTS)
+                                for f in cur.files),
+        '@convars': boundary or tracker.CONVARS in cur.files,
+        '@assets': boundary or tracker.ASSET_LIST in cur.files,
+    }
+
+
+def build_record(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, str] | None = None) -> dict | None:
+    entities = entity_changes(prev, cur, last_known)
+    t = touches(cur, prev)
+    has_loc = t['@loc'] and bool(loc.english_files(cur.commit))
+    base = _source_base(last_known, '@loc', prev, cur, has_loc)
+    loc_changes = loc.diff(base, cur.commit) if base else []
+    has_cv = t['@convars'] and tracker.blob_id(cur.commit, tracker.CONVARS) is not None
+    base = _source_base(last_known, '@convars', prev, cur, has_cv)
+    convars = extras.convar_diff(base, cur.commit) if base else []
+    has_assets = t['@assets'] and tracker.blob_id(cur.commit, tracker.ASSET_LIST) is not None
+    base = _source_base(last_known, '@assets', prev, cur, has_assets)
+    assets = extras.asset_diff(base, cur.commit) if base else None
     if not (entities or loc_changes or convars or assets):
         return None
     info = extras.steam_inf(cur.commit)
@@ -102,19 +146,19 @@ def run(rebuild: bool = False) -> None:
     t0 = time.time()
     for stale in OUT.glob('*_*.json'):          # pre-gzip format
         stale.unlink()
+    last_known: dict[str, str] = {}
     for prev, cur in zip(all_builds, all_builds[1:]):
         out = record_path(cur)
         name = out.name
         rec = None
-        if prev is all_builds[0] and is_baseline(prev):
-            out.unlink(missing_ok=True)
-            continue
         if out.exists() and not rebuild:
             rec = jsonio.load(out)
             if rec.get('v') != FORMAT_VERSION:
                 rec = None
+            else:
+                remember(last_known, prev, cur)
         if rec is None:
-            rec = build_record(prev, cur)
+            rec = build_record(prev, cur, last_known)
             if rec is None:
                 if out.exists():
                     out.unlink()
@@ -126,6 +170,23 @@ def run(rebuild: bool = False) -> None:
         index.append(summary(rec, name))
     jsonio.dump(OUT / 'index.json', index, indent=0)
     print(f'{len(index)} build records, {time.time() - t0:.0f}s')
+
+
+def remember(last_known: dict[str, str], prev: tracker.Build, cur: tracker.Build) -> None:
+    """Advance last-known versions for a build whose record came from disk."""
+    boundary = prev.repo != cur.repo
+    for path in tracker.VDATA_PATHS:
+        if path in cur.files or boundary:
+            blob = tracker.blob_id(cur.commit, path)
+            if blob:
+                last_known[path] = blob
+    t = touches(cur, prev)
+    if t['@loc'] and loc.english_files(cur.commit):
+        last_known['@loc'] = cur.commit
+    if t['@convars'] and tracker.blob_id(cur.commit, tracker.CONVARS):
+        last_known['@convars'] = cur.commit
+    if t['@assets'] and tracker.blob_id(cur.commit, tracker.ASSET_LIST):
+        last_known['@assets'] = cur.commit
 
 
 def reindex() -> None:

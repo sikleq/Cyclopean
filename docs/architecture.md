@@ -73,6 +73,25 @@ Matching rules live in `pipeline/match.py`; every fix to matching gets a test in
 - entities added in a window count as ONE change ("Added to the game files"), not one per field;
 - a change repeated verbatim across many entities (`@shared`) counts once.
 
+### Rules from the audit of "hidden" changes (`pipeline/match_rules.py`)
+
+An audit of ~1000 changes the first matcher called hidden (`tests/fixtures/audit_verdicts.jsonl`)
+showed most were described in the notes in other words. `python tools/audit_score.py` scores the matcher
+against it; `tests/test_audit.py` fails if coverage drops below 70% or fewer than 85% of the truly
+hidden changes stay hidden (2026-10-01: coverage 76%, real hidden kept 90%).
+
+| Pattern in the notes | Rule |
+|---|---|
+| "All ultimates' cooldowns nerfed by 15% (nearest multiple of 5)" | family (cooldown) × scope (ultimate slot) × ratio 1±15% with rounding tolerance |
+| "Reduced all AP damage upgrades by 10%" | AP upgrades = T1–T3 fields (`m_vecAbilityUpgrades`), DPS counts as damage |
+| "Walker bounty increased by 5%" | unit aliases (Walker / Guardian / Patron / Shrine / Mid Boss / Urn / Rejuvenator / neutrals / statues) |
+| "Now builds from Sprint Boots" | component list changes of the item |
+| "Sprint … (affects upgrades)" | same change in items built from it |
+| "T2 changed from A to B" / "T3 also increases radius" | that tier's fields; topical ones first |
+| one line about a new mechanic | sibling fields added/removed together (same block / same field prefix) |
+| "Bullets no longer have gravity" | word links need a specific word (not just bullet/damage/spirit) |
+| changes to heroes not released at that build | status `unreleased`, not `hidden` |
+
 ## Patch windows
 
 `pipeline/patches.py`: window of a changelog = `[date − 3 h, next start)`. Builds usually land

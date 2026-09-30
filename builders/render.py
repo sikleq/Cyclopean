@@ -1,6 +1,8 @@
 """Rendering of change records shared by patch, build and entity pages."""
 from __future__ import annotations
 
+import re
+
 from .common import esc, mark
 
 TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'changed': 6}
@@ -45,12 +47,52 @@ def sort_changes(changes: list[dict]) -> list[dict]:
     return sorted(changes, key=lambda c: (TAG_ORDER.get(tag_of(c)[0], 7), c.get('label', '')))
 
 
+_FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|MODIFIER_STATE_|MODIFIER_VALUE_|EAbility|E[A-Z][a-z]+_|DOTA_)')
+LONG_VALUE = 60
+
+
+def _flags(s) -> list[str] | None:
+    """'A | B' bit flags or 'a, b, c' id lists -> items; None for plain values."""
+    if not isinstance(s, str):
+        return None
+    if ' | ' in s:
+        return [f.strip() for f in s.split('|') if f.strip()]
+    parts = [f.strip() for f in s.split(', ')]
+    if len(parts) > 1 and all(p and ' ' not in p for p in parts):
+        return parts
+    return None
+
+
+def _short_flag(f: str) -> str:
+    return _FLAG_PREFIX.sub('', f).replace('_', ' ').lower()
+
+
+def flags_html(old_s, new_s) -> str | None:
+    """Bit-flag lists ('A | B | C') show only what was added / removed."""
+    a, b = _flags(old_s), _flags(new_s)
+    if a is None and b is None:
+        return None
+    a, b = set(a or ([old_s] if old_s else [])), set(b or ([new_s] if new_s else []))
+    added = ''.join(f'<span class="flag add">+{esc(_short_flag(f))}</span>' for f in sorted(b - a))
+    removed = ''.join(f'<span class="flag rem">−{esc(_short_flag(f))}</span>' for f in sorted(a - b))
+    return f'<span class="vals flags">{added}{removed}</span>'
+
+
+def _clip(s) -> str:
+    s = '' if s is None else str(s)
+    return s if len(s) <= LONG_VALUE else s[:LONG_VALUE - 1] + '…'
+
+
 def vals_html(c: dict) -> str:
     op = c.get('op')
     if c.get('cat') in ('visual', 'audio', 'ui'):
         return f'<span class="vals muted">{esc(op)}</span>'
     old_s = c.get('old_s', c.get('old'))
     new_s = c.get('new_s', c.get('new'))
+    fl = flags_html(old_s, new_s)
+    if fl:
+        return fl
+    old_s, new_s = _clip(old_s), _clip(new_s)
     if op == 'add':
         return f'<span class="vals"><span class="new">{esc(new_s)}</span></span>'
     if op == 'remove':

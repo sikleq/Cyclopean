@@ -19,7 +19,7 @@ AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastH
 VISUAL_RE = re.compile(
     r'(Particle|Material|Model|Image|Icon|[Cc]olor|Anim|Decal|Effect|Glow|Tracer|Muzzle|'
     r'Screen(?!ing)|Skin|Camera|Shake|Light(?!ning)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
-    r'Pose|Attachment|Bodygroup|Ragdoll|Gib|Portrait|Logo|Emblem|Sprite|Fov|Movie|Video|m_h[A-Z])'
+    r'Pose|Attachment|Bodygroup|Ragdoll|Gib|Portrait|Logo|Emblem|Sprite|Fov|Movie|Video|m_h[A-Z]|m_particle|DOF)'
 )
 UI_RE = re.compile(
     r'(Tooltip|m_strCSSClass|DisplayUnit|m_heroStatsUI|m_heroStatsDisplay|m_ShopStatDisplay|'
@@ -46,23 +46,42 @@ STREET_BRAWL_RE = re.compile(r'StreetBrawl|ItemDraft', re.I)
 # scale-function wiring, state bit masks, property-type plumbing, spline
 # internals of curves (the gameplay value, e.g. m_flBulletSpeed, is kept).
 TECHNICAL_RE = re.compile(
-    r'(\.(_class|_my_subclass_name)$|m_eSpecificStatScaleType|m_vecScalingStats|'
+    r'((^|\.)(_class|_my_subclass_name)$|m_vecScript(Values|EventHandlers)|m_eSpecificStatScaleType|m_vecScalingStats|'
     r'm_bits\w*Mask|m_nEnabledStateMask|m_UsageFlags|m_eProvidedPropertyType|m_ValueType|'
     r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|m_AutoIntrinsicModifiers|'
     r'm_strAG2SourceName|m_nShopVersion|m_strSelectionNameOverride|m_eShopFilters|m_eAdditionalShopFilters|'
     r'm_strDisableItemTarget|m_strPropertyName$|'
     r'Curve\.|m_spline|m_flSlope|flPercentOnGraph|m_vDomainM(in|ax)s|\.(x|y)$|'
     r'm_strContext$|m_strModifierContext|_editor)')
-UI_EXTRA_RE = re.compile(r'(^|\.)m_bIsHidden$')
+UI_EXTRA_RE = re.compile(
+    r'((^|\.)m_bIsHidden$|m_bIsAbilityDamageProperty|m_bIsNegativeAttribute|m_eHudDisplayLocation|'
+    r'm_eDrawOverheadStatus|m_strHudMessageText|m_eModifierDisplayLocai?ti?on|m_sMiniMapCssClass|'
+    r'm_vecAlwaysShowInStatModifierUI|m_strSubCastUICSSClass|m_strConditionalLocTokenOverride)')
+VISUAL_EXTRA_RE = re.compile(
+    r'(m_CustomCrosshairSettings|m_DOFWhileZoomed|m_flFade|m_flChaseCam|m_vFinishOffset|m_flOrbSpawnOffsetZ|'
+    r'm_strAG2|m_AG2)')
+META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
+TECH_EXTRA_RE = re.compile(r'(^|\.)(m_eScaleStatFilter|m_eUpgradeType)$')
+
+
+def _zero(v) -> bool:
+    return isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) == 0.0
 
 
 def category(path: str, old, new) -> str:
     if STREET_BRAWL_RE.search(path):
         return 'streetbrawl'
-    if TECHNICAL_RE.search(path):
+    if TECHNICAL_RE.search(path) or TECH_EXTRA_RE.search(path):
         return 'technical'
     if UI_EXTRA_RE.search(path):
         return 'ui'
+    if VISUAL_EXTRA_RE.search(path):
+        return 'visual'
+    if META_EXTRA_RE.search(path):
+        return 'meta'
+    # a property added with value 0 (or a 0 removed) is scaffolding for an upgrade
+    if (old is None and _zero(new)) or (new is None and _zero(old)):
+        return 'technical'
     if AVAILABILITY_RE.search(path):
         return 'availability'
     if META_RE.search(path):

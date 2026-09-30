@@ -45,57 +45,95 @@ class Build:
     date: str          # ISO date-time when the tracker committed it (UTC)
     build: int | None  # game build number from the commit subject
     files: tuple[str, ...] = field(default=())
+    repo: str = 'main'  # 'main' = GameTracking-Deadlock, 'pre' = its predecessor (Jun-Aug 2024)
 
     @property
     def short(self) -> str:
         return self.commit[:8]
 
 
-def git(*args: str, binary: bool = False):
-    res = subprocess.run(['git', '-C', str(TRACKER), *args], capture_output=True, check=True)
+# The predecessor tracker (Lifeismana/Deadlocked, archived) covers builds
+# 4243 (2024-06-06) .. 5044 in the same layout; GameTracking starts at 5044.
+PRE_TRACKER = Path(os.environ.get('CYCLOPEAN_PRE_TRACKER', ROOT / 'vendor' / 'Deadlocked'))
+PRE_TRACKER_URL = 'https://github.com/Lifeismana/Deadlocked.git'
+REPOS = {'main': TRACKER, 'pre': PRE_TRACKER}
+
+
+def git(*args: str, binary: bool = False, repo: str = 'main', check: bool = True):
+    res = subprocess.run(['git', '-C', str(REPOS[repo]), *args], capture_output=True, check=check)
     return res.stdout if binary else res.stdout.decode('utf-8', 'replace')
 
 
 def ensure_clone() -> None:
-    if (TRACKER / '.git').exists():
-        return
-    TRACKER.parent.mkdir(parents=True, exist_ok=True)
-    subprocess.run(['git', 'clone', '--quiet', TRACKER_URL, str(TRACKER)], check=True)
+    for repo, url in (('main', TRACKER_URL), ('pre', PRE_TRACKER_URL)):
+        path = REPOS[repo]
+        if (path / '.git').exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(['git', 'clone', '--quiet', url, str(path)], check=True)
 
 
 def sync() -> str:
-    """Fast-forward the tracker clone; returns the new HEAD commit."""
+    """Fast-forward the main tracker clone (the predecessor is archived); returns HEAD."""
     ensure_clone()
     git('fetch', '--quiet', 'origin')
     git('merge', '--quiet', '--ff-only', 'origin/HEAD')
     builds.cache_clear()
+    _repo_of.cache_clear()
     return git('rev-parse', 'HEAD').strip()
 
 
-@lru_cache(maxsize=None)
-def builds() -> tuple[Build, ...]:
-    """All tracker commits, oldest first, with the files each one touched."""
-    out = git('log', '--reverse', '--no-renames', '--format=\x01%H\t%cI\t%s', '--name-only')
+def _log(repo: str) -> list[Build]:
+    out = git('log', '--reverse', '--no-renames', '--format=\x01%H\t%cI\t%s', '--name-only', repo=repo)
     result = []
     for chunk in out.split('\x01')[1:]:
         head, _, rest = chunk.partition('\n')
         commit, date, subject = head.split('\t', 2)
         m = _BUILD_RE.match(subject)
         files = tuple(line for line in rest.splitlines() if line.strip())
-        result.append(Build(commit, date, int(m.group(1)) if m else None, files))
-    return tuple(result)
+        result.append(Build(commit, date, int(m.group(1)) if m else None, files, repo))
+    return result
+
+
+@lru_cache(maxsize=None)
+def builds() -> tuple[Build, ...]:
+    """All tracker commits, oldest first: predecessor builds older than the
+    main tracker's first build, then the main tracker."""
+    main = _log('main')
+    first_main = next((b.build for b in main if b.build is not None), None)
+    pre = []
+    if (PRE_TRACKER / '.git').exists() and first_main is not None:
+        pre = [b for b in _log('pre') if b.build is None or b.build < first_main]
+        # the predecessor's leading setup commits ("Initial commit", "YOLO") carry no build
+        while pre and pre[0].build is None and not pre[0].files:
+            pre.pop(0)
+    return tuple(pre + main)
+
+
+@lru_cache(maxsize=None)
+def _repo_of(rev: str) -> str:
+    if rev == 'HEAD':
+        return 'main'
+    for b in builds():
+        if b.commit.startswith(rev) or rev.startswith(b.commit):
+            return b.repo
+    return 'main'
 
 
 def blob_id(rev: str, path: str) -> str | None:
     """Git blob sha of `path` at `rev` (None if the file did not exist)."""
-    try:
-        return git('rev-parse', '--verify', '--quiet', f'{rev}:{path}').strip() or None
-    except subprocess.CalledProcessError:
-        return None
+    out = git('rev-parse', '--verify', '--quiet', f'{rev}:{path}', repo=_repo_of(rev), check=False)
+    return out.strip() or None
 
 
 def read_blob(blob: str) -> bytes:
-    return git('cat-file', 'blob', blob, binary=True)
+    for repo in ('main', 'pre'):
+        if not (REPOS[repo] / '.git').exists():
+            continue
+        res = subprocess.run(['git', '-C', str(REPOS[repo]), 'cat-file', 'blob', blob], capture_output=True)
+        if res.returncode == 0:
+            return res.stdout
+    raise KeyError(f'blob {blob} not found in any tracker clone')
 
 
 def read(rev: str, path: str) -> str | None:
@@ -107,7 +145,7 @@ def read(rev: str, path: str) -> str | None:
 
 def tree_blobs(rev: str, prefix: str) -> dict[str, str]:
     """{path: blob sha} for every file under `prefix` at `rev`."""
-    out = git('ls-tree', '-r', rev, '--', prefix)
+    out = git('ls-tree', '-r', rev, '--', prefix, repo=_repo_of(rev), check=False)
     result = {}
     for line in out.splitlines():
         meta, _, path = line.partition('\t')
