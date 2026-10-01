@@ -202,7 +202,7 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         for t in c.get('tiers', []))
     name = c['name'] if c.get('name') and c['name'] != c['id'] else pretty_id(c['id'], c.get('owner'))
     # what happened to it lately: the last patch that touched it, and its 12-patch strip
-    from .render import TAG_GLYPH
+    from .render import pip
     from .trail import last_change, trail_html
     key = f'abilities.vdata:{c["id"]}'
     last = last_change(key)
@@ -210,7 +210,7 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
     if last:
         prow, tag = last
         last_html = (f'<a class="ac-last t-{esc(tag)}" href="{rel}patches/{esc(prow["id"])}.html">'
-                     f'{TAG_GLYPH.get(tag, "●")} {esc(prow["date"])}</a>')
+                     f'{pip(tag)} {esc(prow["date"])}</a>')
     return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{img(ic, "", "px", "abilities")}'
             f'<div class="ac-id"><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}{last_html}</div>'
             f'{trail_html(key, None, rel)}</div></div>'

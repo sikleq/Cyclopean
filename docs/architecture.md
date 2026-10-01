@@ -86,8 +86,10 @@ On hero and patch pages changes are grouped: patch or hero → one header per ab
 counters) → its rows without the name repeated. Abilities re-created under a new id borrow the icon of
 their namesake with the same owner (`common.entity_icon`).
 
-Tag look: coloured text on a tint of the tag colour with a 2px bar and notched corners; the tint grows
-with the size of the change (`data-g`).
+Tag look: the tag's own pixel icon + word, coloured on a tint of the tag colour with a 2px bar and
+notched corners; the tint grows with the size of the change (`data-g`). Counters (▲3-style) are the
+same icons + a number (`render.pip`). Icons are 10×10 ASCII grids in `builders/pixel_icons.py`, never
+font glyphs (fallback fonts drew ⟳ as "C"); how to draw and review them: `.claude/skills/pixel-icons`.
 
 **One counting rule.** Every counter on every page (home summary, patches index, heroes index, card
 headers, ability sub-headers, history bands, the 12-patch strip) counts `cards.player_facing(changes)`:

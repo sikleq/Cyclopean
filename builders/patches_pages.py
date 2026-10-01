@@ -73,12 +73,11 @@ def _hero_chip(hid: str, name: str, tags: dict[str, int], rel: str, link_base: s
     """Portrait + its two biggest counters in the tag glyphs (a rework- or new-only hero
     used to show an empty slab: only ▲/▼ were counted)."""
     from .common import hero_icon
-    from .render import TAG_GLYPH, TAG_ORDER
+    from .render import TAG_ORDER, counts_text, pip
     ranked = sorted(tags.items(), key=lambda kv: (-kv[1], TAG_ORDER.get(kv[0], 9)))
     shown = sorted(ranked[:HCHIP_KINDS], key=lambda kv: TAG_ORDER.get(kv[0], 9))
-    pips = ''.join(f'<span class="pip {k}">{TAG_GLYPH.get(k, "●")}{n}</span>' for k, n in shown)
-    full = ' '.join(f'{TAG_GLYPH.get(k, "●")}{n}' for k, n in sorted(tags.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
-    return (f'<a class="hchip" href="{esc(link_base)}#c-{esc(hid)}" data-tooltip="{esc(name)} · {esc(full)}">'
+    pips = ''.join(pip(k, n) for k, n in shown)
+    return (f'<a class="hchip" href="{esc(link_base)}#c-{esc(hid)}" data-tooltip="{esc(name)}: {esc(counts_text(tags))}">'
             f'<img class="px" src="{esc(hero_icon(hid, rel) or "")}" alt="{esc(name)}" loading="lazy">'
             f'<span class="hc">{pips}</span></a>')
 
@@ -367,12 +366,13 @@ INDEX_HEROES = 6
 
 def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
     from .common import hero_icon
+    from .render import pip
     c, lc = p['counts'], p['line_counts']
     st = stats.get(p['id'], {'tags': {}, 'heroes': []})
     t = st['tags']
     # four fixed cells (empty when zero) so the counts line up from row to row
-    dirs = ''.join(f'<span class="ix-{k}">{sym + str(t[k]) if t.get(k) else ""}</span>'
-                   for k, sym in (('buff', '▲'), ('nerf', '▼'), ('new', '✦'), ('del', '✕')))
+    dirs = ''.join(f'<span class="ix-{k}">{pip(k, t[k]) if t.get(k) else ""}</span>'
+                   for k in ('buff', 'nerf', 'new', 'del'))
     names = hero_names()
     faces = ''.join(f'<img class="px" src="{esc(hero_icon(h, rel) or "")}" alt="" loading="lazy" '
                     f'data-tooltip="{esc(names.get(h, h))}">' for h in st['heroes'][:INDEX_HEROES] if hero_icon(h, rel))

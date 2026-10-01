@@ -1,4 +1,6 @@
 """Rendering helpers: tags, order, escaping."""
+import re
+
 from builders.hero_page import _strip_subject
 from builders.render import change_li, entity_rows, fold_tier_swaps, sort_changes, tag_of
 
@@ -53,7 +55,7 @@ def test_tier_swap_folds_into_one_rework_row():
 def test_entity_rows_name_once_with_counters():
     html = ''.join(entity_rows('Seismic Impact', None, [ch(label='a'), ch(label='b', dir='buff'), ch(label='c')]))
     assert html.count('Seismic Impact') == 1
-    assert 'class="pip nerf">▼2<' in html and 'class="pip buff">▲1<' in html
+    assert re.search(r'class="pip nerf"><svg[^>]*>.*?</svg>2<', html) and re.search(r'class="pip buff"><svg[^>]*>.*?</svg>1<', html)
     assert 'eh has-hidden' in html
 
 
@@ -183,7 +185,8 @@ def test_replaced_tier_row_gets_full_width_line():
 def test_top_pips_keeps_two_biggest_counters():
     from builders.render import top_pips
     html = top_pips([ch(dir='buff')] * 3 + [ch(dir='nerf')] * 2 + [ch(op='add', dir='changed')], 2)
-    assert '▲3' in html and '▼2' in html and '✦' not in html
+    assert re.search(r'pip buff"><svg.*?</svg>3<', html) and re.search(r'pip nerf"><svg.*?</svg>2<', html)
+    assert 'pip new' not in html
 
 
 def test_player_facing_is_the_one_counting_rule():
@@ -211,8 +214,8 @@ def test_weapon_panel_six_tiles_and_units_on_the_number():
 def test_hero_chip_shows_two_counters_tooltip_has_all():
     from builders.patches_pages import _hero_chip
     html = _hero_chip('hero_atlas', 'Abrams', {'new': 9, 'buff': 8, 'nerf': 9, 'del': 8}, '../', '')
-    assert html.count('class="pip') == 2 and '✦9' in html and '▼9' in html
-    assert 'data-tooltip="Abrams · ✦9 ▲8 ▼9 ✕8"' in html
+    assert html.count('class="pip') == 2 and 'pip new' in html and 'pip nerf' in html
+    assert 'data-tooltip="Abrams: 9 new, 8 buffs, 9 nerfs, 8 removed"' in html
 
 
 def test_hero_last_skips_engine_only_patches(monkeypatch):
@@ -246,3 +249,18 @@ def test_pct_pill_strength_follows_size():
     from builders.render import pct_grade, vals_html
     assert [pct_grade(x) for x in (2, -7, 20, -45, 122)] == [1, 2, 3, 4, 5]
     assert 'data-g="3"' in vals_html(ch(old_s='40', new_s='32', pct=-20.0))
+
+
+def test_pixel_icons_are_10x10_without_lone_pixels():
+    from builders.pixel_icons import GRID, TAG_ART, art_path, tag_svg
+    for tag, rows in TAG_ART.items():
+        assert len(rows) == GRID and all(len(r) == GRID for r in rows), tag
+        for y, line in enumerate(rows):
+            for x, ch_ in enumerate(line):
+                if ch_ != '#':
+                    continue
+                around = [rows[j][i] for j in range(max(0, y - 1), min(GRID, y + 2))
+                          for i in range(max(0, x - 1), min(GRID, x + 2)) if (i, j) != (x, y)]
+                assert '#' in around, f'lone pixel in {tag} at {x},{y}'
+    assert art_path(('#.#', '###')) == 'M0 0h1v1h-1zM2 0h1v1h-1zM0 1h3v1h-3z'
+    assert tag_svg('buff').startswith('<svg class="ti"') and tag_svg('nope') == ''

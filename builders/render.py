@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import re
 
+from .pixel_icons import tag_svg
 from .common import esc, glyph_for, ids_to_names, mark, visual
 
 # The tag set, chosen from what the data actually contains (all patches, 2026-10-01):
@@ -48,7 +49,7 @@ def tag_of(c: dict) -> tuple[str, str]:
 def tag_html(c: dict) -> str:
     cls, txt = tag_of(c)
     g = c.get('grad', 5)
-    return f'<span class="tag {cls}" data-g="{g}">{esc(txt)}</span>'
+    return f'<span class="tag {cls}" data-g="{g}">{tag_svg(cls)}{esc(txt)}</span>'
 
 
 def sort_changes(changes: list[dict]) -> list[dict]:
@@ -99,8 +100,20 @@ def fold_tier_swaps(changes: list[dict]) -> list[dict]:
     return out
 
 
-TAG_GLYPH = {'buff': '▲', 'nerf': '▼', 'new': '✦', 'del': '✕', 'rework': '⟳', 'mech': '◆', 'changed': '●',
-             'on': '●', 'off': '○'}
+# the counters' icons are the site's own pixel art (builders/pixel_icons.py), not font glyphs;
+# tooltips (plain text) use words
+TAG_WORDS = {'buff': 'buffs', 'nerf': 'nerfs', 'new': 'new', 'del': 'removed', 'rework': 'reworked',
+             'mech': 'mechanics', 'changed': 'changed', 'on': 'enabled', 'off': 'disabled'}
+
+
+def pip(cls: str, n: int | str = '') -> str:
+    """One counter: the tag's pixel icon and a number, in the tag colour."""
+    return f'<span class="pip {cls}">{tag_svg(cls)}{n}</span>'
+
+
+def counts_text(counts: dict[str, int]) -> str:
+    """'9 new, 8 buffs, 9 nerfs' for a tooltip, in the tag order."""
+    return ', '.join(f'{n} {TAG_WORDS.get(k, k)}' for k, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
 
 
 def tag_summary(changes: list[dict]) -> str:
@@ -110,8 +123,7 @@ def tag_summary(changes: list[dict]) -> str:
         cls = tag_of(c)[0]
         counts[cls] = counts.get(cls, 0) + 1
     return '<span class="tsum">' + ''.join(
-        f'<span class="pip {cls}">{TAG_GLYPH.get(cls, "●")}{n}</span>'
-        for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
+        pip(cls, n) for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
 
 
 def top_pips(changes: list[dict], k: int) -> str:
@@ -122,8 +134,7 @@ def top_pips(changes: list[dict], k: int) -> str:
         counts[cls] = counts.get(cls, 0) + 1
     ranked = sorted(counts.items(), key=lambda kv: (-kv[1], TAG_ORDER.get(kv[0], 9)))[:k]
     return '<span class="tsum">' + ''.join(
-        f'<span class="pip {cls}">{TAG_GLYPH.get(cls, "●")}{n}</span>'
-        for cls, n in sorted(ranked, key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
+        pip(cls, n) for cls, n in sorted(ranked, key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
 
 
 def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | None = None) -> str:
