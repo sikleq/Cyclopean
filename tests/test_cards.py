@@ -50,3 +50,15 @@ def test_engine_plumbing_is_technical_not_balance():
     assert category('m_mapAbilityProperties.Damage.m_strValue', 65, 80) == 'balance'
     assert category('m_mapAbilityProperties.Damage.m_subclassScaleFunction.m_flStatScale', 0.8, 0.85) == 'balance'
     assert category('m_mapWeaponInfos.primary.m_flBulletSpeed', 1, 2) == 'balance'
+
+
+def test_presentation_fields_are_not_gameplay():
+    assert category('m_strVoteSticker', 'a', 'b') == 'visual'
+    assert category('m_sAG2VariationName', 'a', 'b') == 'visual'
+    assert category('m_nNameOffset', 140, 150) == 'ui'
+    assert category('m_strLocUnitName', 'a', 'b') == 'ui'
+    assert category('m_flHullCapsuleRadius', 90, 20) == 'technical'
+    assert category('m_flSightRangeNPCs', 1500, 1338) == 'technical'
+    assert category('m_vecHitReactClips[0].m_ClipID', 1, 2) == 'visual'
+    # gameplay stays gameplay
+    assert category('m_flSightRangePlayers', 1500, 1338) == 'balance'

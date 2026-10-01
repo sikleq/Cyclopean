@@ -276,3 +276,45 @@ def test_added_entity_shows_a_summary_not_every_field():
     html = change_rows(rows, added=True)
     assert 'Added to the game files · 31 fields' in html and 'Max Health' in html and 'Splatter' in html
     assert 'All fields (29)' in html
+
+
+def test_engine_values_read_as_words():
+    from builders.render import readable_value
+    assert readable_value('EHeroDevState_PreRelease') == 'Pre Release'
+    assert readable_value('CITADEL_UNIT_TARGET_NEUTRAL') == 'Neutral'
+    assert readable_value('file://{images}/events/voting_sept2026/sticker_baba.psd') == 'sticker_baba'
+    assert readable_value('12.5') == '12.5' and readable_value('Splatter') == 'Splatter'
+
+
+def test_renamed_field_is_judged_and_unit_only_renames_drop():
+    from builders.cards import merge_renames
+    rows = merge_renames([ch(op='remove', label='Weapon Damage', old_s='45', new_s=None, dir='changed',
+                             path='m_mapAbilityProperties.WeaponDamage.m_strValue'),
+                          ch(op='add', label='Weapon Damage', old_s=None, new_s='40', dir='changed',
+                             path='m_mapAbilityProperties.BonusWeaponDamage.m_strValue')])
+    assert len(rows) == 1 and rows[0]['op'] == 'change' and rows[0]['dir'] == 'nerf'
+    same = merge_renames([ch(op='remove', label='Radius', old_s='100', new_s=None),
+                          ch(op='add', label='Radius', old_s=None, new_s='2.54m')])
+    assert same == []
+
+
+def test_table_edited_row_by_row_folds_into_one_summary():
+    from builders.cards import change_rows
+    rows = [ch(label=f'Level {n}: souls needed', old_s=str(n * 1000), new_s=str(n * 950), dir='buff', pct=-5.0)
+            for n in range(19, 25)]
+    html = change_rows(rows)
+    assert 'details class="fam' in html and 'Level 19–24: souls needed' in html and '6 rows' in html
+    assert html.count('class="erow') == 7          # the summary + the 6 rows behind it
+    few = change_rows([ch(label='T1: Cooldown'), ch(label='T2: Cooldown')])
+    assert 'fam' not in few
+
+
+def test_whole_level_added_is_one_row_and_moved_fields_drop():
+    from builders.cards import change_rows, merge_renames
+    rows = [ch(op='add', label='Level 35: souls needed', old_s=None, new_s='47000'),
+            ch(op='add', label='Level 35: gives a boon', old_s=None, new_s='yes'),
+            ch(op='add', label='Level 35: ability points', old_s=None, new_s='1')]
+    html = change_rows(rows)
+    assert html.count('class="erow') == 1 and 'Level 35 added' in html and '47000 souls' in html
+    assert merge_renames([ch(op='remove', label='Pickup Radius', old_s='85', new_s=None),
+                          ch(op='add', label='Pickup Radius › Base', old_s=None, new_s='85')]) == []

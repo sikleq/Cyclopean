@@ -339,6 +339,7 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .tag.del, .pip.del { --c: var(--tag-del); }
 .tag.rework, .pip.rework { --c: var(--tag-rework); }
 .tag.changed, .pip.changed { --c: var(--tag-changed); }
+.tag.up, .pip.up, .tag.down, .pip.down { --c: var(--tag-changed); }
 .tag.mech, .pip.mech { --c: var(--tag-mech); }
 .tag.on, .pip.on { --c: var(--tag-on); }
 .tag.off, .pip.off { --c: var(--tag-off); }
@@ -378,7 +379,7 @@ details.collapsible > summary .chip { margin-left: 8px; }
 
 .dir-buff { color: var(--tag-buff); }
 .dir-nerf { color: var(--tag-nerf); }
-.dir-changed { color: var(--tag-changed); }
+.dir-changed, .dir-up, .dir-down { color: var(--tag-changed); }
 .arrow { color: var(--text-dimmer); padding: 0 4px; }
 /* old -> new, the key datum: old muted, new bold in the direction's colour, the change as a pill */
 .vals { font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -453,7 +454,7 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .erow .tx .li.glyph { display: inline-flex; }
 .erow .tx .o { color: var(--value-old); }
 .erow .tx .n { font-weight: 700; }
-.erow .tx .n.dir-changed { color: var(--text-bright); }
+.erow .tx .n.dir-changed, .erow .tx .n.dir-up, .erow .tx .n.dir-down { color: var(--text-bright); }
 /* status marks are exceptions: a documented row is quiet, a hidden one is loud */
 .erow.st-documented .mark, .erow.st-rounded .mark { opacity: .55; }
 .erow.is-hidden { background: var(--eye-06); box-shadow: inset 3px 0 0 var(--eye); }
@@ -480,6 +481,15 @@ details.tech > summary::-webkit-details-marker { display: none; }
 details.tech > summary::before { content: "+ "; color: var(--patina); }
 details.tech[open] > summary::before { content: "- "; }
 details.tech .erow { opacity: .8; }
+/* a table edited row by row: one summary row, the rows behind it */
+details.fam > summary { list-style: none; cursor: pointer; }
+details.fam > summary::-webkit-details-marker { display: none; }
+details.fam > summary .erow .tx::after { content: " +"; color: var(--patina); }
+details.fam[open] > summary .erow .tx::after { content: " -"; }
+details.fam > .erow { padding-left: 24px; opacity: .85; }
+.fam-n { color: var(--text-dimmer); }
+.vals.fam-span { color: var(--label); font: 17px/1 var(--font-label); }
+.only-hidden details.fam:not(.has-hidden) { display: none; }
 
 /* history strip: the last 12 patches, filled where the entity changed */
 .trail { display: inline-flex; gap: 3px; }

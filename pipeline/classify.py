@@ -59,9 +59,14 @@ UI_EXTRA_RE = re.compile(
     r'm_vecAlwaysShowInStatModifierUI|m_strSubCastUICSSClass|m_strConditionalLocTokenOverride)')
 VISUAL_EXTRA_RE = re.compile(
     r'(m_CustomCrosshairSettings|m_DOFWhileZoomed|m_flFade|m_flChaseCam|m_vFinishOffset|m_flOrbSpawnOffsetZ|'
-    r'm_strAG2|m_AG2)')
+    r'm_strAG2|m_AG2|m_sAG2|HitReactClips|MovementBlockedClips|m_strVoteSticker|Readability)')
+# fields players never see as gameplay (audit 2026-10-01): HUD placement, presence text, unit name
+# keys, collision hulls, the flight physics of soul orbs, what NPCs (not heroes) can see
+UI_MORE_RE = re.compile(r'(RichPresence|m_eHudStyle|HudStyle|m_nNameOffset|HealthBarOffset|m_strLocUnitName|'
+                        r'm_sLocUnitName|NameOffset)')
 META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
-TECH_EXTRA_RE = re.compile(r'(^|\.)(m_eScaleStatFilter|m_eUpgradeType)$')
+TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
+                           r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities)')
 
 
 def _zero(v) -> bool:
@@ -73,7 +78,7 @@ def category(path: str, old, new) -> str:
         return 'streetbrawl'
     if TECHNICAL_RE.search(path) or TECH_EXTRA_RE.search(path):
         return 'technical'
-    if UI_EXTRA_RE.search(path):
+    if UI_EXTRA_RE.search(path) or UI_MORE_RE.search(path):
         return 'ui'
     if VISUAL_EXTRA_RE.search(path):
         return 'visual'

@@ -76,11 +76,12 @@ CHANGED 2.5k, MECH 0.9k, availability 92. The badge never repeats the percentage
 | Tag | When |
 |---|---|
 | NEW / DEL | field or entity added / removed |
-| BUFF / NERF | numeric change, direction by the field's polarity (`pipeline/semantics.py`) |
+| BUFF / NERF | numeric change, direction by the polarity of the PROPERTY's own name (`semantics.property_name`, not its container: "Cost" in `m_MapModCostBonuses` flipped 110 investment bonuses); "Reduction / Refund / Decay" after a lower-is-better word turns it around (Cooldown Reduction); lower-is-better values compare with their sign (an enemy healing penalty −65 → −70 is stronger) |
+| UP / DOWN | numeric change on an object both teams have (troopers, guardians, walkers, camps, pickups, game rules): the number went up / down, no better/worse — except `semantics.PLAYER_SIDE` (camp bounty, powerup strength, shorter respawn / spawn timers), which are BUFF / NERF for whoever takes them |
 | REWORK | an upgrade tier whose bonuses were removed and added in one patch (`render.fold_tier_swaps`) |
 | MECH | mechanic field (behaviour flags, dependencies) without a direction |
 | CHANGED | value without a known direction |
-| ON / OFF | availability: `Disabled`/`In Development` truthy = OFF, `Player Selectable`/release state = ON |
+| ON / OFF | availability: `Disabled`/`In Development` truthy = OFF, `Player Selectable`/release state = ON; a "Disabled On Heroes" list that grew = OFF, shrank = ON |
 
 On hero and patch pages changes are grouped: patch or hero → one header per ability (icon, name, tag
 counters) → its rows without the name repeated. Abilities re-created under a new id borrow the icon of
@@ -96,6 +97,24 @@ headers, ability sub-headers, history bands, the 12-patch strip) counts `cards.p
 renamed fields merged, swapped upgrade tiers folded into one REWORK (per entity, never across abilities),
 engine plumbing (`cards.is_engine`, the "Technical" fold) left out. A patch that only touched plumbing is
 not the hero's "last change" and does not take one of the three open history bands.
+
+**What a page lists** starts at `cards.gameplay_entities` (gameplay rows only; one object kept under
+several ids with the same edit — Walker's `alt_`/`_weak` copies, two crate ids — merges into one
+"Walker · 4 variants" card, `cards.merge_variants`). Inside a card, 4+ rows of one family (labels equal
+but for a number: "Level 19…36: souls needed", "Vitality investment, step N") fold into one summary row
+with the % range (`cards.family_rows`).
+
+**Labels for structures the game never labels** (`semantics.plain_label`): level table ("Level 22: souls
+needed / gives a boon / ability points"), investment bonuses ("Vitality investment, step 5: bonus"), the
+hero's kit ("Kit: Ability 3"), powerups ("Powerup: Fire Rate (early game)"), the pellet pattern, walker
+stages ("Health (empowered, stage 1)"), weak points. `humanize` drops `m_` and Hungarian prefixes even
+before a lower-case letter, keeps plural acronyms (NPCs) and turns "In Seconds" into "(s)". Values:
+`render.readable_value` turns engine enums into words (`EHeroDevState_PreRelease` → "Pre Release").
+Not gameplay (`pipeline/classify.py`): vote stickers, AG2 names, rich presence, HUD/name offsets, unit
+name keys, trooper hit-react clips → visual/ui; collision hulls, soul-orb flight physics, NPC sight → technical.
+
+A field added then tuned within one patch window is NEW, tuned then removed is DEL (`match.merge_ops`);
+a renamed field (DEL + NEW, same label) is judged like any change, and dropped when only its unit changed.
 
 **A newly added entity** (build records: `status: added`) is one NEW thing: its counters count 1,
 its card shows "Added to the game files · N fields", the stats a player compares and its own abilities

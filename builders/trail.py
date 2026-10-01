@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from .cards import player_facing
+from .cards import gameplay_entities, player_facing
 from .common import esc, load_json, patch_title_text
 from .render import tag_of
 
@@ -57,7 +57,7 @@ def patch_stats() -> dict[str, dict]:
         p = load_json(f'patches/{r["id"]}.json.gz')
         tags: dict[str, int] = {}
         heroes: dict[str, int] = {}
-        for e in p['entities']:
+        for e in gameplay_entities(p['entities']):
             owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
             for c in player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY]):
                 cls = tag_of(c)[0]

@@ -213,6 +213,17 @@ def load_record(file_name: str) -> dict:
     return jsonio.load(BUILDS / file_name)
 
 
+def merge_ops(first: str, then: str) -> str:
+    """One field's op across the window's builds. A field added then tuned is still NEW (it was
+    shown as '— → 0.75' CHANGED), tuned then removed is DEL ('16.2 → —'); added then removed
+    never shipped and becomes a no-op change (old == new == None, dropped below)."""
+    if first == 'add':
+        return 'change' if then == 'remove' else 'add'
+    if first == 'remove':
+        return 'change' if then == 'add' else 'remove'
+    return 'remove' if then == 'remove' else 'change'
+
+
 def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple[list[MChange], dict]:
     """Merge the builds of a window. Entities added inside the window are not
     diffed field by field (their whole data is "new"): they become one
@@ -251,7 +262,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
                         mc.builds.append(rec['build'])
-                        mc.op = 'change' if mc.op == 'change' or (mc.op == 'add' and c['op'] != 'remove') else c['op']
+                        mc.op = merge_ops(mc.op, c['op'])
         extras['loc'].extend(dict(x, build=rec['build']) for x in rec.get('loc') or [])
         extras['convars'].extend(dict(x, build=rec['build']) for x in rec.get('convars') or [])
         if rec.get('assets'):

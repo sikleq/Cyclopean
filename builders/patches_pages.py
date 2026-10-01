@@ -109,7 +109,7 @@ def _display_name(e: dict) -> str:
     """Name at the patch's build; else the latest known name; else a readable stand-in, never the id."""
     name = e.get('name') or e['id']
     if name != e['id']:
-        return name
+        return name + (f' · {len(e["variants"])} variants' if e.get('variants') else '')
     return catalog_names().get(f"{e['file']}:{e['id']}") or pretty_id(e['id'], e.get('owner'))
 
 
@@ -233,11 +233,8 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
-    gameplay = []
-    for e in p['entities']:
-        ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
-        if ch:
-            gameplay.append({**e, 'changes': ch})
+    from .cards import gameplay_entities
+    gameplay = gameplay_entities(p['entities'])
     names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
     for e in gameplay:
         if e.get('owner'):

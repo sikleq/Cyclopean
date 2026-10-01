@@ -9,7 +9,8 @@ from .common import esc, glyph_for, ids_to_names, mark, visual
 # The tag set, chosen from what the data actually contains (all patches, 2026-10-01):
 # NEW 20k, DEL 11k, NERF 5.2k, BUFF 4k, CHANGED 2.5k, MECH 0.9k, availability 92.
 # The percentage is NOT in the badge: the value cell already shows it.
-TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'on': 5, 'off': 5, 'mech': 6, 'changed': 7}
+TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'on': 5, 'off': 5, 'up': 6, 'down': 6, 'mech': 7,
+             'changed': 8}
 KIND_LABEL = {
     'hero': 'Hero', 'ability': 'Ability', 'weapon': 'Weapon', 'melee': 'Melee', 'item': 'Item',
     'ability_other': 'Ability', 'trooper': 'Trooper', 'building': 'Building', 'neutral': 'Neutral',
@@ -33,6 +34,11 @@ def tag_of(c: dict) -> tuple[str, str]:
             return ('off', 'OFF') if 'pre' in new else ('on', 'ON')
         truthy = True if new in _TRUE else False if new in _FALSE else None
         if truthy is None:
+            # "Disabled On Heroes: — -> hero_kelvin, hero_mirage": a list that grew disables more
+            old_n, new_n = (len([x for x in str(v or '').split(', ') if x.strip() and x != '—'])
+                            for v in (c.get('old_s', c.get('old')), c.get('new_s', c.get('new'))))
+            if old_n != new_n and _OFF_WHEN_TRUE.search(str(c.get('label', '')) + str(c.get('path', ''))):
+                return ('off', 'OFF') if new_n > old_n else ('on', 'ON')
             return 'changed', 'CHANGED'
         off = truthy if _OFF_WHEN_TRUE.search(str(c.get('label', '')) + str(c.get('path', ''))) else not truthy
         return ('off', 'OFF') if off else ('on', 'ON')
@@ -41,7 +47,7 @@ def tag_of(c: dict) -> tuple[str, str]:
     if op == 'remove':
         return 'del', 'DEL'
     d = c.get('dir')
-    if d in ('buff', 'nerf'):
+    if d in ('buff', 'nerf', 'up', 'down'):
         return d, d.upper()
     return ('mech', 'MECH') if cat == 'mechanic' else ('changed', 'CHANGED')
 
@@ -102,7 +108,7 @@ def fold_tier_swaps(changes: list[dict]) -> list[dict]:
 
 # the counters' icons are the site's own pixel art (builders/pixel_icons.py), not font glyphs;
 # tooltips (plain text) use words
-TAG_WORDS = {'buff': 'buffs', 'nerf': 'nerfs', 'new': 'new', 'del': 'removed', 'rework': 'reworked',
+TAG_WORDS = {'buff': 'buffs', 'nerf': 'nerfs', 'new': 'new', 'del': 'removed', 'rework': 'reworked', 'up': 'up', 'down': 'down',
              'mech': 'mechanics', 'changed': 'changed', 'on': 'enabled', 'off': 'disabled'}
 
 
@@ -185,7 +191,8 @@ def entity_header(name: str, icon_url: str | None, counted: list[dict], search: 
             f'{counters}</td></tr>')
 
 
-_FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|MODIFIER_STATE_|MODIFIER_VALUE_|EAbility|E[A-Z][a-z]+_|DOTA_)')
+_FLAG_PREFIX = re.compile(r'^(CITADEL_UNIT_TARGET_|CITADEL_ABILITY_BEHAVIOR_|CITADEL_|MODIFIER_STATE_|MODIFIER_VALUE_|'
+                          r'EAbility|E[A-Z][a-z]+_|DOTA_)')
 LONG_VALUE = 60
 
 
@@ -219,8 +226,30 @@ def flags_html(old_s, new_s) -> str | None:
     return f'<span class="vals flags">{added}{removed}</span>'
 
 
+_ENUM_VALUE = re.compile(r'^E[A-Z][A-Za-z0-9]*?_([A-Za-z0-9_]+)$')            # EHeroDevState_PreRelease
+_CAPS_VALUE = re.compile(r'^[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+$')                 # CITADEL_UNIT_TARGET_NEUTRAL
+_CAPS_PREFIX = re.compile(r'^(CITADEL_UNIT_TARGET_|CITADEL_ABILITY_BEHAVIOR_|CITADEL_|MODIFIER_STATE_|MODIFIER_VALUE_|DOTA_)')
+_FILE_VALUE = re.compile(r'^file://\{[a-z]+\}/(?:.*/)?([^/]+?)(?:\.[a-z0-9]+)?$', re.I)
+_CAMEL = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|_')
+
+
+def readable_value(s: str) -> str:
+    """Engine spellings a player cannot read, as words: 'EHeroDevState_PreRelease' -> 'Pre Release',
+    'CITADEL_UNIT_TARGET_NEUTRAL' -> 'Neutral', 'file://{images}/…/sticker_baba.psd' -> 'sticker_baba'.
+    Numbers and ordinary text pass through."""
+    m = _ENUM_VALUE.match(s)
+    if m:
+        return ' '.join(w for w in _CAMEL.split(m.group(1)) if w)
+    if _CAPS_VALUE.match(s):
+        return _CAPS_PREFIX.sub('', s).replace('_', ' ').title()
+    m = _FILE_VALUE.match(s)
+    if m:
+        return m.group(1)
+    return s
+
+
 def _clip(s) -> str:
-    s = '' if s is None else ids_to_names(str(s))
+    s = '' if s is None else readable_value(ids_to_names(str(s)))
     return s if len(s) <= LONG_VALUE else s[:LONG_VALUE - 1] + '…'
 
 

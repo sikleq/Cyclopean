@@ -40,8 +40,8 @@ def _latest(row: dict | None) -> str:
     if not row:
         return ''
     p = load_json(f'patches/{row["id"]}.json.gz')
-    gameplay = [{**e, 'changes': [c for c in e['changes'] if c['cat'] in GAMEPLAY]} for e in p['entities']]
-    gameplay = [e for e in gameplay if e['changes']]
+    from .cards import gameplay_entities
+    gameplay = gameplay_entities(p['entities'])
     href = f'patches/{esc(row["id"])}.html'
     c = p.get('counts', {})
     # notes that only touch the interface say nothing about balance: say so next to the date

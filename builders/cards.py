@@ -64,24 +64,87 @@ def merge_renames(changes: list[dict]) -> list[dict]:
     adds = {}
     for c in changes:
         if c.get('op') == 'add':
-            adds.setdefault(c.get('label'), []).append(c)
+            adds.setdefault(_rename_key(c.get('label')), []).append(c)
     out, used = [], set()
     for c in changes:
-        if c.get('op') == 'remove' and adds.get(c.get('label')):
-            a = adds[c['label']].pop(0)
+        if c.get('op') == 'remove' and adds.get(_rename_key(c.get('label'))):
+            a = adds[_rename_key(c['label'])].pop(0)
             used.add(id(a))
-            out.append({**a, 'op': 'change', 'old_s': c.get('old_s'), 'old': c.get('old'),
-                        'status': min((a.get('status', 'hidden'), c.get('status', 'hidden')),
-                                      key=lambda s: s not in HIDDEN_LIKE)})
+            x, y = _num(c.get('old_s', c.get('old'))), _num(a.get('new_s', a.get('new')))
+            if x is not None and y is not None and (x == y or abs(x / UNITS_PER_METER - y) < 0.01):
+                continue            # same value under a new key (or the same length now in metres)
+            merged = {**a, 'op': 'change', 'old_s': c.get('old_s'), 'old': c.get('old'),
+                      'status': min((a.get('status', 'hidden'), c.get('status', 'hidden')),
+                                    key=lambda s: s not in HIDDEN_LIKE)}
+            if x is not None and y is not None:
+                # the NEW row carried dir='changed': judge the pair like any other change
+                from pipeline.semantics import direction, gradient
+                d, pct = direction(str(a.get('path', '')), x, y)
+                merged.update(dir=d, pct=pct, grad=gradient(pct))
+            out.append(merged)
             continue
         out.append(c)
     return [c for c in out if id(c) not in used]
 
 
+def _rename_key(label) -> str:
+    """'Pickup Radius' and 'Pickup Radius › Base' are one field moved into a sub-block."""
+    return str(label or '').removesuffix(' › Base')
+
+
+UNITS_PER_METER = 39.37
+_NUM = re.compile(r'^\s*([-+]?\d*\.?\d+)\s*(m|s|%)?\s*$')
+
+
+def _num(v) -> float | None:
+    m = _NUM.match(str(v)) if v is not None else None
+    return float(m.group(1)) if m else None
+
+
 def is_engine(c: dict) -> bool:
+    if c.get('cat') == 'availability':      # "Pre Release", "Disabled": never plumbing
+        return False
     vals = [str(c.get(k) or '').strip() for k in ('old_s', 'new_s')]
     vals = [v for v in vals if v and v != '—']
     return bool(vals) and all(_ENGINE_VALUE.match(v) for v in vals) or bool(_ENGINE_LABEL.search(str(c.get('label'))))
+
+
+GAMEPLAY = ('balance', 'mechanic', 'availability')
+
+
+def merge_variants(ents: list[dict]) -> list[dict]:
+    """One object kept under several ids (Walker: alt_npc_boss_tier2, npc_boss_tier2, their _weak
+    copies; two crate ids) gets the same edit in each: one card 'Walker · 4 variants' (audit
+    2026-10-01: a third of CHANGED rows were such repeats). Heroes and unnamed ids never merge."""
+    groups: dict[tuple, list[dict]] = {}
+    order: list[tuple] = []
+    for e in ents:
+        name = e.get('name')
+        if e['file'] == 'heroes.vdata' or e.get('id') == '@shared' or not name or name == e.get('id'):
+            key: tuple = ('solo', id(e))
+        else:
+            key = (e['file'], name, frozenset((c.get('path'), c.get('op'), str(c.get('old_s')), str(c.get('new_s')))
+                                              for c in e['changes']))
+        if key not in groups:
+            groups[key] = []
+            order.append(key)
+        groups[key].append(e)
+    out = []
+    for key in order:
+        g = groups[key]
+        out.append(g[0] if len(g) == 1 else {**g[0], 'variants': [x['id'] for x in g]})
+    return out
+
+
+def gameplay_entities(entities: list[dict]) -> list[dict]:
+    """A patch's entities as players read them: gameplay rows only, repeated variants merged.
+    Every page that lists or counts a patch's changes starts here (one rule, same numbers)."""
+    out = []
+    for e in entities:
+        ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
+        if ch:
+            out.append({**e, 'changes': ch})
+    return merge_variants(out)
 
 
 def player_facing(changes: list[dict]) -> list[dict]:
@@ -91,7 +154,13 @@ def player_facing(changes: list[dict]) -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for c in changes:
         groups.setdefault(':'.join(str(c.get('key') or '').split(':', 2)[:2]), []).append(c)
-    return [c for g in groups.values() for c in fold_tier_swaps(merge_renames(g)) if not is_engine(c)]
+    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(merge_renames(g)))
+            if not is_engine(c) and not is_noop(c)]
+
+
+def is_noop(c: dict) -> bool:
+    """'1.5 → 1.5': the shown values are equal (a re-keyed or re-typed field), nothing to read."""
+    return c.get('op') == 'change' and str(c.get('old_s')) == str(c.get('new_s'))
 
 
 def change_row(c: dict) -> str:
@@ -99,6 +168,102 @@ def change_row(c: dict) -> str:
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' else ''
     return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c), extra)
+
+
+# A table edited row by row (souls per level 19-36, investment steps, the shotgun's pellet offsets)
+# reads as one change: one summary row, the rows behind a click (audit 2026-10-01: ~700 rows in patches)
+FAMILY_MIN = 4
+_NUM_IN_LABEL = re.compile(r'\d+')
+
+
+def _family(label: str) -> str:
+    return _NUM_IN_LABEL.sub('N', label)
+
+
+def _span(nums: list[int]) -> str:
+    lo, hi = min(nums), max(nums)
+    return str(lo) if lo == hi else f'{lo}–{hi}'
+
+
+_LEVEL_ROW = re.compile(r'^Level (\d+): (.+)$')
+_LEVEL_WORDS = {'souls needed': '{} souls', 'gives a boon': 'boon', 'ability points': '{} ability point',
+                'ability unlocks': 'unlocks an ability'}
+
+
+def combine_levels(rows: list[dict]) -> list[dict]:
+    """A whole level added or removed ('Level 35: souls needed / gives a boon / ability points',
+    three NEW rows) is one row: 'Level 35 added · 47000 souls · boon · 1 ability point'."""
+    by_level: dict[tuple, list[dict]] = {}
+    for c in rows:
+        m = _LEVEL_ROW.match(str(c.get('label', '')))
+        if m and c.get('op') in ('add', 'remove'):
+            by_level.setdefault((m.group(1), c['op']), []).append(c)
+    whole = {k: g for k, g in by_level.items() if len(g) >= 2}
+    if not whole:
+        return rows
+    out, done = [], set()
+    for c in rows:
+        m = _LEVEL_ROW.match(str(c.get('label', '')))
+        key = (m.group(1), c.get('op')) if m else None
+        if key not in whole:
+            out.append(c)
+            continue
+        if key in done:
+            continue
+        done.add(key)
+        parts = []
+        for x in whole[key]:
+            what = _LEVEL_ROW.match(x['label']).group(2)
+            val = x.get('new_s') if key[1] == 'add' else x.get('old_s')
+            if str(val).lower() in ('no', 'false', '0'):
+                continue
+            fmt = _LEVEL_WORDS.get(what)
+            parts.append(fmt.format(val) if fmt else f'{what} {val}')
+        side = 'new_s' if key[1] == 'add' else 'old_s'
+        out.append({**whole[key][0], 'label': f'Level {key[0]} {"added" if key[1] == "add" else "removed"}',
+                    side: ' · '.join(parts), 'path': f'level:{key[0]}'})
+    return out
+
+
+def family_rows(rows: list[dict]) -> str:
+    rows = combine_levels(rows)
+    fams: dict[str, list[dict]] = {}
+    for c in rows:
+        fams.setdefault(_family(str(c.get('label', ''))), []).append(c)
+    html, done = [], set()
+    for c in rows:
+        fam = _family(str(c.get('label', '')))
+        group = fams[fam]
+        if len(group) < FAMILY_MIN:
+            html.append(change_row(c))
+            continue
+        if fam in done:
+            continue
+        done.add(fam)
+        html.append(_family_row(fam, group))
+    return ''.join(html)
+
+
+def _family_row(fam: str, group: list[dict]) -> str:
+    """'Level 19–36: souls needed · 12 rows', tag of the group (mixed directions -> REWORK) and the
+    range of % changes; the rows themselves fold under it."""
+    from .render import tag_of
+    first_nums = [int(m.group()) for c in group for m in [_NUM_IN_LABEL.search(str(c.get('label', '')))] if m]
+    base = str(group[0].get('label', ''))
+    label = _NUM_IN_LABEL.sub(_span(first_nums), base, count=1) if first_nums else base
+    kinds = {tag_of(c)[0] for c in group}
+    rep = group[0] if len(kinds) == 1 else {'op': 'rework', 'grad': 6}
+    pcts = [c['pct'] for c in group if isinstance(c.get('pct'), (int, float))]
+    span = ''
+    if pcts:
+        lo, hi = min(pcts), max(pcts)
+        span = f'{lo:+.0f}%' if round(lo) == round(hi) else f'{lo:+.0f}% … {hi:+.0f}%'
+    status = min((c.get('status', 'hidden') for c in group), key=lambda s: s not in HIDDEN_LIKE)
+    inner = ''.join(change_row(c) for c in group)
+    vals = f'<span class="vals fam-span">{esc(span)}</span>' if span else ''
+    head = row(status, tag_html(rep), f'{esc(label)} <span class="fam-n">· {len(group)} rows</span>', vals, 'fam-head')
+    hid = ' has-hidden' if is_hidden(group) else ''
+    return f'<details class="fam{hid}"><summary>{head}</summary>{inner}</details>'
 
 
 # A newly added entity arrives with every field it has (Baba in build 6711: 218 rows, most of them
@@ -133,9 +298,10 @@ def change_rows(changes: list[dict], added: bool = False) -> str:
             inner = ''.join(change_row(c) for c in rest)
             html += f'<details class="tech"><summary>All fields ({len(rest)})</summary>{inner}</details>'
         return html
+    rows = [c for c in rows if not is_noop(c)]
     main = [c for c in rows if not is_engine(c)]
     tech = [c for c in rows if is_engine(c)]
-    html = ''.join(change_row(c) for c in main)
+    html = family_rows(main)
     if tech:
         inner = ''.join(change_row(c) for c in tech)
         hid = ' has-hidden' if is_hidden(tech) else ''

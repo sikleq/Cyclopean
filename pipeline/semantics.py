@@ -30,12 +30,33 @@ _NEUTRAL = re.compile(r'(tangent|spline|curve|domain|seed|index|order|count_max_
 GRADIENT_STEPS = (5, 10, 15, 20, 25, 33, 45, 60, 80)
 
 
+# "Cooldown Reduction", "Spread Penalty Decay": a lower-is-better word followed by one of these
+# names the opposite quantity (audit 2026-10-01: ~45 rows were flipped)
+_NEGATED = re.compile(r'(reduction|reduce|refund|decay)', re.I)
+_VALUE_TAIL = re.compile(r'(\.m_subclassScaleFunction)?\.(m_strValue|m_strBonus|m_flStatScale|flScale)$')
+_BRACED = re.compile(r'\{([^{}]+)\}$')
+
+
+def property_name(path: str) -> str:
+    """The property a path is about, not its containers: 'm_mapAbilityProperties.CooldownReduction.
+    m_strValue' -> 'CooldownReduction', 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{AbilityCooldown}.
+    m_strBonus' -> 'AbilityCooldown', 'm_MapModCostBonuses.EItemSlotType_Armor[4].flBonus' -> 'flBonus'
+    (the word "Cost" in the container flipped 110 investment bonuses)."""
+    p = _VALUE_TAIL.sub('', path)
+    last = p.rsplit('.', 1)[-1]
+    m = _BRACED.search(last)
+    return m.group(1) if m else re.sub(r'\[\d+\]$', '', last)
+
+
 def polarity(path: str) -> int:
-    """+1 higher is better, -1 lower is better, 0 no direction."""
-    leaf = re.sub(r'\.m_strValue$|\.m_strBonus$|\.m_flStatScale$|\.flScale$', '', path)
-    if _NEUTRAL.search(leaf.rsplit('.', 1)[-1]):
+    """+1 higher is better, -1 lower is better, 0 no direction — read from the property's own name."""
+    name = property_name(path)
+    if _NEUTRAL.search(name):
         return 0
-    return -1 if _LOWER_BETTER.search(leaf) else 1
+    m = _LOWER_BETTER.search(name)
+    if not m:
+        return 1
+    return 1 if _NEGATED.search(name[m.end():]) else -1
 
 
 def direction(path: str, old, new, kind: str = '') -> tuple[str, float | None]:
@@ -47,15 +68,32 @@ def direction(path: str, old, new, kind: str = '') -> tuple[str, float | None]:
     """
     if not isinstance(old, (int, float)) or not isinstance(new, (int, float)) or isinstance(old, bool):
         return 'changed', None
-    pol = 0 if kind in ('trooper', 'building', 'neutral', 'unit', 'global') else polarity(path)
     a, b = abs(float(old)), abs(float(new))
     pct = None if a == 0 else (b - a) / a * 100.0
+    if kind in SHARED_KINDS:
+        # objects both teams have (troopers, guardians, camps, pickups, game rules): no owner side,
+        # so the tag says which way the number went (UP / DOWN) — except what plainly helps the
+        # player who takes it: a camp's bounty, a powerup's strength, a shorter respawn
+        for rx, pol_ in PLAYER_SIDE:
+            if rx.search(path):
+                x, y = float(old), float(new)
+                if x == y:
+                    return 'changed', pct
+                return ('buff' if (y > x) == (pol_ > 0) else 'nerf'), pct
+        if float(old) == float(new):
+            return 'changed', pct
+        return ('up' if float(new) > float(old) else 'down'), pct
+    pol = polarity(path)
     if pol == 0 or a == b:
         return 'changed', pct
-    if UPGRADE_BONUS.search(path):
+    if UPGRADE_BONUS.search(path) or pol < 0:
         # a T1-T3 bonus is added to the stat, so its SIGN counts: a cooldown bonus going
-        # -20 -> -18 cuts 2s less (nerf), though the magnitude shrank (reported 2026-10-01)
+        # -20 -> -18 cuts 2s less (nerf), though the magnitude shrank (reported 2026-10-01).
+        # Lower-is-better values compare with their sign too: an enemy healing penalty -65 -> -70
+        # and "-40% damage received" -> -60% are both stronger (audit 2026-10-01)
         x, y = float(old), float(new)
+        if x == y:
+            return 'changed', pct
         better = (y > x) if pol > 0 else (y < x)
         return ('buff' if better else 'nerf'), pct
     better = (b > a) if pol > 0 else (b < a)
@@ -63,6 +101,14 @@ def direction(path: str, old, new, kind: str = '') -> tuple[str, float | None]:
 
 
 UPGRADE_BONUS = re.compile(r'm_vecAbilityUpgrades.*\.m_strBonus$')
+SHARED_KINDS = ('trooper', 'building', 'neutral', 'unit', 'global')
+# fields of shared objects with a side after all: the player who takes the camp / pickup / respawn
+PLAYER_SIDE = (
+    (re.compile(r'GoldReward|SoulReward|Bounty', re.I), 1),
+    (re.compile(r'SpawnInterval|InitialSpawnDelay|InitialSpawnTime|MatchTimeMinsForLevel|RespawnTime', re.I), -1),
+    (re.compile(r'^m_sModifer\.(m_flDuration$|m_vecModifierValues.*m_value(Min|Max)$)'), 1),
+    (re.compile(r'MissingPctRegen'), 1),
+)
 
 
 def gradient(pct: float | None) -> int:
@@ -180,14 +226,21 @@ UNIT_FIELDS = {
     'm_flOOCRegen': ('Out-of-combat Regen', False),
 }
 
-_PREFIX_RE = re.compile(r'^m_(?:fl|n|i|b|str|e|vec|map|un|s|v|h|ar|bits|sz)?(?=[A-Z])')
-_CAMEL_RE = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])')
+# 'm_' always goes; a Hungarian type prefix goes when a capital follows ('m_flBonus', 'flBonus',
+# 'nGoldThreshold'); 'm_projectileInfo' kept its 'm ' before (audit 2026-10-01: 193 labels)
+_PREFIX_RE = re.compile(r'^(?:m_)?(?:(?:fl|n|i|b|str|e|vec|map|un|s|v|h|ar|bits|sz)(?=[A-Z]))?')
+# split camelCase; keep plural acronyms whole ('NPCs' read 'NP Cs')
+_CAMEL_RE = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z](?!s(?:[A-Z\d_]|$))[a-z])')
+_UNIT_WORDS = ((' In Seconds', ' (s)'), (' In Meters', ' (m)'), (' Mins', ' (min)'))
 
 
 def humanize(key: str) -> str:
     k = _PREFIX_RE.sub('', key)
     k = k.lstrip('_').replace('_', ' ')
-    return _CAMEL_RE.sub(' ', k).strip() or key
+    out = _CAMEL_RE.sub(' ', k).strip() or key
+    for a, b in _UNIT_WORDS:
+        out = out.replace(a, b)
+    return out[:1].upper() + out[1:]
 
 
 def _loc_label(tok: dict[str, str], name: str, ability: str | None = None) -> str | None:
@@ -270,6 +323,9 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -
         if slot != 'primary':
             label = f'{label} ({humanize(slot)})'
         return {'label': label, 'meters': meters, 'group': 'weapon'}
+    plain = plain_label(path)
+    if plain:
+        return plain
     leaf = path.rsplit('.', 1)[-1]
     leaf = re.sub(r'\{.*\}|\[\d+\]', '', leaf)
     if leaf in UNIT_FIELDS:
@@ -277,8 +333,69 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -
         parent = path.rsplit('.', 2)[-2] if path.count('.') >= 1 else ''
         if parent.startswith('m_VS'):
             label = f'{label} vs {humanize(parent[4:])}'
+        m = _EMPOWERED_RE.search(path)
+        if m:
+            label = f'{label} (empowered, stage {m.group(1)})'
+        m = _WEAK_POINT_RE.search(path)
+        if m:
+            label = f'Weak point ({m.group(1)}): {label[:1].lower() + label[1:]}'
         return {'label': label, 'meters': meters, 'group': 'unit'}
     return {'label': context_label(path), 'meters': False, 'group': 'other'}
+
+
+# ---- plain words for structures the game never labels (audit 2026-10-01) ----------------------
+SHOP_SLOT = {'WeaponMod': 'Weapon', 'Armor': 'Vitality', 'Tech': 'Spirit'}
+_LEVEL_RE = re.compile(r'^m_mapLevelInfo\.(?:"?)(\d+)(?:"?)\.(.+)$')
+_LEVEL_FIELD = {'m_unRequiredGold': 'souls needed', 'm_bUseStandardUpgrade': 'gives a boon',
+                'm_mapBonusCurrencies.EAbilityPoints': 'ability points',
+                'm_mapBonusCurrencies.EAbilityUnlocks': 'ability unlocks'}
+_INVEST_RE = re.compile(r'^m_MapModCostBonuses\.EItemSlotType_(\w+)\[(\d+)\]\.(\w+)$')
+_INVEST_FIELD = {'flBonus': 'bonus', 'nGoldThreshold': 'souls spent', 'flPercentOnGraph': 'bar width'}
+_PURCHASE_RE = re.compile(r'^m_mapPurchaseBonuses\.EItemSlotType_(\w+)\[(\d+)\]\.(\w+)$')
+_BOUND_RE = re.compile(r'^m_mapBoundAbilities\.ESlot_(\w+)$')
+_POWERUP_VALUE_RE = re.compile(r'^m_sModifer\.m_vecModifierValues\{MODIFIER_VALUE_([A-Z_]+)\}\.m_value(Min|Max)$')
+_EMPOWERED_RE = re.compile(r'm_EmpoweredModifierLevel(\d+)\.')
+_WEAK_POINT_RE = re.compile(r'm_vecWeakPoints\{([^}]+)\}')
+_SCATTER_RE = re.compile(r'm_vecScatterOffsets')
+
+
+def _slot_name(slot: str) -> str:
+    m = re.match(r'Signature_(\d)$', slot)
+    if m:
+        return 'Ultimate' if m.group(1) == '4' else f'Ability {m.group(1)}'
+    return {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Weapon_Melee': 'Melee'}.get(
+        slot, humanize(slot.replace('Ability_', '')))
+
+
+def plain_label(path: str) -> dict | None:
+    """'m_mapLevelInfo."22".m_unRequiredGold' -> 'Level 22: souls needed', investment bonuses,
+    the hero's kit slots, powerups, the shotgun pellet pattern."""
+    m = _LEVEL_RE.match(path)
+    if m and m.group(2) in _LEVEL_FIELD:
+        return {'label': f'Level {m.group(1)}: {_LEVEL_FIELD[m.group(2)]}', 'meters': False, 'group': 'levels'}
+    m = _INVEST_RE.match(path)
+    if m:
+        slot = SHOP_SLOT.get(m.group(1), m.group(1))
+        return {'label': f'{slot} investment, step {int(m.group(2)) + 1}: {_INVEST_FIELD.get(m.group(3), humanize(m.group(3)))}',
+                'meters': False, 'group': 'investment'}
+    m = _PURCHASE_RE.match(path)
+    if m:
+        slot = SHOP_SLOT.get(m.group(1), m.group(1))
+        return {'label': f'{slot} purchase bonus, tier {int(m.group(2)) + 1}: {humanize(m.group(3)).lower()}',
+                'meters': False, 'group': 'investment'}
+    m = _BOUND_RE.match(path)
+    if m:
+        return {'label': f'Kit: {_slot_name(m.group(1))}', 'meters': False, 'group': 'kit'}
+    m = _POWERUP_VALUE_RE.match(path)
+    if m:
+        stage = 'early game' if m.group(2) == 'Min' else 'late game'
+        what = m.group(1).replace('_PERCENT', '').replace('_', ' ').title()
+        return {'label': f'Powerup: {what} ({stage})', 'meters': False, 'group': 'powerup'}
+    if path == 'm_sModifer.m_flDuration':
+        return {'label': 'Powerup: buff duration', 'meters': False, 'group': 'powerup'}
+    if _SCATTER_RE.search(path):
+        return {'label': 'Pellet pattern', 'meters': False, 'group': 'weapon'}
+    return None
 
 
 _ENUM_PREFIX_RE = re.compile(r'^(EItemSlotType_|MODIFIER_VALUE_|ESlot_|EModTier_|E(?=[A-Z][a-z]))')

@@ -1,6 +1,19 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Tags that mean something: fixed BUFF/NERF, UP/DOWN for shared objects, readable labels",
+    "items": [
+      "About 180 changes had BUFF and NERF the wrong way round: investment bonuses, Cooldown Reduction, enemy healing penalties, spread recovery. The direction is now read from the property's own name.",
+      "Troopers, guardians, walkers, camps and game rules get UP / DOWN instead of CHANGED (both teams have them); a camp's bounty, a powerup's strength and shorter respawn timers are BUFF / NERF for whoever takes them.",
+      "A field added and then tuned within one patch is NEW (it showed '— → 0.75'); tuned and then removed is DEL; a renamed field is judged like any change.",
+      "The same edit to several copies of one object (Walker in 4 versions, two crate ids) is one card: 'Walker · 4 variants'.",
+      "Tables edited row by row (souls per level, investment steps, the shotgun's pellet pattern) are one summary row with the range; the rows open on click.",
+      "Readable labels: 'Level 22: souls needed', 'Vitality investment, step 5: bonus', 'Kit: Ability 3', 'Powerup: Fire Rate (early game)', 'Sight Range NPCs', 'Spawn Interval (s)'; values like 'EHeroDevState_PreRelease' read 'Pre Release'.",
+      "Vote stickers, rich presence text, name offsets, trooper hit animations, collision hulls and soul-orb physics are no longer listed as gameplay."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Patch titles, graded % pills, hero stats in the header",
     "items": [
       "Patch titles show the date once; named updates (City Never Sleeps, Matchmaking Update) get a star and their name with the date beside it.",

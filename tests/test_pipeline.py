@@ -112,14 +112,44 @@ def test_damage_increase_is_a_buff_and_negative_debuff_magnitude():
     assert semantics.direction('m_mapAbilityProperties.BulletResistReduction.m_strValue', -8, -7)[0] == 'nerf'
 
 
+def test_polarity_reads_the_property_name_not_its_container():
+    d = semantics.direction
+    # investment bonuses live in m_MapModCostBonuses: "Cost" in the container must not flip the bonus
+    assert d('m_MapModCostBonuses.EItemSlotType_Armor[4].flBonus', 22, 34)[0] == 'buff'
+    assert d('m_MapModCostBonuses.EItemSlotType_Armor[5].nGoldThreshold', 7200, 6400)[0] == 'buff'
+    # "Reduction" / "Refund" / "Decay" after a lower-is-better word turn it around
+    assert d('m_mapAbilityProperties.CooldownReduction.m_strValue', 10, 15)[0] == 'buff'
+    assert d('m_mapAbilityProperties.StaminaCooldownReduction.m_strValue', 10, 14)[0] == 'buff'
+    assert d('m_mapAbilityProperties.CooldownBetweenChargeReduction.m_strValue', 40, 55)[0] == 'buff'
+    assert d('m_mapWeaponInfos.primary.m_flShootSpreadPenaltyDecay', 2.5, 5)[0] == 'buff'
+    # a lower-is-better value compares with its sign: an enemy healing penalty -65 -> -70 is stronger
+    assert d('m_mapAbilityProperties.HealAmpReceivePenaltyPercent.m_strValue', -65, -70)[0] == 'buff'
+    assert d('m_mapAbilityProperties.InAirDamageReceived.m_strValue', -40, -60)[0] == 'buff'
+    # unchanged: cooldowns, enemy slows, resist shred
+    assert d('m_mapAbilityProperties.AbilityCooldown.m_strValue', 27, 29)[0] == 'nerf'
+    assert d('m_mapAbilityProperties.SlowPercent.m_strValue', 25, 35)[0] == 'buff'
+    assert d('m_mapAbilityProperties.BulletArmorReduction.m_strValue', -10, -12)[0] == 'buff'
+
+
 def test_shorter_tick_interval_is_a_buff():
     # Rem: Infest Heal Interval 3 -> 2 heals more often
     assert semantics.direction('m_mapAbilityProperties.InfestHealInterval.m_strValue', 3, 2)[0] == 'buff'
     assert semantics.direction('m_mapAbilityProperties.TickInterval.m_strValue', 0.5, 1)[0] == 'nerf'
 
 
+def test_shared_objects_go_up_or_down_unless_the_player_side_is_plain():
+    d = semantics.direction
+    assert d('m_nMaxHealth', 4600, 5000, kind='building')[0] == 'up'
+    assert d('m_flSightRangePlayers', 1500, 1338.58, kind='building')[0] == 'down'
+    # a camp's bounty and a shorter respawn help whoever takes it
+    assert d('m_flGoldReward', 275, 220, kind='neutral')[0] == 'nerf'
+    assert d('m_iSpawnIntervalInSeconds', 300, 240, kind='global')[0] == 'buff'
+    assert d('m_sModifer.m_flDuration', 60, 80, kind='global')[0] == 'buff'
+
+
 def test_units_have_no_owner_direction():
-    assert semantics.direction('m_nMaxHealth', 5000, 5500, kind='building')[0] == 'changed'
+    # no buff/nerf for a building's health: both teams have it (the tag says UP instead)
+    assert semantics.direction('m_nMaxHealth', 5000, 5500, kind='building')[0] not in ('buff', 'nerf')
 
 
 def test_gradient_steps():
@@ -473,3 +503,24 @@ def test_untracked_topics_never_swallow_numbers():
 
 def test_inline_images_are_not_note_lines():
     assert bbcode_lines('[img]{STEAM_CLAN_IMAGE}/45164767/8b22ee.jpg[/img]\n[*] Real line') == ['Real line']
+
+
+def test_window_op_merge():
+    from pipeline.match import merge_ops
+    assert merge_ops('add', 'change') == 'add'          # "— → 0.75" was CHANGED
+    assert merge_ops('change', 'remove') == 'remove'    # "16.2 → —" was CHANGED
+    assert merge_ops('remove', 'add') == 'change'
+    assert merge_ops('change', 'change') == 'change'
+    assert merge_ops('add', 'remove') == 'change'       # never shipped: old == new == None, dropped
+
+
+def test_plain_labels_for_unlabelled_structures():
+    lab = lambda p: semantics.describe(p, {}, 'x', 'hero')['label']   # noqa: E731
+    assert lab('m_mapLevelInfo."22".m_unRequiredGold') == 'Level 22: souls needed'
+    assert lab('m_mapLevelInfo."14".m_mapBonusCurrencies.EAbilityPoints') == 'Level 14: ability points'
+    assert lab('m_MapModCostBonuses.EItemSlotType_Armor[4].flBonus') == 'Vitality investment, step 5: bonus'
+    assert lab('m_mapBoundAbilities.ESlot_Signature_3') == 'Kit: Ability 3'
+    assert lab('m_sModifer.m_vecModifierValues{MODIFIER_VALUE_FIRE_RATE}.m_valueMin') == 'Powerup: Fire Rate (early game)'
+    assert semantics.humanize('m_projectileInfo') == 'Projectile Info'
+    assert semantics.humanize('m_flSightRangeNPCs') == 'Sight Range NPCs'
+    assert semantics.humanize('m_iSpawnIntervalInSeconds') == 'Spawn Interval (s)'
