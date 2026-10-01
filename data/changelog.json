@@ -7,6 +7,7 @@
       "Tags: fixes for 130+ rows — tier bonuses to debuffs (Sleep Dagger's dash slow −50 → −45 is a nerf), Soul Rebirth's health, Alchemical Fire, post-cast and arm times; a coefficient says what it scales with (boons, light melee, weapon damage).",
       "Items: \"Enhanced\" instead of \"Upgrade\"; the Items table shows only what an item always gives and counts innate Spirit Power; T5 items say Street Brawl only. Units: Shrine, Mid-Boss and Mini Turret by their game names, the Shrine's second phase and the Patron's growth.",
       "Sounds, file paths, button hints and timestamps are no longer game changes; light melee, recoil and effectiveness values are.",
+      "Every value shows the unit the game's tooltip prints (\"Cooldown 30s → 38s\", \"40% → 32%\"), and properties use the tooltip's own name (\"Shield Duration\").",
       "Patch notes: 20 short official notes are back as their own patches (01-17-2025's four new heroes…), Valve's later patches appended to old posts go to their dates, Old Gods, New Blood is its own update, and matching is stricter (a line's percent must go the way it says)."
     ]
   },
