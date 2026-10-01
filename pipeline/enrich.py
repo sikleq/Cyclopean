@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 17       # 17: site audit (units, polarity, scaling stat, re-encodings, value shapes); 16: screen flash; 15: drawbacks
+ENRICH_VERSION = 19       # 19: enemy-debuff tier bonuses; 18: tooltip units and override labels; 17: site audit
 
 
 def _num(v):
@@ -40,6 +40,13 @@ def drawbacks(data: dict | None) -> set[str]:
     props = (data or {}).get('m_mapAbilityProperties') or {}
     return {p for p, d in props.items()
             if isinstance(d, dict) and str(d.get('m_bIsNegativeAttribute')).lower() in ('true', '1')}
+
+
+def loc_tokens_of(data: dict | None) -> dict[str, str]:
+    """{property: m_strLocTokenOverride} — the name the tooltip text and label use."""
+    props = (data or {}).get('m_mapAbilityProperties') or {}
+    return {p: str(d['m_strLocTokenOverride']) for p, d in props.items()
+            if isinstance(d, dict) and d.get('m_strLocTokenOverride')}
 
 
 def negative_props(data: dict | None) -> set[str]:
@@ -87,6 +94,7 @@ def enrich_record(rec: dict) -> dict:
             e['owner_name'] = loc.plain(loc.hero_name(tok, owners[eid]))
         downsides = drawbacks(data) if f == 'abilities.vdata' and eid != '@shared' else set()
         below_zero = negative_props(data) if f == 'abilities.vdata' and eid != '@shared' else set()
+        tokens = loc_tokens_of(data) if f == 'abilities.vdata' and eid != '@shared' else {}
         for c in e['changes']:
             # classification rules evolve: re-derive the category, but never move a
             # change whose values were dropped (cosmetic) into a category that shows values
@@ -100,11 +108,16 @@ def enrich_record(rec: dict) -> dict:
                       if f == 'abilities.vdata' and eid != '@shared' and 'Scale' in c['path'] else None)
             if scaled and scaled != 'ETechPower':
                 c['scaled_by'] = scaled
-            d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'))
+            token = tokens.get(semantics.property_name(c['path'])) if tokens else None
+            if token:
+                c['loc_token'] = token          # the tooltip's own name for the property
+            d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'), token)
             c['label'] = d['label']
+            if d.get('unit'):
+                c['unit'] = d['unit']
             if 'old' in c or 'new' in c:
-                c['old_s'] = _display(c.get('old'), d['meters'])
-                c['new_s'] = _display(c.get('new'), d['meters'])
+                c['old_s'] = semantics.with_unit(_display(c.get('old'), d['meters']), d.get('unit', ''))
+                c['new_s'] = semantics.with_unit(_display(c.get('new'), d['meters']), d.get('unit', ''))
                 # the property itself, not a T1-T3 bonus to it (a bigger bonus there shrinks the downside)
                 worse = c['path'].startswith('m_mapAbilityProperties.') and semantics.property_name(c['path']) in downsides
                 if worse:

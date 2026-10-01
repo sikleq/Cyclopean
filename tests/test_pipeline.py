@@ -546,6 +546,19 @@ def test_the_holders_own_downside_grows_as_a_nerf():
     assert semantics.direction(path, -15, -10, 'item', drawback=True)[0] == 'buff'
 
 
+def test_values_carry_the_tooltip_unit_and_label():
+    tok = {'abilitycooldown_postfix': 's', 'buffduration_label': 'Shield Duration', 'buffduration_postfix': 's',
+           'enemyslow_postfix': '%'}
+    d = semantics.describe('m_mapAbilityProperties.AbilityCooldown.m_strValue', tok, 'x', 'ability')
+    assert d['unit'] == 's' and semantics.with_unit('30', d['unit']) == '30s'
+    # the tooltip names a property by its m_strLocTokenOverride
+    d = semantics.describe('m_mapAbilityProperties.SpeedOnLandDuration.m_strValue', tok, 'x', 'ability', token='BuffDuration')
+    assert (d['label'], d['unit']) == ('Shield Duration', 's')
+    d = semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{EnemySlow}.m_strBonus', tok, 'x', 'ability')
+    assert semantics.with_unit('-50', d['unit']) == '-50%'
+    assert semantics.with_unit('12.19m', 'm') == '12.19m' and semantics.with_unit('—', 's') == '—'
+
+
 def test_units_and_reencodings():
     assert semantics.engine_unit('m_flRunSpeed') == semantics.SPEED
     assert semantics.engine_unit('m_flSightRangePlayers') is True
@@ -571,6 +584,8 @@ def test_polarity_audit_cases():
     # a bonus to a debuff stored negative: Sleep Dagger T3 -50 -> -45 is weaker ("dash slows -10%")
     assert semantics.direction(tier, -50, -45, 'ability', negative_base=True)[0] == 'nerf'
     assert semantics.direction(tier, -8, -10, 'item', negative_base=True)[0] == 'buff'
+    slow = 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{EnemyDashSlowPercent}.m_strBonus'
+    assert semantics.direction(slow, -25, -22, 'ability')[0] == 'nerf'     # a weaker enemy slow, base 0
     cd = 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus'
     assert semantics.direction(cd, -20, -18, 'ability')[0] == 'nerf'  # a cooldown bonus keeps its sign rule
 

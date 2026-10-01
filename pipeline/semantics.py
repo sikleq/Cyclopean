@@ -114,7 +114,7 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
         x, y = float(old), float(new)
         if x == y:
             return 'changed', pct
-        if negative_base and pol > 0 and x <= 0 and y <= 0:
+        if pol > 0 and x <= 0 and y <= 0 and (negative_base or _ENEMY_DEBUFF.search(property_name(path))):
             # a bonus to a debuff stored as a negative number (dash slow −50, shred −8): a bigger
             # magnitude is a stronger debuff. Sleep Dagger T3 −50 → −45 is the 09-16 "dash slows
             # reduced by ~10%", Enhanced Escalating Exposure −8 → −10 is "shred +8 → +10" (39 rows)
@@ -126,6 +126,9 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
 
 
 UPGRADE_BONUS = re.compile(r'm_vecAbilityUpgrades.*\.m_strBonus$')
+# a property that hits the enemy, written as a negative: a bigger (more negative) tier bonus is a stronger
+# debuff even when the base value is 0 (Aura of Suffering T1 Enemy Dash Slow -25 -> -22 is a nerf)
+_ENEMY_DEBUFF = re.compile(r'(enemy|slow|shred|debuff|armordamagereduction|resistreduction)', re.I)
 SHARED_KINDS = ('trooper', 'building', 'neutral', 'unit', 'global')
 # fields of shared objects with a side after all: the player who takes the camp / pickup / respawn
 PLAYER_SIDE = (
@@ -305,6 +308,37 @@ def stat_label(tok: dict[str, str], stat: str) -> str:
     return CUSTOM_STAT_LABELS.get(base) or humanize(base)
 
 
+def override_label(tok: dict[str, str], token: str | None, entity: str = '') -> str | None:
+    """The label the tooltip prints for a property with m_strLocTokenOverride: a property name
+    ('BuffDuration' -> its _label) or a loc key ('#Citadel_…'). 293 rows said "Duration" where the
+    game says "Shield Duration" (audit 2026-10-01)."""
+    if not token:
+        return None
+    if token.startswith('#'):
+        val = tok.get(token[1:].lower())
+        return html.unescape(re.sub(r'<[^>]+>', '', val)).strip() if val and '{' not in val else None
+    return _loc_label(tok, token, entity)
+
+
+def prop_unit(tok: dict[str, str], prop: str, token: str | None = None) -> str:
+    """The unit the tooltip prints after a property's value (its loc postfix): 's', '%', 'm', 'm/s'.
+    Values had none ("Cooldown 30 → 38") on 6,395 rows."""
+    for name in (token, prop):
+        if name and not name.startswith('#'):
+            post = tok.get(f'{name}_postfix'.lower(), '').strip()
+            if post and '{' not in post and len(post) <= 4:
+                return post
+    return ''
+
+
+_PLAIN_NUMBER = re.compile(r'^[-+]?\d+(\.\d+)?$')
+
+
+def with_unit(s: str, unit: str) -> str:
+    """'30' + 's' -> '30s'; a value that already carries a unit, or is not a number, stays."""
+    return s + unit if unit and isinstance(s, str) and _PLAIN_NUMBER.match(s) else s
+
+
 def stat_unit(tok: dict[str, str], stat: str) -> str:
     base = stat[1:] if stat.startswith('E') and stat[1:2].isupper() else stat
     key = ('StatDesc_' + STAT_DESC_EXCEPTIONS.get(base, base) + '_postfix').lower()
@@ -344,17 +378,19 @@ _PROP_RE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.(.+)$')
 _CORRUPTED_RE = re.compile(r'^m_CorruptedItemInfo\.m_Upgrade\.m_vecPropertyUpgrades\{([^}]+)\}\.m_strBonus$')
 
 
-def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', scaled_by: str | None = None) -> dict:
-    """{label, meters, group} for a field path of an entity. `scaled_by`: the stat the property's
-    coefficient multiplies (scale_stat), so a coefficient reads "(boon scaling)", not "(spirit scaling)"."""
-    d = _describe(path, tok, entity, kind)
+def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', scaled_by: str | None = None,
+             token: str | None = None) -> dict:
+    """{label, meters, group[, unit]} for a field path of an entity. `scaled_by`: the stat the property's
+    coefficient multiplies (scale_stat), so a coefficient reads "(boon scaling)", not "(spirit scaling)".
+    `token`: the property's m_strLocTokenOverride — the tooltip's own label and unit."""
+    d = _describe(path, tok, entity, kind, token)
     word = SCALE_STAT_WORDS.get(scaled_by or '')
     if word and '(spirit scaling' in d['label']:
         d = {**d, 'label': d['label'].replace('(spirit scaling', f'({word} scaling')}
     return d
 
 
-def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -> dict:
+def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None) -> dict:
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]
@@ -365,9 +401,10 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') 
     m = _PROP_RE.match(path)
     if m:
         prop, rest = m.group(1), m.group(2)
-        label = _loc_label(tok, prop, entity) or humanize(prop)
+        label = override_label(tok, token, entity) or _loc_label(tok, prop, entity) or humanize(prop)
         if rest == 'm_strValue':
-            return {'label': label, 'meters': False, 'group': 'property', 'prop': prop}
+            return {'label': label, 'meters': False, 'group': 'property', 'prop': prop,
+                    'unit': prop_unit(tok, prop, token)}
         if rest == 'm_strStreetBrawlValue':
             return {'label': f'{label} (Street Brawl)', 'meters': False, 'group': 'streetbrawl', 'prop': prop}
         if rest.endswith('m_flStatScale'):
@@ -378,8 +415,9 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') 
         tier, key, field = int(m.group(1)) + 1, m.group(2), m.group(3)
         parts = key.split('|')
         prop = parts[0]
-        label = _loc_label(tok, prop, entity) or humanize(prop)
-        if 'EAddToScale' in parts or 'EMultiplyScale' in parts:
+        label = override_label(tok, token, entity) or _loc_label(tok, prop, entity) or humanize(prop)
+        scaling = 'EAddToScale' in parts or 'EMultiplyScale' in parts
+        if scaling:
             label += scaling_suffix(parts)
         if field == 'm_strStreetBrawlBonus':
             label += ' (Street Brawl)'
@@ -391,7 +429,8 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') 
         # Escalating Exposure: shred +8 → +10" in the notes, "Upgrade:" on 646 rows until 2026-10-01
         prefix = (f'T{tier}' if kind in ('ability', 'ability_other', '')
                   else 'Enhanced' if kind == 'item' else 'Upgrade')
-        return {'label': f'{prefix}: {label}', 'meters': False, 'group': 'tier', 'prop': prop, 'tier': tier}
+        unit = '%' if 'EMultiplyBase' in parts else '' if scaling or field != 'm_strBonus' else prop_unit(tok, prop, token)
+        return {'label': f'{prefix}: {label}', 'meters': False, 'group': 'tier', 'prop': prop, 'tier': tier, 'unit': unit}
     if path.startswith('m_mapStartingStats.'):
         stat = path.split('.')[1]
         return {'label': stat_label(tok, stat), 'meters': False, 'group': 'stat', 'unit': stat_unit(tok, stat)}

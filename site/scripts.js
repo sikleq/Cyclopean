@@ -515,9 +515,24 @@
       var sel = input.getAttribute('data-search-target');
       input.addEventListener('input', function () {
         var q = input.value.trim().toLowerCase();
+        var tables = [];
         document.querySelectorAll(sel).forEach(function (el) {
           var hay = (el.getAttribute('data-search') || el.textContent).toLowerCase();
           el.classList.toggle('hidden-el', q !== '' && hay.indexOf(q) < 0);
+          var t = el.closest && el.closest('table');
+          if (t && tables.indexOf(t) < 0) tables.push(t);
+        });
+        // a section row (a tier, a unit group) with nothing left under it goes too
+        tables.forEach(function (t) {
+          var secs = t.querySelectorAll('tbody tr.sec');
+          secs.forEach(function (sec) {
+            var r = sec.nextElementSibling, any = false;
+            while (r && !r.classList.contains('sec')) {
+              if (!r.classList.contains('hidden-el')) { any = true; break; }
+              r = r.nextElementSibling;
+            }
+            sec.classList.toggle('hidden-el', q !== '' && !any);
+          });
         });
       });
     });

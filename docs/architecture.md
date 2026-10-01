@@ -179,7 +179,13 @@ Five-auditor review of every build and page (2026-10-01, record format 5, enrich
 - names: Shrine, Mid-Boss, Mini Turret (`data/overrides/unit_names.json`); helpers of any unit kind;
 - tables: units show the Shrine's 2nd phase and the Patron's growth / backdoor regen; items' Stats are
   what the item always gives (no `ConditionallyApplied`), innate Spirit Power counts;
-- cards: "+4×Boon" / "×Weapon Damage" for what a coefficient multiplies, m/s speeds, no zero bonuses.
+- cards: "+4×Boon" / "×Weapon Damage" for what a coefficient multiplies, m/s speeds, no zero bonuses;
+- values carry the unit the tooltip prints (`semantics.prop_unit`: the loc `<prop>_postfix`, also of the
+  property's m_strLocTokenOverride; `with_unit`) — "Cooldown 30s → 38s", not "30 → 38" — and labels use
+  the override's own label ("Shield Duration", `override_label`; enrich keeps `loc_token` / `unit` on
+  the change, MChange carries `unit`) (enrich 18);
+- a tier bonus to an enemy debuff written as a negative compares magnitudes even when the base is 0
+  (`_ENEMY_DEBUFF`: Enemy Dash Slow −25 → −22 is a nerf).
 
 The tracker clone follows upstream with `git reset --hard` (`tracker.sync`): it is a read-only
 mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see binaries such as
