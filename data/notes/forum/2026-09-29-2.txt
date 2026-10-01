@@ -1,0 +1,15 @@
+09-29-2026
+https://forums.playdeadlock.com/threads/09-29-2026.166726/
+Source: Steam News "Deadlock - City Never Sleeps" (announcement, not republished)
+[ General ]
+- Added an option to hide player names above the health bar or to change it to hero names
+- Names above health bar fade out with distance starting at 25m and fully gone at 35m.
+- Reduced brightness of player names on health bars
+- Reduced size of Ultimate indicator on health bars
+- Improved stability of health bar position
+- Trooper enemy health bars now also change based on your custom enemy color.
+- Added Enemy Damaged Color for health bar options in accessibility settings (yellow is default)
+- Added Enemy zipline color option to Custom UI colors
+- Added minimap ping when the bell sounds
+- Added the ability to rebind Down Dash
+- Lowered volumes for UI death notification sounds and respawn music

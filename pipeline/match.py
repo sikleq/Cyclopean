@@ -431,7 +431,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
 
     if not subject:
-        covered = rules.global_line(text, changes, cat, num)
+        covered = rules.global_line(text, changes, cat, num) or rules.global_delta_line(text, changes, cat, num)
         if covered:
             return _link(result, covered, text, 'described')
         aliased = rules.alias_keys(text)
@@ -807,6 +807,10 @@ def documented_lines(p: Patch, row: dict, cat: dict[str, dict]) -> int:
     return sum(1 for s in sections for ln in s['lines'] if ln['status'] == 'documented')
 
 
+REASSIGN_MIN_LINES = 2
+REASSIGN_MIN_SHARE = 0.05      # documented lines per gameplay field of the build
+
+
 def reassign_ambiguous(patches: list[Patch], cat: dict[str, dict]) -> int:
     """Move boundary builds to the patch whose notes they match better."""
     moved = 0
@@ -817,7 +821,10 @@ def reassign_ambiguous(patches: list[Patch], cat: dict[str, dict]) -> int:
         home, other = (prev, cur) if row in prev.builds else (cur, prev)
         score_home = a if home is prev else b
         score_other = b if home is prev else a
-        if score_other >= 2 and score_other > score_home and row in home.builds:
+        # a few lines that happen to match say nothing about a big build: City Never Sleeps
+        # (build 6711, 1,400+ changes) matched 2 lines of the 09-16 notes and moved 13 days back
+        need = max(REASSIGN_MIN_LINES, REASSIGN_MIN_SHARE * patches_mod.gameplay_fields(row))
+        if score_other >= need and score_other > score_home and row in home.builds:
             home.builds.remove(row)
             other.builds.append(row)
             other.builds.sort(key=lambda r: r['date'])

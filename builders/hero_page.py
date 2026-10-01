@@ -6,7 +6,7 @@ from __future__ import annotations
 import json
 import re
 
-from .common import entity_icon, esc, hero_icon, icon, img, mark, page, pretty_id
+from .common import entity_icon, esc, glyph_for, hero_icon, icon, img, mark, page, pretty_id
 from .render import HIDDEN_LIKE, entity_rows
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
@@ -116,23 +116,32 @@ def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel:
     wid = (card or {}).get('id') or row.get('weapon')
     ic = entity_icon('abilities.vdata', wid, 'weapon', rel) if wid else None
     desc = f'<div class="wb-desc">{esc(card["desc"])}</div>' if card and card.get('desc') else ''
-    return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px")}'
+    return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px", "abilities")}'
             f'<div><div class="wb-kicker">Weapon</div>{name_html}{desc}</div></div>'
             f'<div class="wb-cells">{"".join(cells)}</div></section>')
 
 
-def _prop_rows(rows: list[dict]) -> str:
+def prop_icon(css: str | None, rel: str) -> str:
+    """The property's icon from the in-game tooltip (m_strCSSClass -> icons/stats/prop)."""
+    src = icon(f'prop:{css}', rel) if css else None
+    return f'<img class="pi" src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="pi"></span>'
+
+
+def prop_rows(rows: list[dict], rel: str) -> str:
     out = []
     for r in rows:
         scale = f'<span class="scale">+{r["scale"]:g}×Spirit</span>' if r.get('scale') else ''
-        out.append(f'<tr><td>{esc(r["label"])}</td><td class="v">{esc(r["value"])}{scale}</td></tr>')
+        css = r.get('css') or ''
+        out.append(f'<tr class="p-{esc(css)}"><td>{prop_icon(css, rel)}{esc(r["label"])}</td>'
+                   f'<td class="v">{esc(r["value"])}{scale}</td></tr>')
     return ''.join(out)
 
 
 def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
     ic = entity_icon('abilities.vdata', c['id'], c['kind'], rel, c.get('name'), c.get('owner'))
-    hdr = ''.join(f'<span class="chip">{esc(h["label"])} {esc(h["value"])}</span>' for h in c.get('header', []))
-    rows = _prop_rows(c.get('important', []) + c.get('basic', []))
+    hdr = ''.join(f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}'
+                  f'{esc(h["label"])} <b>{esc(h["value"])}</b></span>' for h in c.get('header', []))
+    rows = prop_rows(c.get('important', []) + c.get('basic', []), rel)
     table = f'<table class="kvt">{rows}</table>' if rows else ''
     desc = f'<div class="ac-desc">{esc(c["desc"])}</div>' if c.get('desc') else ''
     tiers = ''.join(
@@ -140,7 +149,7 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         f'{esc(t["text"] or ", ".join(b["label"] + " " + b["value"] for b in t["bonuses"]))}</span></div>'
         for t in c.get('tiers', []))
     name = c['name'] if c.get('name') and c['name'] != c['id'] else pretty_id(c['id'], c.get('owner'))
-    return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{img(ic, "", "px")}'
+    return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{img(ic, "", "px", "abilities")}'
             f'<div><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}</div></div></div>'
             f'{"<div class=ac-hdr>" + hdr + "</div>" if hdr else ""}{desc}{table}'
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
@@ -196,7 +205,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                        f'{esc(_strip_subject(ln["text"], names))}</td></tr>')
         for key in sorted(slot['ents'], key=lambda k: order[k]):
             nm, ic, ch = slot['ents'][key]
-            trs.extend(entity_rows(nm, ic, ch))
+            file, _, eid = key.partition(':')
+            trs.extend(entity_rows(nm, ic, ch, glyph=glyph_for(file, eid)))
     return f'<table class="hist grouped">{"".join(trs)}</table>'
 
 

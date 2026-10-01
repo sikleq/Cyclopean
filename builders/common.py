@@ -161,11 +161,48 @@ def entity_icon(file: str, eid: str, kind: str, rel: str, name: str | None = Non
         return icon(key, rel) if key else None
     if file == 'npc_units.vdata':
         return icon(f'unit:{eid}', rel)
+    if file == 'misc.vdata':
+        return icon(f'misc:{eid}', rel)
     return None
 
 
-def img(src: str | None, alt: str = '', cls: str = '') -> str:
+# Category glyphs (site UI, not game art) for rows that stand for a group or a rule,
+# never for one entity: "All heroes (24)", game rules, map objects without art.
+_G = '<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="{}"/></svg>'
+GLYPHS = {
+    'heroes': 'M6 2h4v4H6zM2 4h3v3H2zM11 4h3v3h-3zM5 7h6v7H5zM1 8h3v5H1zM12 8h3v5h-3z',
+    'hero': 'M5 2h6v5H5zM3 8h10v6H3z',
+    'abilities': 'M7 1h2v4H7zM7 11h2v4H7zM1 7h4v2H1zM11 7h4v2h-4zM6 6h4v4H6zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z',
+    'units': 'M6 1h4v4H6zM4 6h8v5H4zM4 11h3v4H4zM9 11h3v4H9zM13 2h1v10h-1z',
+    'map': 'M2 3h12v11H2zM3 4h10v9H3zM4 5h2v2H4zM6 7h2v2H6zM8 9h2v2H8zM10 11h2v1h-2z',
+    'modifier': 'M7 1h2v1H7zM6 2h4v1H6zM5 3h6v1H5zM4 4h8v1H4zM3 5h10v1H3zM6 6h4v9H6z',
+    # even-odd fill: shapes must not overlap, an inner rect punches a hole (gear axle, chest lock)
+    'rules': 'M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z'
+             'M5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5zM7 7h2v2H7z',
+    'loot': 'M3 3h10v3H3zM2 6h12v8H2zM7 8h2v3H7z',
+}
+_SHARED_GLYPH = {'heroes.vdata': 'heroes', 'abilities.vdata': 'abilities', 'npc_units.vdata': 'units',
+                 'misc.vdata': 'map', 'modifiers.vdata': 'modifier'}
+
+
+def glyph_for(file: str, eid: str, kind: str = '') -> str:
+    if eid == '@shared':
+        return _SHARED_GLYPH.get(file, 'rules')
+    return {'heroes.vdata': 'hero', 'abilities.vdata': 'abilities', 'npc_units.vdata': 'units',
+            'misc.vdata': 'map', 'modifiers.vdata': 'modifier', 'loot_tables.vdata': 'loot'}.get(file, 'rules')
+
+
+def visual(src: str | None, glyph: str, cls: str = 'px') -> str:
+    """The game's icon if there is one, else the category glyph in the same box."""
+    if src:
+        return f'<img class="{esc(cls)}" src="{esc(src)}" alt="" loading="lazy">'
+    return f'<span class="{esc(cls)} glyph g-{esc(glyph)}">{_G.format(GLYPHS.get(glyph, GLYPHS["rules"]))}</span>'
+
+
+def img(src: str | None, alt: str = '', cls: str = '', glyph: str | None = None) -> str:
     if not src:
+        if glyph:
+            return visual(None, glyph, cls or 'px')
         return f'<span class="{esc(cls)} noimg"></span>' if cls else ''
     c = f' class="{esc(cls)}"' if cls else ''
     return f'<img{c} src="{esc(src)}" alt="{esc(alt)}" loading="lazy">'

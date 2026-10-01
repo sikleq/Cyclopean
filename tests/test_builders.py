@@ -100,6 +100,24 @@ def test_id_lists_in_values_show_names(monkeypatch):
     assert common.ids_to_names('CITADEL_ABILITY_BEHAVIOR_CLEAVE') == 'CITADEL_ABILITY_BEHAVIOR_CLEAVE'
 
 
+def test_hero_table_layout_keeps_every_column_and_hides_details():
+    from builders.tables_pages import DETAILS, HERO_LAYOUT, laid_out
+    cols = [{'key': 'dps', 'label': 'DPS', 'group': 'Damage'}, {'key': 'spread', 'label': 'Spread', 'group': 'Damage'},
+            {'key': 'brand_new', 'label': 'Brand new stat', 'group': 'Damage'}]
+    out = laid_out(cols, HERO_LAYOUT)
+    assert [c['key'] for c in out] == ['dps', 'spread', 'brand_new']          # nothing dropped, details last
+    assert out[0]['group'] == 'Weapon' and out[1]['group'] == DETAILS and out[2]['group'] == DETAILS
+    assert all(len(short) <= 13 for _, entries in HERO_LAYOUT for _, short in entries)   # one-line headers
+
+
+def test_rows_without_game_art_get_a_category_glyph():
+    from builders.common import glyph_for, visual
+    assert glyph_for('heroes.vdata', '@shared') == 'heroes'
+    assert glyph_for('generic_data.vdata', 'm_IdolParams') == 'rules'
+    html = visual(None, 'map')
+    assert 'glyph g-map' in html and '<svg' in html and 'noimg' not in html
+
+
 def test_hero_page_lines_drop_the_hero_name():
     assert _strip_subject('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
         'Melee damage per boon increased by 10%'

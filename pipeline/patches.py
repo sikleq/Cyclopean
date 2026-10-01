@@ -16,6 +16,7 @@ window.
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
@@ -124,12 +125,27 @@ def announcements(notes: list[Notes] | None = None) -> list[Notes]:
     return [n for n in notes if not is_patch_notes(n)]
 
 
+_BARE_DATE = re.compile(r'^\d{2}-\d{2}-\d{4}$')
+
+
+def _titled(n: Notes, anns: list[Notes]) -> str:
+    """A changelog titled only by its date ('09-29-2026') next to an announcement is that
+    update's notes: 'City Never Sleeps · 09-29-2026'."""
+    if not _BARE_DATE.match(n.title.strip()):
+        return n.title
+    near = [a for a in anns if abs(_dt(n.date) - _dt(a.date)) <= ANNOUNCEMENT_GAP]
+    if not near:
+        return n.title
+    a = min(near, key=lambda a: abs(_dt(n.date) - _dt(a.date)))
+    return f'{a.title} · {n.title}'
+
+
 def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) -> list[Patch]:
     all_ = notes if notes is not None else all_notes()
     anns = announcements(all_)
     notes = merge_same_day(drop_near_duplicates([n for n in all_ if is_patch_notes(n)]))
     builds = builds if builds is not None else build_index()
-    patches = [Patch(n.date, n.title, n.date, n) for n in sorted(notes, key=lambda n: n.date)]
+    patches = [Patch(n.date, _titled(n, anns), n.date, n) for n in sorted(notes, key=lambda n: n.date)]
 
     # big builds far from any changelog get their own patch, named after a
     # nearby announcement when there is one ("City Never Sleeps")

@@ -9,6 +9,44 @@ from .common import entity_icon, esc, hero_icon, load_json, page, write
 
 UNIT_KIND_LABEL = {'building': 'Building', 'trooper': 'Trooper', 'neutral': 'Neutral'}
 
+# Hero table layout: the group header gives the context, so column headers stay one
+# short line ("+/boon" under Vitality); the full label is the header's tooltip.
+# Niche numbers (spread, gravity, collision…) sit in "Details", hidden until asked for.
+# Compared with the user's sheet (docs/reference/hero-stats-sheet.md): its core columns
+# are all here; the sheet's derived ones (per-level tables) live on the hero pages.
+DETAILS = 'Details'
+HERO_LAYOUT = (
+    ('Weapon', (('dps', 'DPS'), ('dps_max', 'Max DPS'), ('bullet_dmg', 'Bullet'), ('bullet_dmg_lvl', '+/boon'),
+                ('bullet_dmg_max', 'Max bullet'), ('pellets', 'Pellets'), ('bps', 'Shots/s'), ('clip', 'Ammo'),
+                ('reload', 'Reload'), ('reload_full', 'Full reload'), ('headshot', 'Headshot'),
+                ('bullet_speed', 'Speed'), ('falloff_start', 'Falloff'), ('falloff_end', 'Falloff end'))),
+    ('Melee', (('light_melee', 'Light'), ('melee_lvl', '+/boon'), ('heavy_melee', 'Heavy'))),
+    ('Vitality', (('hp', 'HP'), ('hp_lvl', '+/boon'), ('hp_regen', 'Regen'), ('bullet_resist', 'Bullet res'),
+                  ('bullet_resist_lvl', '+/boon'), ('spirit_resist', 'Spirit res'), ('spirit_resist_lvl', '+/boon'),
+                  ('headshot_taken', 'HS taken'))),
+    ('Mobility', (('move', 'Move'), ('sprint', 'Sprint'), ('stamina', 'Stamina'), ('stamina_regen', 'Stam. regen'),
+                  ('crouch', 'Crouch'), ('ground_dash', 'Dash'), ('air_dash', 'Air dash'))),
+    ('Spirit', (('spirit_lvl', '+/boon'),)),
+    (DETAILS, (('cycle', 'Interval'), ('full_clip', 'Clip time'), ('burst', 'Burst'), ('burst_cycle', 'Burst gap'),
+               ('bullet_radius', 'Radius'), ('spread', 'Spread'), ('pellet_spread', 'Pellet spread'),
+               ('gravity', 'Gravity'), ('lifetime', 'Lifetime'), ('range', 'Range'), ('range_lvl', 'Range/boon'),
+               ('collision_r', 'Coll. radius'), ('collision_h', 'Coll. height'))),
+)
+
+
+def laid_out(cols: list[dict], layout) -> list[dict]:
+    """Columns in display order with their display group and short header; a column the
+    layout does not know yet (new in the data) is never dropped: it goes to Details."""
+    by_key = {c['key']: c for c in cols}
+    out, seen = [], set()
+    for group, entries in layout:
+        for key, short in entries:
+            if key in by_key:
+                out.append({**by_key[key], 'group': group, 'short': short})
+                seen.add(key)
+    out += [{**c, 'group': DETAILS} for c in cols if c['key'] not in seen]
+    return sorted(out, key=lambda c: c['group'] == DETAILS)        # stable: Details last
+
 
 def _fmt(v, digits: int) -> str:
     if v is None:
@@ -28,11 +66,19 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
         else:
             groups.append([c['group'], 1])
     first_of_group = {cols[sum(n for _, n in groups[:i])]['key'] for i in range(len(groups))}
+
+    def gcls(group: str) -> str:
+        return ' g-details' if group == DETAILS else ''
     cat_row = '<tr class="cats"><th class="name"></th>' + ''.join(
-        f'<th colspan="{n}">{esc(g)}</th>' for g, n in groups) + '</tr>'
-    col_row = f'<tr class="cols"><th class="name" data-col="name">{esc(name_title)}</th>' + ''.join(
-        f'<th data-col="{esc(c["key"])}" class="{"grp-start" if c["key"] in first_of_group else ""}">'
-        f'{esc(c["label"])}</th>' for c in cols) + '</tr>'
+        f'<th colspan="{n}" class="cat{gcls(g)}">{esc(g)}</th>' for g, n in groups) + '</tr>'
+
+    def head(c: dict) -> str:
+        short = c.get('short')
+        tip = f' data-tooltip="{esc(c["label"])}"' if short and short != c['label'] else ''
+        cls = ('grp-start' if c['key'] in first_of_group else '') + gcls(c['group'])
+        return f'<th data-col="{esc(c["key"])}" class="{cls.strip()}"{tip}>{esc(short or c["label"])}</th>'
+    col_row = (f'<tr class="cols"><th class="name" data-col="name">{esc(name_title)}</th>'
+               + ''.join(head(c) for c in cols) + '</tr>')
     body = []
     for r in rows:
         cells = [name_cell(r)]
@@ -40,6 +86,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             v = r['values'].get(c['key'])
             hist = r['history'].get(c['key'])
             cls = ['grp-start'] if c['key'] in first_of_group else []
+            if c['group'] == DETAILS:
+                cls.append('g-details')
             if extra_cls:
                 cls += extra_cls(r, c)
             attrs = f' data-col="{c["key"]}" data-sort="{"" if v is None else v}" data-pol="{c["pol"]}" data-digits="{c["digits"]}"'
@@ -53,11 +101,13 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             f'<tbody>{"".join(body)}</tbody></table></div>')
 
 
-def _toolbar(placeholder: str, legend_spirit: bool) -> str:
+def _toolbar(placeholder: str, legend_spirit: bool, details: bool = False) -> str:
     spirit = '<span class="chip legend-spirit">scales with Spirit</span>' if legend_spirit else ''
+    more = ('<button class="px-btn" data-toggle-class="show-details" data-target=".table-scroll">Details</button>'
+            if details else '')
     return ('<div class="toolbar">'
             f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr">'
-            '<span class="sep"></span><button class="px-btn" data-heatmap>Heatmap</button>'
+            f'<span class="sep"></span><button class="px-btn" data-heatmap>Heatmap</button>{more}'
             f'<span class="sep"></span><span class="chip legend-hist">has history</span>{spirit}</div>')
 
 
@@ -72,9 +122,9 @@ def heroes_table() -> str:
         return (f'<td class="name" data-col="name" data-sort="{esc(h["name"])}"><a href="{rel}heroes/'
                 f'{esc(h["id"].removeprefix("hero_"))}.html">{img_html}{esc(h["name"])}{pre}</a></td>')
 
-    table = render_table(t['columns'], t['heroes'], name_cell, 'Hero',
+    table = render_table(laid_out(t['columns'], HERO_LAYOUT), t['heroes'], name_cell, 'Hero',
                          lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [])
-    body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', True) + table
+    body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', True, details=True) + table
     return page('Hero Stats', body, rel, 'tables', build=t['build'],
                 description='Deadlock hero stats with the full history of every value', wide=True)
 

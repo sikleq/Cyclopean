@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import entity_icon, esc, hero_icon, img, load_json, page, pretty_id, slug, write
-from .hero_page import hero_page, history_table, stat_tables
+from .common import entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
+from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
 from .render import KIND_LABEL
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -46,23 +46,22 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
         if info.get('cost'):
             chips.append(f'<span class="chip">{info["cost"]} souls</span>')
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
             f'<div class="meta">First seen: build {it["first"][0]} ({esc(it["first"][1])})</div></div></div>')
     sections = ''
     if card:
         blocks = []
         for s in card.get('sections', []):
-            rows = ''.join(f'<tr><td>{esc(r["label"])}</td><td class="v">{esc(r["value"])}'
-                           f'{"<span class=scale>+" + format(r["scale"], "g") + "×Spirit</span>" if r.get("scale") else ""}</td></tr>'
-                           for r in s['props'])
+            rows = prop_rows(s['props'], rel)
             desc = f'<div class="ac-desc">{esc(s["desc"])}</div>' if s.get('desc') else ''
             blocks.append(f'<div class="ability-card px-frame"><div class="ac-head"><div class="ac-name">{esc(s["type"])}</div></div>'
                           f'{desc}<table class="kvt">{rows}</table></div>')
         hdr = ''
         if card.get('header'):
             hdr = '<div class="chips item-hdr">' + ''.join(
-                f'<span class="chip">{esc(h["label"])} {esc(h["value"])}</span>' for h in card['header']) + '</div>'
+                f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
+                f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
         sections = ('<h2>Current values</h2>' + hdr + '<div class="ability-grid">' + ''.join(blocks) + '</div>'
                     if blocks or hdr else '')
     hist = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel)
@@ -76,7 +75,7 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) 
     ic = entity_icon(u['file'], u['id'], u['kind'], rel)
     gone = '' if u.get('alive') else ' <span class="tag del">REMOVED</span>'
     head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame")}<div><h1>{esc(name)}{gone}</h1>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips"><span class="chip">{esc(KIND_LABEL.get(u["kind"], u["kind"]))}</span></div>'
             f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])})</div></div></div>')
     stats = ''
@@ -91,7 +90,7 @@ def _card(e: dict, rel_icon: str | None, sub: str = '') -> str:
     cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
     name = e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
     return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc(name.lower())} {esc(e["id"])}">'
-            f'{img(rel_icon, "", "px")}<span class="nm">{esc(name)}</span>'
+            f'{img(rel_icon, "", "px", glyph_for(e["file"], e["id"]))}<span class="nm">{esc(name)}</span>'
             f'<span class="sub">{esc(sub)}</span></a>')
 
 

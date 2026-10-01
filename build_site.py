@@ -42,7 +42,7 @@ def refresh_data(sync: bool) -> None:
     # the last processed tracker commit: update-data.yml compares it with
     # `git ls-remote` every 15 minutes and only clones when the tracker moved
     head = tracker.git('rev-parse', 'HEAD').strip()
-    (ROOT / 'data' / 'tracker_head.txt').write_text(head + '\n', encoding='utf-8')
+    (ROOT / 'data' / 'tracker_head.txt').write_text(head + '\n', encoding='utf-8', newline='\n')
     history.run()
     enrich.run()
     catalog.build()

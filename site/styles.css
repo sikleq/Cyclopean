@@ -57,6 +57,8 @@
   --tag-off: #b07a86;
   --tag-mismatch: #ff6b8a;
   --dev: #b48cf0;             /* hero still in development (unreleased) */
+  --spirit: #c49bff;          /* spirit (tech) damage, as the game colours it */
+  --weapon: #f0b06a;          /* bullet / weapon damage, as the game colours it */
 
   /* translucent helpers (derived from tokens above) */
   --shadow: rgba(0, 0, 0, 0.55);
@@ -224,46 +226,53 @@ details.collapsible[open] > summary::before { content: "-"; }
 details.collapsible > summary .chip { margin-left: 8px; }
 
 /* ---------- 06. Badges & markers ---------- */
-/* compact square chip, UI font (Silkscreen was unreadable at 11px); no % inside —
-   the value cell shows it */
+/* Tag: coloured text on a tint of its own colour, a 2px pixel bar on the left, notched
+   corners. UI font (Silkscreen was unreadable at 11px); no % inside — the value cell shows it.
+   The fill grows with the size of the change (data-g 1..10). */
 .tag {
+  --c: var(--tag-changed);
+  --fill: 16%;
   display: inline-block;
-  min-width: 42px;
+  min-width: 46px;
   text-align: center;
-  font: 700 10px/1 var(--font-ui);
+  font: 800 10px/1 var(--font-ui);
   text-transform: uppercase;
-  letter-spacing: .7px;
-  padding: 3px 5px 3px;
-  color: var(--bg-page);
+  letter-spacing: .9px;
+  padding: 4px 6px 3px 7px;
+  color: var(--c);
+  background:
+    linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat,
+    color-mix(in srgb, var(--c) var(--fill), var(--bg-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent);
+  clip-path: polygon(0 1px, 1px 1px, 1px 0, calc(100% - 1px) 0, calc(100% - 1px) 1px, 100% 1px,
+                     100% calc(100% - 1px), calc(100% - 1px) calc(100% - 1px), calc(100% - 1px) 100%,
+                     1px 100%, 1px calc(100% - 1px), 0 calc(100% - 1px));
   vertical-align: 1px;
-  box-shadow: inset 0 -2px 0 var(--shadow-soft);
+  white-space: nowrap;
 }
-.tag.buff { background: var(--tag-buff); }
-.tag.nerf { background: var(--tag-nerf); }
-.tag.new { background: var(--tag-new); }
-.tag.del { background: var(--tag-del); }
-.tag.rework { background: var(--tag-rework); }
-.tag.changed { background: var(--tag-changed); }
-.tag.mech { background: var(--tag-mech); }
-.tag.on { background: var(--tag-on); }
-.tag.off { background: var(--tag-off); }
-/* intensity steps 1..10 fade the badge towards the panel colour */
-.tag[data-g="1"], .tag[data-g="2"] { opacity: .62; }
-.tag[data-g="3"], .tag[data-g="4"] { opacity: .74; }
-.tag[data-g="5"], .tag[data-g="6"] { opacity: .86; }
+.tag.buff, .pip.buff { --c: var(--tag-buff); }
+.tag.nerf, .pip.nerf { --c: var(--tag-nerf); }
+.tag.new, .pip.new { --c: var(--tag-new); }
+.tag.del, .pip.del { --c: var(--tag-del); }
+.tag.rework, .pip.rework { --c: var(--tag-rework); }
+.tag.changed, .pip.changed { --c: var(--tag-changed); }
+.tag.mech, .pip.mech { --c: var(--tag-mech); }
+.tag.on, .pip.on { --c: var(--tag-on); }
+.tag.off, .pip.off { --c: var(--tag-off); }
+.tag[data-g="1"], .tag[data-g="2"] { --fill: 8%; }
+.tag[data-g="3"], .tag[data-g="4"] { --fill: 12%; }
+.tag[data-g="7"], .tag[data-g="8"] { --fill: 24%; }
+.tag[data-g="9"], .tag[data-g="10"] { --fill: 32%; }
 
-/* tag counters in an entity header: coloured number squares */
+/* tag counters in an entity header: small tinted number squares in the tag colours */
 .tsum { display: inline-flex; gap: 3px; margin-left: 10px; vertical-align: 1px; }
-.pip { min-width: 18px; padding: 2px 4px; text-align: center; font: 700 10px/1 var(--font-ui); color: var(--bg-page); }
-.pip.buff { background: var(--tag-buff); }
-.pip.nerf { background: var(--tag-nerf); }
-.pip.new { background: var(--tag-new); }
-.pip.del { background: var(--tag-del); }
-.pip.rework { background: var(--tag-rework); }
-.pip.changed { background: var(--tag-changed); }
-.pip.mech { background: var(--tag-mech); }
-.pip.on { background: var(--tag-on); }
-.pip.off { background: var(--tag-off); }
+.pip {
+  --c: var(--tag-changed);
+  min-width: 18px; padding: 3px 4px 2px; text-align: center;
+  font: 800 10px/1 var(--font-ui); color: var(--c);
+  background: color-mix(in srgb, var(--c) 20%, var(--bg-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent);
+}
 
 .mark {
   display: inline-flex; align-items: center; justify-content: center;
@@ -372,7 +381,9 @@ table.stats { border-collapse: separate; border-spacing: 0; font-size: 12.5px; f
 table.stats th, table.stats td { padding: 4px 6px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); }
 table.stats thead th { position: sticky; background: var(--bg-panel-2); z-index: 3; color: var(--text-dim); font-weight: 600; }
 table.stats thead tr.cats th { top: 0; font: 14px/1 var(--font-px); color: var(--text-bright); text-align: center; padding: 6px 8px; border-bottom: var(--px) solid var(--line); border-left: var(--px) solid var(--line); }
-table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: 11px; line-height: 1.2; white-space: normal; min-width: 44px; max-width: 76px; vertical-align: bottom; }
+/* one line per header: short labels, the full one is the tooltip */
+table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: 11.5px; line-height: 1.2; white-space: nowrap; min-width: 40px; vertical-align: bottom; }
+.table-scroll:not(.show-details) .g-details { display: none; }
 table.stats thead tr.cols th:hover { color: var(--text-bright); }
 table.stats thead th.sorted { color: var(--patina-strong); }
 table.stats thead th.sorted::after { content: attr(data-arrow); margin-left: 3px; font-family: var(--font-px-small); }
@@ -410,19 +421,22 @@ table.stats td.hm-lo { background: var(--nerf-14); }
 .hist-tip li { display: grid; grid-template-columns: 78px 1fr auto; gap: 8px; padding: 2px 0; }
 .hist-tip li .d { font: 11px/1.6 var(--font-px-small); color: var(--text-dimmer); }
 
-/* icon-only markers explain themselves on hover */
-[data-tooltip] { position: relative; }
-[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
-  z-index: var(--z-tooltip);
-  width: max-content; max-width: 260px;
-  padding: 6px 8px;
+/* icon-only markers explain themselves on hover: ONE floating element placed by
+   scripts.js (clamped to the viewport, flips below when there is no room above) —
+   a CSS ::after centred on the marker ran off the screen at the edges */
+.tip {
+  position: fixed; left: 0; top: 0; z-index: var(--z-tooltip);
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 6px 9px;
   background: var(--bg-panel-4); color: var(--text-main);
-  font: 12px/1.35 var(--font-ui); text-transform: none; letter-spacing: 0;
-  box-shadow: 0 -2px 0 var(--line-bright), 0 2px 0 var(--line-bright), -2px 0 0 var(--line-bright), 2px 0 0 var(--line-bright);
+  font: 12px/1.4 var(--font-ui); text-transform: none; letter-spacing: 0; white-space: normal;
+  box-shadow: 0 -2px 0 var(--line-bright), 0 2px 0 var(--line-bright), -2px 0 0 var(--line-bright),
+              2px 0 0 var(--line-bright), 0 6px 16px var(--shadow);
   pointer-events: none;
+  display: none;
 }
+.tip.on { display: block; }
+[data-tooltip] { cursor: help; }
 
 /* home */
 .home-hero { display: grid; grid-template-columns: 1fr 360px; gap: 22px; margin-bottom: 26px; }
@@ -506,6 +520,14 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-desc { padding: 6px 10px; font-size: 13px; color: var(--text-dim); }
 .ability-card table.kvt td { padding: 3px 10px; }
 .ability-card .scale { color: var(--tag-rework); font-size: 12px; margin-left: 6px; }
+/* property icons from the in-game tooltip; spirit damage purple, bullet damage warm,
+   healing green — the colours the game uses for those values */
+.pi { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; object-fit: contain; flex: none; }
+.chip .pi { width: 13px; height: 13px; margin-right: 3px; }
+.chip b { color: var(--text-bright); font-weight: 700; }
+.p-tech_damage td.v, .chip.p-tech_damage b { color: var(--spirit); }
+.p-bullet_damage td.v, .chip.p-bullet_damage b { color: var(--weapon); }
+.p-healing td.v, .chip.p-healing b { color: var(--tag-buff); }
 .tiers { margin-top: auto; }
 .tier { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 5px 10px; border-top: 1px solid var(--line-soft); font-size: 12.5px; }
 .tier .tn { font: 11px/1 var(--font-px-small); color: var(--bg-page); background: var(--patina-dim); text-align: center; padding: 4px 0; }
@@ -528,7 +550,13 @@ table.hist tr:not(.ph):hover td { background: var(--bg-hover); }
 table.hist.grouped td.lb { width: auto; }
 table.hist tr.eh td { padding: 7px 8px 3px; border-bottom: 0; }
 table.hist tr.eh .en { display: inline-flex; align-items: center; gap: 7px; font: 15px/1 var(--font-px); color: var(--text-bright); }
-table.hist tr.eh .en img, table.hist tr.eh .en .noimg { width: 22px; height: 22px; object-fit: contain; }
+table.hist tr.eh .en img, table.hist tr.eh .en .noimg, table.hist tr.eh .en .glyph { width: 22px; height: 22px; object-fit: contain; }
+/* category glyph (a group or a rule, not one entity): same box as a game icon */
+.glyph { display: inline-flex; align-items: center; justify-content: center; flex: none;
+  background: var(--bg-panel-3); color: var(--text-dim); vertical-align: middle; }
+.glyph svg { width: 70%; height: 70%; }
+table.hist td.sc .glyph, table.hist .gi.glyph { width: 22px; height: 22px; margin-right: 6px; vertical-align: -5px; }
+.glyph.g-heroes, .glyph.g-hero { color: var(--patina); }
 table.hist tr.eh .en a { color: inherit; }
 table.hist.grouped tr.ch td.st { padding-left: 16px; }
 table.hist tr.ch.st-unreleased td { background: var(--dev-10); }

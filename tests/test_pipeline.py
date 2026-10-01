@@ -211,6 +211,41 @@ def test_global_slow_line_describes_every_slow_not_one():
     assert len(res['changes']) == 1
 
 
+def test_global_line_with_an_amount_covers_every_hero_it_moved():
+    from pipeline.match import num
+    from pipeline.match_rules import global_delta_line
+    hp = 'm_mapStartingStats.EMaxHealth'
+    mk = lambda eid, a, b, path=hp: MChange('heroes.vdata', eid, path, 'change', a, b, 'balance', 'hero', None, 'x',
+                                            False, chain=[a, b])
+    cat = {f'heroes.vdata:h{i}': {'kind': 'hero'} for i in range(6)}
+    heroes = [mk('h0', 800, 790), mk('h1', 770, 760), mk('h2', 900, 890), mk('h3', 700, 720), mk('h4', 650, 640),
+              mk('h5', 6.6, 6.5, 'm_mapStartingStats.EMaxMoveSpeed')]
+    hit = global_delta_line('Base HP reduced by 10 for all heroes', heroes, cat, num)
+    assert sorted(c.eid for c in hit) == ['h0', 'h1', 'h2', 'h4']          # +20 and the move speed are not it
+    assert global_delta_line('Base move speed reduced by 0.1', heroes, cat, num) is None   # one hero is not a rule
+    guns = [MChange('abilities.vdata', f'w{i}', 'm_mapWeaponInfos.primary.m_flCycleTime', 'change', 0.2, 0.21,
+                    'balance', 'weapon', None, 'x', False, chain=[0.2, 0.21]) for i in range(3)]
+    wcat = {f'abilities.vdata:w{i}': {'kind': 'weapon'} for i in range(3)}
+    assert len(global_delta_line('Bullet Cycle Time for all heroes increased by 5%', guns, wcat, num)) == 3
+    # a narrower family wins over "health": item bonus health, not hero max health
+    items = [MChange('abilities.vdata', f'i{i}', 'm_mapAbilityProperties.BonusHealth.m_strValue', 'change', a, a - 25,
+                     'balance', 'item', None, 'x', False, chain=[a, a - 25]) for i, a in enumerate((150, 125, 90))]
+    icat = {f'abilities.vdata:i{i}': {'kind': 'item'} for i in range(3)}
+    assert len(global_delta_line('Bonus Health on all Weapon and Spirit items is reduced by ~25', items, icat, num)) == 3
+    # "+3 and 4%": 46 -> 46 * 1.04 + 3 = 50.8 -> 51 in the files
+    boon = [MChange('heroes.vdata', f'h{i}', 'm_mapStandardLevelUpUpgrades.MODIFIER_VALUE_BASE_HEALTH_FROM_LEVEL', 'change',
+                    a, b, 'balance', 'hero', None, 'x', False, chain=[a, b]) for i, (a, b) in enumerate(((46, 51), (39, 44), (52, 57)))]
+    assert len(global_delta_line('Hero health growth increased by +3 and 4%', boon, cat, num)) == 3
+    # review 2026-10-01: an "increased by 5%" line never covers a decrease or a big jump on small values
+    odd = [MChange('abilities.vdata', f'w{i}', 'm_mapWeaponInfos.primary.m_flCycleTime', 'change', 0.5, b,
+                   'balance', 'weapon', None, 'x', False, chain=[0.5, b]) for i, b in enumerate((0.3, 0.2, 0.7))]
+    assert global_delta_line('Bullet Cycle Time for all heroes increased by 5%', odd, wcat, num) is None
+    # two stats in one line: both families are covered
+    two = [mk(f'h{i}', 6.6, 6.5, 'm_mapStartingStats.EMaxMoveSpeed') for i in range(3)] + \
+          [mk(f'h{i}', 2.0, 1.9, 'm_mapStartingStats.ESprintSpeed') for i in range(3)]
+    assert len(global_delta_line('Move speed and sprint speed reduced by 0.1', two, cat, num)) == 6
+
+
 def test_ultimate_cooldown_line_covers_only_ultimates_with_that_ratio():
     from pipeline.match import general_line
     cat = {'abilities.vdata:ult': {'kind': 'ability', 'ability_slot': 'Signature_4'},
@@ -336,6 +371,24 @@ def test_line_of_an_edited_post_points_to_the_later_patch():
     ln = early['sections'][0]['lines'][0]
     assert ln['status'] == 'repeated' and ln['see']['patch'] == '2026-03-21'
     assert early['line_counts'] == {'unmatched': 0, 'repeated': 1}
+
+
+def test_unit_kind_reads_the_id_before_the_class():
+    from pipeline.classify import unit_kind
+    # neutral camps and Guardians are npc_trooper subclasses in the data
+    assert unit_kind('neutral_lantern_weak', {'_class': 'npc_trooper'}) == 'neutral'
+    assert unit_kind('npc_boss_tier1', {'_class': 'npc_trooper_boss'}) == 'building'
+    assert unit_kind('npc_super_neutral', {}) == 'neutral'
+    assert unit_kind('trooper_medic', {'_class': 'npc_trooper'}) == 'trooper'
+
+
+def test_date_titled_changelog_takes_the_announcement_name():
+    from pipeline.news import Notes
+    from pipeline.patches import _titled
+    ann = Notes('City Never Sleeps', '2026-09-29T17:00:00+00:00', 'https://x', 'forum', [])
+    notes = Notes('09-29-2026', '2026-09-29', 'https://y', 'forum', [])
+    assert _titled(notes, [ann]) == 'City Never Sleeps · 09-29-2026'
+    assert _titled(Notes('09-16-2026 Update', '2026-09-16', 'u', 'forum', []), [ann]) == '09-16-2026 Update'
 
 
 def test_parse_pairs_thousands_separator():

@@ -189,7 +189,18 @@ def convert(rev: str = 'HEAD') -> tuple[dict, list]:
         if isinstance(u, dict) and u.get('m_strCustomUnitIcon'):
             _store(u['m_strCustomUnitIcon'], f'units/{uid}', 128, manifest, missing, f'unit:{uid}')
 
+    misc = cache.vdata(rev, tracker.SCRIPTS + 'misc.vdata')
+    for mid, m in misc.items():
+        if not isinstance(m, dict):
+            continue
+        # the ping icon names the pickup ('powerup_gun'); the HUD one (nested in the
+        # modifier block) is often the generic 'icon_powerup'
+        ref = m.get('m_strPingIcon') or _find_field(m, 'm_strHudIcon')
+        if ref and 'icon_powerup' not in str(ref):
+            _store(ref, f'misc/{mid}', 128, manifest, missing, f'misc:{mid}')
+
     historical_icons(manifest, missing)
+    unit_class_icons(manifest)
     external_icons(manifest, missing)
 
     stat_map = json.loads((ROOT / 'data' / 'reference' / 'stat_icons.json').read_text(encoding='utf-8'))
@@ -271,6 +282,66 @@ def _art_of(e: dict, src: Path) -> bool:
     code = m.group(1).lower()
     owner = (e.get('owner') or '').removeprefix('hero_')
     return code == owner or e['id'].lower().startswith(code + '_')
+
+
+def _find_field(node, name: str):
+    """First value of `name` anywhere inside a vdata block."""
+    if isinstance(node, dict):
+        if node.get(name):
+            return node[name]
+        children = node.values()
+    elif isinstance(node, list):
+        children = node
+    else:
+        return None
+    for child in children:
+        found = _find_field(child, name)
+        if found:
+            return found
+    return None
+
+
+UNIT_RULES = ROOT / 'data' / 'overrides' / 'unit_icons.json'
+_TIER_SUFFIX = re.compile(r'_(weak|normal|strong|heavy)$')
+_ROMAN = re.compile(r'\s+[IVX]+$')
+
+
+def unit_class_icons(manifest: dict) -> None:
+    """Units without their own icon, every id the site has seen (removed ones too):
+    1. the class portrait the game's ping wheel uses (data/overrides/unit_icons.json);
+    2. a neutral camp borrows its family's art: same id stem ('neutral_lantern_weak' ->
+       'neutral_lantern_normal') or same name without the tier ('Gutter Ghoul I' -> II)."""
+    rules = json.loads(UNIT_RULES.read_text(encoding='utf-8'))['rules']
+    ents = [e for e in json.loads((ROOT / 'data' / 'entities.json').read_text(encoding='utf-8'))['entities']
+            if e['file'] == 'npc_units.vdata']
+    shared: dict[str, str] = {}
+    for e in ents:
+        key = f'unit:{e["id"]}'
+        if key in manifest:
+            continue
+        for pattern, rel in rules:
+            if re.search(pattern, e['id']):
+                if rel not in shared:
+                    src = RAW / 'panorama' / 'images' / rel
+                    if not src.exists():
+                        break
+                    dst = ICONS / 'units' / '_class' / (Path(rel).stem.removesuffix('_psd') + '.webp')
+                    _to_webp(src, dst, 128)
+                    shared[rel] = dst.relative_to(ICONS).as_posix()
+                manifest[key] = shared[rel]
+                break
+    by_stem = {_TIER_SUFFIX.sub('', e['id']): manifest[f'unit:{e["id"]}'] for e in ents if f'unit:{e["id"]}' in manifest}
+    by_name = {_ROMAN.sub('', e.get('name') or ''): manifest[f'unit:{e["id"]}'] for e in ents
+               if f'unit:{e["id"]}' in manifest and e.get('name') and e['name'] != e['id']}
+    for e in ents:
+        key = f'unit:{e["id"]}'
+        if key in manifest:
+            continue
+        art = by_stem.get(_TIER_SUFFIX.sub('', e['id']))
+        if not art and e.get('name') and e['name'] != e['id']:
+            art = by_name.get(_ROMAN.sub('', e['name']))
+        if art:
+            manifest[key] = art
 
 
 EXTERNAL = ROOT / 'data' / 'overrides' / 'external_icons.json'

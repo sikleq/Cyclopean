@@ -165,6 +165,90 @@ def global_line(text: str, changes: list, cat: dict, num) -> list | None:
     return None
 
 
+# ---- 1b. global lines with an amount: "Base HP reduced by 10 for all heroes" ----
+# The same edit applied to every hero (or every gun, every item…) arrives as dozens of
+# "hidden" changes unless the line is read as a rule: field family + "by N" / "by N%".
+# 2026-05-22: Max Health -10 on 27 heroes; 2025-12-16: move speed -0.1 on 13; 2025-07-04:
+# fire interval +5% on 32 guns; 2025-05-11: spirit scaling -7% on 40+ abilities.
+DELTA_FAMILIES: tuple[tuple[re.Pattern, re.Pattern, object], ...] = (
+    # (line pattern, field path pattern, entity filter)
+    (re.compile(r'\b(hp|health) (per boon|growth)|\bhealth growth|\bgrowth per boon|\b(hp|health)\b.*\bgrowth\b'),
+     re.compile(r'BASE_HEALTH_FROM_LEVEL'), lambda e: e.get('kind') == 'hero'),
+    (re.compile(r'\bsprint speed\b'), re.compile(r'm_mapStartingStats\.ESprintSpeed'), lambda e: e.get('kind') == 'hero'),
+    (re.compile(r'\bmove ?speed\b'), re.compile(r'm_mapStartingStats\.EMaxMoveSpeed'), lambda e: e.get('kind') == 'hero'),
+    (re.compile(r'(?<!bonus )\b(base )?(hp|health)\b(?! (per|growth|regen))'),
+     re.compile(r'm_mapStartingStats\.EMaxHealth$'), lambda e: e.get('kind') == 'hero'),
+    (re.compile(r'\b(bullet )?cycle time|\bfire interval'), re.compile(r'm_flCycleTime$'),
+     lambda e: e.get('kind') == 'weapon'),
+    (re.compile(r'\bspirit (power )?scaling'), re.compile(r'm_subclassScaleFunction\.m_flStatScale$'),
+     lambda e: e.get('kind') in ('ability', 'ability_other', 'weapon')),
+    (re.compile(r'\bbonus health\b.*\bitems?\b|\bitems?\b.*\bbonus health\b'),
+     re.compile(r'\.BonusHealth\.m_strValue$'), lambda e: e.get('kind') == 'item'),
+    (re.compile(r'\btrooper bounty\b'), re.compile(r'm_flGoldReward$'), lambda e: e.get('kind') == 'trooper'),
+)
+_DELTA = re.compile(r'\b(increased|reduced|decreased|lowered|raised)\s+(?:growth\s+)?by\s+(~)?([+-]?\d+(?:\.\d+)?)\s*(%)?',
+                    re.I)
+DELTA_MIN = 3          # one hero is a hero line, not a rule
+# "Hero health growth increased by +3 and 4%": new = old * (1 + 4%) + 3, game values rounded
+_COMBINED = re.compile(r'\bby\s+\+?(\d+(?:\.\d+)?)\s+and\s+\+?(\d+(?:\.\d+)?)\s*%', re.I)
+
+
+def combined_ok(old, new, add: float, pct: float, sign: int, num) -> bool:
+    o, n = num(old), num(new)
+    if o is None or n is None or o == n or (n > o) != (sign > 0):
+        return False
+    candidates = (o * (1 + sign * pct / 100) + sign * add, (o + sign * add) * (1 + sign * pct / 100))
+    # whole numbers in the files are rounded (46 * 1.04 + 3 = 50.8 -> 51); small fields are not
+    return any(abs(n - c) <= (1.0 if abs(o) >= 10 else 0.03 * abs(c)) for c in candidates)
+
+
+def delta_ok(old, new, amount: float, pct: bool, approx: bool, sign: int, num) -> bool:
+    o, n = num(old), num(new)
+    if o is None or n is None or o == n:
+        return False
+    d = n - o
+    if sign and (d > 0) != (sign > 0):
+        return False          # an "increased" line never covers a decrease
+    if pct:
+        # unit=0: no rounding allowance, so 0.5 -> 0.3 is not "+5%" on a small value
+        return ratio_ok(o, n, amount, sign, num, unit=0.0)
+    tol = abs(amount) * 0.3 if approx else max(abs(amount) * 0.005, 1e-6)
+    return abs(abs(d) - abs(amount)) <= tol
+
+
+def global_delta_line(text: str, changes: list, cat: dict, num) -> list | None:
+    """Changes covered by a line that moves one stat of many entities by the same amount."""
+    low = text.lower()
+    m = _DELTA.search(low)
+    if not m:
+        return None
+    verb, approx, amount, pct = m.group(1), bool(m.group(2)), abs(float(m.group(3))), bool(m.group(4))
+    sign = 1 if verb in ('increased', 'raised') else -1
+    # the stat is named before the number: "Hero health increased growth by +4 and 8%"
+    head = low[:m.start(3)]
+    cm = _COMBINED.search(low, m.start())
+    if cm:
+        add, cpct = float(cm.group(1)), float(cm.group(2))
+
+        def moved(o, n):
+            return combined_ok(o, n, add, cpct, sign, num)
+    else:
+        def moved(o, n):
+            return delta_ok(o, n, amount, pct, approx, sign, num)
+    # every family the words fit counts ("Move speed and sprint speed reduced by 0.1" is two
+    # stats); a family joins only with DELTA_MIN entities of its own, so one coincidence never does
+    out: list = []
+    for line_re, path_re, keep in DELTA_FAMILIES:
+        if not line_re.search(head):
+            continue
+        hit = [c for c in changes
+               if c.cat == 'balance' and path_re.search(c.path) and keep(cat.get(f'{c.file}:{c.eid}', {}))
+               and any(moved(o, n) for o, n in c.steps())]
+        if len(hit) >= DELTA_MIN:
+            out += [c for c in hit if c not in out]
+    return out or None
+
+
 # ---- 2. components: "Now builds from Sprint Boots" ----
 COMPONENT_RE = re.compile(r'builds? (from|into)|no longer builds|component', re.I)
 AFFECTS_UPGRADES_RE = re.compile(r'affects? (its )?upgrades', re.I)

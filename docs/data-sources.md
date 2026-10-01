@@ -45,6 +45,9 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
   Steam and forum copies of the same notes are de-duplicated (±2 days, ≥50% identical lines).
 - Marketing posts (hero reveals, events, the City Never Sleeps page) are stored as title + link only —
   they are not changelogs and are not republished.
+- Checked against the forum's thread list on 2026-10-01 (82 threads): the only missing one was
+  "09-29-2026" (11 interface lines after the City Never Sleeps link) → `2026-09-29-2.txt`. A changelog
+  titled only by a date next to an announcement takes its name ("City Never Sleeps · 09-29-2026").
 
 ## 3. Icons — local game VPK
 

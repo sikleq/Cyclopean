@@ -1,0 +1,12 @@
+{
+  "_why": "Units whose vdata has no m_strCustomUnitIcon. The portraits are the ones the game itself shows for these unit classes in its ping wheel (scripts/ping_wheel_messages.vdata, build 6726): 'Push Patron' -> npcs/tier_3_boss, 'Push Shrine' -> npcs/shield_generator, Guardian -> npcs/tier_1_boss, Walker -> npcs/tier_2_boss, troopers -> npcs/trooper, 'Enemy Taking Mid Boss' -> minimap/super_neutral_marker. Base Guardians have no portrait of their own and share the Guardian one. Rules are regexes on the unit id, first match wins; a unit's own m_strCustomUnitIcon always wins over a rule.",
+  "rules": [
+    ["^(alt_)?(super_)?trooper_(normal|medic|melee|siege|base)(_ag2)?$", "npcs/trooper_psd.png"],
+    ["^(alt_)?npc_boss_tier1", "npcs/tier_1_boss_psd.png"],
+    ["^(alt_)?npc_boss_tier2", "npcs/tier_2_boss_psd.png"],
+    ["^(alt_)?npc_boss_tier3", "npcs/tier_3_boss_psd.png"],
+    ["^npc_barrack_boss", "npcs/tier_1_boss_psd.png"],
+    ["^npc_base_defense_sentry$", "npcs/turret_psd.png"],
+    ["^npc_super_neutral", "minimap/super_neutral_marker_psd.png"]
+  ]
+}

@@ -31,6 +31,15 @@ HEADER_PROPS = (
     ('AbilityChannelTime', 'Channel'),
 )
 EMPTY = {'', '0', '0.0', '-1', '-1.0', '-2', 'None'}
+# m_strCSSClass picks the property's icon in the in-game tooltip (icons/stats/prop/<class>);
+# a few spellings differ from the icon names
+CSS_ALIASES = {'movement_speed': 'move_speed', 'fireRate': 'fire_rate', 'ETechPower': 'tech_power',
+               'time': 'duration'}
+
+
+def css_class(d: dict) -> str | None:
+    css = str(d.get('m_strCSSClass') or '').strip()
+    return CSS_ALIASES.get(css, css) or None
 
 _SUB_RE = re.compile(r'\{s:([A-Za-z0-9_]+)\}')
 _G_RE = re.compile(r"\{g:[^}]*?:'([^']*)'\}|\{g:[^}]*?:([^}:]*)\}")
@@ -109,13 +118,15 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
             return None
         scale = (d.get('m_subclassScaleFunction') or {}).get('m_flStatScale')
         return {'prop': p, 'label': _label(tok, p, aid), 'value': fmt_prop(tok, p, d['m_strValue'], aid),
-                'scale': float(scale) if isinstance(scale, (int, float)) and scale else None}
+                'scale': float(scale) if isinstance(scale, (int, float)) and scale else None,
+                'css': css_class(d)}
 
     header = []
     for p, lbl in HEADER_PROPS:
         d = props.get(p)
         if isinstance(d, dict) and str(d.get('m_strValue', '')).strip() not in EMPTY:
-            header.append({'prop': p, 'label': lbl, 'value': fmt_prop(tok, p, d['m_strValue'], aid)})
+            header.append({'prop': p, 'label': lbl, 'value': fmt_prop(tok, p, d['m_strValue'], aid),
+                           'css': css_class(d)})
     header_props = {h['prop'] for h in header}
     tiers = []
     for i, t in enumerate(a.get('m_vecAbilityUpgrades') or [], start=1):

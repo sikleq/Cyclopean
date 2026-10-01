@@ -140,17 +140,17 @@
   "builds": 10,
   "counts": {
    "documented": 48,
-   "described": 29,
-   "hidden": 59,
+   "described": 42,
+   "hidden": 46,
    "unannounced": 0,
-   "unreleased": 1
+   "unreleased": 0
   },
   "line_counts": {
    "untracked": 23,
-   "unmatched": 35,
+   "unmatched": 34,
    "fix": 17,
+   "described": 16,
    "documented": 47,
-   "described": 15,
    "mismatch": 1
   },
   "has_notes": true
@@ -560,16 +560,16 @@
   "builds": 1,
   "counts": {
    "documented": 112,
-   "described": 80,
-   "hidden": 107,
+   "described": 89,
+   "hidden": 96,
    "unannounced": 0,
-   "unreleased": 62
+   "unreleased": 59
   },
   "line_counts": {
-   "unmatched": 72,
+   "unmatched": 71,
    "untracked": 49,
    "fix": 30,
-   "described": 61,
+   "described": 62,
    "rounded": 2,
    "documented": 109,
    "mismatch": 2
@@ -1036,16 +1036,16 @@
   "builds": 10,
   "counts": {
    "documented": 55,
-   "described": 11,
-   "hidden": 191,
+   "described": 195,
+   "hidden": 70,
    "unannounced": 0,
-   "unreleased": 73
+   "unreleased": 9
   },
   "line_counts": {
-   "described": 2,
-   "unmatched": 2,
+   "described": 3,
    "documented": 25,
    "rounded": 2,
+   "unmatched": 1,
    "fix": 1
   },
   "has_notes": true
@@ -1141,17 +1141,17 @@
   "builds": 6,
   "counts": {
    "documented": 82,
-   "described": 29,
-   "hidden": 243,
+   "described": 60,
+   "hidden": 212,
    "unannounced": 0,
    "unreleased": 15
   },
   "line_counts": {
-   "unmatched": 30,
+   "described": 22,
    "documented": 68,
+   "unmatched": 29,
    "mismatch": 3,
    "fix": 13,
-   "described": 21,
    "rounded": 1
   },
   "has_notes": true
@@ -1453,15 +1453,15 @@
   "builds": 5,
   "counts": {
    "documented": 53,
-   "described": 20,
-   "hidden": 93,
+   "described": 50,
+   "hidden": 61,
    "unannounced": 0,
-   "unreleased": 2
+   "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 24,
+   "unmatched": 21,
+   "described": 12,
    "documented": 42,
-   "described": 9,
    "fix": 2
   },
   "has_notes": true
@@ -1688,14 +1688,14 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 59,
+   "unmatched": 56,
    "documented": 444,
    "described": 556,
    "untracked": 1,
    "fix": 19,
    "rounded": 16,
    "mismatch": 24,
-   "repeated": 61
+   "repeated": 64
   },
   "has_notes": true
  },
@@ -1706,15 +1706,15 @@
   "builds": 5,
   "counts": {
    "documented": 55,
-   "described": 36,
-   "hidden": 77,
+   "described": 116,
+   "hidden": 16,
    "unannounced": 0,
-   "unreleased": 20
+   "unreleased": 0
   },
   "line_counts": {
    "documented": 49,
-   "unmatched": 7,
-   "described": 19,
+   "unmatched": 5,
+   "described": 21,
    "fix": 4
   },
   "has_notes": true
@@ -1726,14 +1726,14 @@
   "builds": 5,
   "counts": {
    "documented": 126,
-   "described": 88,
-   "hidden": 167,
+   "described": 140,
+   "hidden": 129,
    "unannounced": 0,
-   "unreleased": 15
+   "unreleased": 1
   },
   "line_counts": {
-   "described": 51,
-   "unmatched": 14,
+   "described": 52,
+   "unmatched": 13,
    "documented": 125,
    "mismatch": 1,
    "fix": 5,
@@ -1810,14 +1810,14 @@
   "builds": 3,
   "counts": {
    "documented": 151,
-   "described": 187,
-   "hidden": 114,
+   "described": 214,
+   "hidden": 92,
    "unannounced": 0,
-   "unreleased": 8
+   "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 59,
-   "described": 75,
+   "described": 76,
+   "unmatched": 58,
    "untracked": 3,
    "fix": 19,
    "documented": 147,
@@ -2081,18 +2081,22 @@
   "has_notes": true
  },
  {
-  "id": "build-6711",
-  "title": "City Never Sleeps",
+  "id": "2026-09-29",
+  "title": "City Never Sleeps · 09-29-2026",
   "date": "2026-09-29",
   "builds": 4,
   "counts": {
    "documented": 0,
-   "described": 0,
-   "hidden": 0,
-   "unannounced": 1481,
-   "unreleased": 0
+   "described": 10,
+   "hidden": 1421,
+   "unannounced": 0,
+   "unreleased": 84
   },
-  "line_counts": {},
-  "has_notes": false
+  "line_counts": {
+   "unmatched": 7,
+   "untracked": 3,
+   "described": 1
+  },
+  "has_notes": true
  }
 ]

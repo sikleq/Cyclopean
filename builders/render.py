@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import re
 
-from .common import esc, ids_to_names, mark
+from .common import esc, glyph_for, ids_to_names, mark, visual
 
 # The tag set, chosen from what the data actually contains (all patches, 2026-10-01):
 # NEW 20k, DEL 11k, NERF 5.2k, BUFF 4k, CHANGED 2.5k, MECH 0.9k, availability 92.
@@ -117,7 +117,7 @@ def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | No
     for r in rows:
         file, _, eid = r['entity'].partition(':')
         ic = entity_icon(file, eid, r.get('kind') or '', rel, r.get('name'), r.get('owner'))
-        pic = f'<img class="px" src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
+        pic = visual(ic, glyph_for(file, eid, r.get('kind') or ''))
         name = r['name'] if r.get('name') and r['name'] != eid else pretty_id(eid, r.get('owner'))
         who = (owner_names or {}).get(r.get('owner') or '')
         who = f'<span class="own">{esc(who)}</span>' if who and who != name else ''
@@ -134,12 +134,14 @@ def change_row(c: dict, extra_cls: str = '', search: str = '') -> str:
             f'<td class="lb">{esc(c.get("label"))}</td><td class="ov">{vals_html(c)}</td></tr>')
 
 
-def entity_rows(name: str, icon_url: str | None, changes: list[dict], search: str = '', href: str = '') -> list[str]:
-    """Header row (icon, name, tag counters) + one row per change, name not repeated."""
+def entity_rows(name: str, icon_url: str | None, changes: list[dict], search: str = '', href: str = '',
+                glyph: str = 'abilities') -> list[str]:
+    """Header row (icon, name, tag counters) + one row per change, name not repeated.
+    No game icon: the category glyph (`common.glyph_for`) in the same box."""
     rows = sort_changes(fold_tier_swaps(changes))
     if not rows:
         return []
-    ic = f'<img class="px" src="{esc(icon_url)}" alt="" loading="lazy">' if icon_url else '<span class="px noimg"></span>'
+    ic = visual(icon_url, glyph)
     nm = f'<a href="{esc(href)}">{esc(name)}</a>' if href else esc(name)
     hidden = ' has-hidden' if any(c.get('status', 'hidden') in HIDDEN_LIKE for c in rows) else ''
     dev = ' dev' if any(c.get('status') == 'unreleased' for c in rows) else ''

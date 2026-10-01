@@ -130,13 +130,26 @@ def ability_kind(aid: str, data: dict, owners: dict[str, str]) -> str:
     return 'ability_other'
 
 
+_BUILDING_WORDS = ('guard', 'walker', 'boss', 'barrack', 'shrine', 'patron', 'titan', 'base_defense', 'tower',
+                   'destroyable')
+
+
 def unit_kind(uid: str, data: dict) -> str:
+    """The id decides before the class: neutral camps and Guardians are npc_trooper
+    subclasses in the data ('neutral_lantern_weak', 'npc_boss_tier1'), yet neither is a trooper."""
     cls = str(data.get('_class', '')) if isinstance(data, dict) else ''
-    s = f'{uid} {cls}'.lower()
+    u = uid.lower()
+    if u.startswith('npc_super_neutral'):
+        return 'neutral'                       # Mid Boss: a neutral objective
+    if any(k in u for k in _BUILDING_WORDS):
+        return 'building'
+    if u.startswith(('neutral_', 'npc_neutral_')):
+        return 'neutral'
+    s = f'{u} {cls}'.lower()
     if 'trooper' in s:
         return 'trooper'
     if 'neutral' in s:
         return 'neutral'
-    if any(k in s for k in ('guard', 'walker', 'boss', 'barrack', 'shrine', 'patron', 'titan', 'base_defense', 'tower', 'destroyable')):
+    if any(k in s for k in _BUILDING_WORDS):
         return 'building'
     return 'unit'

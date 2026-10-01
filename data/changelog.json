@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Global lines, icons everywhere, tooltips that fit, one-line table headers",
+    "items": [
+      "Lines that move one stat of every hero by an amount ('Base HP reduced by 10 for all heroes', 'Bullet Cycle Time increased by 5%', 'Spirit Power scaling reduced by 7%') now cover those changes instead of leaving dozens 'hidden'.",
+      "Troopers, Guardians, Walkers, Patron, Mid Boss and neutral camps show the portraits the game itself uses; map pickups their ping icons; group rows ('All heroes (24)', game rules) a category glyph — no empty icon boxes left.",
+      "Ability cards show the in-game property icons (cooldown, duration, spirit damage…), with spirit damage in purple.",
+      "Tags: tinted chips with a colour bar; stronger fill for bigger changes.",
+      "Tooltips stay inside the screen and can be tapped on phones.",
+      "Hero Stats: short one-line headers (full name on hover); niche columns (spread, gravity, collision…) behind a Details button.",
+      "City Never Sleeps now uses its forum changelog (interface lines) and keeps a 'From the files' tab with the biggest changes.",
+      "Neutral camps and Guardians are no longer listed as troopers."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Weapon block, grouped history, readable tags, new builds within 15 minutes",
     "items": [
       "Hero pages: the weapon comes first as its own block with its in-game name (Abrams: Case Closed) and every gun number; abilities follow; the other stats are compact panels with the game's stat icons.",

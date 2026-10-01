@@ -7,6 +7,7 @@ from functools import lru_cache
 from .common import build_href, esc, ids_to_names, load_json, mark, names_by_id, page, pretty_id, write
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
+FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
 
 
 def _counts_html(p: dict) -> str:
@@ -103,7 +104,7 @@ def _display_name(e: dict) -> str:
 
 def _changes_table(ents: list[dict], rel: str) -> str:
     """All gameplay changes: one table, grouped by hero (with its abilities), then items, units, rules."""
-    from .common import entity_icon, hero_icon
+    from .common import entity_icon, glyph_for, hero_icon, visual
     from .render import HIDDEN_LIKE, change_row, entity_rows, fold_tier_swaps, sort_changes
     heroes = {e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
     by_owner: dict[str, list] = {}
@@ -128,16 +129,16 @@ def _changes_table(ents: list[dict], rel: str) -> str:
 
     for hid in sorted(by_owner, key=lambda h: hero_label(h).lower()):
         hname = hero_label(hid)
-        groups.append((hname, hero_icon(hid, rel), by_owner[hid]))
+        groups.append((hname, hero_icon(hid, rel), by_owner[hid], 'heroes' if hid == 'hero_base' else 'hero'))
     for e in rest:
         groups.append((_display_name(e), entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'),
-                                                     e.get('owner')), [e]))
+                                                     e.get('owner')), [e], glyph_for(e['file'], e['id'], e.get('kind', ''))))
     trs = []
-    for gname, gicon, members in groups:
+    for gname, gicon, members, gglyph in groups:
         all_ch = [c for e in members for c in e['changes']]
         n_h = sum(1 for c in all_ch if c.get('status') == 'hidden')
         n_dev = sum(1 for c in all_ch if c.get('status') == 'unreleased')
-        icon_html = f'<img class="px gi" src="{esc(gicon)}" alt="">' if gicon else ''
+        icon_html = visual(gicon, gglyph, 'px gi')
         chips = f' <span class="chip">{mark("hidden")}{n_h}</span>' if n_h else ''
         if n_dev:
             chips += f' <span class="chip dev">{mark("unreleased")}{n_dev} in development</span>'
@@ -157,7 +158,7 @@ def _changes_table(ents: list[dict], rel: str) -> str:
             if e.get('targets'):
                 scope += f' ({len(e["targets"])})'
             ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
-            trs.extend(entity_rows(scope, ic, e['changes'], search))
+            trs.extend(entity_rows(scope, ic, e['changes'], search, glyph=glyph_for(e['file'], e['id'], e.get('kind', ''))))
     return f'<table class="hist grouped">{"".join(trs)}</table>'
 
 
@@ -220,6 +221,13 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     tabs = []
     if p['sections']:
         tabs.append(('notes', 'Patch notes', sum(len(s['lines']) for s in p['sections']), _notes_table(p, change_by_key)))
+        c = p.get('counts', {})
+        # notes that say little about a big update (City Never Sleeps: 11 interface lines,
+        # 1,400+ gameplay changes): the files' own summary sits next to the official text
+        if c.get('hidden', 0) >= FILES_TAB_MIN and c.get('hidden', 0) > 3 * (c.get('documented', 0) + c.get('described', 0)):
+            # 'generated', not 'files': the asset tab "Game files" already uses id="files"
+            tabs.append(('generated', 'From the files', sum(len(e['changes']) for e in gameplay),
+                         _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
     else:
         tabs.append(('notes', 'From the files', sum(len(e['changes']) for e in gameplay),
                      _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))

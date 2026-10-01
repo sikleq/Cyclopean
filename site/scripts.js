@@ -75,7 +75,9 @@
       var pol = parseInt(td.getAttribute('data-pol') || '1', 10);
       var digits = parseInt(td.getAttribute('data-digits') || '2', 10);
       var head = td.getAttribute('data-title') || '';
-      var html = '<div class="t-head">' + head + '</div>';
+      var esc = document.createElement('span');
+      esc.textContent = head;                                  // names come from game text: never as HTML
+      var html = '<div class="t-head">' + esc.innerHTML + '</div>';
       var first = hist[0][2], last = hist[hist.length - 1][3];
       if (hist.length > 1 && typeof first === 'number' && typeof last === 'number' && first !== 0) {
         var p = (last - first) / Math.abs(first) * 100;
@@ -120,6 +122,55 @@
       if (td && !td.contains(ev.relatedTarget)) tip.classList.remove('on');
     });
     window.addEventListener('scroll', function () { tip.classList.remove('on'); }, true);
+  });
+
+  /* ---------- short tooltips for [data-tooltip]: one element, kept inside the viewport ---------- */
+  safe('tooltip', function () {
+    var tip = document.createElement('div');
+    tip.className = 'tip';
+    tip.setAttribute('role', 'tooltip');
+    document.body.appendChild(tip);
+    var current = null;
+    function place(el) {
+      var r = el.getBoundingClientRect();
+      var tw = tip.offsetWidth, th = tip.offsetHeight, gap = 8, edge = 8;
+      var x = Math.min(Math.max(edge, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - edge);
+      var y = r.top - th - gap;
+      if (y < edge) y = r.bottom + gap;                       // no room above: below the marker
+      if (y + th > window.innerHeight - edge) y = Math.max(edge, window.innerHeight - th - edge);
+      tip.style.left = Math.round(x) + 'px';
+      tip.style.top = Math.round(y) + 'px';
+    }
+    function show(el) {
+      var text = el.getAttribute('data-tooltip');
+      if (!text) return;
+      current = el;
+      tip.textContent = text;
+      tip.classList.add('on');
+      place(el);
+    }
+    function hide() { current = null; tip.classList.remove('on'); }
+    document.addEventListener('mouseover', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      if (el && el !== current) show(el);
+    });
+    document.addEventListener('mouseout', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      if (el && !el.contains(ev.relatedTarget)) hide();
+    });
+    document.addEventListener('focusin', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      if (el) show(el);
+    });
+    document.addEventListener('focusout', hide);
+    // touch: a tap fires mouseover and then click — the tap shows the text (never hides
+    // it again), a tap anywhere else hides it
+    document.addEventListener('click', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      if (el) { if (el !== current) show(el); } else if (current) hide();
+    });
+    window.addEventListener('scroll', hide, true);
+    window.addEventListener('resize', hide);
   });
 
   /* ---------- toolbar toggles: [data-toggle-class] on a button toggles a class on its target ---------- */

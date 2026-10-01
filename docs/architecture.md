@@ -83,6 +83,26 @@ On hero and patch pages changes are grouped: patch or hero → one header per ab
 counters) → its rows without the name repeated. Abilities re-created under a new id borrow the icon of
 their namesake with the same owner (`common.entity_icon`).
 
+Tag look: coloured text on a tint of the tag colour with a 2px bar and notched corners; the tint grows
+with the size of the change (`data-g`).
+
+## Icons without per-entity art
+
+| Rows | Source |
+|---|---|
+| troopers, Guardians, Walkers, Patron, Base Guardians, base turret, Mid Boss | the class portraits the game's own ping wheel uses (`scripts/ping_wheel_messages.vdata`), rules in `data/overrides/unit_icons.json` |
+| neutral camps without art | their family's art: same id stem (`neutral_lantern_weak` → `_normal`) or same name without the tier ("Gutter Ghoul I" → II) |
+| map pickups (powerups, rejuvenator) | `m_strPingIcon` / nested `m_strHudIcon` of `misc.vdata` (`misc:<id>`) |
+| groups and rules ("All heroes (24)", game rules, map objects, modifiers, loot tables) | site category glyphs (`common.GLYPHS`, pixel SVG, never presented as game art) |
+| ability card property rows | `m_strCSSClass` → `icons/stats/prop/<class>` (the in-game tooltip icon); spirit damage purple, bullet damage warm, healing green |
+
+## Tooltips
+
+Short `data-tooltip` texts are shown by one floating element from `site/scripts.js` (clamped to the
+viewport, flips below when there is no room above, tap to show on touch). Stat history cells use the
+separate `.hist-tip`. Hero Stats column headers are short one-line labels; the full label is the
+header's tooltip; niche columns live in a hidden "Details" group (`tables_pages.HERO_LAYOUT`).
+
 Field categories that never count as gameplay (so never "hidden"): `technical` (scale-function wiring,
 state masks, curve spline points), `streetbrawl` (incl. item draft weights), `ui`, `visual`, `audio`, `meta`.
 Changes copied into many entities (`@shared`, e.g. soul-investment bonuses in every hero) show once as
@@ -119,6 +139,7 @@ hidden changes stay hidden (2026-10-01: coverage 76%, real hidden kept 90%).
 | "Bullets no longer have gravity" | word links need a specific word (not just bullet/damage/spirit) |
 | changes to heroes not released at that build | status `unreleased`, not `hidden` |
 | "from 5,175 to 7,000" | thousands separators are stripped before reading pairs |
+| "Base HP reduced by 10 for all heroes", "Bullet Cycle Time for all heroes increased by 5%", "Spirit Power scaling globally reduced by -7%" | `match_rules.global_delta_line`: stat family named before the verb × "by N" or "by N%" × entity kind; links every change of that field that moved by exactly N (or N%, "~N" ±30%) when at least 3 do |
 | a bare "Sinclair" line, then "Now has +1% Spirit Resist per Boon." | the name is a sub-heading (`heading`): lines below get it as subject |
 | notes published days before the files change (2024-12-06 notes, values in build 5433 on 12-14) | a notes-less window right after a changelog that carries ≥10 of its numbered lines exactly is merged into it (`absorb_late_windows`); single lines link to a hidden change of the same subject with exactly their numbers within 14 days (`late_landings`, shown as "landed later: build N") |
 
