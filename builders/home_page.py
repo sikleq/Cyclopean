@@ -2,7 +2,7 @@
 the site's totals, recent patches, all heroes."""
 from __future__ import annotations
 
-from .common import (EYE_SVG, esc, glyph_for, hero_icon, load_json, mark, page, patch_name, patch_parts,
+from .common import (EYE_SVG, esc, plural, glyph_for, hero_icon, load_json, mark, page, patch_name, patch_parts,
                      patch_title_html, visual, write)
 from .patches_pages import GAMEPLAY, _summary, hero_names
 from .render import tag_html, vals_html
@@ -77,7 +77,7 @@ def _recent(patches: list[dict]) -> str:
         if lc.get('mismatch'):
             chips += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
         rows.append(f'<a class="rp" href="patches/{esc(r["id"])}.html"><span class="rd">{esc(r["date"])}</span>'
-                    f'<span class="rt">{_recent_name(r)}</span><span class="rb">{r["builds"]} builds</span>'
+                    f'<span class="rt">{_recent_name(r)}</span><span class="rb">{plural(r["builds"], "build")}</span>'
                     f'<span class="rc">{chips}</span></a>')
     return '<div class="recent px-frame">' + ''.join(rows) + '</div>'
 

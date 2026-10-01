@@ -69,6 +69,11 @@ STATUS_MARK = {
 }
 
 
+def plural(n: int, word: str, many: str | None = None) -> str:
+    """'1 build', '3 builds' — never '1 builds' (audit 2026-10-01: thousands of tooltips)."""
+    return f'{n} {word if n == 1 else many or word + "s"}'
+
+
 def esc(s) -> str:
     return html.escape('' if s is None else str(s), quote=True)
 
@@ -117,12 +122,23 @@ def ids_to_names(s: str) -> str:
 _ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_|npc_)')
 
 
+def display_name(e: dict) -> str:
+    """An entity's localized name, else a readable stand-in — never its id ('hero_airheart' sat in an h1)."""
+    name = e.get('name')
+    return name if name and name != e['id'] else pretty_id(e['id'], e.get('owner'))
+
+
 def pretty_id(eid: str, owner: str | None = None) -> str:
     """A readable stand-in for an entity that has no localized name yet (heroes in
     development): internal ids are never shown. 'citadel_weapon_frank_set' -> 'Weapon',
     'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'."""
     if eid.startswith('citadel_weapon_'):
         return 'Alt weapon' if eid.endswith(('_alt', '_set2', '_set_2')) else 'Weapon'
+    if eid.startswith('m_'):                 # a game-rules block: 'm_RejuvParams' -> 'Rejuv Params'
+        from pipeline.semantics import humanize
+        return humanize(eid)
+    if eid.startswith('hero_'):              # a hero with no name yet: 'hero_airheart' -> 'Airheart'
+        return eid[5:].replace('_', ' ').title()
     s = _ID_PREFIX.sub('', eid)
     code = (owner or '').removeprefix('hero_')
     if code and s.startswith(code + '_'):
@@ -291,10 +307,19 @@ def build_pages() -> dict[str, str]:
     seen: dict[int, int] = {}
     out = {}
     for r in load_json('builds/index.json'):
+        if r['build'] is None:               # a tracker commit without a build number (texts only)
+            out[r['file']] = 'text-' + r['file'].split('_', 1)[1].split('.', 1)[0]
+            continue
         n = seen.get(r['build'], 0) + 1
         seen[r['build']] = n
         out[r['file']] = str(r['build']) if n == 1 else f'{r["build"]}-{n}'
     return out
+
+
+def build_label(build: int | None) -> str:
+    """'Build 6728', or 'Text update' for a tracker commit Valve shipped without a build number
+    (2025-08-23: 498 texts; its page was 'Build None')."""
+    return f'Build {build}' if build is not None else 'Text update'
 
 
 def build_href(file_name: str, rel: str) -> str:

@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Site audit, part 1: fixes across every page",
+    "items": [
+      "The Items shop and item pages work again: a micro build that left the ability file alone had marked every item removed.",
+      "Hero changes: hero names link to their pages; phones keep the menu (it was hidden) and no page is wider than the screen.",
+      "Counts agree: the All changes tab counts what the summary tiles count, and hero chips open the hero's card.",
+      "Notes written from the files and the Text & tooltips tab use names, not internal keys; game tokens read as words; markup-only text edits are gone; highlighted numbers no longer break \"->\".",
+      "No more \"1 buffs\", \"Build None\" or \"Bounds → Bounds\"; builds shipped twice are marked (#2)."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Unit changes, returning heroes, truer tags",
     "items": [
       "Units: a Unit changes matrix like Hero and Item changes; units that share a name show what tells them apart (alt, weak, amber, model 2); removed units hide behind a switch.",

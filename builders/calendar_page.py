@@ -42,7 +42,7 @@ def _year_grid(year: int, patches: list[dict], builds: Counter) -> str:
                 name, _, follow = patch_parts(main)
                 cls += ' patch' + (' named' if name else '') + (' fu' if follow else '')
                 label = (name or 'update')[:12] if not follow else 'f-up'
-                tip = ' / '.join(patch_title_text(p) for p in ps) + (f' · {nb} builds' if nb else '')
+                tip = ' / '.join(patch_title_text(p) for p in ps) + (f' · {nb} build{"s" if nb != 1 else ""}' if nb else '')
                 cells.append(f'<a class="{cls}" href="{esc(main["id"])}.html" data-tooltip="{esc(tip)}">'
                              f'<b>{d}</b><span class="pl">{esc(label)}</span></a>')
             else:
@@ -73,9 +73,11 @@ def _stats(year_patches: list[dict], all_patches: list[dict], n_builds: int) -> 
         cells.append(('median days apart', f'{median(g[0] for g in gaps):g}'))
     out = ''.join(f'<div class="cs"><b>{esc(v)}</b><span>{esc(k)}</span></div>' for k, v in cells)
     if gaps:
-        out += (f'<div class="cs wide"><b>{longest[0]}</b><span>days, longest: {esc(longest[1]["date"][:10])} → '
+        out += (f'<div class="cs wide"><b>{longest[0]}</b><span>{"day" if longest[0] == 1 else "days"}, longest: '
+                f'{esc(longest[1]["date"][:10])} → '
                 f'{esc(longest[2]["date"][:10])}</span></div>'
-                f'<div class="cs wide"><b>{shortest[0]}</b><span>days, shortest: {esc(shortest[1]["date"][:10])} → '
+                f'<div class="cs wide"><b>{shortest[0]}</b><span>{"day" if shortest[0] == 1 else "days"}, shortest: '
+                f'{esc(shortest[1]["date"][:10])} → '
                 f'{esc(shortest[2]["date"][:10])}</span></div>')
     return f'<div class="cal-stats">{out}</div>'
 

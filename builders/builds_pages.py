@@ -1,7 +1,7 @@
 """Build pages: every tracked game build and exactly what its files changed."""
 from __future__ import annotations
 
-from .common import build_pages, esc, load_json, page, patch_title_text, write
+from .common import build_label, build_pages, esc, load_json, plural, page, patch_title_text, write
 from .patches_pages import _changes_table, _loc_li, convar_li
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -17,6 +17,13 @@ def _patch_of_build() -> dict[str, dict]:
         for b in p['builds']:
             out[b['file']] = row
     return out
+
+
+def _row_label(r: dict, stems: dict) -> str:
+    """'Build 6404'; the second commit of one build number 'Build 6404 (#2)' (they read as duplicates)."""
+    stem = stems.get(r['file'], '')
+    nth = stem.rsplit('-', 1)[1] if r['build'] is not None and '-' in stem else ''
+    return build_label(r['build']) + (f' (#{nth})' if nth else '')
 
 
 def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
@@ -38,8 +45,8 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
             if e['status'] == 'removed':
                 g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': '', 'status': 'raw'}]
             ents.append({**e, 'changes': g})
-    head = [f'<div class="crumbs"><a href="index.html">Builds</a> / {rec["build"]}</div>',
-            f'<h1>Build {rec["build"]}</h1>',
+    head = [f'<div class="crumbs"><a href="index.html">Builds</a> / {esc(build_label(rec["build"]))}</div>',
+            f'<h1>{esc(build_label(rec["build"]))}</h1>',
             f'<div class="page-head"><div class="meta">Tracked {esc(rec["date"][:16].replace("T", " "))} UTC'
             f'{" · game build date " + esc(rec["version_date"]) if rec.get("version_date") else ""}'
             f'{" · part of <a href=" + chr(34) + rel + "patches/" + esc(patch["id"]) + ".html" + chr(34) + ">" + esc(patch_title_text(patch)) + "</a>" if patch else ""}'
@@ -87,7 +94,7 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     if next_b:
         nav.append(f'<a class="px-btn" href="{next_b}.html">{next_b} →</a>')
     body.append('<div class="flex">' + ''.join(nav) + '</div>')
-    return page(f'Build {rec["build"]}', ''.join(body), rel, 'builds')
+    return page(build_label(rec['build']), ''.join(body), rel, 'builds')
 
 
 def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
@@ -110,9 +117,9 @@ def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
         if r.get('loc'):
             chips.append(f'<span class="chip">{r["loc"]} text</span>')
         if r.get('convars'):
-            chips.append(f'<span class="chip">{r["convars"]} cvars</span>')
+            chips.append(f'<span class="chip">{plural(r["convars"], "cvar")}</span>')
         rows.append(f'<li data-search="{r["build"]} {esc(r["date"][:10])}"><span class="date">{esc(r["date"][:10])}</span>'
-                    f'<span><a class="ttl" href="{stems[r["file"]]}.html">Build {r["build"]}</a>{ptxt}</span>'
+                    f'<span><a class="ttl" href="{stems[r["file"]]}.html">{esc(_row_label(r, stems))}</a>{ptxt}</span>'
                     f'<span class="nums">{"".join(chips)}</span></li>')
     body = ('<h1>Builds</h1>'
             '<div class="toolbar"><input type="search" placeholder="Build number or date…" data-search-target=".timeline > li"></div>'

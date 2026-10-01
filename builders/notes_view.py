@@ -7,7 +7,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from .common import entity_icon, esc, glyph_for, hero_icon, load_json, mark, visual
+from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark, visual
 from .pixel_icons import tag_svg
 from .render import tag_html, tag_of, tag_summary
 
@@ -90,16 +90,22 @@ def _strip_name(text: str, name: str) -> str:
 
 
 def _highlight(text: str, d: str) -> str:
-    """Escaped text with the old value dimmed and the new one in the direction's colour."""
-    out = esc(text)
-    out, n = _FROM_WORDS_TO.subn(lambda m: f'{m.group(1)} <span class="o">{m.group(2)}</span>{m.group(3)} {m.group(4)} '
-                                           f'<span class="n dir-{d}">{m.group(5)}</span>', out, count=1)
-    if not n:
-        out = _FROM_TO.sub(lambda m: f'{m.group(1)} <span class="o">{m.group(2)}</span> {m.group(3)} '
-                                     f'<span class="n dir-{d}">{m.group(4)}</span>', out, count=1)
-    if 'class="n ' not in out:
-        out = _BY.sub(lambda m: f'{m.group(1)} <span class="n dir-{d}">{m.group(2)}</span>', out, count=1)
-    return out
+    """Escaped text with the old value dimmed and the new one in the direction's colour. The
+    patterns run on the RAW text and each piece is escaped: run on escaped text they cut "->" (now
+    "-&gt;") in half and printed "18m->;54m" on 13 pages (audit 2026-10-01)."""
+    g = lambda m, i: esc(m.group(i))     # noqa: E731
+    forms = (
+        (_FROM_WORDS_TO, lambda m: f'{g(m, 1)} <span class="o">{g(m, 2)}</span>{g(m, 3)} {g(m, 4)} '
+                                   f'<span class="n dir-{d}">{g(m, 5)}</span>'),
+        (_FROM_TO, lambda m: f'{g(m, 1)} <span class="o">{g(m, 2)}</span> {g(m, 3)} '
+                             f'<span class="n dir-{d}">{g(m, 4)}</span>'),
+        (_BY, lambda m: f'{g(m, 1)} <span class="n dir-{d}">{g(m, 2)}</span>'),
+    )
+    for rx, mark_up in forms:
+        m = rx.search(text)
+        if m:
+            return esc(text[:m.start()]) + mark_up(m) + esc(text[m.end():])
+    return esc(text)
 
 
 _TEXT_TAGS = (
@@ -162,7 +168,7 @@ def _files_cell(ln: dict, changes: list[dict], subject_ent: dict | None) -> str:
         lis = ''.join(f'<li>{esc(c.get("ent_name", ""))} · {esc(c["label"])}: {esc(c["old_s"])} → {esc(c["new_s"])}</li>'
                       for c in changes[:60])
         more = len(ln['changes']) - 60
-        return (f'<details><summary>{len(ln["changes"])} exact values</summary><ul>{lis}</ul>'
+        return (f'<details><summary>{plural(len(ln["changes"]), "exact value")}</summary><ul>{lis}</ul>'
                 f'{"<span class=muted>+" + str(more) + " more</span>" if more > 0 else ""}</details>')
     return ''
 

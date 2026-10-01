@@ -8,7 +8,8 @@ import re
 
 from .common import esc, mark, visual
 from .pixel_icons import tag_svg
-from .render import HIDDEN_LIKE, fold_corrupted, fold_tier_swaps, sort_changes, tag_html, tag_summary, vals_html
+from .render import (HIDDEN_LIKE, fold_corrupted, fold_tier_swaps, shown_value, sort_changes, tag_html, tag_summary,
+                     vals_html)
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
@@ -159,6 +160,13 @@ def player_facing(changes: list[dict]) -> list[dict]:
 
 
 _ZERO_RE = re.compile(r'^[+-]?0(?:\.0+)?\s*(?:m|s|%|m/s|x|u)?$')
+_NOT_WORD = re.compile(r'[^a-z0-9.]')
+
+
+def _same(a: str, b: str) -> bool:
+    """Equal up to case, spaces and underscores: 'Head Ignore Obscure Blockers' is
+    'Head_IgnoreObscureBlockers' (one enum spelled two ways across builds)."""
+    return a == b or _NOT_WORD.sub('', a.lower()) == _NOT_WORD.sub('', b.lower())
 
 
 def is_noop(c: dict) -> bool:
@@ -168,7 +176,9 @@ def is_noop(c: dict) -> bool:
     tuned to 0 within the window)."""
     op = c.get('op')
     if op == 'change':
-        return str(c.get('old_s')) == str(c.get('new_s'))
+        # compared as the page prints them: "ELOSCheck_Bounds → Bounds" or an id and its name
+        # read "Bounds → Bounds" (28 MECH rows, audit 2026-10-01)
+        return _same(shown_value(c.get('old_s')), shown_value(c.get('new_s')))
     if op in ('add', 'remove') and not str(c.get('path') or '').startswith('@'):
         v = str(c.get('new_s' if op == 'add' else 'old_s') or '').strip().lower()
         return bool(_ZERO_RE.match(v)) or v in ('no', 'false')

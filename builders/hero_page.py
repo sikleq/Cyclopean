@@ -7,7 +7,7 @@ import json
 from functools import lru_cache
 import re
 
-from .common import entity_icon, esc, glyph_for, hero_icon, icon, img, load_json, mark, page, pretty_id
+from .common import display_name, entity_icon, esc, glyph_for, hero_icon, icon, img, load_json, mark, page, pretty_id
 from .history_view import history_table  # noqa: F401  (re-exported for entities_pages)
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
@@ -256,7 +256,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
               by_ent, by_subject) -> str:
     rel = '../'
     hid = h['id']
-    name = h.get('name') or hid
+    name = display_name(h)
     portrait = icon(f'heroes/card:{hid}', rel) or icon(f'heroes/vertical:{hid}', rel) or hero_icon(hid, rel)
     mine = [c for c in cards.values() if c.get('owner') == hid]
     mine.sort(key=lambda c: SLOT_ORDER.index(c['slot']) if c.get('slot') in SLOT_ORDER else 99)

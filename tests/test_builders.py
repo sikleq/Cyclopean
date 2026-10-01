@@ -58,6 +58,10 @@ def test_zero_added_or_removed_is_no_change():
     assert not is_noop({'op': 'add', 'path': 'p', 'new_s': '5'})
     assert not is_noop({'op': 'change', 'old_s': '20', 'new_s': '0'})   # tuned TO zero is a change
     assert not is_noop({'op': 'add', 'path': '@add', 'new_s': ''})       # an entity added to the game
+    # the same value spelled two ways is not a change ("LOS Check: Bounds → Bounds")
+    assert is_noop({'op': 'change', 'old_s': 'ELOSCheck_Bounds', 'new_s': 'Bounds'})
+    assert is_noop({'op': 'change', 'old_s': 'Head Ignore Obscure Blockers', 'new_s': 'Head_IgnoreObscureBlockers'})
+    assert not is_noop({'op': 'change', 'old_s': '1.5', 'new_s': '15'})
 
 
 def test_availability_tags_follow_field_meaning():

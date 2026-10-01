@@ -227,7 +227,8 @@
         '<span class="dt-name">' + txt(tr.getAttribute('data-name')) + '</span>' +
         '<span class="dt-patch' + (p[2] ? ' named' : '') + '">' + txt(p[1]) + '</span></div>';
       html += '<div class="dt-counts">' + order.filter(function (t) { return counts[t]; }).map(function (t) {
-        return '<span class="pip ' + t + '">' + (d.icons[t] || '') + counts[t] + '<em>' + txt(d.words[t] || t) + '</em></span>';
+        var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
+        return '<span class="pip ' + t + '">' + (d.icons[t] || '') + counts[t] + '<em>' + txt(word) + '</em></span>';
       }).join('') + '</div>';
       if (samples.length) {
         // the biggest changes; a hero's are grouped by part (base stats, weapon, abilities) and name

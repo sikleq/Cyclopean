@@ -5,7 +5,7 @@ complexity and last-patch counters were dropped on the owner's call (2026-10-01)
 and Hero changes hold that."""
 from __future__ import annotations
 
-from .common import esc, hero_icon, icon, slug
+from .common import display_name, esc, hero_icon, icon, slug
 
 
 def hero_color(c) -> str | None:
@@ -22,7 +22,7 @@ def _portrait(hid: str, rel: str) -> str | None:
 
 def hero_card(h: dict, row: dict | None, rel: str) -> str:
     row = row or {}
-    name = h.get('name') or h['id']
+    name = display_name(h)
     href = slug(h['file'], h['id']).split('/', 1)[1]
     src = _portrait(h['id'], rel)
     img = f'<img src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="noimg"></span>'
@@ -38,7 +38,7 @@ def hero_card(h: dict, row: dict | None, rel: str) -> str:
 
 def heroes_grid_html(live: list[dict], other: list[dict], rows: dict, rel: str) -> str:
     def key(h: dict) -> str:
-        return ((rows.get(h['id']) or {}).get('sort_name') or h.get('name') or h['id']).lower()
+        return ((rows.get(h['id']) or {}).get('sort_name') or display_name(h)).lower()
     live = sorted(live, key=key)
     # pre-release heroes (vote candidates) hide behind a switch; unreleased ones fold away
     out = ['<div class="hgrid-cards" id="heroes-grid">'

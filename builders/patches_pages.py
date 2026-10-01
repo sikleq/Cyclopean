@@ -1,11 +1,12 @@
 """Patch pages: official notes annotated with the data, plus hidden changes."""
 from __future__ import annotations
 
+import html
 import re
 from functools import lru_cache
 
 from .notes_view import notes_table
-from .common import (build_href, esc, ids_to_names, load_json, mark, names_by_id, page, patch_name, patch_title_html,
+from .common import (build_href, esc, ids_to_names, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
                      patch_title_text, pretty_id, write)
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -135,7 +136,10 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     for e in ents:
         if e['file'] == 'heroes.vdata' and e['id'] != '@shared':
             by_owner.setdefault(e['id'], []).insert(0, e)
-        elif e.get('owner') and e.get('kind') in ('ability', 'weapon', 'melee'):
+        elif e.get('owner'):
+            # everything a hero owns sits in the hero's card — the summary chip counts it there, and
+            # sub-abilities (kind ability_other) in cards of their own left the chip's #c-hero link
+            # pointing nowhere (Sinclair 2026-09-16, Holliday's gun 2026-01-20)
             by_owner.setdefault(e['owner'], []).append(e)
         else:
             rest.append(e)
@@ -191,15 +195,22 @@ def _key_changes(p: dict, rel: str) -> str:
 
 
 def _generated_notes(p: dict) -> str:
-    """Valve-style notes written from the files for updates without official numbers."""
+    """Valve-style notes written from the files for updates without official numbers: the rows the
+    counters count (cards.player_facing), each entity by its name and values as the pages print them
+    — the stored sentences carried ids and engine enums (492 of 1500 lines in City Never Sleeps)."""
+    from pipeline.match import sentence
+    from .cards import player_facing
+    from .render import shown_value
     lines = []
     for e in p['entities']:
-        for c in e['changes']:
-            if c['cat'] in GAMEPLAY and c.get('sentence'):
-                lines.append(c['sentence'])
+        name = _display_name(e)
+        for c in player_facing(e['changes']):
+            if c.get('cat') in GAMEPLAY:
+                lines.append(sentence(name, {**c, 'old_s': shown_value(c.get('old_s')),
+                                             'new_s': shown_value(c.get('new_s'))}))
     if not lines:
         return ''
-    lis = ''.join(f'<li>{esc(ids_to_names(s))}</li>' for s in lines[:1500])
+    lis = ''.join(f'<li>{esc(s)}</li>' for s in lines[:1500])
     more = f'<p class="muted">+{len(lines) - 1500} more lines.</p>' if len(lines) > 1500 else ''
     return (f'<h2>Patch notes written from the files</h2><p class="muted">Valve published no numbers for this update; '
             f'every line below is read from the game files.</p><ul class="gen-notes cols-2">{lis}</ul>{more}')
@@ -234,14 +245,18 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     for b in p['builds'][:30]:
         seen[b['build']] = seen.get(b['build'], 0) + 1
         nth = f' (#{seen[b["build"]]})' if seen[b['build']] > 1 else ''
-        links.append(f'<a href="{build_href(b["file"], rel)}">{b["build"]}{nth}</a>')
+        num = b['build'] if b['build'] is not None else 'text update'
+        links.append(f'<a href="{build_href(b["file"], rel)}">{num}{nth}</a>')
     builds = ', '.join(links)
     link_text = 'official notes' if p.get('source') != 'announcement' else 'official announcement'
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
-    from .cards import gameplay_entities
+    from .cards import gameplay_entities, player_facing
     gameplay = gameplay_entities(p['entities'])
+    # the tab counts what the tiles count (cards.player_facing), not raw rows: City Never Sleeps
+    # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01)
+    n_changes = sum(len(player_facing(e['changes'])) for e in gameplay)
     names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
     for e in gameplay:
         if e.get('owner'):
@@ -262,15 +277,15 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         # 1,400+ gameplay changes): the files' own summary sits next to the official text
         if c.get('hidden', 0) >= FILES_TAB_MIN and c.get('hidden', 0) > 3 * (c.get('documented', 0) + c.get('described', 0)):
             # 'generated', not 'files': the asset tab "Game files" already uses id="files"
-            tabs.append(('generated', 'From the files', sum(len(e['changes']) for e in gameplay),
+            tabs.append(('generated', 'From the files', n_changes,
                          _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
     else:
-        tabs.append(('notes', 'From the files', sum(len(e['changes']) for e in gameplay),
+        tabs.append(('notes', 'From the files', n_changes,
                      _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
     changes_panel = ('<div class="toolbar"><button class="px-btn" data-toggle-class="only-hidden" data-target="#changes">'
                      'Only hidden</button><span class="sep"></span><input type="search" placeholder="Hero, item…" '
                      'data-search-target="#changes .ecard[data-search]"></div>' + _changes_table(gameplay, rel, p['id']))
-    tabs.append(('changes', 'All changes', sum(len(e['changes']) for e in gameplay), changes_panel))
+    tabs.append(('changes', 'All changes', n_changes, changes_panel))
     extra_parts = _extras_parts(p, rel)
     for key, label, count, html in extra_parts:
         tabs.append((key, label, count, html))
@@ -317,13 +332,24 @@ def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
     return out
 
 
-_KEY_HINT = re.compile(r"\{g:citadel_binding:'([^']*)'\}")
+_KEY_HINT = re.compile(r"\{g:citadel_(?:binding|keybind):'([^']*)'\}")
+_VALUE_TOKEN = re.compile(r'\{[sf]:(?:\d+:)?(\w+)\}')
+_GLOSSARY = re.compile(r"\{g:[\w]+:'?([^}']*)'?\}")
+_PRINTF = re.compile(r'%s\d')
 
 
 def _plain(s) -> str:
-    """Loc text for display: no markup; key-binding tokens as [Attack]."""
-    t = re.sub(r'<[^>]+>', '', str(s or ''))
-    return _KEY_HINT.sub(r' [\1] ', t)[:400]
+    """Loc text for display: no markup or entities ("&amp;" printed as "&amp;amp;"); key bindings
+    as [Attack]; a value the game fills in as [Enemy Health Percent], a glossary word as words
+    (1677 lines showed "{s:Damage}" / "{g:citadel_inline_attribute:'SpiritDamage'}")."""
+    from pipeline.semantics import humanize
+    t = re.sub(r'<br\s*/?>', ' · ', str(s or ''), flags=re.I)        # a line break is a separator, not glue
+    t = html.unescape(re.sub(r'<[^>]+>', '', t))
+    t = _KEY_HINT.sub(lambda m: f' [{humanize(m.group(1))}] ', t)
+    t = _VALUE_TOKEN.sub(lambda m: f'[{humanize(m.group(1))}]', t)
+    t = _GLOSSARY.sub(lambda m: humanize(m.group(1)).lower(), t)
+    t = _PRINTF.sub('…', t)
+    return re.sub(r'\s{2,}', ' ', t).strip()[:400]
 
 
 _LOC_SUFFIX = re.compile(r'^(?P<base>.+?)(?P<suf>(?:_t(?P<tier>[1-3]))?_(?P<kind>desc|quip|header|lore|name|label|'
@@ -332,30 +358,53 @@ _LOC_KIND = {'desc': 'description', 'quip': 'quip', 'header': 'header', 'lore': 
              'label': 'label', 'tooltip': 'tooltip', 'note': 'note'}
 
 
+_UI_GROUPS = (('citadel_chatwheel', 'Chat wheel'), ('citadel_combat_log', 'Combat log'), ('citadel_ranked', 'Ranked'),
+              ('citadel_chattarget', 'Chat'), ('citadel_chat', 'Chat'), ('citadel_settings', 'Settings'),
+              ('citadel_hud', 'HUD'), ('citadel_shop', 'Shop'), ('citadel_matchmaking', 'Matchmaking'),
+              ('citadel_tutorial', 'Tutorial'), ('citadel_hideout', 'Hideout'), ('citadel_party', 'Party'),
+              ('citadel_postgame', 'Post-game'), ('citadel_streetbrawl', 'Street Brawl'),
+              ('citadel_rankednotallowed', 'Ranked'), ('citadel_ping', 'Pings'), ('citadel_mainmenu', 'Main menu'))
+# '<property>_label' / '_postvalue_label' / '_postfix' / '_prefix': the words a tooltip prints next to a value
+_STAT_KEY = re.compile(r'^(?:modifier_value_)?[a-z0-9_]+?_(?P<part>postvalue_label|label|postfix|prefix)$')
+_STAT_PART = {'label': 'stat name', 'postvalue_label': 'stat name', 'postfix': 'stat unit', 'prefix': 'stat sign'}
+
+
 def loc_key_label(key: str) -> str:
-    """'ability_afterburn_t1_desc' -> 'Afterburn · T1 description'; unknown keys are
-    humanised ('citadel_commend_toast_seconds' -> 'commend toast seconds'). The raw key
-    stays available as the chip's tooltip."""
-    m = _LOC_SUFFIX.match(key.lower())
+    """'ability_afterburn_t1_desc' -> 'Afterburn · T1 description'; UI strings by their screen
+    ('citadel_chatwheel_push_green' -> 'Chat wheel · push green'); a stat's words 'Stat name';
+    other keys humanised ('citadel_commend_toast_seconds' -> 'commend toast seconds')."""
+    low = key.lower()
+    for prefix, screen in sorted(_UI_GROUPS, key=lambda g: -len(g[0])):
+        if low.startswith(prefix):
+            rest = low[len(prefix):].strip('_').replace('_', ' ')
+            return f'{screen} · {rest}' if rest else screen
+    sm = _STAT_KEY.match(low)
+    if sm and not low.startswith(('ability_', 'citadel_ability_', 'upgrade_')):
+        return _STAT_PART[sm.group('part')].capitalize()
+    m = _LOC_SUFFIX.match(low)
     base, tier = m.group('base'), m.group('tier') or m.group('tier2')
     part = ' '.join(p for p in (f'T{tier}' if tier else '', _LOC_KIND.get(m.group('kind') or '', '')) if p)
     if m.group('suf') == ':n':
         part = 'name'
     names = names_by_id()
-    name, extra = names.get(base), []
+    whole, name, extra = base, names.get(base), []
     while not name and '_' in base:       # 'ability_afterburn_burn' -> 'Afterburn' + 'burn'
         base, _, tail = base.rpartition('_')
         extra.insert(0, tail)
         name = names.get(base)
+    if not name and whole.startswith(('ability_', 'citadel_ability_', 'upgrade_')):
+        name, extra = pretty_id(whole), []          # an ability not named yet (a hero in development)
     if not name:
-        return re.sub(r'^(citadel_|ability_|modifier_|upgrade_)+', '', key.lower()).replace('_', ' ').replace(':', ' ')
+        return re.sub(r'^(citadel_|ability_|modifier_|upgrade_)+', '', low).replace('_', ' ').replace(':', ' ')
     part = ' '.join(extra + ([part] if part else []))
     return f'{name} · {part}' if part else name
 
 
 def _loc_li(x: dict) -> str:
-    key = f'<span class="chip" data-tooltip="{esc(x["key"])}">{esc(loc_key_label(x["key"]))}</span>'
+    key = f'<span class="chip">{esc(loc_key_label(x["key"]))}</span>'     # the raw key is an internal id: not shown
     old, new = x.get('old'), x.get('new')
+    if old and new and _plain(old) == _plain(new):
+        return ''          # only the markup changed (a colour span, a token's spelling): nothing to read
     if old and new:
         body = (f'<span class="old">{esc(_plain(old))}</span><span class="arrow">→</span>'
                 f'<span class="new">{esc(_plain(new))}</span>')
@@ -402,14 +451,16 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
         if p['line_counts'].get('mismatch'):
             audit += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
     else:
-        audit = f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("unannounced", 0)}</b> no notes</span>'
+        # no notes to hide from: a plain count, not the "hidden" eye (the eye summed to 8767 here
+        # against 8041 hidden on the home page)
+        audit = f'<span class="au"><b>{c.get("unannounced", 0)}</b> changes · no notes</span>'
     # the date is the row's first column: the title cell shows only the name (or 'update')
     name = patch_name(p['title'])
     title = ('<span class="pfu">follow-up</span>' if follow
              else f'<span class="pname">{esc(name)}</span>' if name else '<span class="pkind">update</span>')
     return (f'<a class="ix{" fu" if follow else ""}" href="{esc(p["id"])}.html">'
             f'<span class="ixd">{esc(p["date"])}</span>'
-            f'<span class="ixt"><span class="t">{title}</span><span class="b">{p["builds"]} builds</span></span>'
+            f'<span class="ixt"><span class="t">{title}</span><span class="b">{plural(p["builds"], "build")}</span></span>'
             f'<span class="ixh">{faces}</span><span class="ixs">{dirs}</span>'
             f'<span class="ixa">{audit}{_bar(c)}</span></a>')
 

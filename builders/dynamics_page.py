@@ -12,9 +12,9 @@ import json
 from datetime import date, timedelta
 from functools import lru_cache
 
-from .common import entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
+from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
 from .pixel_icons import tag_svg
-from .render import TAG_ORDER, TAG_WORDS, counts_text, tag_of
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, counts_text, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
@@ -166,7 +166,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, anchor, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
-            'cells': tips, 'icons': {t: tag_svg(t) for t in MATRIX_TAGS}, 'words': TAG_WORDS,
+            'cells': tips, 'icons': {t: tag_svg(t) for t in MATRIX_TAGS}, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
             'parts': dict(PARTS)}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
@@ -200,10 +200,10 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
 def hero_entries(heroes: list[dict], rel: str) -> list[tuple]:
     from .common import slug
     out = []
-    for h in sorted(heroes, key=lambda h: (h.get('name') or h['id']).lower()):
+    for h in sorted(heroes, key=lambda h: display_name(h).lower()):
         pre = h.get('state') != 'EHeroDevState_Release'
         # the page is heroes/atlas.html, not hero_atlas.html (every name link was a 404)
-        out.append((f'hero:{h["id"]}', h.get('name') or h['id'], hero_icon(h['id'], rel),
+        out.append((f'hero:{h["id"]}', display_name(h), hero_icon(h['id'], rel),
                     slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else ''))
     return out
 

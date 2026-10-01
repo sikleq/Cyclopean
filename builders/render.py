@@ -144,6 +144,11 @@ def fold_corrupted(changes: list[dict]) -> list[dict]:
 # tooltips (plain text) use words
 TAG_WORDS = {'buff': 'buffs', 'nerf': 'nerfs', 'new': 'new', 'del': 'removed', 'rework': 'reworked', 'up': 'up', 'down': 'down',
              'mech': 'mechanics', 'changed': 'changed', 'on': 'enabled', 'off': 'disabled'}
+TAG_WORD_ONE = {'buff': 'buff', 'nerf': 'nerf', 'mech': 'mechanic'}      # "1 buff", not "1 buffs"
+
+
+def tag_word(tag: str, n: int) -> str:
+    return TAG_WORD_ONE.get(tag, TAG_WORDS.get(tag, tag)) if n == 1 else TAG_WORDS.get(tag, tag)
 
 
 def pip(cls: str, n: int | str = '') -> str:
@@ -153,7 +158,7 @@ def pip(cls: str, n: int | str = '') -> str:
 
 def counts_text(counts: dict[str, int]) -> str:
     """'9 new, 8 buffs, 9 nerfs' for a tooltip, in the tag order."""
-    return ', '.join(f'{n} {TAG_WORDS.get(k, k)}' for k, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
+    return ', '.join(f'{n} {tag_word(k, n)}' for k, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
 
 
 def tag_summary(changes: list[dict]) -> str:
@@ -282,8 +287,13 @@ def readable_value(s: str) -> str:
     return s
 
 
+def shown_value(s) -> str:
+    """A value as the page prints it: ids as names, engine enums as words."""
+    return '' if s is None else readable_value(ids_to_names(str(s)))
+
+
 def _clip(s) -> str:
-    s = '' if s is None else readable_value(ids_to_names(str(s)))
+    s = shown_value(s)
     return s if len(s) <= LONG_VALUE else s[:LONG_VALUE - 1] + '…'
 
 
