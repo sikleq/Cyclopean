@@ -213,8 +213,8 @@
       var d = table && data[table.id];
       var k = a.getAttribute('data-k');
       if (!d || k === null) return;
-      var c = d.cells[+k], p = d.patches[c[1]], tr = a.closest('tr');
-      var counts = c[2], order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
+      var c = d.cells[+k], p = d.patches[c[0]], tr = a.closest('tr');
+      var counts = c[1], samples = c[2], order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
       var total = 0;
       Object.keys(counts).forEach(function (t) { total += counts[t]; });
       var icon = tr.getAttribute('data-icon');
@@ -224,15 +224,22 @@
       html += '<div class="dt-counts">' + order.filter(function (t) { return counts[t]; }).map(function (t) {
         return '<span class="pip ' + t + '">' + (d.icons[t] || '') + counts[t] + '<em>' + txt(d.words[t] || t) + '</em></span>';
       }).join('') + '</div>';
-      if (c[3].length) {
-        html += '<table class="dt-rows">' + c[3].map(function (s) {
+      if (samples.length) {
+        // the biggest changes, grouped by part: base stats, weapon, abilities
+        var lastPart = null, rowsHtml = '';
+        samples.forEach(function (s) {
+          if (s[5] !== lastPart && d.parts && d.parts[s[5]] && !tr.classList.contains('sub')) {
+            lastPart = s[5];
+            rowsHtml += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
+          }
           var vals = s[2] && s[3] ? txt(s[2]) + '<i>→</i><b class="t-' + s[4] + '">' + txt(s[3]) + '</b>'
             : '<b class="t-' + s[4] + '">' + txt(s[3] || s[2]) + '</b>';
-          return '<tr><td class="dt-what">' + txt(s[0]) + '</td><td class="dt-field">' + txt(s[1]) + '</td>' +
+          rowsHtml += '<tr><td class="dt-what">' + txt(s[0]) + '</td><td class="dt-field">' + txt(s[1]) + '</td>' +
             '<td class="dt-vals">' + vals + '</td></tr>';
-        }).join('') + '</table>';
+        });
+        html += '<table class="dt-rows">' + rowsHtml + '</table>';
       }
-      var more = total - c[3].length;
+      var more = total - samples.length;
       html += '<div class="dt-foot">' + (more > 0 ? '+' + more + ' more · ' : '') + 'click to open the patch</div>';
       tip.innerHTML = html;
       tip.classList.add('on');
@@ -248,6 +255,19 @@
       if (a) show(a); else tip.classList.remove('on');
     });
     window.addEventListener('scroll', function () { tip.classList.remove('on'); }, true);
+  });
+
+  /* ---------- change matrices: ▸ opens a hero's rows for base stats, weapon and each ability ---------- */
+  safe('dyn-open', function () {
+    document.addEventListener('click', function (ev) {
+      var btn = ev.target.closest && ev.target.closest('.dyn-open');
+      if (!btn) return;
+      ev.preventDefault();
+      var table = btn.closest('table'), id = btn.getAttribute('data-open');
+      var open = !btn.classList.contains('on');
+      btn.classList.toggle('on', open);
+      table.querySelectorAll('tr.sub[data-parent="' + id + '"]').forEach(function (tr) { tr.classList.toggle('open', open); });
+    });
   });
 
   /* ---------- change matrices open at the newest patches (the right end); older columns re-scroll ---------- */

@@ -348,10 +348,11 @@ def test_heroes_grid_sorts_like_the_game():
     rows = {'hero_doorman': {'sort_name': 'Doorman', 'type': 'ECitadelHeroType_Mystic', 'complexity': 1,
                              'color': [237, 149, 60]},
             'hero_viscous': {'new_player': True}}
-    html = heroes_grid_html(live, [], rows, '../', lambda hid: '')
+    html = heroes_grid_html(live, [], rows, '../')
     assert html.index('Abrams') < html.index('The Doorman') < html.index('Viscous')
     # one grid (no "Great for new players" row: the owner asked), the game's colour on the plate
-    assert 'Great for new players' not in html and '>Mystic<' in html and 'Pre-release' in html
+    # one grid, a portrait and a name: no role, complexity or last-patch line (owner, 2026-10-01)
+    assert 'Great for new players' not in html and 'Mystic' not in html and 'hg-cx' not in html and 'Pre-release' in html
     assert 'style="--hero: rgb(237 149 60)"' in html
 
 
@@ -377,8 +378,13 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     rows = [{'id': 'p1', 'date': '2024-01-01', 'title': '01-01-2024 Update'},
             {'id': 'p2', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}]
     cells = {'hero:hero_atlas': {'p2': {'buff': 2, 'nerf': 1}}, 'hero:hero_x': {'p1': {'new': 1}}}
-    samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf']]}}
-    monkeypatch.setattr(dynamics_page, '_cells_and_samples', lambda: (rows, cells, samples))
+    samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf', 'abil']]}}
+    parts = {'hero:hero_atlas': {'p2': {'abil': {'nerf': 1}, 'stats': {'buff': 2}}}}
+    subs = {'hero:hero_atlas': {'abilities.vdata:a1': {'name': 'Siphon Life', 'part': 'abil', 'file': 'abilities.vdata',
+                                                      'id': 'a1', 'kind': 'ability', 'owner': 'hero_atlas',
+                                                      'cells': {'p2': {'nerf': 1}}}}}
+    monkeypatch.setattr(dynamics_page, '_collect', lambda: {'rows': rows, 'cells': cells, 'parts': parts, 'subs': subs,
+                                                            'samples': samples})
     html = dynamics_page.matrix_html([('hero:hero_atlas', 'Abrams', None, 'hero_atlas.html', ''),
                                       ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
                                       ('hero:hero_none', 'Nothing', None, 'n.html', '')], 'hero')
@@ -388,6 +394,8 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert '#c-hero_atlas' in html and 'tr class="extra"' in html
     # the hover card's data: the cell's counts and its biggest changes, the number on the tile
     assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
+    # a hero's tile in three parts (stats has buffs, weapon empty, abilities a nerf); its sub-rows behind the toggle
+    assert 'dsq split' in html and 'seg s-weapon empty' in html and 'tr class="sub p-abil' in html and 'data-open="hero_atlas"' in html
     bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
     assert 'show-old' in bar and 'bvn' in bar and 'hide-buff' in bar and 'show-extra' in bar
 

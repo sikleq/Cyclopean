@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from .common import entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
 from .hero_page import hero_page, history_heading, history_table, prop_icon, prop_rows, stat_tables
-from .render import KIND_LABEL, top_pips
+from .render import KIND_LABEL
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -98,16 +98,6 @@ def sub_tabs(section: str, active: str) -> str:
         for k, lbl in SUB_TABS[section]) + '</div>'
 
 
-def _hero_foot(hid: str) -> str:
-    """Under a hero portrait: what its newest patch did to it ('▲2 ▼1 · 09-16')."""
-    from .trail import hero_last
-    last = hero_last(hid)
-    if not last:
-        return ''
-    row, changes = last
-    return f'<span class="last">{top_pips(changes, 2)}<span class="d">{esc(row["date"][5:])}</span></span>'
-
-
 def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
     href = slug(e['file'], e['id']).split('/', 1)[1]
     cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
@@ -144,7 +134,7 @@ def build_all() -> dict[str, int]:
     body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
             f'<span class="sep"></span>{pre_release_switch(live)}</div>'
-            + heroes_grid_html(live, other, trow, rel, _hero_foot))
+            + heroes_grid_html(live, other, trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
     dyn = matrix_html(hero_entries(live, rel), 'hero')

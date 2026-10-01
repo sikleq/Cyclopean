@@ -1161,30 +1161,24 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 }
 
 /* ---------- 13. Heroes index: the game's hero grid (tall portraits, sort-name order) ---------- */
-.hgrid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
-.hgrid-cards.rec { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
-.hgcard { position: relative; display: flex; flex-direction: column; background: var(--bg-panel-2); color: var(--text-main); }
-.hgcard:hover { box-shadow: 0 0 0 2px var(--patina), 0 0 14px var(--patina-25); color: var(--text-bright); }
-.hg-pic { position: relative; display: block; aspect-ratio: 206 / 280; background: var(--bg-panel-4); overflow: hidden; }
-.hg-pic img, .hg-pic .noimg { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
-.hg-rib { position: absolute; left: 0; right: 0; bottom: 8px; padding: 3px 0 2px; text-align: center;
-  font: 15px/1 var(--font-label); letter-spacing: .1em; text-transform: uppercase; color: var(--bg-page); background: var(--dev); }
-/* the name plate in the hero's own colour from the game (--hero, set per card from m_colorUI) */
-.hgcard { --hero: var(--frame-line); }
-.hg-nm { padding: 6px 6px 2px; font: 600 13px/1.15 var(--font-ui); text-align: center; color: var(--name);
-  background: linear-gradient(color-mix(in srgb, var(--hero) 22%, var(--bg-panel-2)), var(--bg-panel-2));
-  box-shadow: inset 0 3px 0 var(--hero); }
-.hgcard:hover { box-shadow: 0 0 0 2px var(--hero), 0 0 14px color-mix(in srgb, var(--hero) 35%, transparent); }
-.hgrid-cards.rec .hg-nm { font-size: 14px; }
-.hg-meta { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 2px 6px 4px; min-height: 18px; }
-.hg-role { font: 15px/1 var(--font-label); text-transform: uppercase; letter-spacing: .06em; color: var(--label); }
-.hg-cx { display: inline-flex; gap: 2px; }
-.hg-cx i { display: block; width: 5px; height: 5px; background: var(--frame-line); }
-.hg-cx i.on { background: var(--patina); }
-.hgcard .last { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 7px; padding: 0 4px 6px; margin-top: auto; }
-.hgcard .last .tsum { margin: 0; gap: 6px; }
-.hgcard .last .pip { font-size: 16px; }
-.hgcard .last .d { font: 500 11px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.hgrid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); gap: 12px; }
+/* a card = the portrait with the name on a plate in the hero's colour (m_colorUI); hover lifts it */
+.hgcard { --hero: var(--frame-line); position: relative; display: block; overflow: hidden; color: var(--name);
+  background: var(--bg-panel-4);
+  box-shadow: 0 0 0 2px var(--frame-line), 0 6px 14px var(--shadow); transition: transform .14s, box-shadow .14s; }
+.hgcard:hover { transform: translateY(-3px); color: var(--text-bright);
+  box-shadow: 0 0 0 2px var(--hero), 0 10px 22px var(--shadow), 0 0 18px color-mix(in srgb, var(--hero) 30%, transparent); }
+.hg-pic { display: block; aspect-ratio: 206 / 280; overflow: hidden; }
+.hg-pic img, .hg-pic .noimg { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top;
+  transition: transform .2s; }
+.hgcard:hover .hg-pic img { transform: scale(1.05); }
+.hg-nm { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 6px 7px; text-align: center;
+  font: 20px/1 var(--font-px); letter-spacing: .02em; color: inherit; text-shadow: 0 2px 0 var(--bg-page);
+  background: linear-gradient(transparent, color-mix(in srgb, var(--hero) 35%, var(--bg-page)) 55%);
+  box-shadow: inset 0 -3px 0 var(--hero); }
+.hg-rib { position: absolute; top: 16px; right: -34px; width: 132px; padding: 3px 0 2px; transform: rotate(35deg); text-align: center;
+  font: 600 10px/1 var(--font-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--bg-page); background: var(--dev);
+  box-shadow: 0 2px 6px var(--shadow); }
 .hgrid-cards.lab .hgcard { opacity: .8; }
 
 /* ---------- 14. Interface & sound tab: features as a compact grid ---------- */
@@ -1382,3 +1376,30 @@ table.stats td.tint-spi { color: color-mix(in srgb, var(--spirit) 55%, var(--tex
 /* a value with a history to show on hover: a dotted underline, as Sloppy marks its hoverable numbers */
 table.stats td.has-hist { text-decoration: underline dotted color-mix(in srgb, var(--text-dim) 60%, transparent);
   text-underline-offset: 3px; }
+
+/* ---------- 20. hero changes: tiles split stats | weapon | abilities, sub-rows per part ---------- */
+.dsq.split { flex-direction: row; gap: 1px; background: var(--bg-page); }
+.dsq.split .seg { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.dsq.split .seg.empty { background: var(--bg-panel-3); }
+table.dyn.bvn .dsq.split .seg { display: none; }
+table.dyn tr.sub { display: none; }
+table.dyn tr.sub.open, table.dyn.open-all tr.sub { display: table-row; }
+table.dyn:not(.show-extra) tr.sub.extra { display: none; }
+table.dyn tr.sub td { background: var(--bg-page); }
+table.dyn tr.sub td.name { background: var(--bg-page); }
+table.dyn tr.sub .sub-l { display: flex; align-items: center; gap: 7px; padding-left: 26px; font: 500 12px/1.1 var(--font-ui); color: var(--text-dim); }
+table.dyn tr.sub .sub-l img { width: 20px; height: 20px; object-fit: contain; background: var(--bg-panel-4); }
+table.dyn tr.sub.p-stats .sub-l { color: var(--text-main); }
+table.dyn tr.sub.p-weapon .sub-l { color: color-mix(in srgb, var(--weapon) 50%, var(--text-main)); }
+table.dyn tr.sub .dsq { width: 22px; height: 22px; }
+table.dyn td.name .nm-wrap { display: flex; align-items: center; gap: 6px; }
+.dyn-open { width: 18px; height: 18px; flex: none; padding: 0; border: 0; cursor: pointer; font: 12px/18px var(--font-ui);
+  color: var(--text-dim); background: var(--bg-panel-3); box-shadow: inset 0 0 0 1px var(--grid-strong); transition: transform .12s; }
+.dyn-open:hover { color: var(--text-bright); }
+.dyn-open.on, table.dyn.open-all .dyn-open { transform: rotate(90deg); color: var(--patina-strong); }
+.dyn-legend { display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1 var(--font-ui); color: var(--text-dim); }
+.dyn-legend .dsq.demo { width: 30px; height: 18px; pointer-events: none; }
+.dyn-legend .dsq.demo .st { flex: 1; }
+table.dt-rows tr.dt-part td { padding: 6px 6px 3px; text-align: left; font: 600 11px/1 var(--font-ui); text-transform: uppercase;
+  letter-spacing: .08em; color: var(--label); border-right: 0; }
+table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 60%, var(--label)); }

@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Hero changes split by stats, weapon and abilities; cleaner hero cards",
+    "items": [
+      "Hero changes: every tile is split in three — base stats, weapon, abilities — so you can see what changed; ▸ next to a hero (or 'Split rows') opens a row for its stats, its weapon and each ability.",
+      "The hover card groups a patch's biggest changes by stats, weapon and abilities.",
+      "Heroes: cards are just the portrait and the name on a plate in the hero's colour; they lift on hover."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Hero Stats at any boon, role filter, smoother scrolling",
     "items": [
       "Hero Stats: a Boons box shows health, bullet damage, DPS, melee and resists at any number of boons; role buttons (Marksman, Assassin, Brawler, Mystic); the heatmap is a switch.",

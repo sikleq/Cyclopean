@@ -170,6 +170,11 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
   colour), tag filters, pre-release heroes / removed items. Heroes index: pre-release heroes hide behind
   a switch, "Unreleased & hero labs" is folded.
+- Hero changes split what changed: a hero's tile is three parts — base stats | weapon (gun + melee) |
+  abilities (`dynamics_page.PARTS`, `part_of`), each striped by its own changes; ▸ (or "Split rows")
+  opens a row per part — base stats, the weapon, every ability with its icon; the hover card groups
+  the biggest changes by part. Heroes index cards are only the portrait and the name on a plate in the
+  hero's colour (no role, complexity or last-patch line — owner's call).
 - Change matrix cells: a bevelled tile, its number of changes in the corner; hovering opens a card drawn by
   scripts.js from the page's `.dyn-data` JSON (who, which patch, counts with the tag icons, the three
   biggest changes, "+N more").
