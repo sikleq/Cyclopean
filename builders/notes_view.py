@@ -8,6 +8,7 @@ import re
 from functools import lru_cache
 
 from .common import entity_icon, esc, glyph_for, hero_icon, load_json, mark, visual
+from .pixel_icons import tag_svg
 from .render import tag_html, tag_of, tag_summary
 
 LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated')
@@ -118,8 +119,8 @@ def text_tag(text: str, topic: str | None = None) -> str:
         return f'<span class="tag topic-tag">{esc(TOPIC_TAG.get(topic, topic.upper()))}</span>'
     for rx, cls, word in _TEXT_TAGS:
         if rx.search(text):
-            return f'<span class="tag {cls}" data-g="5">{word}</span>'
-    return '<span class="tag changed" data-g="5">CHANGED</span>'
+            return f'<span class="tag {cls}" data-g="5">{tag_svg(cls)}{word}</span>'
+    return ''           # no kind in the wording: the line itself says what changed (CHANGED told nothing)
 
 
 def _line_tag(changes: list[dict]) -> tuple[str, str]:
@@ -141,7 +142,7 @@ def _files_cell(ln: dict, changes: list[dict], subject_ent: dict | None) -> str:
     if st == 'repeated':
         return f'also in <a href="{esc(ln["see"]["patch"])}.html">{esc(ln["see"]["title"])}</a>'
     if st == 'untracked':
-        return f'<span class="topic">{esc(TOPIC_LABEL.get(ln.get("topic"), ln.get("topic") or ""))}</span>'
+        return ''        # the row's tag already names the topic (MAP, UI…)
     if st in ('mismatch', 'rounded') and ln.get('data'):
         vals = (f'<span class="v">{esc(ln["data"][0])}</span><span class="arrow">→</span>'
                 f'<span class="v">{esc(ln["data"][1])}</span>')
@@ -206,6 +207,81 @@ KIND_SUB = {'hero': 'Hero', 'ability': 'Ability', 'weapon': 'Weapon', 'item': 'I
             'building': 'Building', 'neutral': 'Neutral', 'unit': 'Unit', 'ability_other': 'Ability'}
 
 
+# A section about the interface, sound or settings is not balance: it gets its own tab, laid out as
+# a compact grid of features (City Never Sleeps: ~150 such lines buried the gameplay ones)
+_IFACE_SECTION = re.compile(r'interface|\bui\b|hud|settings|sandbox|spectat|accessib|sound|music|\bvo\b|'
+                            r'visual|behavior|reporting|social|client', re.I)
+IFACE_TOPICS = ('interface', 'sound', 'visual')
+_GENERAL_SECTION = re.compile(r'additional|general|misc|other', re.I)
+_FEATURE = re.compile(r'^\s*([^:—]{2,60}?)\s*(?::|\s—)\s+(.+)$')
+
+
+LIST_MIN = 3          # "Label — A, B, C": three or more short names read better as chips
+_LIST_ITEM_MAX = 32
+
+
+def _list_chips(body: str, rel: str) -> str | None:
+    """'Nurse Harrow, Deadman Danny, Baba' -> chips, with the game's icon where a name is known."""
+    names = [n.strip() for n in body.split(',')]
+    if len(names) < LIST_MIN or any(not n or len(n) > _LIST_ITEM_MAX for n in names):
+        return None
+    chips = []
+    for n in names:
+        e = _by_name().get(n.lower())
+        src = _icon_src(e, rel) if e else None
+        pic = f'<img class="px" src="{esc(src)}" alt="" loading="lazy">' if src else ''
+        chips.append(f'<span class="nchip{" pic" if pic else ""}">{pic}{esc(n)}</span>')
+    return f'<span class="nchips">{"".join(chips)}</span>'
+
+
+def _feature_html(text: str, d: str, rel: str = '../') -> str:
+    """'Tough Crates: Require a Heavy Melee…' -> the feature's name bold, the rest as the line;
+    'Haunts — Specimen, Gutter Ghouls, …' -> the name and its list as chips."""
+    m = _FEATURE.match(text)
+    if not m:
+        return _highlight(text, d)
+    chips = _list_chips(m.group(2), rel)
+    if chips:
+        return f'<b class="fname">{esc(m.group(1))}</b>{chips}'
+    return f'<b class="fname">{esc(m.group(1))}</b> {_highlight(m.group(2), d)}'
+
+
+def split_sections(sections: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(gameplay sections, interface sections). A whole interface/sound section moves; inside the
+    other sections, lines the matcher filed under an interface/sound/visual topic move too."""
+    play, iface = [], []
+    for s in sections:
+        if _IFACE_SECTION.search(s['title']):
+            iface.append(s)
+            continue
+        general = _GENERAL_SECTION.search(s['title'])
+        keep = [ln for ln in s['lines']
+                if not (general and ln['status'] == 'untracked' and ln.get('topic') in IFACE_TOPICS)]
+        moved = [ln for ln in s['lines'] if ln not in keep]
+        if keep:
+            play.append({**s, 'lines': keep})
+        if moved:
+            iface.append({**s, 'lines': moved})
+    return play, iface
+
+
+def interface_table(sections: list[dict]) -> str:
+    """Interface / sound / settings lines as a feature grid: the feature's name bold, what it does
+    below; no tags (they would all say UI), a status mark only when the files back the line."""
+    out = []
+    for s in sections:
+        items = []
+        for ln in s['lines']:
+            m = _FEATURE.match(ln['text'])
+            title, body = (m.group(1), m.group(2)) if m else ('', ln['text'])
+            mk = mark(ln['status']) if ln['status'] in ('documented', 'described', 'rounded', 'mismatch', 'fix') else ''
+            head = f'<b>{esc(title)}</b>' if title else ''
+            items.append(f'<li class="feat st-{esc(ln["status"])}">{mk}<span>{head}{esc(body)}</span></li>')
+        out.append(f'<div class="banner sub"><span class="bt">{esc(s["title"])}</span>'
+                   f'<span class="bc">{len(items)}</span></div><ul class="feats">{"".join(items)}</ul>')
+    return ''.join(out)
+
+
 def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
     """Each Valve section under a banner; its lines as entity cards (icon, name, history strip)."""
     from .cards import card, row, sub_head
@@ -244,7 +320,8 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
                         text = _strip_name(text, ab[1])
                     if not tag:
                         tag = text_tag(text, ln.get('topic'))
-                    rows.append(row(ln['status'], tag, _highlight(text, d), _files_cell(ln, changes, ent)))
+                    rows.append(row(ln['status'], tag, _feature_html(text, d, rel) if not subject else _highlight(text, d),
+                                    _files_cell(ln, changes, ent)))
             if not subject:
                 cards.append(f'<article class="ecard plain"><div class="eb">{"".join(rows)}</div></article>')
                 continue

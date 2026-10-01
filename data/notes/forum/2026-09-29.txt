@@ -2,11 +2,11 @@ City Never Sleeps
 https://www.playdeadlock.com/cityneversleeps
 Source: Official update page https://www.playdeadlock.com/cityneversleeps (page text; lore and taglines not republished)
 [ Map ]
-- Lane names: Blue Lane is Broadway, Green Lane is Greenwich, Yellow Lane is York
+- Lane names — Blue Lane is Broadway, Green Lane is Greenwich, Yellow Lane is York
 - The neutrals you know have been replaced by a variety of creatures with new behaviors.
-- Haunts (new neutral camps): Specimen, Gutter Ghouls, Barrel Mimics, Past Dues, Stage Hands, Crabbage Pots, Festival Spirit, Shrooms, Underhands
-- Districts between the lanes: Theater, Chinatown, Haunted Lot, Plaza
-- Landmarks: Uptown, Times Square, Downtown, Umbria University, Central Park, The Brownstones, Stock Exchange, Seaport Dock, Old Fairfax Factories
+- Haunts (new neutral camps) — Specimen, Gutter Ghouls, Barrel Mimics, Past Dues, Stage Hands, Crabbage Pots, Festival Spirit, Shrooms, Underhands
+- Districts between the lanes — Theater, Chinatown, Haunted Lot, Plaza
+- Landmarks — Uptown, Times Square, Downtown, Umbria University, Central Park, The Brownstones, Stock Exchange, Seaport Dock, Old Fairfax Factories
 [ Gameplay ]
 - Sunken Plaza: Shrouded beneath this districts main square lies the city’s Sunken Plaza. With high risk comes high rewards because as you descend to its depths, the sounds of the outside world fade away along with your stamina.
 - Bell Tower: Ascend to the top of the Chinatown Bell Tower for a highly concentrated soul hotspot. Keep in mind that while collecting your rewards the bell will ring loudly throughout the map.
@@ -15,17 +15,17 @@ Source: Official update page https://www.playdeadlock.com/cityneversleeps (page 
 - Healing Snacks: Hidden around the map, these healing snacks allow keen-eyed players to heal up in a pinch.
 - Steam Vents: Duck in and out of veiled cover with your team to navigate the city streets in refreshing secrecy. Provides invisibility and a small amount of regen while standing on it.
 [ Items ]
-- The Broker: Exchange Your Items: While supplies last, you can exchange your high tier items for a Corrupted version. While his exact arrival time varies, his first shipment is stocked around 30 minutes. Additional Corrupted Items can be collected, on average, every 15 minutes after that.
-- The Broker: Here’s The Catch...: Each match, all corrupted items are assigned random negative attributes from a predefined set. The degree of negative and positive attributes have a small amount of variability, however they are the same for all players in a given game.
-- The Broker: He Comes And Goes: Corrupted Items are banned on the streets of New York. He’ll only be around for a few days, as authorities will be out in full swing once the first new hero makes their arrival.
+- The Broker · Exchange Your Items: While supplies last, you can exchange your high tier items for a Corrupted version. While his exact arrival time varies, his first shipment is stocked around 30 minutes. Additional Corrupted Items can be collected, on average, every 15 minutes after that.
+- The Broker · Here’s The Catch...: Each match, all corrupted items are assigned random negative attributes from a predefined set. The degree of negative and positive attributes have a small amount of variability, however they are the same for all players in a given game.
+- The Broker · He Comes And Goes: Corrupted Items are banned on the streets of New York. He’ll only be around for a few days, as authorities will be out in full swing once the first new hero makes their arrival.
 [ Heroes ]
-- New heroes: Nurse Harrow, Deadman Danny, Baba, Solomon, Rat King, Violet
+- New heroes — Nurse Harrow, Deadman Danny, Baba, Solomon, Rat King, Violet
 - Two heroes release a week on Tuesdays and Fridays @ 2:00pm PT
 - Voting Now Live - First Release October 2nd
-- Hero vote: Vote in Pregame: All voting is now done in the new Pregame lobby. Convince your allies to make the only correct choice. The winning team’s votes will count as double.
-- Hero vote: First Win of the Day: Your first win of the day gives you double the votes.
-- Hero vote: New Hero Priority Tokens: Starting with the first hero release, playing will earn you priority tokens.
-- Hero vote: Campaign Posters: Demonstrate your support for your favorite upcoming hero.
+- Hero vote · Vote in Pregame: All voting is now done in the new Pregame lobby. Convince your allies to make the only correct choice. The winning team’s votes will count as double.
+- Hero vote · First Win of the Day: Your first win of the day gives you double the votes.
+- Hero vote · New Hero Priority Tokens: Starting with the first hero release, playing will earn you priority tokens.
+- Hero vote · Campaign Posters: Demonstrate your support for your favorite upcoming hero.
 [ User Interface ]
 - New Healthbars
 - Player Names: Find your party members quickly in the heat of combat.

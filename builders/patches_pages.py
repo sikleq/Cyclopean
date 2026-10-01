@@ -243,7 +243,13 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     ex = p.get('extras', {})
     tabs = []
     if p['sections']:
-        tabs.append(('notes', 'Patch notes', sum(len(s['lines']) for s in p['sections']), notes_table(p, change_by_key, rel)))
+        from .notes_view import interface_table, split_sections
+        play, iface = split_sections(p['sections'])
+        tabs.append(('notes', 'Patch notes', sum(len(s['lines']) for s in play),
+                     notes_table({**p, 'sections': play}, change_by_key, rel)))
+        if iface:
+            # interface, sound and settings lines: their own tab, a compact grid of features
+            tabs.append(('interface', 'Interface & sound', sum(len(s['lines']) for s in iface), interface_table(iface)))
         c = p.get('counts', {})
         # notes that say little about a big update (City Never Sleeps: 11 interface lines,
         # 1,400+ gameplay changes): the files' own summary sits next to the official text

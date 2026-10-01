@@ -106,7 +106,7 @@ def to_lines(text: dict[str, str], rules: dict) -> list[str]:
             elif 'list' in item:
                 names = [clean(text[k]) for k in scope if re.search(item['keys'], k)]
                 if names:
-                    lines.append(f'{item["list"]}: {", ".join(names)}')
+                    lines.append(f'{item["list"]} — {", ".join(names)}')    # a dash: a list, not a subject
             elif 'verbatim' in item:
                 lines += [clean(text[k]) for k in scope if re.search(item['verbatim'], k)
                           and not (skip and skip.search(clean(text[k])))]

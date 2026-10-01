@@ -6,7 +6,7 @@
     "skip": "^And many other misc changes",
     "sections": [
       {"title": "Map", "items": [
-        {"line": "Lane names: Blue Lane is {CNS_Blue_Name}, Green Lane is {CNS_Green_Name}, Yellow Lane is {CNS_Yellow_Name}"},
+        {"line": "Lane names — Blue Lane is {CNS_Blue_Name}, Green Lane is {CNS_Green_Name}, Yellow Lane is {CNS_Yellow_Name}"},
         {"verbatim": "^CNS_Haunts_Note$"},
         {"list": "Haunts (new neutral camps)", "keys": "^CNS_(Specimens|Ghouls|Barrels|PastDues|StageHands|Crabbage|Festival|Shrooms|Underhands)_Title$"},
         {"list": "Districts between the lanes", "keys": "^CNS_Districts_Map_\\d+$"},
@@ -16,12 +16,12 @@
         {"cards": "^CNS_MustDo_(Pool|Bell|Crates|Containers|Healing|Vents)$"}
       ]},
       {"title": "Items", "items": [
-        {"cards": "^CNS_Broker_Card_\\d+$", "prefix": "The Broker: "}
+        {"cards": "^CNS_Broker_Card_\\d+$", "prefix": "The Broker · "}
       ]},
       {"title": "Heroes", "items": [
         {"list": "New heroes", "keys": "^CNS_Hero_\\w+$"},
         {"verbatim": "^CNS_Vote_SubHead_\\d$"},
-        {"cards": "^CNS_Vote_(Pregame|Card_\\d+)$", "prefix": "Hero vote: "}
+        {"cards": "^CNS_Vote_(Pregame|Card_\\d+)$", "prefix": "Hero vote · "}
       ]},
       {"title": "User Interface", "items": [
         {"cards": "^CNS_UI_", "range": ["CNS_UI_HealthBars_Kicker", "CNS_UI_Accessibility_Title"],

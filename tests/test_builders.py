@@ -345,9 +345,28 @@ def test_heroes_grid_sorts_like_the_game():
     live = [{'file': 'heroes.vdata', 'id': 'hero_doorman', 'name': 'The Doorman'},
             {'file': 'heroes.vdata', 'id': 'hero_viscous', 'name': 'Viscous'},
             {'file': 'heroes.vdata', 'id': 'hero_atlas', 'name': 'Abrams', 'state': 'EHeroDevState_PreRelease'}]
-    rows = {'hero_doorman': {'sort_name': 'Doorman', 'type': 'ECitadelHeroType_Mystic', 'complexity': 1},
+    rows = {'hero_doorman': {'sort_name': 'Doorman', 'type': 'ECitadelHeroType_Mystic', 'complexity': 1,
+                             'color': [237, 149, 60]},
             'hero_viscous': {'new_player': True}}
     html = heroes_grid_html(live, [], rows, '../', lambda hid: '')
-    allh = html.split('All heroes')[1]
-    assert allh.index('Abrams') < allh.index('The Doorman') < allh.index('Viscous')
-    assert 'Great for new players' in html and '>Mystic<' in html and 'Pre-release' in html
+    assert html.index('Abrams') < html.index('The Doorman') < html.index('Viscous')
+    # one grid (no "Great for new players" row: the owner asked), the game's colour on the plate
+    assert 'Great for new players' not in html and '>Mystic<' in html and 'Pre-release' in html
+    assert 'style="--hero: rgb(237 149 60)"' in html
+
+
+def test_interface_lines_get_their_own_tab_and_lists_become_chips():
+    from builders import notes_view
+    secs = [{'title': 'Gameplay', 'lines': [{'text': 'Tough Crates: need a Heavy Melee', 'status': 'unmatched'}]},
+            {'title': 'User Interface', 'lines': [{'text': 'Player Names: find your party', 'status': 'untracked',
+                                                   'topic': 'interface'}]},
+            {'title': 'Additional Update Notes', 'lines': [
+                {'text': 'New and improved SFX', 'status': 'untracked', 'topic': 'sound'},
+                {'text': 'Graves can now destroy traps', 'status': 'unmatched'}]}]
+    play, iface = notes_view.split_sections(secs)
+    assert [s['title'] for s in play] == ['Gameplay', 'Additional Update Notes']
+    assert [s['title'] for s in iface] == ['User Interface', 'Additional Update Notes']
+    html = notes_view.interface_table(iface)
+    assert '<b>Player Names</b>' in html and 'tag' not in html
+    assert notes_view._list_chips('Theater, Chinatown, Haunted Lot, Plaza', '../').count('nchip') == 5   # wrapper + 4
+    assert notes_view._list_chips('a long sentence, not a list', '../') is None

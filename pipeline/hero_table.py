@@ -284,6 +284,7 @@ def build() -> dict:
             # the hero grid's order in the game: the sort name ("The Doorman" sorts under D)
             'sort_name': _sort_name(tok, hero, hid),
             'new_player': str(hero.get('m_bNewPlayerRecommended')).lower() in ('true', '1'),
+            'color': hero.get('m_colorUI'),          # the hero's UI colour: the name plate on the heroes index
             'weapon': wid,
             'weapon_name': loc.plain(loc.entity_name(tok, wid, hid)) if wid else None,
             'first_seen': first_seen.get(hid),

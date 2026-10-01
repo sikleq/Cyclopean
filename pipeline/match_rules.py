@@ -260,7 +260,12 @@ AFFECTS_UPGRADES_RE = re.compile(r'affects? (its )?upgrades', re.I)
 # untracked: "Side Walkers HP increased from 5,175 to 7,000" is data we should find.
 _LINK = re.compile(r'^\s*inspired by\b|\(?(thanks to )?https?://\S+\)?', re.I)
 UNTRACKED_TOPICS = (
-    ('sound', re.compile(r'\b(sounds?|audio|music|vo|voice ?lines?|voiceover|whizby|footsteps?|pings?)\b', re.I)),
+    # 'sounds' as a noun of sound work only: "the sounds of the outside world fade away along with your
+    # stamina" (Sunken Plaza) describes gameplay
+    ('sound', re.compile(r'\b(sfx|sound ?effects?|sound design|sound (is|are|now|no longer|cues?|volume|mix)|'
+                         r'(new|updated|improved|adjusted|reduced|lowered|increased|added|louder|quieter|missing)'
+                         r'(\s\w+)? sounds?|sounds? (for|when|on|of (the|an?) (ability|hero|item|weapon))|'
+                         r'audio|music|vo|voice ?lines?|voiceover|whizby|footsteps?|pings?)\b', re.I)),
     # 'effects' alone is gameplay ("removes movement effects"): only the visual kinds
     ('visual', re.compile(r'\b(visuals?|vfx|(visual|particle|impact|cast|trail|ambient|preview|screen|hit|updated)'
                           r' effects?|effects? revisions?|particles?|animations?|models?|lighting|textures?|art|'

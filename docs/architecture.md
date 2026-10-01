@@ -149,14 +149,18 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   panel: six headline tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload),
   the rest under "All weapon stats" (units ride on the number). "Changed lately" is a corner notch.
 - Patch titles (`common.patch_title_html` / `patch_title_text`): the date once. A named update (City
-  Never Sleeps, Matchmaking Update) shows ✦ name + date and a gold banner bar; a dated one ("09-16-2026
-  Update") shows only its date + "update"; follow-ups say so.
+  Never Sleeps, Matchmaking Update) shows its name in gold (`--gold`, no icon: it shifted the text) +
+  the date and a gold banner bar; a dated one ("09-16-2026 Update") shows only its date + "update".
+- Dates are never in the pixel fonts: IBM Plex, tabular figures (banners, tooltips, lists, cards).
+- Stat history tooltip: one set of columns for every row (date | was | → | now | %), a first value
+  sits under "now".
 - % pills grade their colour strength by size (`render.pct_grade`, steps 5/15/30/60%; scripts.js
   `pctGrade` mirrors them); the history tooltip shows no pill for a first value or a 0.0% step.
 - Item page: current values in a sticky left column beside the history.
-- Heroes index (`builders/heroes_grid.py`), like the game's hero grid: tall portraits in the order of
-  the game's sort names (`m_strHeroSortName`: The Doorman under D), a "Great for new players" row
-  (`m_bNewPlayerRecommended`), the role as text (`m_eHeroType`; the game has no role icons) and
+- Heroes index (`builders/heroes_grid.py`), like the game's hero grid: one grid of tall portraits in
+  the order of the game's sort names (`m_strHeroSortName`: The Doorman under D; no "new players" row —
+  owner's call), the name plate in the hero's colour from the game (`m_colorUI` as `--hero` in the
+  card's style — the one approved exception to ":root tokens only"), the role as text (`m_eHeroType`; the game has no role icons) and
   complexity as marks (`m_nComplexity`), a PRE-RELEASE ribbon; under each card the newest patch that
   touched the hero or its abilities (`trail.hero_last`) — its two biggest counters and the date.
 - Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its
@@ -168,6 +172,15 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   columns are off-screen (`.table-fade`, removed when scrolled to the end).
 
 ## Patch notes tab (`builders/notes_view.py`)
+
+Interface, sound and settings get their own tab "Interface & sound" (`notes_view.split_sections`):
+whole sections whose title names them (User Interface, Settings, Sandbox, Spectating, Sound…) and,
+from general buckets only ("Additional Update Notes", "General"), lines the matcher filed under an
+interface/sound/visual topic. They render as a grid of features — the name bold, what it does below
+(`interface_table`), no tags. In the notes tab a line "Name: what it does" without a subject shows the
+name bold; a line the files cannot back gets a tag only when its wording names a kind (Fixed → FIX,
+no longer → DEL, now/added → NEW) — never a CHANGED that tells nothing.
+
 
 Valve's text is not reproduced as a wall of lines: each section's lines are grouped by subject (hero,
 item, ability, unit — consecutive lines, a bare-name heading opens a group) under an icon header with tag

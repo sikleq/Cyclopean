@@ -96,10 +96,13 @@
             pill = '<span class="' + cls + ' pct" data-g="' + pctGrade(q) + '">' + (q > 0 ? '+' : '') + q.toFixed(1) + '%</span>';
           }
         }
-        var vals = (h[2] === null || h[2] === undefined)
-          ? '<span class="first">' + fmtNum(h[3], digits) + '</span>'
-          : fmtNum(h[2], digits) + '<span class="arrow">→</span><span class="' + cls + '">' + fmtNum(h[3], digits) + '</span>';
-        html += '<li><span class="d">' + h[1] + '</span><span>' + vals + '</span>' + pill + '</li>';
+        // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row
+        var first = (h[2] === null || h[2] === undefined);
+        html += '<li><span class="d">' + h[1] + '</span>' +
+          '<span class="o">' + (first ? '' : fmtNum(h[2], digits)) + '</span>' +
+          '<span class="arrow">' + (first ? '' : '→') + '</span>' +
+          '<span class="n ' + (first ? 'dir-changed' : cls) + '">' + fmtNum(h[3], digits) + '</span>' +
+          '<span class="p">' + pill + '</span></li>';
       }
       html += '</ol>';
       tip.innerHTML = html;

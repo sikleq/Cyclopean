@@ -60,6 +60,7 @@
   --spirit: #c49bff;          /* spirit (tech) damage, as the game colours it */
   --weapon: #f0b06a;          /* bullet / weapon damage, as the game colours it */
   --vitality: #a5ce3c;        /* the shop's Vitality column (the game's fortitude green) */
+  --gold: #e3b955;            /* a named update's title (City Never Sleeps) */
 
   /* translucent helpers (derived from tokens above) */
   --shadow: rgba(0, 0, 0, 0.55);
@@ -189,15 +190,17 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .banner .bt { font: 22px/1 var(--font-px); color: var(--text-bright); text-transform: uppercase; letter-spacing: .08em;
   text-shadow: 0 2px 0 var(--bg-page); }
 .banner .bt a { color: inherit; }
-.banner .bd { font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em; }
+.banner .bd { font: 500 13px/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 /* patch titles: the date once; a named update gets a gold star and its name, the date beside it */
-.pname::before { content: "✦"; color: var(--tag-new); margin-right: .35em; font-size: .8em; vertical-align: .08em; }
-.pdate:not(.solo) { margin-left: 12px; font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em; text-transform: none; }
+.pname { color: var(--gold); }
+.pdate:not(.solo) { margin-left: 12px; font: 500 13px/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+.pdate.solo { font: 700 17px/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .pkind { margin-left: 10px; font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
 .pfu { margin-left: 10px; font: 16px/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
 .ixt .t > :first-child, .recent .rt > :first-child { margin-left: 0; }
 .banner.named { box-shadow: inset 4px 0 0 var(--tag-new), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
-.ptitle h1 .pdate:not(.solo) { font-size: 22px; }
+.ptitle h1 .pdate:not(.solo) { font-size: 16px; }
+.ptitle h1 .pdate.solo { font-size: 30px; }
 .banner .bc { margin-left: auto; display: flex; gap: 8px; align-items: center; font: 18px/1 var(--font-label);
   color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
 .banner.sub { min-height: 36px; margin: 16px 0 8px; }
@@ -629,7 +632,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .card .last { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 7px; margin-top: auto; }
 .card .last .tsum { margin: 0; gap: 6px; }
 .card .last .pip { font-size: 17px; }
-.card .last .d { font: 16px/1 var(--font-label); color: var(--text-dimmer); white-space: nowrap; }
+.card .last .d { font: 500 11px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .card.gone { opacity: .55; }
 .card.gone .nm::after { content: " †"; color: var(--tag-del); }
 .grid-group-title { font: 20px/1 var(--font-px); color: var(--text-bright); margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
@@ -642,7 +645,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .ix:hover { background: var(--bg-panel-2); box-shadow: inset 4px 0 0 var(--patina), 0 1px 0 var(--line-soft); color: var(--text-main); }
 .ix.fu { padding-left: 34px; background: var(--bg-page); }
 .ix.fu .ixt .t { font-size: 17px; color: var(--text-main); }
-.ixd { font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .04em; }
+.ixd { font: 500 13px/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .ixt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ixt .t { font: 21px/1.05 var(--font-px); color: var(--text-bright); }
 .ixt .b { font: 16px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
@@ -667,7 +670,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .timeline { list-style: none; margin: 0; padding: 0; }
 .timeline > li { display: grid; grid-template-columns: 110px 1fr auto; gap: 14px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line-soft); }
 .timeline > li:hover { background: var(--bg-hover); }
-.timeline .date { font: 19px/1 var(--font-label); color: var(--text-dim); }
+.timeline .date { font: 500 13px/1 var(--font-ui); color: var(--text-dim); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .timeline .ttl { font: 600 15px/1.2 var(--font-ui); color: var(--text-bright); }
 .timeline .ttl small { font: 12px var(--font-ui); color: var(--text-dimmer); margin-left: 8px; }
 .timeline .nums { display: flex; gap: 6px; }
@@ -737,9 +740,17 @@ table.stats td.hm-lo { background-image: linear-gradient(var(--nerf-14), var(--n
 .hist-tip.on { display: block; }
 .hist-tip .t-head { font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); margin-bottom: 6px; }
 .hist-tip .t-overall { color: var(--text-dim); margin-bottom: 6px; }
-.hist-tip ol { margin: 0; padding: 0; list-style: none; }
-.hist-tip li { display: grid; grid-template-columns: 78px 1fr auto; gap: 8px; padding: 2px 0; }
-.hist-tip li .d { font: 17px/1.6 var(--font-label); color: var(--text-dimmer); }
+/* every row shares one set of columns (date | was | → | now | %), so the numbers line up */
+.hist-tip ol { display: grid; grid-template-columns: auto auto auto auto auto; column-gap: 8px; row-gap: 3px; align-items: center;
+  margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.hist-tip li { display: contents; }
+.hist-tip li .o { text-align: right; color: var(--label); }
+.hist-tip li .arrow { padding: 0; }
+.hist-tip li .n { font-weight: 600; }
+.hist-tip li .n.dir-changed { color: var(--text-bright); }
+.hist-tip li .p { text-align: right; }
+.hist-tip li .p .pct { margin-left: 0; }
+.hist-tip li .d { font: 500 12px/1.6 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
 /* icon-only markers explain themselves on hover: ONE floating element placed by
    scripts.js (clamped to the viewport, flips below when there is no room above) —
@@ -860,7 +871,7 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-name { font: 20px/1.1 var(--font-px); color: var(--text-bright); }
 .ability-card .ac-id { min-width: 0; flex: 1; }
 .ability-card .ac-id .trail { margin-top: 6px; }
-.ability-card .ac-last { margin-left: 10px; font: 16px/1 var(--font-label); letter-spacing: .04em; }
+.ability-card .ac-last { margin-left: 10px; font: 600 12px/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .ability-card .ac-last.t-buff { color: var(--tag-buff); }
 .ability-card .ac-last.t-nerf { color: var(--tag-nerf); }
 .ability-card .ac-last.t-rework { color: var(--tag-rework); }
@@ -887,7 +898,7 @@ table.hist { width: 100%; border-collapse: collapse; font-size: 13px; font-varia
 table.hist td { padding: 4px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 table.hist tr.ph td { background: var(--bg-panel-2); padding: 8px; border-top: var(--px) solid var(--line); }
 table.hist tr.ph .t { font: 600 13px/1 var(--font-ui); color: var(--text-bright); }
-table.hist tr.ph .d { font: 17px/1 var(--font-label); color: var(--text-dim); margin-left: 10px; }
+table.hist tr.ph .d { font: 500 12px/1 var(--font-ui); color: var(--text-dim); margin-left: 10px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 table.hist tr.nl td { color: var(--text-dim); font-size: 12.5px; }
 table.hist td.sc { white-space: nowrap; color: var(--text-bright); width: 1%; }
 table.hist td.sc img { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; object-fit: contain; }
@@ -1000,7 +1011,7 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
   padding: 9px 14px; border-top: 1px solid var(--line-soft); color: var(--text-main); }
 .recent .rp:first-child { border-top: 0; }
 .recent .rp:hover { background: var(--patina-06); box-shadow: inset 4px 0 0 var(--patina); }
-.recent .rd { font: 17px/1 var(--font-label); color: var(--label); letter-spacing: .04em; }
+.recent .rd { font: 500 13px/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .recent .rt { font: 20px/1.1 var(--font-px); color: var(--text-bright); }
 .recent .rb { font: 16px/1 var(--font-label); color: var(--label); text-transform: uppercase; }
 .recent .rc { display: flex; gap: 12px; font-size: 13px; color: var(--text-dim); }
@@ -1114,7 +1125,7 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .it-last { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
 .it-last .pip { font-size: 14px; }
 .it-last .pip .ti { width: 9px; height: 9px; }
-.it-last .d { font: 14px/1 var(--font-label); color: var(--text-dimmer); }
+.it-last .d { font: 500 10px/1 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 /* hover: components pulse, what it builds into lights up, the rest dims (the game's shop) */
 .shop.hovering .icard { opacity: .45; }
 .shop.hovering .icard.is-me, .shop.hovering .icard.is-comp, .shop.hovering .icard.is-up { opacity: 1; }
@@ -1147,8 +1158,12 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .hg-pic img, .hg-pic .noimg { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
 .hg-rib { position: absolute; left: 0; right: 0; bottom: 8px; padding: 3px 0 2px; text-align: center;
   font: 15px/1 var(--font-label); letter-spacing: .1em; text-transform: uppercase; color: var(--bg-page); background: var(--dev); }
+/* the name plate in the hero's own colour from the game (--hero, set per card from m_colorUI) */
+.hgcard { --hero: var(--frame-line); }
 .hg-nm { padding: 6px 6px 2px; font: 600 13px/1.15 var(--font-ui); text-align: center; color: var(--name);
-  background: linear-gradient(var(--band), var(--bg-panel-2)); box-shadow: inset 0 2px 0 var(--frame-line); }
+  background: linear-gradient(color-mix(in srgb, var(--hero) 22%, var(--bg-panel-2)), var(--bg-panel-2));
+  box-shadow: inset 0 3px 0 var(--hero); }
+.hgcard:hover { box-shadow: 0 0 0 2px var(--hero), 0 0 14px color-mix(in srgb, var(--hero) 35%, transparent); }
 .hgrid-cards.rec .hg-nm { font-size: 14px; }
 .hg-meta { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 2px 6px 4px; min-height: 18px; }
 .hg-role { font: 15px/1 var(--font-label); text-transform: uppercase; letter-spacing: .06em; color: var(--label); }
@@ -1158,5 +1173,19 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .hgcard .last { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 7px; padding: 0 4px 6px; margin-top: auto; }
 .hgcard .last .tsum { margin: 0; gap: 6px; }
 .hgcard .last .pip { font-size: 16px; }
-.hgcard .last .d { font: 15px/1 var(--font-label); color: var(--text-dimmer); white-space: nowrap; }
+.hgcard .last .d { font: 500 11px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .hgrid-cards.lab .hgcard { opacity: .8; }
+
+/* ---------- 14. Interface & sound tab: features as a compact grid ---------- */
+.feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.feat { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: var(--bg-panel);
+  box-shadow: inset 0 0 0 1px var(--line-soft); font-size: 13px; line-height: 1.4; color: var(--text-dim); }
+.feat b { display: block; font: 600 13.5px/1.25 var(--font-ui); color: var(--text-bright); margin-bottom: 2px; }
+.feat .mark { margin-top: 1px; }
+.feat.st-described, .feat.st-documented { box-shadow: inset 3px 0 0 var(--patina-dim), inset 0 0 0 1px var(--line-soft); }
+.erow .tx .fname { color: var(--text-bright); font-weight: 600; margin-right: 4px; }
+.nchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.nchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: var(--bg-panel-3);
+  box-shadow: inset 0 0 0 1px var(--line-soft); font-size: 13px; color: var(--text-main); }
+.nchip.pic { padding: 2px 8px 2px 2px; }
+.nchip img { width: 24px; height: 24px; object-fit: cover; background: var(--bg-panel-4); }

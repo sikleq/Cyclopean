@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Interface tab, gold update names, cleaner dates",
+    "items": [
+      "Patch pages: interface, sound and settings changes have their own tab 'Interface & sound', a grid of features with their names in bold; the patch notes keep the gameplay.",
+      "Notes lines the files cannot back no longer say CHANGED; a feature's name is bold.",
+      "Named updates show their name in gold instead of a star icon.",
+      "Dates use a plain font everywhere; the stat history tooltip lines its numbers up in columns.",
+      "Heroes: one grid (no 'Great for new players' row); each name plate carries the hero's colour from the game."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Items and heroes laid out like the game",
     "items": [
       "Items: the game's shop — a row per tier with its price, columns Weapon, Spirit, Vitality; cards show ACTIVE and IMBUE like in the shop; hovering an item lights up its components and what it builds into. Street Brawl legendaries and removed items have their own blocks.",

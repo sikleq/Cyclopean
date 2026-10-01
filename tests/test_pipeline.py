@@ -533,12 +533,12 @@ def test_update_page_keeps_changes_drops_lore():
             'X_MustDo_Crates_Body': 'Require a <1>Heavy Melee</1> to break.', 'X_Notes_1': '<1>Improved anti-cheat</1>',
             'X_Notes_2': 'And many other misc changes...'}
     rules = {'title': 'T', 'date': '2026-01-01', 'skip': '^And many other', 'sections': [
-        {'title': 'Map', 'items': [{'line': 'Lane names: Blue Lane is {X_Blue_Name}'},
+        {'title': 'Map', 'items': [{'line': 'Lane names — Blue Lane is {X_Blue_Name}'},
                                    {'list': 'Landmarks', 'keys': r'^X_Landmark_\d+_Title$'}]},
         {'title': 'Gameplay', 'items': [{'cards': '^X_MustDo_'}]},
         {'title': 'Additional Update Notes', 'items': [{'verbatim': r'^X_Notes_\d+$'}]}]}
     lines = update_page.to_lines(text, rules)
-    assert lines == ['[ Map ]', '- Lane names: Blue Lane is Broadway', '- Landmarks: Uptown',
+    assert lines == ['[ Map ]', '- Lane names — Blue Lane is Broadway', '- Landmarks — Uptown',
                      '[ Gameplay ]', '- Tough Crates: Require a Heavy Melee to break.',
                      '[ Additional Update Notes ]', '- Improved anti-cheat']
     assert not any('first stop' in ln for ln in lines)          # lore is never republished
