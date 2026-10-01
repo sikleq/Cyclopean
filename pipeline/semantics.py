@@ -24,6 +24,14 @@ _LOWER_BETTER = re.compile(
     r'(?:heal|tick|volley|pulse|impact|damage|attack|explosion|explode)interval)',
     re.I,
 )
+# checked BEFORE the lists above, whole names a lower-is-better word inside would flip (audit
+# 2026-10-01, 91 rows): what has to be shorter / smaller …
+_LOWER_FIRST = re.compile(
+    r'(decaydelay|postcast|armtime|chargeuptime|deploytime|timetogain|fadeto|telegraph|gravity|ammoconsumed|'
+    r'bulletstofully|drainrate|durationformax|expandtime|spindecay|nonheroreduction)', re.I)
+# … and what has to be bigger: health on respawn, a delay that grows with spirit, a bonus to the
+# damage the ENEMY takes (Alchemical Fire), how long before rage drains
+_HIGHER_FIRST = re.compile(r'(respawnhealth|wakeupdelay|draindelay|bonus\w*damagetaken)', re.I)
 # fields where direction is not meaningful for the owner
 _NEUTRAL = re.compile(r'(tangent|spline|curve|domain|seed|index|order|count_max_ui|_class|mask|bits|flags?$)', re.I)
 
@@ -53,13 +61,18 @@ def polarity(path: str) -> int:
     name = property_name(path)
     if _NEUTRAL.search(name):
         return 0
+    if _HIGHER_FIRST.search(name):
+        return 1
+    if _LOWER_FIRST.search(name):
+        return -1
     m = _LOWER_BETTER.search(name)
     if not m:
         return 1
     return 1 if _NEGATED.search(name[m.end():]) else -1
 
 
-def direction(path: str, old, new, kind: str = '', drawback: bool = False) -> tuple[str, float | None]:
+def direction(path: str, old, new, kind: str = '', drawback: bool = False,
+              negative_base: bool = False) -> tuple[str, float | None]:
     """('buff'|'nerf'|'changed', signed percent or None) for a numeric change.
 
     Magnitudes are compared (|x|): debuffs are stored as negative numbers
@@ -73,6 +86,8 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False) -> tu
         return 'changed', None
     a, b = abs(float(old)), abs(float(new))
     pct = None if a == 0 else (b - a) / a * 100.0
+    if (float(old) in SENTINELS or float(new) in SENTINELS) and not UPGRADE_BONUS.search(path):
+        return 'changed', None              # "no limit" (-1, 9999) on one side: no direction, no %
     if drawback and kind not in SHARED_KINDS:
         return ('changed' if a == b else 'nerf' if b > a else 'buff'), pct
     if kind in SHARED_KINDS:
@@ -99,6 +114,11 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False) -> tu
         x, y = float(old), float(new)
         if x == y:
             return 'changed', pct
+        if negative_base and pol > 0 and x <= 0 and y <= 0:
+            # a bonus to a debuff stored as a negative number (dash slow −50, shred −8): a bigger
+            # magnitude is a stronger debuff. Sleep Dagger T3 −50 → −45 is the 09-16 "dash slows
+            # reduced by ~10%", Enhanced Escalating Exposure −8 → −10 is "shred +8 → +10" (39 rows)
+            return ('buff' if abs(y) > abs(x) else 'nerf'), pct
         better = (y > x) if pol > 0 else (y < x)
         return ('buff' if better else 'nerf'), pct
     better = (b > a) if pol > 0 else (b < a)
@@ -167,6 +187,25 @@ LEVEL_UP_LABELS = {
     'MODIFIER_VALUE_TECH_DAMAGE_PERCENT': 'Spirit damage % per boon',
 }
 
+# "meters" says how an engine number is shown: False as is, True a distance (units / 39.37 -> m),
+# SPEED a speed (units/s -> m/s)
+SPEED = 'speed'
+_NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|Delay|Rate|Chance|Factor|Alpha|Angle|'
+                           r'Yaw|Pitch|Degree|Interval|Cooldown|Damage|Health|DPS|Resist|Reward|Bounty|Gold|Fov|Count)',
+                           re.I)
+
+
+def engine_unit(leaf: str) -> bool | str:
+    """An engine float named like a length or a speed is in engine units: Walker 'Invul Modifier Range
+    1338.58 → 866.14' is 34 → 22 m, a projectile 'Speed 1050 → 400' is 26.7 → 10.2 m/s (audit
+    2026-10-01: 302 rows of abilities, 225 of units in raw units)."""
+    if not leaf.startswith('m_fl') or _NOT_A_LENGTH.search(leaf[4:]):
+        return False
+    if re.search(r'(Speed|Velocity)', leaf):
+        return SPEED
+    return bool(re.search(r'(Range|Radius|Distance|Dist$|Height|Width|Length|Offset)', leaf))
+
+
 # weapon fields (m_mapWeaponInfos.primary.*): label, meters?
 WEAPON_FIELDS = {
     'm_flBulletDamage': ('Bullet Damage', False),
@@ -177,7 +216,7 @@ WEAPON_FIELDS = {
     'm_iClipSize': ('Ammo', False),
     'm_reloadDuration': ('Reload Time', False),
     'm_flReloadSingleBulletsInitialDelay': ('Reload Start Delay', False),
-    'm_flBulletSpeed': ('Bullet Velocity', True),
+    'm_flBulletSpeed': ('Bullet Velocity', SPEED),
     'm_flDamageFalloffStartRange': ('Falloff Start', True),
     'm_flDamageFalloffEndRange': ('Falloff End', True),
     'm_flDamageFalloffEndScale': ('Damage at Falloff End', False),
@@ -186,7 +225,7 @@ WEAPON_FIELDS = {
     'm_flCritBonusEnd': ('Headshot Multiplier (far)', False),
     'm_flCritBonusAgainstNPCs': ('Headshot Multiplier vs NPCs', False),
     'm_flBulletGravityScale': ('Bullet Gravity', False),
-    'm_flBulletRadius': ('Bullet Radius', False),
+    'm_flBulletRadius': ('Bullet Radius', True),
     'm_Spread': ('Spread', False),
     'm_StandingSpread': ('Standing Spread', False),
     'm_flShootSpreadPenaltyPerShot': ('Spread per Shot', False),
@@ -215,8 +254,8 @@ UNIT_FIELDS = {
     'm_flBackDoorProtectionRange': ('Backdoor Protection Range', True),
     'm_flGoldReward': ('Soul Bounty', False),
     'm_flGoldRewardBonusPercentPerMinute': ('Bounty Growth per Minute', False),
-    'm_flWalkSpeed': ('Walk Speed', True),
-    'm_flRunSpeed': ('Run Speed', True),
+    'm_flWalkSpeed': ('Walk Speed', SPEED),
+    'm_flRunSpeed': ('Run Speed', SPEED),
     'm_flMeleeDamage': ('Melee Damage', False),
     'm_flMeleeHitRange': ('Melee Range', True),
     'm_flStompDamage': ('Stomp Damage', False),
@@ -275,7 +314,22 @@ def stat_unit(tok: dict[str, str], stat: str) -> str:
 # what a tier's scaling bonus scales with (m_eScaleStatFilter); almost always Spirit Power, but
 # Fixation's T3 scales with weapon damage and read "(spirit scaling)" until 2026-10-01
 SCALE_STAT_WORDS = {'EWeaponPower': 'weapon damage', 'EBaseWeaponDamageIncrease': 'weapon damage',
+                    'EBulletDamage': 'weapon damage', 'EWeaponDamageScale': 'weapon damage',
+                    'ELevelUpBoons': 'boon', 'ELightMeleeDamage': 'light melee damage', 'EHealingOutput': 'healing',
                     'ETechRange': 'range'}
+# scale functions that name their stat by class, not by m_eSpecificStatScaleType
+SCALE_CLASS_STAT = {'scale_function_healing_boon_scale': 'ELevelUpBoons',
+                    'scale_function_base_weapon_damage': 'EBaseWeaponDamageIncrease',
+                    'scale_function_ability_weapon_damage': 'EWeaponPower'}
+
+
+def scale_stat(data: dict | None, prop: str) -> str | None:
+    """The stat an ability property's coefficient multiplies (ETechPower, ELevelUpBoons…), from the data."""
+    d = ((data or {}).get('m_mapAbilityProperties') or {}).get(prop)
+    sf = d.get('m_subclassScaleFunction') if isinstance(d, dict) else None
+    if not isinstance(sf, dict):
+        return None
+    return sf.get('m_eSpecificStatScaleType') or SCALE_CLASS_STAT.get(str(sf.get('_class', '')))
 
 
 def scaling_suffix(parts) -> str:
@@ -290,8 +344,17 @@ _PROP_RE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.(.+)$')
 _CORRUPTED_RE = re.compile(r'^m_CorruptedItemInfo\.m_Upgrade\.m_vecPropertyUpgrades\{([^}]+)\}\.m_strBonus$')
 
 
-def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -> dict:
-    """{label, meters, group} for a field path of an entity."""
+def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', scaled_by: str | None = None) -> dict:
+    """{label, meters, group} for a field path of an entity. `scaled_by`: the stat the property's
+    coefficient multiplies (scale_stat), so a coefficient reads "(boon scaling)", not "(spirit scaling)"."""
+    d = _describe(path, tok, entity, kind)
+    word = SCALE_STAT_WORDS.get(scaled_by or '')
+    if word and '(spirit scaling' in d['label']:
+        d = {**d, 'label': d['label'].replace('(spirit scaling', f'({word} scaling')}
+    return d
+
+
+def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -> dict:
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]
@@ -322,7 +385,12 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -
             label += ' (Street Brawl)'
         elif field != 'm_strBonus':
             label += f' · {humanize(field)}'
-        prefix = f'T{tier}' if kind in ('ability', 'ability_other', '') else 'Upgrade'
+        if 'EMultiplyBase' in parts:
+            label += ' (% of base)'                 # Ground Strike T3 "+120%", not a flat +120
+        # an item's only upgrade entry is its Enhanced version (Street Brawl's draft): "Enhanced
+        # Escalating Exposure: shred +8 → +10" in the notes, "Upgrade:" on 646 rows until 2026-10-01
+        prefix = (f'T{tier}' if kind in ('ability', 'ability_other', '')
+                  else 'Enhanced' if kind == 'item' else 'Upgrade')
         return {'label': f'{prefix}: {label}', 'meters': False, 'group': 'tier', 'prop': prop, 'tier': tier}
     if path.startswith('m_mapStartingStats.'):
         stat = path.split('.')[1]
@@ -336,7 +404,7 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -
         return {'label': f'{stat_label(tok, stat)} per Spirit', 'meters': False, 'group': 'scaling'}
     if path.startswith('m_mapWeaponInfos.'):
         field = path.split('.')[2] if path.count('.') >= 2 else path
-        label, meters = WEAPON_FIELDS.get(field, (humanize(field), False))
+        label, meters = WEAPON_FIELDS.get(field, (humanize(field), engine_unit(field)))
         slot = path.split('.')[1]
         if slot != 'primary':
             label = f'{label} ({humanize(slot)})'
@@ -358,7 +426,7 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -
         if m:
             label = f'Weak point ({m.group(1)}): {label[:1].lower() + label[1:]}'
         return {'label': label, 'meters': meters, 'group': 'unit'}
-    return {'label': context_label(path), 'meters': False, 'group': 'other'}
+    return {'label': context_label(path), 'meters': engine_unit(leaf), 'group': 'other'}
 
 
 # ---- plain words for structures the game never labels (audit 2026-10-01) ----------------------
@@ -441,7 +509,48 @@ def context_label(path: str, depth: int = 3) -> str:
     return ' › '.join(s for s in shown if s)
 
 
-def display_value(v, meters: bool = False) -> str:
+_RAW_NUM = re.compile(r'^\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*(m|s|%|u)?\s*$')
+# "no limit" / "none" written as a number: Channel Move Speed 50 -> -1 is not a -98% nerf
+SENTINELS = (-1.0, -2.0, 9999.0, 99999.0)
+
+
+def reencoded(old, new, path: str = '') -> bool:
+    """The same value written another way (audit 2026-10-01, ~86 rows shown as huge changes):
+    engine units -> metres ("200" -> "5.1m" is 200/39.37), a fraction -> a percent in a field named
+    so (Echo Shard's Imbued Cooldown Multiplier 1 -> 100)."""
+    def parse(v):
+        if isinstance(v, bool) or v is None:
+            return None, ''
+        if isinstance(v, (int, float)):
+            return float(v), ''
+        m = _RAW_NUM.match(str(v))
+        return (float(m.group(1)), m.group(2) or '') if m else (None, '')
+    (a, ua), (b, ub) = parse(old), parse(new)
+    if a is None or b is None or a == b or 0 in (a, b):
+        return False
+    near = lambda x, y: abs(x - y) <= 0.02 * max(abs(x), abs(y))     # noqa: E731
+    if ua != ub and 'm' in (ua, ub):
+        units, metres = (a, b) if ub == 'm' else (b, a)
+        return near(units / UNITS_PER_METER, metres)
+    if not re.search(r'(Multiplier|Percent|Pct|Scale|Frac)', property_name(path)):
+        return False
+    return 0 < abs(a) <= 1 and near(a * 100, b) or 0 < abs(b) <= 1 and near(b * 100, a)
+
+
+def display_raw(v, meters: bool | str = False) -> str:
+    """A value as the records keep it (a number, or a string such as "12.19m"): a number written
+    in metres is not divided again, engine units are."""
+    if isinstance(v, str):
+        m = _RAW_NUM.match(v)
+        if m:
+            x = float(m.group(1))
+            if m.group(2) == 'm':
+                return display_value(x) + ('m/s' if meters == SPEED else 'm')
+            return display_value(x, meters)
+    return display_value(v, meters)
+
+
+def display_value(v, meters: bool | str = False) -> str:
     if v is None:
         return '—'
     if isinstance(v, bool):
@@ -456,7 +565,7 @@ def display_value(v, meters: bool = False) -> str:
             s = f'{float(f"{x:.4g}"):.8f}'.rstrip('0').rstrip('.')
         else:
             s = f'{x:.2f}'.rstrip('0').rstrip('.')
-        return s + ('m' if meters else '')
+        return s + ('m/s' if meters == SPEED else 'm' if meters else '')
     if isinstance(v, list):
         return ', '.join(display_value(x) for x in v)
     return str(v)

@@ -143,9 +143,9 @@ def _legacy(obj: dict) -> dict:
     """Old schema rewritten into today's shape, so a format change is not a game change. Before
     build 5747 a weapon's bullet speed was a curve whose points all held the same speed
     (m_BulletSpeedCurve); since then it is m_flBulletSpeed. As a curve, Chrono's 18000 -> 16200 in
-    build 5017 read as an engine detail, and 5747 read as "curve removed, speed added" for 94 weapons."""
-    if 'm_flBulletSpeed' in obj:
-        return obj
+    build 5017 read as an engine detail, and 5747 read as "curve removed, speed added" for 94 weapons.
+    A flat curve wins over a field next to it: Haze carried m_flBulletSpeed 8000 beside a curve of
+    30000, and 5747 kept 30000 — the curve was the speed (a fake "+275%" otherwise)."""
     speed = _flat_curve_value(obj.get('m_BulletSpeedCurve'))
     if speed is None:
         return obj
@@ -164,7 +164,14 @@ def _flatten(obj, prefix: str, out: dict) -> dict:
             _flatten(v, f'{prefix}.{k}' if prefix else str(k), out)
     elif isinstance(obj, list):
         if all(not isinstance(x, (dict, list)) for x in obj):
-            out[prefix] = tuple(sorted((norm_scalar(x) for x in obj), key=lambda x: (str(type(x)), str(x))))
+            vals = [norm_scalar(x) for x in obj]
+            if vals and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals):
+                # numbers in order mean something — prices per tier, resist per enemy count, a
+                # [min, max] spread, a pellet's offset; sorted, "0, 1200, 3000, 500, 6500" (audit 2026-10-01)
+                out[prefix] = tuple(vals)
+            else:
+                # names / flags: a set, so Valve reordering them is not a change
+                out[prefix] = tuple(sorted(vals, key=lambda x: (str(type(x)), str(x))))
         else:
             keyfn = _list_key(obj)
             for i, item in enumerate(obj):

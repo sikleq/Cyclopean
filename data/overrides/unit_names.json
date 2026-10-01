@@ -5,6 +5,9 @@
     ["^trooper_medic$", "Citadel_AttackerClass_CLASS_TROOPER_MEDIC"],
     ["^trooper_melee$", "Citadel_AttackerClass_CLASS_TROOPER_MELEE"],
     ["^trooper_normal$", "Citadel_AttackerClass_CLASS_TROOPER"],
-    ["^npc_super_neutral$", "Citadel_Hud_KillFeedSuperNeutral"]
-  ]
+    ["^npc_super_neutral$", "objective_midboss"],
+    ["^destroyable_building$", "shrine_unit"],
+    ["^npc_shielded_sentry$", "citadel_ability_shieldedsentry"]
+  ],
+  "_why_2026_10_01": "audit: the Mid Boss reads 'Mid-Boss' (objective_midboss) rather than the kill feed's 'MidBoss'; the Shrine (destroyable_building) is 'shrine_unit'; McGinnis' turret unit takes its ability's name 'Mini Turret'"
 }

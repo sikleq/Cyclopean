@@ -26,7 +26,8 @@ def _kind(file: str, eid: str, data: dict, owners: dict) -> str:
         return ability_kind(eid, data, owners)
     if file == 'npc_units.vdata':
         kind = unit_kind(eid, data)
-        return 'helper' if kind == 'unit' and unit_is_helper(eid, data) else kind
+        # any kind: the Hideout's cat is "neutral" by its id, a zipline container "trooper"
+        return 'helper' if unit_is_helper(eid, data) else kind
     if file == 'modifiers.vdata':
         return 'modifier'
     return 'global'
@@ -38,6 +39,7 @@ def build() -> dict:
     last_blobs: dict[str, str | None] = {}
     current: dict[str, set[str]] = {}         # ids in the latest version of each file
     heroes: dict = {}
+    abilities_now: dict = {}
     head = tracker.builds()[-1]
     for b in tracker.builds():
         touched = [f for f in FILES if tracker.SCRIPTS + f in b.files]
@@ -51,7 +53,9 @@ def build() -> dict:
             last_blobs[f] = blob
         if 'heroes.vdata' in snap:
             heroes = snap['heroes.vdata'][1]
-        owners = hero_bound_abilities(heroes)
+        if 'abilities.vdata' in snap:
+            abilities_now = snap['abilities.vdata'][1]
+        owners = hero_bound_abilities(heroes, abilities_now)
         ability_slots = {}
         for h in heroes.values():
             if isinstance(h, dict):

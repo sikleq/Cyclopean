@@ -15,11 +15,15 @@ from __future__ import annotations
 
 import re
 
-AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastHit|Footstep|m_sSelfDestruct(Start|End))')
+AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastHit|(?<!Reduce)Footstep|'
+                      r'm_sSelfDestruct(Start|End)|BulletWhiz)')
+# Light / Effect / Model also start gameplay words: LightMelee*, *Effectiveness, ModelScaleGrowth (a
+# hero grows bigger) — 77 gameplay rows read as visual and lost their values (audit 2026-10-01)
 VISUAL_RE = re.compile(
-    r'(Particle|Material|Model|Image|Icon|[Cc]olor|Anim|Decal|Effect|Glow|Tracer|Muzzle|'
-    r'Screen(?!ing)|Skin|Camera|Shake|Light(?!ning)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
-    r'Pose|Attachment|Bodygroup|Ragdoll|Gib|Portrait|Logo|Emblem|Sprite|Fov|Movie|Video|m_h[A-Z]|m_particle|DOF)'
+    r'(Particle|Material|Model(?!Scale)|Image|Icon|[Cc]olor|Anim|Decal|Effect(?!iveness)|Glow|Tracer|Muzzle|'
+    r'Screen(?!ing)|Skin|Camera|Shake|Light(?!ning|Melee)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
+    r'Pose|Attachment|Bodygroup|Ragdoll|Gib|Portrait|Logo|Emblem|Sprite|[Ff][Oo][Vv]|Movie|Video|m_h[A-Z]|m_particle|DOF|'
+    r'Desat|RangeRing|Dying|DeathFade|BreakableForce)'
 )
 UI_RE = re.compile(
     r'(Tooltip|m_strCSSClass|DisplayUnit|m_heroStatsUI|m_heroStatsDisplay|m_ShopStatDisplay|'
@@ -37,7 +41,8 @@ AVAILABILITY_RE = re.compile(
 META_RE = re.compile(
     r'(^|\.)(m_bNeedsTesting|m_bLimitedTesting|m_bLaneTestingRecommended|m_bNewPlayerRecommended|'
     r'm_nComplexity|m_eHeroType|m_vecHeroTags|m_strGunTag|m_HeroID|_base|_multibase|_not_pickable)$')
-CAMERA_RE = re.compile(r'camera|recoil|punch|viewkick|shake', re.I)
+# the camera's own motion; a gun's recoil moves the aim (gameplay) and Viscous' Puddle Punch is an ability
+CAMERA_RE = re.compile(r'camera|viewpunch|(vertical|horizontal)punch|punchangle|viewkick|shake', re.I)
 
 
 STREET_BRAWL_RE = re.compile(r'StreetBrawl|ItemDraft', re.I)
@@ -46,8 +51,8 @@ STREET_BRAWL_RE = re.compile(r'StreetBrawl|ItemDraft', re.I)
 # scale-function wiring, state bit masks, property-type plumbing, spline
 # internals of curves (the gameplay value, e.g. m_flBulletSpeed, is kept).
 TECHNICAL_RE = re.compile(
-    r'((^|\.)(_class|_my_subclass_name)$|m_vecScript(Values|EventHandlers)|m_eSpecificStatScaleType|m_vecScalingStats|'
-    r'm_bits\w*Mask|m_nEnabledStateMask|m_UsageFlags|m_eProvidedPropertyType|m_ValueType|'
+    r'((^|\.)(_class|_my_subclass_name)$|m_vecScriptEventHandlers|m_vecScriptValues(?!.*m_value$)|'
+    r'm_bits\w*Mask|m_nEnabledStateMask|m_UsageFlags|m_ValueType|'
     r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|m_AutoIntrinsicModifiers|'
     r'm_strAG2SourceName|m_nShopVersion|m_strSelectionNameOverride|m_eShopFilters|m_eAdditionalShopFilters|'
     r'm_strDisableItemTarget|m_strPropertyName$|'
@@ -66,10 +71,14 @@ VISUAL_EXTRA_RE = re.compile(
 # fields players never see as gameplay (audit 2026-10-01): HUD placement, presence text, unit name
 # keys, collision hulls, the flight physics of soul orbs, what NPCs (not heroes) can see
 UI_MORE_RE = re.compile(r'(RichPresence|m_eHudStyle|HudStyle|m_nNameOffset|HealthBarOffset|m_strLocUnitName|'
-                        r'm_sLocUnitName|NameOffset|m_bIsHiddenOverhead|vOffset2D)')
+                        r'm_sLocUnitName|NameOffset|m_bIsHiddenOverhead|vOffset2D|HudSharedStyle|LocToken|'
+                        r'SecondaryStatName|CrosshairCSSClass|SpectatePriority|ShowTargetingPreview|'
+                        r'ReverseHudProgressBar|LowAmmoIndicator)')
 META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
 TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
                            r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities|'
+                           # physics / netcode / NPC steering, not a number a player plays against
+                           r'DamageForce|MaxLagCompensation|HullCapsule|ClipCapsule|navHull|Squad|Strafe|TurnRate|'
                            # an editor check ("warn the designer if no ability is affected"), shown as NEW
                            # on five headshot items in 2026-01-30
                            r'm_bWarnIfNoAffectedAbilities)')
@@ -77,6 +86,29 @@ TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHul
 
 def _zero(v) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and float(v) == 0.0
+
+
+# what a value scales with / which stat it feeds: a CHANGE is a real one ("Damage now scales with light
+# melee damage", "Regen instead of max health": 273 rows hidden as technical); adding or removing the
+# wiring alongside a new property is scaffolding
+WIRING_RE = re.compile(r'(m_eSpecificStatScaleType|m_vecScalingStats|m_eProvidedPropertyType)')
+# the shape of a value says what it is, whatever the field's name (audit 2026-10-01)
+SOUND_VALUE = re.compile(r'^[A-Z][A-Za-z0-9]*(\.[A-Za-z0-9_]+){1,5}$')        # Ability.Bebop.Hook.ImpactGeo
+FILE_VALUE = re.compile(r'(\.(vcss|vpcf|vmdl|vsnd|vtex|vmat|vxml|xml|png|psd|vjs)\b|file://|^panorama/)', re.I)
+LOC_KEY_VALUE = re.compile(r'^#[A-Za-z]\w+$')                                   # #AbilityButtonHint_AltCast
+UNIX_TIME = (1.2e9, 2.5e9)                                                    # "Added Time 1737133200"
+_NUMISH = re.compile(r'^\s*[-+]?(\d+\.?\d*|\.\d+)\s*(m|s|%|u)?\s*$')
+
+
+def _value_kind(v) -> str | None:
+    if isinstance(v, str):
+        if FILE_VALUE.search(v):
+            return 'ui' if '.vcss' in v.lower() else 'visual'
+        if LOC_KEY_VALUE.match(v):
+            return 'ui'
+        if SOUND_VALUE.match(v) and not v.isupper():
+            return 'audio'
+    return None
 
 
 def category(path: str, old, new) -> str:
@@ -93,6 +125,14 @@ def category(path: str, old, new) -> str:
     # a property added with value 0 (or a 0 removed) is scaffolding for an upgrade
     if (old is None and _zero(new)) or (new is None and _zero(old)):
         return 'technical'
+    if WIRING_RE.search(path):
+        return 'mechanic' if old is not None and new is not None else 'technical'
+    shape = _value_kind(new) or _value_kind(old)
+    if shape:
+        return shape
+    if 'Time' in path and any(isinstance(v, (int, float)) and not isinstance(v, bool)
+                              and UNIX_TIME[0] < float(v) < UNIX_TIME[1] for v in (old, new)):
+        return 'meta'
     if AVAILABILITY_RE.search(path):
         return 'availability'
     if META_RE.search(path):
@@ -111,20 +151,38 @@ def category(path: str, old, new) -> str:
 
 
 def _is_num(v) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool)
+    """A number — also as the records store one with its unit ("20m", "2s"): enrich re-derives the
+    category from the JSON, and "20m" read as text filed 986 balance rows as mechanics (audit 2026-10-01)."""
+    if isinstance(v, bool):
+        return False
+    return isinstance(v, (int, float)) or (isinstance(v, str) and bool(_NUMISH.match(v)))
 
 
 # ---- entity kinds -------------------------------------------------------
 
-def hero_bound_abilities(heroes: dict) -> dict[str, str]:
-    """{ability_id: hero_id} from every hero's m_mapBoundAbilities."""
+TEMPLATE_HEROES = ('hero_base', 'hero_genericperson', 'hero_targetdummy', 'hero_testhero')
+_OWN_PREFIX = re.compile(r'^(?:citadel_)?(?:ability|weapon)_(?:melee_)?([a-z0-9]+)_')
+
+
+def hero_bound_abilities(heroes: dict, abilities: dict | None = None) -> dict[str, str]:
+    """{ability_id: hero_id} from every hero's m_mapBoundAbilities — real heroes first: the
+    templates (hero_base…) bind defaults too, and hero_base, first in the file, had taken Infernus'
+    gun and melee (audit 2026-10-01). With `abilities`, a sub-ability no hero binds (a recast, an
+    ultimate's second part: 112 orphans of Silver, Venator, Drifter…) goes to the hero its id names
+    ('ability_werewolf_x' -> hero_werewolf)."""
     owner: dict[str, str] = {}
-    for hid, hero in heroes.items():
-        if not isinstance(hero, dict) or not hid.startswith('hero_'):
-            continue
+    heroes_ = [(hid, h) for hid, h in heroes.items() if isinstance(h, dict) and hid.startswith('hero_')]
+    template = lambda hid, h: hid in TEMPLATE_HEROES or bool(h.get('_not_pickable'))     # noqa: E731
+    for hid, hero in sorted(heroes_, key=lambda kv: template(*kv)):       # stable: file order otherwise
         for ab in (hero.get('m_mapBoundAbilities') or {}).values():
             if isinstance(ab, str) and ab:
                 owner.setdefault(ab, hid)
+    if abilities:
+        codes = {hid[5:]: hid for hid, h in heroes_ if not template(hid, h)}
+        for aid in abilities:
+            m = _OWN_PREFIX.match(aid)
+            if aid not in owner and m and m.group(1) in codes:
+                owner[aid] = codes[m.group(1)]
     return owner
 
 

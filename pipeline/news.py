@@ -119,12 +119,40 @@ def title_date(title: str) -> str | None:
     return f'{m.group(3)}-{m.group(1)}-{m.group(2)}' if m else None
 
 
+_DATED_PATCH = re.compile(r'^(\d{2})-(\d{2})-(\d{4})\s+Patch:?\s*$', re.I)
+
+
+def dated_chunks(lines: list[str], first: str) -> list[tuple[str, list[str]]]:
+    """A post cut where a later patch starts: "[ Follow-up 2025-11-23 ]" (forum author follow-ups)
+    or "03-10-2026 Patch:" (Valve appends later patches to an old post: 03-06-2026 carries the
+    03-07, 03-10 and 03-21 patches — ~300 lines were matched against 03-06's builds). Chunks of one
+    date join: 2025-11-21 had two "Follow-up 2025-11-23" blocks and the second was dropped (audit
+    2026-10-01)."""
+    chunks: dict[str, list[str]] = {first: []}
+    cur = first
+    for ln in lines:
+        s = ln.strip()
+        m = _FOLLOW_UP.match(s)
+        d = _DATED_PATCH.match(s)
+        if m or d:
+            cur = m.group(1) if m else f'{d.group(3)}-{d.group(1)}-{d.group(2)}'
+            chunks.setdefault(cur, [])
+            continue
+        chunks[cur].append(ln)
+    return list(chunks.items())
+
+
 def steam_notes() -> list[Notes]:
     items = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else []
     out = []
     for it in items:
         date = title_date(it['title']) or datetime.fromtimestamp(it['date'], timezone.utc).strftime('%Y-%m-%d')
-        out.append(Notes(it['title'], date, it['url'], 'steam', parse_lines(bbcode_lines(it['contents']))))
+        for i, (d, chunk) in enumerate(dated_chunks(bbcode_lines(it['contents']), date)):
+            if not chunk:
+                continue
+            title = it['title'] if i == 0 else f'{it["title"]} · follow-up {d}'
+            url = it['url'] if i == 0 else f'{it["url"]}#follow-up-{d}'
+            out.append(Notes(title, d, url, 'steam', parse_lines(chunk)))
     return out
 
 
@@ -144,13 +172,7 @@ def forum_notes() -> list[Notes]:
             continue
         lines = [ln for ln in body if ln.strip() and not _SERVICE_LINE.match(ln.strip())]
         # author follow-ups shipped in later builds: each becomes its own notes
-        chunks: list[tuple[str, list[str]]] = [(p.stem[:10], [])]
-        for ln in lines:
-            m = _FOLLOW_UP.match(ln.strip())
-            if m:
-                chunks.append((m.group(1), []))
-            else:
-                chunks[-1][1].append(ln)
+        chunks = dated_chunks(lines, p.stem[:10])
         for i, (date, chunk) in enumerate(chunks):
             if not chunk:
                 continue
@@ -166,11 +188,14 @@ _FOLLOW_UP = re.compile(r'^\[\s*Follow-up\s+(\d{4}-\d{2}-\d{2})\s*\]$', re.I)
 
 
 def all_notes() -> list[Notes]:
+    notes = sorted(forum_notes() + steam_notes(), key=lambda n: n.date)
+    # a patch Valve also posted on its own (03-21-2026) is that post, not the copy appended to an old one
+    own_posts = {n.date for n in notes if ' · follow-up ' not in n.title}
     seen = set()
     result = []
-    for n in sorted(forum_notes() + steam_notes(), key=lambda n: n.date):
+    for n in notes:
         key = (n.date, n.title.lower())
-        if key in seen:
+        if key in seen or (' · follow-up ' in n.title and n.date in own_posts):
             continue
         seen.add(key)
         result.append(n)

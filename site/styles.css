@@ -310,6 +310,7 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .section > h2:first-child, .section > h3:first-child { margin-top: 0; }
 .section-title { display: flex; align-items: center; gap: 10px; }
 .section-title .chip { margin-left: auto; }
+.section-title .dimmer { font: 500 13px/1 var(--font-ui); letter-spacing: 0; }   /* a date: never the pixel font */
 details.collapsible > summary { cursor: pointer; list-style: none; font: 600 15px/1.2 var(--font-ui); color: var(--text-bright); padding: 4px 0; }
 details.collapsible > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--patina); font-family: var(--font-px-small); }
 details.collapsible[open] > summary::before { content: "-"; }

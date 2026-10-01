@@ -14,7 +14,7 @@ import time
 
 from .hero_table import history_changes
 from . import cache, loc, tracker
-from .classify import unit_kind
+from .classify import unit_is_helper, unit_kind
 from .semantics import UNITS_PER_METER
 
 OUT = tracker.ROOT / 'data' / 'tables' / 'units.json'
@@ -25,10 +25,15 @@ WEAPON_PREFIXES = ('m_mapWeaponInfos.primary.', 'm_WeaponInfo.')
 # key, label, group, candidate paths, metres?, polarity (for colouring only), digits
 COLUMNS = (
     ('hp', 'Health', 'Vitality', ('m_nMaxHealth', 'm_iMaxHealth', 'm_iStartingHealth', 'm_iMaxHealthGenerator'), False, 0, 0),
-    ('hp_min', 'Health / min', 'Vitality', ('m_iHealthGainPerMinute', 'm_ObjectiveHealthGrowthPhase1'), False, 0, 1),
+    # the Shrine's second life (after its first generator falls): 10000
+    ('hp2', 'Health (2nd phase)', 'Vitality', ('m_iMaxHealthGeneratorSecond',), False, 0, 0),
+    # the Patron's growth is a modifier block (audit 2026-10-01: the path pointed at the block, not its number)
+    ('hp_min', 'Health / min', 'Vitality', ('m_iHealthGainPerMinute', 'm_ObjectiveHealthGrowthPhase1.m_iGrowthPerMinute'),
+     False, 0, 1),
     ('res_hero', 'Resist vs Heroes', 'Vitality', ('m_flPlayerDamageResistPct', 'm_VSPlayer.m_flDamageResist'), False, 0, 1),
     ('res_trooper', 'Resist vs Troopers', 'Vitality', ('m_flTrooperDamageResistPct', 'm_VSTrooper.m_flDamageResist'), False, 0, 1),
-    ('backdoor_regen', 'Backdoor Regen', 'Vitality', ('m_BackdoorProtectionModifier.m_flHealthPerSecondRegen',), False, 0, 1),
+    ('backdoor_regen', 'Backdoor Regen', 'Vitality', ('m_BackdoorProtectionModifier.m_flHealthPerSecondRegen',
+                                                       'm_BackdoorProtection.m_flHealthPerSecondRegen'), False, 0, 1),
     ('dps_hero', 'DPS vs Heroes', 'Attack', ('m_flPlayerDPS', 'm_VSPlayer.m_flBaseDPS'), False, 0, 1),
     ('dps_trooper', 'DPS vs Troopers', 'Attack', ('m_flTrooperDPS', 'm_VSTrooper.m_flBaseDPS'), False, 0, 1),
     ('melee', 'Melee Damage', 'Attack', ('m_flMeleeDamage',), False, 0, 1),
@@ -83,6 +88,8 @@ def build() -> dict:
         units = cache.vdata_blob(blob)
         for uid, u in units.items():
             if not isinstance(u, dict) or u.get('_not_pickable') or unit_kind(uid, u) not in KINDS:
+                continue
+            if unit_is_helper(uid, u):             # the Hideout's cat and rabbit, a zipline container
                 continue
             hs = series.setdefault(uid, {})
             for k, v in evaluate(u).items():

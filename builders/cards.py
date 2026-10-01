@@ -175,6 +175,8 @@ def is_noop(c: dict) -> bool:
     final value decides (Sleep Dagger's "Explosion Radius 0" NEW in City Never Sleeps was a field
     tuned to 0 within the window)."""
     op = c.get('op')
+    if c.get('same'):
+        return True        # the same value written another way (units -> metres, 1 -> 100%)
     if op == 'change':
         # compared as the page prints them: "ELOSCheck_Bounds → Bounds" or an id and its name
         # read "Bounds → Bounds" (28 MECH rows, audit 2026-10-01)

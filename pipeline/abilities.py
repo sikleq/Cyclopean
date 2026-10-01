@@ -18,7 +18,7 @@ import re
 
 from . import cache, loc, tracker
 from .classify import ability_kind, hero_bound_abilities
-from .semantics import humanize, scaling_suffix
+from .semantics import SCALE_STAT_WORDS, humanize, scale_stat, scaling_suffix
 
 OUT = tracker.ROOT / 'data' / 'abilities.json'
 HEADER_PROPS = (
@@ -161,8 +161,14 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
         if not isinstance(d, dict) or _empty(d.get('m_strValue', '')):
             return None
         scale = (d.get('m_subclassScaleFunction') or {}).get('m_flStatScale')
-        return {'prop': p, 'label': _label(tok, p, aid, alias.get(p)), 'value': fmt_prop(tok, p, d['m_strValue'], aid),
+        stat = scale_stat(a, p)
+        value = fmt_prop(tok, p, d['m_strValue'], aid)
+        if d.get('m_eDisplayUnits') == 'EDisplayUnit_MetersPerSecond' and value.endswith('m'):
+            value += '/s'                     # a speed: "Sleep Movespeed 1.5m/s", not "1.5m"
+        return {'prop': p, 'label': _label(tok, p, aid, alias.get(p)), 'value': value,
                 'scale': float(scale) if isinstance(scale, (int, float)) and scale else None,
+                # what the coefficient multiplies: "+4×Boon" on Headhunter, not "×Spirit" (34 rows)
+                'scale_by': SCALE_STAT_WORDS[stat].title() if stat in SCALE_STAT_WORDS else None,
                 'css': css_class(d)}
 
     header = []
@@ -179,8 +185,8 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
         bonuses = []
         for u in ups:
             p, b = u.get('m_strPropertyName'), u.get('m_strBonus')
-            if not p or b is None:
-                continue
+            if not p or b is None or _num_s(b).rstrip('ms%') in ('0', '-0'):
+                continue                       # a zero bonus ("Cooldown +0s" on 103 rows) is no bonus
             scale = u.get('m_eUpgradeType') in ('EAddToScale', 'EMultiplyScale')
             vals.setdefault(p, _num_s(b))
             if scale:                          # "{s:MaxBonusBulletDamage_scale}%": the tier's scaling bonus
@@ -236,7 +242,7 @@ def build() -> dict:
     abilities = cache.vdata(head.commit, tracker.SCRIPTS + 'abilities.vdata')
     generic = cache.vdata(head.commit, tracker.SCRIPTS + 'generic_data.vdata')
     prices = generic.get('m_nItemPricePerTier') or []
-    owners = hero_bound_abilities(heroes)
+    owners = hero_bound_abilities(heroes, abilities)
     slots = {}
     for hid, h in heroes.items():
         for slot, aid in (h.get('m_mapBoundAbilities') or {}).items() if isinstance(h, dict) else []:

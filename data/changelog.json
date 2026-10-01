@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Site audit, part 2: how the game files are read",
+    "items": [
+      "Units: distances in metres and speeds in m/s everywhere (Walker's protection range 34 → 22 m, not 1338 → 866); values written another way (units → metres, -1 = no limit) no longer read as huge changes.",
+      "Tags: fixes for 130+ rows — tier bonuses to debuffs (Sleep Dagger's dash slow −50 → −45 is a nerf), Soul Rebirth's health, Alchemical Fire, post-cast and arm times; a coefficient says what it scales with (boons, light melee, weapon damage).",
+      "Items: \"Enhanced\" instead of \"Upgrade\"; the Items table shows only what an item always gives and counts innate Spirit Power; T5 items say Street Brawl only. Units: Shrine, Mid-Boss and Mini Turret by their game names, the Shrine's second phase and the Patron's growth.",
+      "Sounds, file paths, button hints and timestamps are no longer game changes; light melee, recoil and effectiveness values are.",
+      "Patch notes: 20 short official notes are back as their own patches (01-17-2025's four new heroes…), Valve's later patches appended to old posts go to their dates, Old Gods, New Blood is its own update, and matching is stricter (a line's percent must go the way it says)."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Site audit, part 1: fixes across every page",
     "items": [
       "The Items shop and item pages work again: a micro build that left the ability file alone had marked every item removed.",

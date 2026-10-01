@@ -20,21 +20,24 @@ SLOTS = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vitality',
 
 # key, label, group, property (None = computed), polarity, digits
 PROPS = (
-    ('cooldown', 'Cooldown', 'Active', 'AbilityCooldown', -1, 1),
-    ('duration', 'Duration', 'Active', 'AbilityDuration', 1, 1),
-    ('cast_range', 'Cast Range', 'Active', 'AbilityCastRange', 1, 1),
+    ('cooldown', 'Cooldown', 'Active', 'AbilityCooldown', -1, 2),
+    ('duration', 'Duration', 'Active', 'AbilityDuration', 1, 2),
+    ('cast_range', 'Cast Range', 'Active', 'AbilityCastRange', 1, 2),
     ('health', 'Bonus Health', 'Stats', 'BonusHealth', 1, 0),
-    ('health_regen', 'Health Regen', 'Stats', 'BonusHealthRegen', 1, 1),
-    ('ooc_regen', 'Out-of-combat Regen', 'Stats', 'OutOfCombatHealthRegen', 1, 1),
+    ('health_regen', 'Health Regen', 'Stats', 'BonusHealthRegen', 1, 2),
+    ('ooc_regen', 'Out-of-combat Regen', 'Stats', 'OutOfCombatHealthRegen', 1, 2),
     ('weapon_dmg', 'Weapon Damage %', 'Stats', 'BaseAttackDamagePercent', 1, 0),
     ('fire_rate', 'Fire Rate %', 'Stats', 'BonusFireRate', 1, 0),
     ('ammo', 'Ammo %', 'Stats', 'BonusClipSizePercent', 1, 0),
-    ('spirit', 'Spirit Power', 'Stats', 'TechPower', 1, 0),
+    ('spirit', 'Spirit Power', 'Stats', ('TechPower', 'SpiritPower', 'SpiritPowerInnate'), 1, 0),
     ('bullet_resist', 'Bullet Resist', 'Stats', 'BulletResist', 1, 0),
     ('spirit_resist', 'Spirit Resist', 'Stats', 'TechResist', 1, 0),
-    ('move', 'Move Speed', 'Stats', 'BonusMoveSpeed', 1, 1),
-    ('sprint', 'Sprint', 'Stats', 'BonusSprintSpeed', 1, 1),
+    ('move', 'Move Speed', 'Stats', 'BonusMoveSpeed', 1, 2),
+    ('sprint', 'Sprint', 'Stats', 'BonusSprintSpeed', 1, 2),
 )
+# a Stats column is what the item always gives; a value the game marks as applied only on a
+# condition (Unstable Concoction's +3000 HP while active) is not a stat (audit 2026-10-01: 51 cells)
+CONDITIONAL = ('ConditionallyApplied', 'ConditionallyEnemyApplied')
 
 
 def _num(v):
@@ -55,9 +58,17 @@ def evaluate(item: dict, prices: list) -> dict:
     tier = _tier(item)
     out = {'tier': tier, 'cost': float(prices[tier]) if tier is not None and tier < len(prices) else None}
     props = item.get('m_mapAbilityProperties') or {}
-    for key, _, _, prop, _, _ in PROPS:
-        p = props.get(prop)
-        v = _num(p.get('m_strValue')) if isinstance(p, dict) else None
+    for key, _, group, names, _, _ in PROPS:
+        v = None
+        for prop in ((names,) if isinstance(names, str) else names):
+            p = props.get(prop)
+            if not isinstance(p, dict):
+                continue
+            if group == 'Stats' and any(f in str(p.get('m_eStatsUsageFlags') or '') for f in CONDITIONAL):
+                continue
+            v = _num(p.get('m_strValue'))
+            if v not in (None, 0.0):
+                break
         out[key] = None if v in (None, 0.0) else v
     return out
 

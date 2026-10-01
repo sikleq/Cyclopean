@@ -91,6 +91,7 @@ class MChange:
     lines: list = field(default_factory=list)
     chain: list = field(default_factory=list)     # every value the field took inside the window
     drawback: bool = False                        # the holder's own downside (enrich.drawbacks)
+    neg_base: bool = False                        # a bonus to a property stored negative (enrich.negative_props)
 
     @property
     def key(self) -> str:
@@ -122,28 +123,46 @@ APPROX = 0.10      # the notes round: 0.54 -> "0.5", 31.5 -> "32", 53.5 m/s -> "
 def close(a: float | None, b: float | None, rel: float = EXACT) -> bool:
     if a is None or b is None:
         return False
-    return abs(a - b) <= max(0.011, rel * abs(b))
+    # relative only: an absolute 0.011 made 0.06 -> 0.05 match 26 unrelated fields (audit 2026-10-01)
+    return abs(a - b) <= max(1e-6, rel * abs(b))
 
 
-def value_matches(v, x: float, meters: bool, rel: float = EXACT) -> bool:
-    """Does data value v equal the notes' number x under a display transform?
-    (raw, magnitude, fraction->percent, units->metres, rate<->interval)."""
+_LENGTHY = re.compile(r'(range|radius|distance|speed|velocity|width|height|length|falloff)', re.I)
+_RATE_LIKE = re.compile(r'(rate|interval|recovery|regen|per second|cycle)', re.I)
+
+
+def value_matches(v, x: float, meters=False, rel: float = EXACT) -> bool:
+    """Does data value v equal the notes' number x under a display transform the FIELD allows?
+    raw, magnitude; a fraction as a percent (|v| <= 5); engine units as metres for lengths and
+    speeds; a rate as an interval for rate-like fields. `meters` is the MChange (or a bool for
+    "may be in engine units"). Every transform for every field linked "Walkers Resistance 0/8/16%"
+    to Health 9000 -> 7000 and "Heavy Melee cooldown 0.9s" to a damage scale 35 (audit 2026-10-01)."""
     n = num(v)
     if n is None:
         return False
-    candidates = [n, abs(n), n * 100, n / semantics.UNITS_PER_METER, abs(n) * 100]
-    if n not in (0, 0.0):
+    if isinstance(meters, MChange):            # the change itself: its field decides the transforms
+        name = meters.label or meters.path
+        units = bool(meters.meters) or bool(_LENGTHY.search(name))
+        inverse = bool(_RATE_LIKE.search(name))
+    else:
+        units, inverse = bool(meters), True
+    candidates = [n, abs(n)]
+    if abs(n) <= 5:
+        candidates += [n * 100, abs(n) * 100]
+    if units:
+        candidates.append(n / semantics.UNITS_PER_METER)
+    if inverse and n not in (0, 0.0):
         candidates.append(1 / abs(n))      # "stamina cooldown 5s" vs regen 0.2/s
     return any(close(c, abs(x), rel) or close(c, x, rel) for c in candidates)
 
 
 def exact_pair(c: MChange, pairs) -> bool:
     for a, b in pairs:
-        if any(value_matches(o, a, c.meters) and value_matches(n, b, c.meters) for o, n in c.steps()):
+        if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in c.steps()):
             return True
-        if c.op == 'add' and value_matches(c.new, b, c.meters):
+        if c.op == 'add' and value_matches(c.new, b, c):
             return True
-        if c.op == 'remove' and value_matches(c.old, a, c.meters):
+        if c.op == 'remove' and value_matches(c.old, a, c):
             return True
     return False
 
@@ -166,7 +185,7 @@ def data_values(c: MChange, pairs) -> list[str]:
 def half_match(c: MChange, pairs) -> bool:
     """One side of a 'from A to B' agrees with the files: the property is
     identified, so a disagreement on the other side is a real mismatch."""
-    return any(value_matches(o, a, c.meters, APPROX) or value_matches(n, b, c.meters, APPROX)
+    return any(value_matches(o, a, c, APPROX) or value_matches(n, b, c, APPROX)
                for a, b in pairs for o, n in c.steps())
 
 
@@ -256,12 +275,12 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                     key = f"{e['file']}:{tid}:{c['path']}"
                     mc = merged.get(key)
                     if mc is None:
-                        d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''))
+                        d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'))
                         merged[key] = MChange(
                             e['file'], tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
                             ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
                             [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
-                            drawback=bool(c.get('drawback')))
+                            drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')))
                     else:
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
@@ -335,11 +354,29 @@ def label_words(c: MChange) -> set[str]:
     return rules.expand_label_words(words(c.label))
 
 
-def pct_close(c: MChange, by_pct: float) -> bool:
+_UP_VERB = re.compile(r'\b(increas\w*|rais\w*|more|higher|boost\w*)\b', re.I)
+_DOWN_VERB = re.compile(r'\b(reduc\w*|decreas\w*|lower\w*|less|cut)\b', re.I)
+_TIME_LIKE = re.compile(r'(time|cooldown|interval|delay|cost|duration)', re.I)
+
+
+def verb_sign(text: str) -> int:
+    """+1 the line says up, -1 down, 0 neither or both."""
+    up, down = bool(_UP_VERB.search(text)), bool(_DOWN_VERB.search(text))
+    return 1 if up and not down else -1 if down and not up else 0
+
+
+def pct_close(c: MChange, by_pct: float, sign: int = 0, rate_line: bool = False) -> bool:
+    """The field moved by the line's percent — the same way the line says: "Walker HP increased by
+    40%" is not a cooldown cut by 40% (audit 2026-10-01: 115 links ran the wrong way). A rate on the
+    line may move a time field the other way (fire rate up = interval down)."""
     for o, n in c.steps():
         o, n = num(o), num(n)
-        if o and n is not None and abs(abs(n / o - 1) * 100 - by_pct) <= max(1.0, 0.1 * by_pct):
-            return True
+        if not o or n is None or abs(abs(n / o - 1) * 100 - by_pct) > max(1.0, 0.1 * by_pct):
+            continue
+        moved = 1 if abs(n) > abs(o) else -1
+        if sign and moved != sign and not (rate_line and _TIME_LIKE.search(c.label or c.path)):
+            continue
+        return True
     return False
 
 
@@ -347,15 +384,15 @@ def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, 
     s = 0
     steps = c.steps()
     for a, b in pairs:
-        if any(value_matches(o, a, c.meters) and value_matches(n, b, c.meters) for o, n in steps):
+        if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in steps):
             s += 10
-        elif any(value_matches(o, a, c.meters, APPROX) and value_matches(n, b, c.meters, APPROX) for o, n in steps):
+        elif any(value_matches(o, a, c, APPROX) and value_matches(n, b, c, APPROX) for o, n in steps):
             s += 7          # the notes rounded a value ("0.5" for 0.54)
-        elif c.op == 'add' and value_matches(c.new, b, c.meters):
+        elif c.op == 'add' and value_matches(c.new, b, c):
             s += 8          # value made explicit: "stacks from +2 to +3" where 2 was the default
-        elif c.op == 'remove' and value_matches(c.old, a, c.meters):
+        elif c.op == 'remove' and value_matches(c.old, a, c):
             s += 8
-    if by_pct is not None and pct_close(c, by_pct):
+    if by_pct is not None and pct_close(c, by_pct, verb_sign(text), bool(re.search(r'rate|speed', text, re.I))):
         s += 6
     overlap = len(label_words(c) & lw)
     s += min(overlap, 3)
@@ -489,7 +526,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             for c in hits:
                 c.status = 'documented'
                 c.lines.append(text)
-                _old_from_notes(c, pairs)
+                _old_from_notes(c, pairs, text, pool)
             rounded = pairs and not any(exact_pair(c, pairs) for c in hits)
             result['status'] = 'rounded' if rounded else 'documented'
             result['changes'] = [c.key for c in hits]
@@ -540,12 +577,21 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         if comp:
             linked = comp + [c for c in pool if c not in comp and on_topic(c)]
             return _link(result, linked, text, 'described')
-    # textual line: link changes of the subject that share a specific word with the line
-    linked = [c for c in pool if on_topic(c)] or \
-             ([c for c in pool if ent_key(c) in ability_hits] if ability_hits and subject.kind == 'hero' else [])
+    # textual line: link changes of the subject that share a specific word with the line; failing
+    # that, a line naming an ability describes that ability's MECHANICS (flags, targets, behaviour) —
+    # never its numbers, and never from a line about how it looks or sounds ("Storm Cloud audio is
+    # clearer" had claimed its cooldown 180 → 148; 468 changes were "described" only that way)
+    fallback = []
+    if ability_hits and subject.kind == 'hero' and not _PRESENTATION_LINE.search(text):
+        fallback = [c for c in pool if ent_key(c) in ability_hits and c.cat == 'mechanic']
+    linked = [c for c in pool if on_topic(c)] or fallback
     if linked:
         return _link(result, linked, text, 'described')
     return result
+
+
+_PRESENTATION_LINE = re.compile(r'\b(sounds?|audio|sfx|vfx|visuals?|effects?|particles?|animations?|anims?|models?|'
+                                r'icons?|ui|hud|tooltips?|indicators?|music|voice|crosshair|readability)\b', re.I)
 
 
 def _link(result: dict, changes: list[MChange], text: str, status: str) -> dict:
@@ -579,28 +625,37 @@ def _fix_or(result: dict, text: str) -> dict:
 
 # ---- output -----------------------------------------------------------------
 
-def _old_from_notes(c: MChange, pairs: list[tuple[float, float]]) -> None:
+_SWAP_LINE = re.compile(r'changed from\s+["“]|\bnow\b.*\binstead of\b|\breplaced\b', re.I)
+
+
+def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = '',
+                    siblings: list[MChange] | None = None) -> None:
     """A field that appeared with the value Valve says it was raised TO: before, the game used its
     default, and the notes name it ("Headshot stack count increased from +2 to +3" while the files
-    only gained HeadshotStacks = 3). The line's old value makes it a change (BUFF/NERF), not a NEW."""
-    if c.op != 'add' or c.old is not None or c.meters or num(c.new) is None:
+    only gained HeadshotStacks = 3). The line's old value makes it a change (BUFF/NERF), not a NEW.
+    Not on a line that swaps one bonus for another ('T2 changed from "-12s Cooldown" to …'), nor when
+    the entity lost a field holding that old value — then A belonged to the other field (audit
+    2026-10-01: ~25 invented "was → now" such as "T2: Cooldown 12 → −15")."""
+    if c.op != 'add' or c.old is not None or c.meters or num(c.new) is None or _SWAP_LINE.search(text):
         return
+    removed_values = {num(s.old) for s in siblings or () if s.eid == c.eid and s.op == 'remove' and num(s.old) is not None}
     olds = {a for a, b in pairs if abs(b - num(c.new)) < 1e-9 and a != b}
-    if len(olds) == 1:
+    if len(olds) == 1 and not any(abs(a - r) < 1e-9 for a in olds for r in removed_values):
         c.old = olds.pop()
         c.op = 'change'
 
 
 def change_json(c: MChange) -> dict:
     kind = c.kind or ''
-    dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback)
+    dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback, c.neg_base)
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.label,
-        'old_s': semantics.display_value(num(c.old) if num(c.old) is not None else c.old, c.meters),
-        'new_s': semantics.display_value(num(c.new) if num(c.new) is not None else c.new, c.meters),
+        'old_s': semantics.display_raw(c.old, c.meters),
+        'new_s': semantics.display_raw(c.new, c.meters),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
+        'same': semantics.reencoded(c.old, c.new, c.path),
     }
 
 
@@ -660,15 +715,27 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         for ev in events:
             ev['change']['status'] = 'unannounced'
     elif commit:
-        # work on heroes that are not in the game yet is not "hidden from the notes"
-        unreleased = unreleased_heroes(commit)
+        # work on heroes that are not in the game yet is not "hidden from the notes" — judged at the
+        # build the change shipped in: a hero revealed inside the window was still unreleased while
+        # tuned before the reveal (Paige, Doorman, Venator…: ~500 changes were "hidden", audit 2026-10-01)
+        commit_of = {row['build']: row['commit'] for row in p.builds if row.get('commit')}
+        at: dict = {}
+
+        def unreleased_at(builds) -> set[str]:
+            out = set()
+            for b in builds or [None]:
+                key = commit_of.get(b, commit)
+                if key not in at:
+                    at[key] = unreleased_heroes(key)
+                out |= at[key]
+            return out
         for c in changes:
             owner = c.eid if c.file == 'heroes.vdata' else cat.get(ent_key(c), {}).get('owner')
-            if c.status == 'hidden' and owner in unreleased:
+            if c.status == 'hidden' and owner and owner in unreleased_at(c.builds):
                 c.status = 'unreleased'
         for ev in events:
             owner = ev['id'] if ev['file'] == 'heroes.vdata' else ev.get('owner')
-            if ev['change']['status'] == 'hidden' and owner in unreleased:
+            if ev['change']['status'] == 'hidden' and owner and owner in unreleased_at([ev.get('build')]):
                 ev['change']['status'] = 'unreleased'
     entities: dict[str, dict] = {}
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}

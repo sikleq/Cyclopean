@@ -182,7 +182,9 @@ def prop_icon(css: str | None, rel: str) -> str:
 def prop_rows(rows: list[dict], rel: str) -> str:
     out = []
     for r in rows:
-        scale = f'<span class="scale">+{r["scale"]:g}×Spirit</span>' if r.get('scale') else ''
+        # "+0.5×Spirit", "−0.186×Spirit" (not "+-"), "+4×Boon" for what the coefficient really multiplies
+        scale = (f'<span class="scale">{"+" if r["scale"] >= 0 else "−"}{abs(round(r["scale"], 4)):g}'
+                 f'×{esc(r.get("scale_by") or "Spirit")}</span>' if r.get('scale') else '')
         css = r.get('css') or ''
         out.append(f'<tr class="p-{esc(css)}"><td>{prop_icon(css, rel)}{esc(r["label"])}</td>'
                    f'<td class="v">{esc(r["value"])}{scale}</td></tr>')

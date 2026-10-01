@@ -17,7 +17,7 @@ from . import cache, extras, jsonio, loc, tracker
 from .diff import EntityChange, diff_entity, diff_file
 
 OUT = tracker.ROOT / 'data' / 'builds'
-FORMAT_VERSION = 4        # 4: 'returned' entities; the pre-5747 bullet-speed curve reads as m_flBulletSpeed
+FORMAT_VERSION = 5        # 5: numbers in lists keep their order, a flat speed curve wins; 4: 'returned' entities
 SUFFIX = '.json.gz'
 GONE = '@gone'            # last_known[GONE][vdata path][entity id] = blob of the last version before removal
 

@@ -43,7 +43,10 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
         chips += [f'<span class="chip">{esc(SLOT_NAMES.get("EItemSlotType_" + info["slot"], info["slot"]))}</span>',
                   f'<span class="chip">Tier {esc(info["tier"])}</span>',
                   f'<span class="chip">{esc(info["activation"])}</span>']
-        if info.get('cost'):
+        if info.get('street_brawl'):
+            # T5 is Street Brawl's draft only; its "price" 9999 is a placeholder, not souls
+            chips.append('<span class="chip">Street Brawl only</span>')
+        elif info.get('cost'):
             chips.append(f'<span class="chip">{info["cost"]} souls</span>')
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'

@@ -21,13 +21,14 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from . import tracker
-from .news import Notes, all_notes, is_changelog_text
+from .news import _CHANGE_LINE, Notes, all_notes, is_changelog_text
 
 LEAD = timedelta(hours=3)
 FUZZ_BEFORE = timedelta(hours=12)     # boundary zone: [start - 12h, start + 30h]
 FUZZ_AFTER = timedelta(hours=30)
 UNANNOUNCED_MIN_FIELDS = 150          # gameplay fields that make a notes-less build its own "patch"
 UNANNOUNCED_GAP = timedelta(days=3)   # ... when no changelog lies within this distance
+HUGE_BUILD_FIELDS = 1000              # a build this big is an update of its own even beside a follow-up
 BUILDS_DIR = tracker.ROOT / 'data' / 'builds'
 ANNOUNCEMENT_GAP = timedelta(days=2)  # an announcement names a notes-less big build this close
 
@@ -61,8 +62,17 @@ def gameplay_fields(row: dict) -> int:
     return f.get('balance', 0) + f.get('mechanic', 0) + f.get('availability', 0)
 
 
+_DATED_UPDATE = re.compile(r'\b\d{2}-\d{2}-\d{4}\s+(Update|Patch)\b|· follow-up ', re.I)
+
+
 def is_patch_notes(n: Notes) -> bool:
-    return is_changelog_text([ln for s in n.sections for ln in s.lines])
+    """A changelog: five change lines — or fewer under a dated "MM-DD-YYYY Update" title or as an
+    author follow-up. Short ones read as announcements lost 20 posts (2025-01-17's four hero
+    releases, 08-18-2024's Restorative Locket…) and ~210 changes were called hidden (audit 2026-10-01)."""
+    lines = [ln for s in n.sections for ln in s.lines]
+    if is_changelog_text(lines):
+        return True
+    return bool(_DATED_UPDATE.search(n.title)) and any(_CHANGE_LINE.search(ln) for ln in lines)
 
 
 def build_index() -> list[dict]:
@@ -149,13 +159,20 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
 
     # big builds far from any changelog get their own patch, named after a
     # nearby announcement when there is one ("City Never Sleeps")
+    # distance to a MAIN changelog: a small author follow-up next to a big update does not own it
+    # (Old Gods, New Blood — build 6127, 4,056 fields — sat in the 2026-01-20 follow-up's window with
+    # 1,029 changes called hidden; hero reveal days in hotfix windows, ~500; audit 2026-10-01)
+    main = [p for p in patches if p.notes and ' · follow-up ' not in p.notes.title]
     for b in builds:
         if gameplay_fields(b) < UNANNOUNCED_MIN_FIELDS:
             continue
         t = _dt(b['date'])
-        if any(abs(t - _dt(p.date)) <= UNANNOUNCED_GAP for p in patches if p.notes):
-            continue
         near = [a for a in anns if abs(t - _dt(a.date)) <= ANNOUNCEMENT_GAP]
+        if any(abs(t - _dt(p.date)) <= UNANNOUNCED_GAP for p in main):
+            continue
+        if (not near and gameplay_fields(b) < HUGE_BUILD_FIELDS
+                and any(abs(t - _dt(p.date)) <= UNANNOUNCED_GAP for p in patches if p.notes)):
+            continue                         # unnamed, beside a follow-up: stays in that window
         if near:
             a = min(near, key=lambda a: abs(t - _dt(a.date)))
             patches.append(Patch(f'build-{b["build"]}', a.title, b['date'], None, link=a.url))

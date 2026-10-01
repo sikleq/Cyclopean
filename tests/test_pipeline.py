@@ -546,6 +546,35 @@ def test_the_holders_own_downside_grows_as_a_nerf():
     assert semantics.direction(path, -15, -10, 'item', drawback=True)[0] == 'buff'
 
 
+def test_units_and_reencodings():
+    assert semantics.engine_unit('m_flRunSpeed') == semantics.SPEED
+    assert semantics.engine_unit('m_flSightRangePlayers') is True
+    assert semantics.engine_unit('m_flBossDamageScale') is False
+    assert semantics.display_raw(18000, semantics.SPEED) == '457.2m/s'
+    assert semantics.display_raw('12.19m', True) == '12.19m'               # already metres: not divided again
+    p = 'm_mapAbilityProperties.ChannelMoveSpeed.m_strValue'
+    assert semantics.reencoded(200, '5.1m', p)                              # 200 units/s is 5.1 m/s
+    assert semantics.reencoded(1, 100, 'm_mapAbilityProperties.ImbuedCooldownMultiplier.m_strValue')
+    assert not semantics.reencoded(1, 100, 'm_mapAbilityProperties.Damage.m_strValue')
+    assert semantics.direction(p, 50, -1, 'ability') == ('changed', None)   # -1 = no cap
+
+
+def test_polarity_audit_cases():
+    d = lambda prop, a, b, **kw: semantics.direction(f'm_mapAbilityProperties.{prop}.m_strValue', a, b, 'ability', **kw)[0]
+    assert d('AbilityPostCastDuration', 0.5, 0.2) == 'buff'          # busy for less time after the cast
+    assert d('ArmTime', 3, 2) == 'buff'
+    assert d('RespawnHealthPercent', 40, 50) == 'buff'               # Soul Rebirth: more health on rebirth
+    assert d('BonusBaseWeaponDamageTaken', 50, 40) == 'nerf'         # Alchemical Fire: the enemy takes less
+    assert d('NonHeroReductionPercent', 40, 50) == 'nerf'            # weaker against non-heroes
+    assert d('m_flShootSpreadPenaltyDecayDelay', 0, 0.3) == 'nerf'
+    tier = 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{GroundDashReductionPercent}.m_strBonus'
+    # a bonus to a debuff stored negative: Sleep Dagger T3 -50 -> -45 is weaker ("dash slows -10%")
+    assert semantics.direction(tier, -50, -45, 'ability', negative_base=True)[0] == 'nerf'
+    assert semantics.direction(tier, -8, -10, 'item', negative_base=True)[0] == 'buff'
+    cd = 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus'
+    assert semantics.direction(cd, -20, -18, 'ability')[0] == 'nerf'  # a cooldown bonus keeps its sign rule
+
+
 def test_small_coefficients_keep_their_digits():
     assert semantics.display_value(0.00035) == '0.00035'
     assert semantics.display_value(0.0003) == '0.0003'

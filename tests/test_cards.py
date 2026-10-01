@@ -62,6 +62,27 @@ def test_valve_style_sentences():
     assert sentence('Mina', {'path': '@add', 'op': 'add'}) == 'Mina: added to the game'
 
 
+def test_values_say_what_they_are():
+    # sound events, file paths, loc keys, unix times are not gameplay, whatever the field is called
+    assert category('m_strGrappleHitWorld', 'Ability.Bebop.Hook.ImpactGeo', 'Ability.Tengu.Tether.Attach') == 'audio'
+    assert category('m_HudSharedStyle', None, 'panorama/styles/Hud elements/abilities_astro.vcss') == 'ui'
+    assert category('m_strCastButtonLocToken', None, '#AbilityButtonHint_AltCastStickyBomb') == 'ui'
+    assert category('m_unAddedTime', 1737133200, None) == 'meta'
+    # "20m" as the records keep it is a number (986 rows were mechanics)
+    assert category('m_mapAbilityProperties.VacuumRadius.m_strValue', '8m', '10m') == 'balance'
+    # gameplay words that looked visual: light melee, effectiveness, a hero growing, recoil
+    assert category('m_mapAbilityProperties.LightMeleeCooldownMult.m_strValue', 1, 2) == 'balance'
+    assert category('m_mapAbilityProperties.SlowEffectiveness.m_strValue', 1, 2) == 'balance'
+    assert category('m_mapAbilityProperties.ModelScaleGrowth.m_strValue', 1, 2) == 'balance'
+    assert category('m_mapWeaponInfos.primary.m_flRecoilSpeed', 1, 2) == 'balance'
+    assert category('m_mapAbilityProperties.PunchRadius.m_strValue', 1, 2) == 'balance'
+    # what a value scales with: changing it is real, adding the wiring is not
+    p = 'm_mapAbilityProperties.Damage.m_subclassScaleFunction.m_eSpecificStatScaleType'
+    assert category(p, 'ETechPower', 'ELightMeleeDamage') == 'mechanic'
+    assert category(p, None, 'ETechPower') == 'technical'
+    assert category('m_flRangeRingAlpha', 0.8, 0.6) == 'visual'                       # build 6728's Walker ring
+
+
 def test_units_with_only_looks_are_helpers():
     from pipeline.classify import unit_is_helper
     assert unit_is_helper('citadel_cat_animating', {'_class': 'citadel_cat_animating', 'm_sModelName': 'cat.vmdl'})

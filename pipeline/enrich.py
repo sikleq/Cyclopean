@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 16       # 16: screen flash / offsets / sounds out of balance; 15: drawbacks (m_bIsNegativeAttribute); 14: 4 significant digits, "(weapon damage scaling)"
+ENRICH_VERSION = 17       # 17: site audit (units, polarity, scaling stat, re-encodings, value shapes); 16: screen flash; 15: drawbacks
 
 
 def _num(v):
@@ -32,8 +32,7 @@ def _num(v):
 
 
 def _display(v, meters):
-    n = _num(v)
-    return semantics.display_value(n if n is not None else v, meters)
+    return semantics.display_raw(v, meters)
 
 
 def drawbacks(data: dict | None) -> set[str]:
@@ -43,6 +42,17 @@ def drawbacks(data: dict | None) -> set[str]:
             if isinstance(d, dict) and str(d.get('m_bIsNegativeAttribute')).lower() in ('true', '1')}
 
 
+def negative_props(data: dict | None) -> set[str]:
+    """Properties whose base value is below zero: debuffs written as negatives (-50 dash slow)."""
+    props = (data or {}).get('m_mapAbilityProperties') or {}
+    out = set()
+    for p, d in props.items():
+        v = _num(d.get('m_strValue')) if isinstance(d, dict) else None
+        if v is not None and v < 0:
+            out.add(p)
+    return out
+
+
 def enrich_record(rec: dict) -> dict:
     commit = rec['commit']
     tok = loc.tokens(commit)
@@ -50,7 +60,7 @@ def enrich_record(rec: dict) -> dict:
     abilities = cache.vdata(commit, tracker.SCRIPTS + 'abilities.vdata')
     units = cache.vdata(commit, tracker.SCRIPTS + 'npc_units.vdata')
     prev_abilities = None
-    owners = hero_bound_abilities(heroes)
+    owners = hero_bound_abilities(heroes, abilities)
     for e in rec['entities']:
         f, eid = e['file'], e['id']
         if f == 'heroes.vdata':
@@ -76,6 +86,7 @@ def enrich_record(rec: dict) -> dict:
             e['owner'] = owners[eid]
             e['owner_name'] = loc.plain(loc.hero_name(tok, owners[eid]))
         downsides = drawbacks(data) if f == 'abilities.vdata' and eid != '@shared' else set()
+        below_zero = negative_props(data) if f == 'abilities.vdata' and eid != '@shared' else set()
         for c in e['changes']:
             # classification rules evolve: re-derive the category, but never move a
             # change whose values were dropped (cosmetic) into a category that shows values
@@ -83,7 +94,13 @@ def enrich_record(rec: dict) -> dict:
             cat = category(c['path'], c.get('old'), c.get('new'))
             if has_vals or cat in VALUELESS_CATS:
                 c['cat'] = cat
-            d = semantics.describe(c['path'], tok, eid, e['kind'])
+            # what the property's coefficient multiplies (boons, melee damage…): kept on the change so
+            # match.window_changes labels it the same way (140 rows all said "spirit scaling")
+            scaled = (semantics.scale_stat(data, semantics.property_name(c['path']))
+                      if f == 'abilities.vdata' and eid != '@shared' and 'Scale' in c['path'] else None)
+            if scaled and scaled != 'ETechPower':
+                c['scaled_by'] = scaled
+            d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'))
             c['label'] = d['label']
             if 'old' in c or 'new' in c:
                 c['old_s'] = _display(c.get('old'), d['meters'])
@@ -92,10 +109,16 @@ def enrich_record(rec: dict) -> dict:
                 worse = c['path'].startswith('m_mapAbilityProperties.') and semantics.property_name(c['path']) in downsides
                 if worse:
                     c['drawback'] = True        # match.change_json re-judges the window total with it
-                dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), e['kind'], worse)
+                # a T1-T3 / Enhanced bonus to a property whose value is negative (a debuff)
+                neg = '.m_vecPropertyUpgrades' in c['path'] and semantics.property_name(c['path']) in below_zero
+                if neg:
+                    c['neg_base'] = True
+                dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), e['kind'], worse, neg)
                 c['dir'] = dirn
                 c['pct'] = None if pct is None else round(pct, 1)
                 c['grad'] = semantics.gradient(pct)
+                if semantics.reencoded(c.get('old'), c.get('new'), c['path']):
+                    c['same'] = True            # the same value written another way: cards.is_noop drops it
     rec['enriched'] = ENRICH_VERSION
     return rec
 

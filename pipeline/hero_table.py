@@ -63,13 +63,16 @@ def _wf(name, meters=False):
 
 def bullet_speed(h, w, g):
     """m/s. Before build 5747 the speed was a curve (m_BulletSpeedCurve) whose points were all equal;
-    since then m_flBulletSpeed (audit 2026-10-01: 18 changes of 12 heroes were invisible)."""
-    v = _num(w.get('m_flBulletSpeed')) if w else None
-    if v is None and w:
+    since then m_flBulletSpeed (audit 2026-10-01: 18 changes of 12 heroes were invisible). A flat
+    curve wins over a field beside it (Haze: field 8000, curve 30000, and 30000 after 5747)."""
+    v = None
+    if w:
         spline = (w.get('m_BulletSpeedCurve') or {}).get('m_spline') or []
         ys = [_num(pt.get('y')) for pt in spline if isinstance(pt, dict)]
         if ys and None not in ys and max(ys) == min(ys):
             v = ys[0]
+        if v is None:
+            v = _num(w.get('m_flBulletSpeed'))
     return v / UNITS_PER_METER if v is not None else None
 
 

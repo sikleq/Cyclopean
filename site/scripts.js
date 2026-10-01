@@ -109,7 +109,7 @@
       tip.classList.add('on');
       var r = td.getBoundingClientRect();
       var tw = tip.offsetWidth, th = tip.offsetHeight;
-      var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+      var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), document.documentElement.clientWidth - tw - 8);
       var y = r.bottom + 8;
       if (y + th > window.innerHeight - 8) y = r.top - th - 8;
       tip.style.left = x + 'px';
@@ -145,7 +145,7 @@
     function place(el) {
       var r = el.getBoundingClientRect();
       var tw = tip.offsetWidth, th = tip.offsetHeight, gap = 8, edge = 8;
-      var x = Math.min(Math.max(edge, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - edge);
+      var x = Math.min(Math.max(edge, r.left + r.width / 2 - tw / 2), document.documentElement.clientWidth - tw - edge);   // the page width without its scrollbar
       var y = r.top - th - gap;
       if (y < edge) y = r.bottom + gap;                       // no room above: below the marker
       if (y + th > window.innerHeight - edge) y = Math.max(edge, window.innerHeight - th - edge);
@@ -251,7 +251,7 @@
       tip.innerHTML = html;
       tip.classList.add('on');
       var r = a.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
-      var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+      var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), document.documentElement.clientWidth - tw - 8);
       var y = r.bottom + 8;
       if (y + th > window.innerHeight - 8) y = r.top - th - 8;
       tip.style.left = x + 'px';
@@ -265,22 +265,22 @@
   });
 
   /* ---------- hero changes: a filter narrows every tile to one part (stats / weapon / abilities) ---------- */
+  /* the tiles follow both filters: the hero part (All / Stats / Weapon / Abilities) and the hidden
+     tags — hiding BUFF used to drop the stripe but keep the tile's number */
   safe('dyn-parts', function () {
-    var btns = document.querySelectorAll('[data-part]');
-    if (!btns.length) return;
+    var tables = document.querySelectorAll('table.dyn');
+    if (!tables.length) return;
     var order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
-    btns.forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var table = document.querySelector(btn.getAttribute('data-target'));
-        var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
-        if (!table || !blob) return;
-        var d = JSON.parse(blob.textContent), part = btn.getAttribute('data-part');
-        btns.forEach(function (b) { b.classList.toggle('on', b === btn); });
-        table.setAttribute('data-part', part);
-        table.querySelectorAll('a.dsq[data-k]').forEach(function (a) {
+    var parsed = {};
+    function redraw(table) {
+      var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
+      if (!blob) return;
+      var d = parsed[table.id] || (parsed[table.id] = JSON.parse(blob.textContent));
+      var part = table.getAttribute('data-part') || 'all';
+      table.querySelectorAll('a.dsq[data-k]').forEach(function (a) {
           var c = d.cells[+a.getAttribute('data-k')];
           var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
-          var tags = order.filter(function (t) { return counts[t]; }), total = 0;
+          var tags = order.filter(function (t) { return counts[t] && !table.classList.contains('hide-' + t); }), total = 0;
           tags.forEach(function (t) { total += counts[t]; });
           a.classList.toggle('part-out', !total);
           if (!total) return;
@@ -291,7 +291,22 @@
           var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
           a.classList.remove('net-buff', 'net-nerf', 'net-mix');
           a.classList.add(good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix');
-        });
+      });
+    }
+    document.querySelectorAll('[data-part]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var table = document.querySelector(btn.getAttribute('data-target'));
+        if (!table) return;
+        document.querySelectorAll('[data-part]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+        table.setAttribute('data-part', btn.getAttribute('data-part'));
+        redraw(table);
+      });
+    });
+    // tag buttons toggle "hide-<tag>" on the table (generic toggle): redraw after it ran
+    document.querySelectorAll('.dyn-tags [data-toggle-class]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var table = document.querySelector(btn.getAttribute('data-target'));
+        if (table) setTimeout(function () { redraw(table); }, 0);
       });
     });
   });

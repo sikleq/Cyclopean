@@ -157,6 +157,30 @@ Audit of the patch pages (2026-10-01):
 - ability cards leave out zero values with a unit ("+0m") and print a unit once ("+3m", "4m/s" —
   the postfix " m" doubled it on 47 rows).
 
+Five-auditor review of every build and page (2026-10-01, record format 5, enrich 17):
+- classification by the value's shape as well as the field's name (`classify._value_kind`): sound events
+  ("Ability.Bebop.Hook.ImpactGeo") audio, file paths visual (a `.vcss` HUD style UI), loc keys
+  ("#AbilityButtonHint_…") UI, unix times meta; "20m" in a record is a number (`_is_num`), not a mechanic;
+  what a value scales with / which stat it feeds (`WIRING_RE`) is a mechanic when it CHANGES; light melee,
+  *Effectiveness, ModelScaleGrowth, recoil and Puddle Punch are gameplay, not visual;
+- polarity: `_LOWER_FIRST` / `_HIGHER_FIRST` whole-name lists checked before the word lists (post-cast,
+  arm time, gravity, respawn health, the enemy's damage taken…); a T1-T3 / Enhanced bonus to a debuff
+  stored negative compares magnitudes (`enrich.negative_props`, `neg_base`); "no limit" values (-1, 9999)
+  have no direction; the same value written another way (units → metres, 1 → 100%) is no change
+  (`semantics.reencoded`, `same`);
+- units: engine floats named like lengths are metres, like speeds m/s (`semantics.engine_unit`, `SPEED`;
+  `display_raw` never divides a value already in metres);
+- labels: an item's upgrade entry is its "Enhanced" version; a coefficient names what it scales with
+  ("(boon scaling)", `scale_stat`, `scaled_by`); "(% of base)" for EMultiplyBase;
+- records: numbers in lists keep their order (prices per tier, resist per enemy count, spreads);
+  a flat bullet-speed curve wins over a field beside it (Haze before 5747);
+- owners: real heroes before the templates (hero_base had Infernus' gun); a sub-ability no hero binds
+  goes to the hero its id names (`hero_bound_abilities(heroes, abilities)`);
+- names: Shrine, Mid-Boss, Mini Turret (`data/overrides/unit_names.json`); helpers of any unit kind;
+- tables: units show the Shrine's 2nd phase and the Patron's growth / backdoor regen; items' Stats are
+  what the item always gives (no `ConditionallyApplied`), innate Spirit Power counts;
+- cards: "+4×Boon" / "×Weapon Damage" for what a coefficient multiplies, m/s speeds, no zero bonuses.
+
 The tracker clone follows upstream with `git reset --hard` (`tracker.sync`): it is a read-only
 mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see binaries such as
 `vconsole2.exe` as modified forever, which made the fast-forward merge refuse updates.
