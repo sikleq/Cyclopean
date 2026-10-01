@@ -403,7 +403,7 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
     return (f'<a class="ix{" fu" if follow else ""}" href="{esc(p["id"])}.html">'
             f'<span class="ixd">{esc(p["date"])}</span>'
             f'<span class="ixt"><span class="t">{title}</span><span class="b">{p["builds"]} builds</span></span>'
-            f'<span class="ixs">{dirs}</span><span class="ixh">{faces}</span>'
+            f'<span class="ixh">{faces}</span><span class="ixs">{dirs}</span>'
             f'<span class="ixa">{audit}{_bar(c)}</span></a>')
 
 

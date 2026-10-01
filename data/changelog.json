@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Hero and item change matrices",
+    "items": [
+      "Heroes → Hero changes and Items → Item changes: every hero or item against every patch; each square is striped in the colours of what changed (buffs, nerfs, new, removed…), with switches for older patches, buff vs nerf and each tag, and a search.",
+      "Heroes: pre-release heroes are hidden until you switch them on; unreleased heroes are folded.",
+      "Patches list: the heroes hit come right after the title; the counters no longer spill into the next column.",
+      "Stat history tooltip: the date and the numbers sit on one line."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Interface tab, gold update names, cleaner dates",
     "items": [
       "Patch pages: interface, sound and settings changes have their own tab 'Interface & sound', a grid of features with their names in bold; the patch notes keep the gameplay.",

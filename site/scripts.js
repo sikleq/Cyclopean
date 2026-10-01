@@ -198,6 +198,17 @@
   });
 
   /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
+  /* ---------- change matrices open at the newest patches (the right end); older columns re-scroll ---------- */
+  safe('dyn-scroll', function () {
+    document.querySelectorAll('table.dyn').forEach(function (t) {
+      var sc = t.closest('.table-scroll');
+      if (!sc) return;
+      function toEnd() { sc.scrollLeft = sc.scrollWidth; }
+      toEnd();
+      new MutationObserver(toEnd).observe(t, { attributes: true, attributeFilter: ['class'] });
+    });
+  });
+
   safe('table-fade', function () {
     document.querySelectorAll('.table-fade > .table-scroll').forEach(function (sc) {
       function check() {

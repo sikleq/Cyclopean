@@ -163,6 +163,13 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   card's style — the one approved exception to ":root tokens only"), the role as text (`m_eHeroType`; the game has no role icons) and
   complexity as marks (`m_nComplexity`), a PRE-RELEASE ribbon; under each card the newest patch that
   touched the hero or its abilities (`trail.hero_last`) — its two biggest counters and the date.
+- Hero / item change matrices (`builders/dynamics_page.py`, Sloppy's "Dynamics"): heroes/changes.html
+  and items/changes.html, sub-tabs of the two indexes. A row per hero (its stats + every ability it owns)
+  or item, a column per patch (months above, gold day = named update), a cell = a square striped in the
+  tag colours, each stripe as tall as its share (same counting rule as every counter). Switches: older
+  patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
+  colour), tag filters, pre-release heroes / removed items. Heroes index: pre-release heroes hide behind
+  a switch, "Unreleased & hero labs" is folded.
 - Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its
   price tag, columns Weapon → Spirit → Vitality (the game's order), cards with ACTIVE / IMBUE labels
   and the last change; hovering a card lights up its components and what it builds into, the rest

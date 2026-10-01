@@ -48,9 +48,19 @@ def heroes_grid_html(live: list[dict], other: list[dict], rows: dict, rel: str, 
     def key(h: dict) -> str:
         return ((rows.get(h['id']) or {}).get('sort_name') or h.get('name') or h['id']).lower()
     live = sorted(live, key=key)
-    out = ['<div class="hgrid-cards">'
+    # pre-release heroes (vote candidates) hide behind a switch; unreleased ones fold away
+    out = ['<div class="hgrid-cards" id="heroes-grid">'
            + ''.join(hero_card(h, rows.get(h['id']), rel, foot_of(h['id'])) for h in live) + '</div>']
     if other:
-        out.append('<div class="grid-group-title">Unreleased & hero labs</div><div class="hgrid-cards lab">'
-                   + ''.join(hero_card(h, rows.get(h['id']), rel, '') for h in sorted(other, key=key)) + '</div>')
+        out.append(f'<details class="fold-group"><summary class="grid-group-title">Unreleased & hero labs '
+                   f'<span class="n">{len(other)}</span></summary><div class="hgrid-cards lab">'
+                   + ''.join(hero_card(h, rows.get(h['id']), rel, '') for h in sorted(other, key=key)) + '</div></details>')
     return ''.join(out)
+
+
+def pre_release_switch(live: list[dict]) -> str:
+    n = sum(1 for h in live if h.get('state') == 'EHeroDevState_PreRelease')
+    if not n:
+        return ''
+    return (f'<label class="switch"><input type="checkbox" data-toggle-class="show-pre" data-target="#heroes-grid">'
+            f'<span class="track"></span>Pre-release <span class="n">{n}</span></label>')

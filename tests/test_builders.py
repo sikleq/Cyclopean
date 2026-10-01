@@ -370,3 +370,20 @@ def test_interface_lines_get_their_own_tab_and_lists_become_chips():
     assert '<b>Player Names</b>' in html and 'tag' not in html
     assert notes_view._list_chips('Theater, Chinatown, Haunted Lot, Plaza', '../').count('nchip') == 5   # wrapper + 4
     assert notes_view._list_chips('a long sentence, not a list', '../') is None
+
+
+def test_change_matrix_rows_cells_and_switches(monkeypatch):
+    from builders import dynamics_page
+    rows = [{'id': 'p1', 'date': '2024-01-01', 'title': '01-01-2024 Update'},
+            {'id': 'p2', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}]
+    cells = {'hero:hero_atlas': {'p2': {'buff': 2, 'nerf': 1}}, 'hero:hero_x': {'p1': {'new': 1}}}
+    monkeypatch.setattr(dynamics_page, '_cells', lambda: (rows, cells))
+    html = dynamics_page.matrix_html([('hero:hero_atlas', 'Abrams', None, 'hero_atlas.html', ''),
+                                      ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
+                                      ('hero:hero_none', 'Nothing', None, 'n.html', '')], 'hero')
+    assert 'Nothing' not in html                                   # a row with no changes is not listed
+    assert 'st t-buff" style="flex:2"' in html and 'net-buff' in html
+    assert 'class="dc old"' in html and 'dd named' in html          # >1 year old column; gold named patch
+    assert '#c-hero_atlas' in html and 'tr class="extra"' in html
+    bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
+    assert 'show-old' in bar and 'bvn' in bar and 'hide-buff' in bar and 'show-extra' in bar

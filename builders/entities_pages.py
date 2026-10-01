@@ -87,6 +87,17 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) 
     return page(name, head + stats + history_heading() + f'<div id="history">{hist}</div>', rel, 'units')
 
 
+SUB_TABS = {'heroes': (('index', 'Heroes'), ('changes', 'Hero changes')),
+            'items': (('index', 'Items'), ('changes', 'Item changes'))}
+
+
+def sub_tabs(section: str, active: str) -> str:
+    """The grid and its change matrix (Sloppy's Materials / Dynamics pair)."""
+    return '<div class="flex table-tabs">' + ''.join(
+        f'<a class="px-btn{" on" if k == active else ""}" href="{k}.html">{esc(lbl)}</a>'
+        for k, lbl in SUB_TABS[section]) + '</div>'
+
+
 def _hero_foot(hid: str) -> str:
     """Under a hero portrait: what its newest patch did to it ('▲2 ▼1 · 09-16')."""
     from .trail import hero_last
@@ -128,10 +139,17 @@ def build_all() -> dict[str, int]:
     live = sorted((h for h in heroes if h.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease')),
                   key=lambda h: h.get('name') or '')
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
-    from .heroes_grid import heroes_grid_html
-    body = ('<h1>Heroes</h1><div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard"></div>'
+    from .dynamics_page import hero_entries, matrix_html, toolbar
+    from .heroes_grid import heroes_grid_html, pre_release_switch
+    body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
+            '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
+            f'<span class="sep"></span>{pre_release_switch(live)}</div>'
             + heroes_grid_html(live, other, trow, rel, _hero_foot))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
+    n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
+    dyn = matrix_html(hero_entries(live, rel), 'hero')
+    write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
+                                      + toolbar('hero', n_pre, 'Pre-release') + dyn, rel, 'heroes', wide=True))
 
     items = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e['kind'] == 'item'
              and e['id'].startswith('upgrade_') and not e.get('template')
@@ -140,9 +158,16 @@ def build_all() -> dict[str, int]:
         write(slug(it['file'], it['id']), item_page(it, cards.get(it['id']), by_ent, by_subject))
         counts['items'] += 1
     # laid out like the game's shop: tiers x Weapon / Spirit / Vitality (builders/shop_page.py)
+    from .dynamics_page import item_entries
     from .shop_page import shop_html
-    body = ('<h1>Items</h1><div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".icard"></div>'
+    body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
+            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".icard"></div>'
             + shop_html(items, cards, rel))
+    entries = item_entries(items, cards, rel)
+    n_gone = sum(1 for e in entries if e[4])
+    write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
+                                     + toolbar('item', n_gone, 'Removed') + matrix_html(entries, 'item'),
+                                     rel, 'items', wide=True))
     write('items/index.html', page('Items', body, rel, 'items'))
 
     units = [e for e in ents.values() if e['file'] == 'npc_units.vdata' and not e.get('template')]

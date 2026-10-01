@@ -639,7 +639,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 
 /* patches index: month banners, one row per update, follow-ups indented under their parent */
 .ixlist .banner.sub:first-child { margin-top: 6px; }
-.ix { display: grid; grid-template-columns: 100px minmax(0, 1fr) 210px 168px 250px; gap: 14px; align-items: center;
+.ix { display: grid; grid-template-columns: 100px minmax(0, 1fr) 168px 244px 250px; gap: 14px; align-items: center;
   padding: 10px 14px; color: var(--text-main); background: var(--bg-panel);
   box-shadow: 0 1px 0 var(--line-soft); }
 .ix:hover { background: var(--bg-panel-2); box-shadow: inset 4px 0 0 var(--patina), 0 1px 0 var(--line-soft); color: var(--text-main); }
@@ -741,7 +741,7 @@ table.stats td.hm-lo { background-image: linear-gradient(var(--nerf-14), var(--n
 .hist-tip .t-head { font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); margin-bottom: 6px; }
 .hist-tip .t-overall { color: var(--text-dim); margin-bottom: 6px; }
 /* every row shares one set of columns (date | was | → | now | %), so the numbers line up */
-.hist-tip ol { display: grid; grid-template-columns: auto auto auto auto auto; column-gap: 8px; row-gap: 3px; align-items: center;
+.hist-tip ol { display: grid; grid-template-columns: auto auto auto auto auto; column-gap: 8px; row-gap: 4px; align-items: baseline;
   margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
 .hist-tip li { display: contents; }
 .hist-tip li .o { text-align: right; color: var(--label); }
@@ -750,7 +750,8 @@ table.stats td.hm-lo { background-image: linear-gradient(var(--nerf-14), var(--n
 .hist-tip li .n.dir-changed { color: var(--text-bright); }
 .hist-tip li .p { text-align: right; }
 .hist-tip li .p .pct { margin-left: 0; }
-.hist-tip li .d { font: 500 12px/1.6 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.hist-tip li .d { font: 500 13px/1.4 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.hist-tip li > span { line-height: 1.4; }
 
 /* icon-only markers explain themselves on hover: ONE floating element placed by
    scripts.js (clamped to the viewport, flips below when there is no room above) —
@@ -1189,3 +1190,62 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
   box-shadow: inset 0 0 0 1px var(--line-soft); font-size: 13px; color: var(--text-main); }
 .nchip.pic { padding: 2px 8px 2px 2px; }
 .nchip img { width: 24px; height: 24px; object-fit: cover; background: var(--bg-panel-4); }
+
+/* a Sloppy-style switch: label + small track (Pre-release, Hide old, Show deleted) */
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: 600 13px/1 var(--font-ui); color: var(--text-main); }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+.switch .track { position: relative; width: 30px; height: 14px; background: var(--bg-page); box-shadow: inset 0 0 0 2px var(--frame-line); }
+.switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; background: var(--text-dimmer); transition: left .12s; }
+.switch input:checked + .track { box-shadow: inset 0 0 0 2px var(--patina); }
+.switch input:checked + .track::after { left: 19px; background: var(--patina-strong); }
+.switch input:focus-visible + .track { outline: 2px solid var(--patina); outline-offset: 2px; }
+.switch .n { color: var(--text-dimmer); font-weight: 500; }
+#heroes-grid:not(.show-pre) .hgcard.pre { display: none; }
+details.fold-group > summary { cursor: pointer; list-style: none; }
+details.fold-group > summary::-webkit-details-marker { display: none; }
+details.fold-group > summary::before { content: "+ "; color: var(--patina); }
+details.fold-group[open] > summary::before { content: "- "; }
+details.fold-group > summary .n { color: var(--text-dimmer); font: 500 13px/1 var(--font-ui); }
+
+/* ---------- 15. Hero / item changes matrix (Sloppy's "Dynamics") ---------- */
+table.dyn { border-collapse: separate; border-spacing: 0; font-size: 12px; }
+table.dyn th, table.dyn td { padding: 3px; border-bottom: 1px solid var(--line-soft); text-align: center; white-space: nowrap; }
+table.dyn thead th { position: sticky; top: 0; z-index: 3; background: var(--bg-panel-2); color: var(--text-dim); }
+table.dyn thead tr.cols th { top: 25px; font: 500 11px/1 var(--font-ui); font-variant-numeric: tabular-nums; }
+table.dyn thead tr.cols th a { color: inherit; }
+table.dyn thead tr.cols th.named a { color: var(--gold); font-weight: 700; }
+table.dyn thead tr.cats th { font: 600 12px/1 var(--font-ui); color: var(--text-bright); border-left: 1px solid var(--line); text-align: left; padding: 6px; }
+table.dyn th.name, table.dyn td.name { position: sticky; left: 0; z-index: 2; background: var(--bg-panel); text-align: left; min-width: 170px; }
+table.dyn thead th.name { z-index: 4; background: var(--bg-panel-2); }
+table.dyn td.name a { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 13px/1 var(--font-ui); }
+table.dyn td.name img { width: 26px; height: 26px; object-fit: cover; background: var(--bg-panel-4); }
+table.dyn td.dc { width: 30px; min-width: 30px; padding: 3px; background: var(--bg-panel); }
+table.dyn tbody tr:hover td { background: var(--bg-hover); }
+/* the cell: a square of stripes, each as tall as its share of the patch's rows */
+.dsq { display: flex; flex-direction: column; width: 26px; height: 26px; margin: 0 auto; overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--bg-page); }
+.dsq:hover { outline: 2px solid var(--text-bright); }
+.dsq .st { display: block; min-height: 3px; }
+.st.t-buff { background: var(--tag-buff); }
+.st.t-nerf { background: var(--tag-nerf); }
+.st.t-new { background: var(--tag-new); }
+.st.t-del { background: var(--tag-del); }
+.st.t-rework { background: var(--tag-rework); }
+.st.t-mech { background: var(--tag-mech); }
+.st.t-on { background: var(--tag-on); }
+.st.t-off { background: var(--tag-off); }
+.st.t-up, .st.t-down, .st.t-changed { background: var(--tag-changed); }
+/* buff vs nerf: one net colour per cell */
+table.dyn.bvn .dsq .st { display: none; }
+table.dyn.bvn .dsq.net-buff { background: var(--tag-buff); }
+table.dyn.bvn .dsq.net-nerf { background: var(--tag-nerf); }
+table.dyn.bvn .dsq.net-mix { background: var(--tag-changed); }
+table.dyn.hide-buff .st.t-buff, table.dyn.hide-nerf .st.t-nerf, table.dyn.hide-new .st.t-new, table.dyn.hide-del .st.t-del,
+table.dyn.hide-rework .st.t-rework, table.dyn.hide-mech .st.t-mech, table.dyn.hide-up .st.t-up,
+table.dyn.hide-down .st.t-down { display: none; }
+table.dyn:not(.show-old) .old { display: none; }
+table.dyn:not(.show-extra) tr.extra { display: none; }
+.dyn-bar { flex-wrap: wrap; row-gap: 8px; }
+.dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.dyn-tags .tag { cursor: pointer; border: 0; }
+.dyn-tags .tag.on { opacity: .35; }
