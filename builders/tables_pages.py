@@ -114,8 +114,9 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                           f' data-title="{esc(r["name"])} · {esc(c["label"])}"')
             cells.append(f'<td class="{" ".join(cls)}"{attrs}>{_fmt(v, c["digits"])}</td>')
         body.append(f'<tr data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
-    return (f'<div class="table-scroll"><table class="stats"><thead>{cat_row}{col_row}</thead>'
-            f'<tbody>{"".join(body)}</tbody></table></div>')
+    # the fade on the right edge says "more columns this way" until the table is scrolled to its end
+    return (f'<div class="table-fade"><div class="table-scroll"><table class="stats"><thead>{cat_row}{col_row}</thead>'
+            f'<tbody>{"".join(body)}</tbody></table></div></div>')
 
 
 def _toolbar(placeholder: str, legend_spirit: bool, details: bool = False) -> str:

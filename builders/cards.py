@@ -22,20 +22,16 @@ def card_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], 
               href: str = '') -> str:
     nm = f'<a href="{esc(href)}">{esc(name)}</a>' if href else esc(name)
     sub_html = f'<div class="sub">{esc(sub)}</div>' if sub else ''
+    counted = player_facing(counted)
     counters = tag_summary(counted) if counted else ''
     return (f'<header class="ecard-h"><span class="ei">{visual(icon_url, glyph)}</span>'
             f'<div class="en"><div class="nm">{nm}</div>{sub_html}</div>'
             f'<div class="er">{counters}{trail}</div></header>')
 
 
-COMPACT_ROWS = 2      # a card with this few rows gets a slim header (design review: one row under a 58px header)
-
-
 def card(head: str, body: str, *, hidden: bool = False, dev: bool = False, search: str = '', anchor: str = '',
-         extra: str = '', rows: int | None = None) -> str:
-    compact = rows is not None and rows <= COMPACT_ROWS
-    cls = ('ecard' + (' compact' if compact else '') + (' has-hidden' if hidden else '') + (' dev' if dev else '')
-           + (f' {extra}' if extra else ''))
+         extra: str = '') -> str:
+    cls = 'ecard' + (' has-hidden' if hidden else '') + (' dev' if dev else '') + (f' {extra}' if extra else '')
     ds = f' data-search="{esc(search)}"' if search else ''
     aid = f' id="{esc(anchor)}"' if anchor else ''
     return f'<article class="{cls}"{aid}{ds}>{head}<div class="eb">{body}</div></article>'
@@ -43,6 +39,7 @@ def card(head: str, body: str, *, hidden: bool = False, dev: bool = False, searc
 
 def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], hidden: bool = False) -> str:
     """An ability inside its hero's card."""
+    counted = player_facing(counted)
     counters = tag_summary(counted) if counted else ''
     cls = 'esub' + (' has-hidden' if hidden else '')
     return f'<div class="{cls}">{visual(icon_url, glyph, "px si2")}<span class="nm">{esc(name)}</span>{counters}</div>'
@@ -86,13 +83,30 @@ def is_engine(c: dict) -> bool:
     return bool(vals) and all(_ENGINE_VALUE.match(v) for v in vals) or bool(_ENGINE_LABEL.search(str(c.get('label'))))
 
 
+def player_facing(changes: list[dict]) -> list[dict]:
+    """The rows a player reads, which is what EVERY counter counts (home summary, patches index,
+    heroes index, card headers, history bands): renames merged, replaced tiers folded into one
+    REWORK, engine plumbing out. Folding works per entity (a hero card mixes its abilities)."""
+    groups: dict[str, list[dict]] = {}
+    for c in changes:
+        groups.setdefault(':'.join(str(c.get('key') or '').split(':', 2)[:2]), []).append(c)
+    return [c for g in groups.values() for c in fold_tier_swaps(merge_renames(g)) if not is_engine(c)]
+
+
+def change_row(c: dict) -> str:
+    # a replaced tier lists both bonus sets: they go on their own full-width line under the
+    # label (two lines at most, click to expand) instead of a tall right-aligned column
+    extra = 'rw' if c.get('op') == 'rework' else ''
+    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c), extra)
+
+
 def change_rows(changes: list[dict]) -> str:
     rows = sort_changes(fold_tier_swaps(merge_renames(changes)))
     main = [c for c in rows if not is_engine(c)]
     tech = [c for c in rows if is_engine(c)]
-    html = ''.join(row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c)) for c in main)
+    html = ''.join(change_row(c) for c in main)
     if tech:
-        inner = ''.join(row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c)) for c in tech)
+        inner = ''.join(change_row(c) for c in tech)
         hid = ' has-hidden' if is_hidden(tech) else ''
         html += f'<details class="tech{hid}"><summary>Technical ({len(tech)})</summary>{inner}</details>'
     return html

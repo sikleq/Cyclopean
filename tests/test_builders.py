@@ -147,3 +147,85 @@ def test_hero_page_lines_drop_the_hero_name():
         'Melee damage per boon increased by 10%'
     # another subject stays: the line is about the ability, not the hero
     assert _strip_subject('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'
+
+
+def test_notes_name_without_leading_the(monkeypatch):
+    from builders import notes_view
+    monkeypatch.setattr(notes_view, '_catalog', lambda: [
+        {'file': 'heroes.vdata', 'id': 'hero_doorman', 'name': 'The Doorman', 'kind': 'hero', 'alive': True}])
+    notes_view._by_name.cache_clear()
+    assert notes_view._by_name()['doorman']['id'] == 'hero_doorman'
+    notes_view._by_name.cache_clear()
+
+
+def test_history_is_one_panel_per_patch_with_sub_headers():
+    from builders.history_view import history_table
+    row = {'id': '2026-09-16', 'date': '2026-09-16', 'title': '09-16-2026 Update'}
+    keys = [('heroes.vdata:hero_atlas', 'Base stats', None), ('abilities.vdata:ab_charge', 'Shoulder Charge', None)]
+    by_ent = {'abilities.vdata:ab_charge': [(row, [ch(key='c1', label='T1: Move Speed')])],
+              'heroes.vdata:hero_atlas': [(row, [ch(key='c2', label='Health per boon')])]}
+    html = history_table(keys, ['Abrams'], by_ent, {}, '../')
+    assert html.count('class="hpanel') == 1 and html.count('class="hgroup') == 2
+    assert 'ecard' not in html and html.count('class="esub') == 2
+    # a page about one entity repeats no sub-header with its own name
+    one = history_table(keys[1:], ['Shoulder Charge'], {'abilities.vdata:ab_charge': by_ent['abilities.vdata:ab_charge']},
+                        {}, '../')
+    assert 'esub' not in one and 'T1: Move Speed' in one
+
+
+def test_replaced_tier_row_gets_full_width_line():
+    from builders.cards import change_rows
+    html = change_rows([ch(op='remove', label='T2: Fire Rate', old_s='14', new_s=None),
+                        ch(op='add', label='T2: Stun Duration', old_s=None, new_s='0.6')])
+    assert 'erow st-hidden is-hidden rw' in html and 'T2 upgrade' in html
+
+
+def test_top_pips_keeps_two_biggest_counters():
+    from builders.render import top_pips
+    html = top_pips([ch(dir='buff')] * 3 + [ch(dir='nerf')] * 2 + [ch(op='add', dir='changed')], 2)
+    assert '▲3' in html and '▼2' in html and '✦' not in html
+
+
+def test_player_facing_is_the_one_counting_rule():
+    from builders.cards import player_facing
+    engine = ch(key='heroes.vdata:hero_atlas:m_x', label='Roster Background Layout', old_s='A', new_s='B')
+    swap = [ch(key='abilities.vdata:a:t2a', op='remove', label='T2: Fire Rate', old_s='14', new_s=None),
+            ch(key='abilities.vdata:a:t2b', op='add', label='T2: Stun Duration', old_s=None, new_s='0.6')]
+    other = [ch(key='abilities.vdata:b:t2c', op='add', label='T2: Range', old_s=None, new_s='3')]
+    out = player_facing([engine] + swap + other)
+    # engine plumbing out; ability a's swapped tier is one REWORK; ability b's T2 is not folded into a's
+    assert [c['op'] for c in out] == ['rework', 'add']
+
+
+def test_weapon_panel_six_tiles_and_units_on_the_number():
+    from builders import hero_page
+    cols = [{'key': k, 'label': lbl, 'group': 'Damage', 'digits': 2, 'pol': 1}
+            for k, lbl in [('dps', 'DPS'), ('dps_max', 'Max DPS'), ('bullet_dmg', 'Bullet DMG'), ('bps', 'Bullets / s'),
+                           ('clip', 'Ammo'), ('reload', 'Reload (s)'), ('bullet_speed', 'Bullet Speed (m/s)')]]
+    row = {'values': {c['key']: 1.5 for c in cols}, 'history': {}, 'spirit_scaled': []}
+    html = hero_page.weapon_block({'name': 'Case Closed', 'id': 'w'}, row, cols, 'Abrams', '../')
+    assert html.count('wcell top') == 6 and 'Reload s' in html
+    assert '<span class="u">m/s</span>' in html and '>Bullet Speed<' in html
+
+
+def test_hero_chip_shows_two_counters_tooltip_has_all():
+    from builders.patches_pages import _hero_chip
+    html = _hero_chip('hero_atlas', 'Abrams', {'new': 9, 'buff': 8, 'nerf': 9, 'del': 8}, '../', '')
+    assert html.count('class="pip') == 2 and '✦9' in html and '▼9' in html
+    assert 'data-tooltip="Abrams · ✦9 ▲8 ▼9 ✕8"' in html
+
+
+def test_hero_last_skips_engine_only_patches(monkeypatch):
+    from builders import trail
+    patches = {
+        'patches/index.json': [{'id': 'p1', 'date': '2026-09-16'}, {'id': 'p2', 'date': '2026-09-29'}],
+        'patches/p1.json.gz': {'entities': [{'file': 'abilities.vdata', 'id': 'a', 'owner': 'hero_atlas',
+                                             'changes': [ch(key='abilities.vdata:a:x', dir='buff')]}]},
+        'patches/p2.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'changes': [
+            ch(key='heroes.vdata:hero_atlas:m_x', label='Roster Background Layout', old_s='A', new_s='B')]}]},
+    }
+    monkeypatch.setattr(trail, 'load_json', lambda name: patches[name])
+    trail._hero_changes.cache_clear()
+    row, changes = trail.hero_last('hero_atlas')
+    assert row['id'] == 'p1' and len(changes) == 1
+    trail._hero_changes.cache_clear()

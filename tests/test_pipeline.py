@@ -112,6 +112,12 @@ def test_damage_increase_is_a_buff_and_negative_debuff_magnitude():
     assert semantics.direction('m_mapAbilityProperties.BulletResistReduction.m_strValue', -8, -7)[0] == 'nerf'
 
 
+def test_shorter_tick_interval_is_a_buff():
+    # Rem: Infest Heal Interval 3 -> 2 heals more often
+    assert semantics.direction('m_mapAbilityProperties.InfestHealInterval.m_strValue', 3, 2)[0] == 'buff'
+    assert semantics.direction('m_mapAbilityProperties.TickInterval.m_strValue', 0.5, 1)[0] == 'nerf'
+
+
 def test_units_have_no_owner_direction():
     assert semantics.direction('m_nMaxHealth', 5000, 5500, kind='building')[0] == 'changed'
 
@@ -414,6 +420,16 @@ def test_weapon_name_comes_from_the_owning_hero():
     assert loc.entity_name({'x': 'Own'}, 'x', 'hero_atlas') == 'Own'                      # own name first
     tok = {'citadel_weapon_shiv_set': 'Busted Flush'}
     assert loc.entity_name(tok, 'citadel_weapon_shiv_alt', 'hero_shiv') == 'citadel_weapon_shiv_alt'  # alt fire
+
+
+def test_loc_pairs_without_a_gap_are_read():
+    from pipeline import loc
+    text = ('"lang" { "Tokens" {\n\t\t"viscous_gootapult""Splatapult"\n'
+            '\t\t"MaxBounces_label"\t"Bounces"\n\t\t"x_desc" "a \\"q\\" b"\n} }')
+    tok = loc.parse(text)
+    # Valve sometimes writes "key""value" with no whitespace; the game reads it, so do we
+    assert tok['viscous_gootapult'] == 'Splatapult'
+    assert tok['maxbounces_label'] == 'Bounces' and tok['x_desc'] == 'a "q" b'
 
 
 def test_bare_entity_name_line_is_a_heading():

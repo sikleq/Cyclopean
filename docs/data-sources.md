@@ -32,6 +32,12 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 - Localization lived in `game/citadel/resource/citadel_english.txt` (single file) and
   `pak01_dir/resource/localization/…` before the current layout; `loc.diff` compares tokens across all
   files so tokens that moved between files are not reported.
+- Token files sometimes write `"key""value"` with no gap (`InlineAttribute_BonusMoveSpeed`,
+  `viscous_gootapult` = Splatapult); `loc.parse` accepts it. Parsed files are cached per blob under
+  `.cache/<loc.LOC_CACHE>/` — bump `LOC_CACHE` whenever `parse` changes.
+- Ability text: `{g:citadel_inline_attribute:'SpiritDPS'}` prints `InlineAttribute_SpiritDPS`
+  ("spirit damage over time"); `{g:citadel_binding:'MoveForward'}` is a key, shown as `[Move Forward]`;
+  a value that already ends in the template's unit is not doubled (`+{s:Radius}m` with `2m` → `+2m`).
 - Patches of May 2024 (before build 4243) still have no game data.
 
 ## 2. Official patch notes

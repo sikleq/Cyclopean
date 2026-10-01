@@ -16,7 +16,9 @@ SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Sig
 # the head strip: survivability and movement; gun numbers live in the weapon block right below
 KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina', 'spirit_lvl')
 WEAPON_GROUP = 'Damage'
-WEAPON_TOP = ('dps', 'bullet_dmg', 'bps', 'clip', 'reload', 'falloff_end')
+# the six numbers a player compares first: one row of equal tiles with one-line labels
+WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
+              'clip': 'Ammo', 'reload': 'Reload s'}
 LINE_STATUSES = ('documented', 'rounded', 'described', 'mismatch', 'fix')
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
@@ -95,11 +97,13 @@ def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
     return ''.join(out)
 
 
-def stat_tables(row: dict, cols: list[dict], name: str, rel: str = '../', skip: tuple[str, ...] = ()) -> str:
-    """Stat groups as compact panels that flow in columns (no tall-block gaps)."""
+def stat_tables(row: dict, cols: list[dict], name: str, rel: str = '../', skip: tuple[str, ...] = (),
+                skip_keys: tuple[str, ...] = ()) -> str:
+    """Stat groups as compact panels that flow in columns (no tall-block gaps); skip_keys are
+    already on screen (the head strip) and are not repeated."""
     groups: dict[str, list[dict]] = {}
     for c in cols:
-        if c['group'] not in skip:
+        if c['group'] not in skip and c['key'] not in skip_keys:
             groups.setdefault(c['group'], []).append(c)
     parts = []
     for g, cs in groups.items():
@@ -109,20 +113,35 @@ def stat_tables(row: dict, cols: list[dict], name: str, rel: str = '../', skip: 
     return '<div class="stat-flow">' + ''.join(parts) + '</div>' if parts else ''
 
 
+_UNIT = re.compile(r'^(.*?)\s*\(([^()]+)\)$')
+
+
+def _split_unit(label: str) -> tuple[str, str]:
+    """'Bullet Speed (m/s)' -> ('Bullet Speed', 'm/s'): in a narrow weapon cell the unit rides
+    on the number, so the label fits one line."""
+    m = _UNIT.match(label)
+    return (m.group(1), m.group(2)) if m else (label, '')
+
+
+def _unit_html(unit: str) -> str:
+    return f'<span class="u">{esc(unit)}</span>' if unit else ''
+
+
 def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel: str) -> str:
     """The gun is not an ability: its own block, first, with every Damage-group number."""
     wcols = [c for c in cols if c['group'] == WEAPON_GROUP]
-    # the numbers a player compares first are big, the rest a smaller grid (design review)
-    wcols.sort(key=lambda c: WEAPON_TOP.index(c['key']) if c['key'] in WEAPON_TOP else len(WEAPON_TOP))
-    cells = []
-    for c in wcols:
+    top_order = list(WEAPON_TOP)
+    top, rest = [], []
+    for c in sorted(wcols, key=lambda c: top_order.index(c['key']) if c['key'] in WEAPON_TOP else len(top_order)):
         v = row['values'].get(c['key'])
         if v is None:
             continue
         cls, attrs = _hist_attrs(row, c, name)
-        top = ' top' if c['key'] in WEAPON_TOP else ''
-        cells.append(f'<div class="wcell{top} {cls}"{attrs}>{_stat_icon(c["key"], rel)}<span class="v">{_fmt(v, c["digits"])}</span>'
-                     f'<span class="l">{esc(c["label"])}</span></div>')
+        is_top = c['key'] in WEAPON_TOP
+        label, unit = (WEAPON_TOP[c['key']], '') if is_top else _split_unit(c['label'])
+        cell = (f'<div class="wcell{" top" if is_top else ""} {cls}"{attrs}>{_stat_icon(c["key"], rel)}'
+                f'<span class="v">{_fmt(v, c["digits"])}{_unit_html(unit)}</span><span class="l">{esc(label)}</span></div>')
+        (top if is_top else rest).append(cell)
     wname = (card or {}).get('name') or row.get('weapon_name') or ''
     # heroes in development often have no localized gun name yet: never show the internal id
     name_html = (f'<div class="wb-name">{esc(wname)}</div>' if wname and not wname.startswith('citadel_weapon_')
@@ -132,7 +151,8 @@ def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel:
     desc = f'<div class="wb-desc">{esc(card["desc"])}</div>' if card and card.get('desc') else ''
     return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px", "abilities")}'
             f'<div><div class="wb-kicker">Weapon</div>{name_html}{desc}</div></div>'
-            f'<div class="wb-cells">{"".join(cells)}</div></section>')
+            f'<div class="wb-nums"><div class="wb-top">{"".join(top)}</div>'
+            f'<div class="wb-cells">{"".join(rest)}</div></div></section>')
 
 
 def prop_icon(css: str | None, rel: str) -> str:
@@ -178,6 +198,12 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
             f'{trail_html(key, None, rel)}</div></div>'
             f'{"<div class=ac-hdr>" + hdr + "</div>" if hdr else ""}{desc}{table}'
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
+
+
+def history_heading() -> str:
+    """'History' with its filter on the same line (a sticky toolbar of one button covered rows)."""
+    return ('<div class="h2row"><h2>History</h2><button class="px-btn" data-toggle-class="only-hidden" '
+            'data-target="#history">Only hidden</button></div>')
 
 
 def _strip_subject(text: str, names: list[str]) -> str:
@@ -239,12 +265,9 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
     stats = ''
     if table_row:
-        panels = stat_tables(table_row, cols, name, rel, skip=(WEAPON_GROUP,))
+        panels = stat_tables(table_row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS)
         stats = f'<h2>Stats</h2>{panels}' if panels else ''
     keys = _owned_keys(hid, name, mine, ents_by_id, rel)
     hist = history_table(keys, [name], by_ent, by_subject, rel)
-    body = (head + weapon + abil + stats +
-            '<h2>History</h2><div class="toolbar"><button class="px-btn" data-toggle-class="only-hidden" '
-            'data-target="#history">Only hidden</button></div>'
-            f'<div id="history">{hist}</div>')
+    body = head + weapon + abil + stats + history_heading() + f'<div id="history">{hist}</div>'
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: stats, abilities and every change')

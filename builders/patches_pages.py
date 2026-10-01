@@ -18,21 +18,19 @@ SUMMARY_TAGS = (('buff', 'Buffs'), ('nerf', 'Nerfs'), ('new', 'New'), ('del', 'R
 def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> str:
     """The patch's first screen: how big and which way (tag counters + bar), who was hit
     (hero portraits with up/down counts), then one thin line of the notes check."""
+    from .cards import player_facing
     from .common import hero_icon
     from .render import tag_of
     counts = {k: 0 for k, _ in SUMMARY_TAGS}
-    per_hero: dict[str, list[int]] = {}
+    per_hero: dict[str, dict[str, int]] = {}
     for e in gameplay:
         owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
-        for c in e['changes']:
+        for c in player_facing(e['changes']):        # the same rule as every other counter
             cls = tag_of(c)[0]
             counts[cls if cls in counts else 'other'] += 1
             if owner and owner != 'hero_base':
-                ud = per_hero.setdefault(owner, [0, 0])
-                if cls == 'buff':
-                    ud[0] += 1
-                elif cls == 'nerf':
-                    ud[1] += 1
+                tags = per_hero.setdefault(owner, {})
+                tags[cls] = tags.get(cls, 0) + 1
     total = sum(counts.values()) or 1
     tiles = ''.join(f'<div class="sum-tile t-{k}"><span class="n">{counts[k]}</span><span class="l">{esc(lbl)}</span></div>'
                     for k, lbl in SUMMARY_TAGS if counts[k])
@@ -40,15 +38,11 @@ def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> st
                   if counts[k])
     names = hero_names()
     live = released_heroes()
-    heroes = sorted(per_hero, key=lambda h: (-(sum(per_hero[h])), names.get(h, h)))
+    heroes = sorted(per_hero, key=lambda h: (-(sum(per_hero[h].values())), names.get(h, h)))
     # heroes still in development (placeholder art) do not crowd the strip: one counter for them
     in_dev = [h for h in heroes if h not in live]
-    strip = ''.join(
-        f'<a class="hchip" href="{esc(link_base)}#c-{esc(h)}" data-tooltip="{esc(names.get(h, h))}">'
-        f'<img class="px" src="{esc(hero_icon(h, rel) or "")}" alt="{esc(names.get(h, h))}" loading="lazy">'
-        f'<span class="hc">{"<span class=up>▲" + str(per_hero[h][0]) + "</span>" if per_hero[h][0] else ""}'
-        f'{"<span class=dn>▼" + str(per_hero[h][1]) + "</span>" if per_hero[h][1] else ""}</span></a>'
-        for h in heroes if h in live and hero_icon(h, rel))
+    strip = ''.join(_hero_chip(h, names.get(h, h), per_hero[h], rel, link_base)
+                    for h in heroes if h in live and hero_icon(h, rel))
     if in_dev:
         strip += f'<span class="chip dev hdev">{mark("unreleased")}+{len(in_dev)} in development</span>'
     c = p.get('counts', {})
@@ -69,6 +63,23 @@ def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> st
     return (f'<section class="summary px-frame"><div class="sum-tiles">{tiles}</div><div class="sum-bar">{bar}</div>'
             f'{"<div class=sum-heroes>" + strip + "</div>" if strip else ""}'
             f'<div class="sum-audit">{audit_html}</div></section>')
+
+
+HCHIP_KINDS = 2      # a 50px chip fits two counters; the tooltip carries them all
+
+
+def _hero_chip(hid: str, name: str, tags: dict[str, int], rel: str, link_base: str) -> str:
+    """Portrait + its two biggest counters in the tag glyphs (a rework- or new-only hero
+    used to show an empty slab: only ▲/▼ were counted)."""
+    from .common import hero_icon
+    from .render import TAG_GLYPH, TAG_ORDER
+    ranked = sorted(tags.items(), key=lambda kv: (-kv[1], TAG_ORDER.get(kv[0], 9)))
+    shown = sorted(ranked[:HCHIP_KINDS], key=lambda kv: TAG_ORDER.get(kv[0], 9))
+    pips = ''.join(f'<span class="pip {k}">{TAG_GLYPH.get(k, "●")}{n}</span>' for k, n in shown)
+    full = ' '.join(f'{TAG_GLYPH.get(k, "●")}{n}' for k, n in sorted(tags.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
+    return (f'<a class="hchip" href="{esc(link_base)}#c-{esc(hid)}" data-tooltip="{esc(name)} · {esc(full)}">'
+            f'<img class="px" src="{esc(hero_icon(hid, rel) or "")}" alt="{esc(name)}" loading="lazy">'
+            f'<span class="hc">{pips}</span></a>')
 
 
 @lru_cache(maxsize=1)
@@ -156,8 +167,7 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
         ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
         head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), e['changes'],
                          trail=trail_html(f"{e['file']}:{e['id']}", pid, rel))
-        out.append(card(head, change_rows(e['changes']), hidden=is_hidden(e['changes']), search=name.lower(),
-                        rows=len(e['changes'])))
+        out.append(card(head, change_rows(e['changes']), hidden=is_hidden(e['changes']), search=name.lower()))
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 

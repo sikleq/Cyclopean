@@ -11,6 +11,20 @@ def test_tooltip_text_filled_like_the_game():
     assert fill('a<br>b', {}) == 'a\nb'
 
 
+def test_inline_attributes_read_like_the_game_and_units_do_not_double():
+    tok = {'inlineattribute_spiritdps': 'spirit damage over time', 'inlineattribute_spiriticon': ''}
+    # the game prints the attribute's localized words, not its key ("SpiritDPS")
+    text = "dealing {g:citadel_inline_attribute:'SpiritDPS'} and {g:citadel_inline_attribute:'Heal'}"
+    assert fill(text, {}, tok) == 'dealing spirit damage over time and heal'
+    assert fill("x {g:citadel_inline_attribute:'SpiritIcon'}y", {}, tok) == 'x y'
+    assert fill("gain {g:citadel_inline_attribute:'AirDash'}", {}, tok) == 'gain air dash'      # unknown: words
+    # a key binding is drawn as a key in the game
+    assert fill("Hold{g:citadel_binding:'MoveForward'}while active", {}, tok) == 'Hold [Move Forward] while active'
+    # a value that already carries the template's unit: "+{s:Radius}m" with "2m" is "+2m", not "+2mm"
+    assert fill('<span>+{s:Radius}m</span> Radius', {'Radius': '2m'}) == '+2m Radius'
+    assert fill('for {s:D}s', {'D': '5'}) == 'for 5s'
+
+
 def test_property_prefix_and_units():
     tok = {'enemyslowpct_prefix': '-', 'enemyslowpct_postfix': '%', 'bonushealth_prefix': '{s:sign}',
            'abilitycastrange_postfix': 'm'}

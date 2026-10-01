@@ -30,6 +30,11 @@ def _by_name() -> dict[str, dict]:
         nm = (e.get('name') or '').strip().lower()
         if nm and nm != e['id'].lower():
             out.setdefault(nm, e)
+    # notes write "Doorman:" for The Doorman; a second pass, so an exact name ("Rake") always
+    # wins over a shortened one ("The Rake")
+    for nm, e in list(out.items()):
+        if nm.startswith('the '):
+            out.setdefault(nm[4:], e)
     return out
 
 
@@ -226,7 +231,6 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
             for ln, changes in zip(lines, linked):
                 buckets.setdefault(_line_ability(ln, changes, hero), []).append((ln, changes))
             rows = []
-            n_rows = 0
             for ab, items in buckets.items():
                 if not items:
                     continue
@@ -241,7 +245,6 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
                     if not tag:
                         tag = text_tag(text, ln.get('topic'))
                     rows.append(row(ln['status'], tag, _highlight(text, d), _files_cell(ln, changes, ent)))
-                    n_rows += 1
             if not subject:
                 cards.append(f'<article class="ecard plain"><div class="eb">{"".join(rows)}</div></article>')
                 continue
@@ -251,7 +254,7 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
                              [c for cs in linked for c in cs[:1]],
                              trail=trail_html(src_key, p['id'], rel) if src_key else '')
             cards.append(card(head, ''.join(rows), search=subject.lower(),
-                              anchor=f"n-{ent['id']}" if ent else '', rows=n_rows))
+                              anchor=f"n-{ent['id']}" if ent else ''))
         out.append('<div class="ecards">' + ''.join(cards) + '</div>')
     return ''.join(out)
 

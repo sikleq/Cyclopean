@@ -69,17 +69,26 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
             slot['lines'].setdefault(_entity_of_line(ln, key_set, names_by_key, own), []).append(ln)
     if not per_patch:
         return '<p class="muted">No recorded changes.</p>'
+    from .cards import player_facing
     blocks = []
-    for i, pid in enumerate(sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True)):
-        blocks.append(_patch_block(pid, per_patch[pid], order, meta, names, rel, open_=i < OPEN_PATCHES))
+    opened = 0
+    for pid in sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True):
+        slot = per_patch[pid]
+        # a patch that only moved engine plumbing does not take one of the open places
+        real = bool(slot['lines']) or bool(player_facing([c for ch in slot['ch'].values() for c in ch]))
+        open_ = real and opened < OPEN_PATCHES
+        opened += open_
+        blocks.append(_patch_block(pid, slot, order, meta, names, rel, open_=open_))
     return '<div class="hblocks">' + ''.join(blocks) + '</div>'
 
 
-OPEN_PATCHES = 3        # the latest patches open; older ones fold to their banner line
+OPEN_PATCHES = 3        # the latest patches with player-facing rows open; the rest fold to their banner
 
 
 def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str], rel: str, open_: bool) -> str:
-    from .cards import card, card_head, change_rows, is_hidden, row
+    """One patch = its banner + ONE full-width panel: an ability sub-header per entity, rows
+    below it (design review: a 2-column grid of one-row cards left holes and read in zigzag)."""
+    from .cards import change_rows, is_hidden, player_facing, row, sub_head
     from .notes_view import text_tag
     from .render import tag_summary
     hdr = slot['row']
@@ -89,8 +98,10 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     chips = f'<span class="chip eye-chip">{mark("hidden")}{n_hidden} hidden</span>' if n_hidden else ''
     if n_dev:
         chips += f'<span class="chip dev">{mark("unreleased")}{n_dev} in development</span>'
-    cards = []
+    parts = []
     counted_all = []
+    # a page about one entity (an item, a unit) needs no sub-header repeating its own name
+    single = len(order) == 1
     for key in sorted(set(slot['ch']) | set(slot['lines']), key=lambda k: order.get(k, 999)):
         nm, ic = meta[key]
         lines = slot['lines'].get(key, [])
@@ -109,13 +120,13 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
             rows.append(row(ln['status'], tag, _highlight(text, d)))
         counted = [c for ln in lines for c in [by_key.get(k) for k in ln.get('changes', [])][:1] if c] + rest
         counted_all += counted
-        head = card_head(nm, ic, glyph_for(file, eid), counted)
-        cards.append(card(head, ''.join(rows) + change_rows(rest), hidden=is_hidden(rest),
-                          dev=any(c.get('status') == 'unreleased' for c in rest), rows=len(rows) + len(rest)))
+        hidden = is_hidden(rest)
+        head = '' if single else sub_head(nm, ic, glyph_for(file, eid), counted, hidden)
+        parts.append(f'<div class="hgroup{" has-hidden" if hidden else ""}">{head}{"".join(rows)}{change_rows(rest)}</div>')
     hidden_cls = ' has-hidden' if is_hidden(all_ch) else ''
     summary = (f'<summary class="banner{" hidden-only" if n_hidden and n_hidden == len(all_ch) else ""}">'
                f'<span class="bt"><a href="{rel}patches/{esc(pid)}.html">{esc(hdr["title"])}</a></span>'
                f'<span class="bd">{esc(hdr["date"])}</span>'
-               f'<span class="bc">{tag_summary(counted_all)}{chips}</span></summary>')
+               f'<span class="bc">{tag_summary(player_facing(counted_all))}{chips}</span></summary>')
     return (f'<details class="pblock{hidden_cls}"{" open" if open_ else ""}>{summary}'
-            f'<div class="ecards">{"".join(cards)}</div></details>')
+            f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div></details>')

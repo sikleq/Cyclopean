@@ -15,7 +15,14 @@ def _biggest(p: dict) -> str:
     from .common import entity_icon
     names = hero_names()
     cards = []
-    for r in (p.get('key_changes') or [])[:BIGGEST]:
+    # one card per ability: three rows of the same ultimate crowded out the rest
+    seen: set[str] = set()
+    picked = []
+    for r in p.get('key_changes') or []:
+        if r['entity'] not in seen:
+            seen.add(r['entity'])
+            picked.append(r)
+    for r in picked[:BIGGEST]:
         file, _, eid = r['entity'].partition(':')
         ic = entity_icon(file, eid, r.get('kind') or '', '', r.get('name'), r.get('owner'))
         who = names.get(r.get('owner') or '', '')
@@ -35,9 +42,13 @@ def _latest(row: dict | None) -> str:
     gameplay = [{**e, 'changes': [c for c in e['changes'] if c['cat'] in GAMEPLAY]} for e in p['entities']]
     gameplay = [e for e in gameplay if e['changes']]
     href = f'patches/{esc(row["id"])}.html'
+    c = p.get('counts', {})
+    # notes that only touch the interface say nothing about balance: say so next to the date
+    quiet = (' · <span class="no-notes">no balance notes</span>'
+             if p.get('sections') and not c.get('documented') and not c.get('described') else '')
     return (f'<section class="latest px-frame hero-frame">'
             f'<div class="banner"><span class="bt"><a href="{href}">{esc(row["title"])}</a></span>'
-            f'<span class="bd">latest update · {esc(row["date"])}</span>'
+            f'<span class="bd">latest update · {esc(row["date"])}{quiet}</span>'
             f'<span class="bc"><a class="px-btn" href="{href}">Open the patch →</a></span></div>'
             f'{_summary(p, gameplay, "", link_base=href).replace("summary px-frame", "summary")}'
             f'<h3 class="mini-h">Biggest changes</h3>{_biggest(p)}</section>')

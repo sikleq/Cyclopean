@@ -42,7 +42,10 @@ def css_class(d: dict) -> str | None:
     return CSS_ALIASES.get(css, css) or None
 
 _SUB_RE = re.compile(r'\{s:([A-Za-z0-9_]+)\}')
-_G_RE = re.compile(r"\{g:[^}]*?:'([^']*)'\}|\{g:[^}]*?:([^}:]*)\}")
+_G_RE = re.compile(r"\{g:([^}:]*):'([^']*)'\}|\{g:([^}:]*):([^}:]*)\}")
+INLINE_ATTRIBUTE = 'citadel_inline_attribute'
+KEY_BINDING = 'citadel_binding'
+_SPACES_RE = re.compile(r'[ \t]{2,}')
 _TAG_RE = re.compile(r'<br\s*/?>', re.I)
 _HTML_RE = re.compile(r'<[^>]+>')
 
@@ -84,12 +87,28 @@ def fmt_prop(tok, prop, value, aid, bonus=False) -> str:
     return f'{pre}{v}{post}'
 
 
-def fill(text: str | None, values: dict[str, str]) -> str:
-    """Tooltip text with {s:Prop} filled and markup removed."""
+def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = None) -> str:
+    """Tooltip text with {s:Prop} filled and markup removed. {g:citadel_inline_attribute:'X'}
+    is what the game prints for InlineAttribute_X ('SpiritDPS' -> 'spirit damage over time')."""
     if not text:
         return ''
-    t = _SUB_RE.sub(lambda m: values.get(m.group(1), m.group(1)), text)
-    t = _G_RE.sub(lambda m: m.group(1) or m.group(2) or '', t)
+
+    def value(m: re.Match) -> str:
+        v = values.get(m.group(1), m.group(1))
+        # "+{s:Radius}m" with a value that already ends in m: the unit once ("+2m", not "+2mm")
+        nxt = m.string[m.end():m.end() + 1]
+        return v[:-1] if nxt and not nxt.isdigit() and v.endswith(nxt) else v
+
+    def glossary(m: re.Match) -> str:
+        kind, name = (m.group(1), m.group(2)) if m.group(2) is not None else (m.group(3), m.group(4))
+        if kind == KEY_BINDING:          # the game draws the key: "Hold [Move Forward] while…"
+            return f' [{humanize(name)}] '
+        if tok is not None and kind == INLINE_ATTRIBUTE:
+            words = tok.get(f'inlineattribute_{name}'.lower())
+            return words if words is not None else humanize(name).lower()
+        return name or ''
+    t = _SUB_RE.sub(value, text)
+    t = _SPACES_RE.sub(' ', _G_RE.sub(glossary, t))
     t = _TAG_RE.sub('\n', t)
     t = _HTML_RE.sub('', t)
     return '\n'.join(ln.strip() for ln in t.splitlines() if ln.strip())
@@ -143,7 +162,7 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
                 vals[p] = _num_s(b).lstrip('-') if _affix(tok, p, 'prefix') == '-' else _num_s(b)
             bonuses.append({'label': _label(tok, p, aid) + (' (spirit scaling)' if scale else ''),
                             'value': fmt_prop(tok, p, b, aid, bonus=True)})
-        text = fill(tok.get(f'{aid}_t{i}_desc'.lower()), vals)
+        text = fill(tok.get(f'{aid}_t{i}_desc'.lower()), vals, tok)
         tiers.append({'tier': i, 'text': text, 'bonuses': bonuses})
     sections = []
     for sec in a.get('m_vecTooltipSectionInfo') or []:      # items: Innate / Passive / Active blocks
@@ -153,14 +172,14 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
             rows = [row(p) for p in list(attr.get('m_vecElevatedAbilityProperties') or []) + imp
                     + list(attr.get('m_vecAbilityProperties') or []) if p]
             key = str(attr.get('m_strLocString') or '').lstrip('#').lower()
-            sections.append({'type': kind_s, 'desc': fill(tok.get(key), base_vals) if key else '',
+            sections.append({'type': kind_s, 'desc': fill(tok.get(key), base_vals, tok) if key else '',
                              'props': [r for r in rows if r]})
     base = loc.loc_base(tok, aid, owner)
     return {
         'id': aid, 'kind': kind, 'owner': owner,
         'name': loc.plain(loc.entity_name(tok, aid, owner)),
         'quip': loc.plain(tok.get(f'{base}_quip')),
-        'desc': fill(tok.get(f'{base}_desc'), base_vals),
+        'desc': fill(tok.get(f'{base}_desc'), base_vals, tok),
         'header': header,
         'important': [r for r in (row(p) for p in important) if r and r['prop'] not in header_props],
         'basic': [r for r in (row(p) for p in basic) if r and r['prop'] not in header_props],

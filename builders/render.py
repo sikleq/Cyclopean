@@ -114,6 +114,18 @@ def tag_summary(changes: list[dict]) -> str:
         for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
 
 
+def top_pips(changes: list[dict], k: int) -> str:
+    """The k biggest counters only (a 50-110px tile fits two), in the usual tag order."""
+    counts: dict[str, int] = {}
+    for c in changes:
+        cls = tag_of(c)[0]
+        counts[cls] = counts.get(cls, 0) + 1
+    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], TAG_ORDER.get(kv[0], 9)))[:k]
+    return '<span class="tsum">' + ''.join(
+        f'<span class="pip {cls}">{TAG_GLYPH.get(cls, "●")}{n}</span>'
+        for cls, n in sorted(ranked, key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
+
+
 def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | None = None) -> str:
     """'Biggest changes' table rows: icon + entity (+ its hero, dimmed) | tag | label | values."""
     from .common import entity_icon, pretty_id
@@ -201,6 +213,9 @@ def _clip(s) -> str:
     return s if len(s) <= LONG_VALUE else s[:LONG_VALUE - 1] + '…'
 
 
+PCT_PAD = '<span class="pct-pad"></span>'
+
+
 def vals_html(c: dict) -> str:
     op = c.get('op')
     if c.get('cat') in ('visual', 'audio', 'ui'):
@@ -214,13 +229,15 @@ def vals_html(c: dict) -> str:
     if fl:
         return fl
     old_s, new_s = _clip(old_s), _clip(new_s)
+    # rows without a % pill keep its slot (.pct-pad, shown only in change rows), so the new
+    # values of every row end on one vertical line
     if op == 'add':
-        return f'<span class="vals"><span class="new">{esc(new_s)}</span></span>'
+        return f'<span class="vals"><span class="new">{esc(new_s)}</span>{PCT_PAD}</span>'
     if op == 'remove':
-        return f'<span class="vals"><span class="old">{esc(old_s)}</span></span>'
+        return f'<span class="vals"><span class="old">{esc(old_s)}</span>{PCT_PAD}</span>'
     d = c.get('dir', 'changed')
     pct = c.get('pct')
-    pct_s = f'<span class="pct dir-{d}">{pct:+.1f}%</span>' if isinstance(pct, (int, float)) else ''
+    pct_s = f'<span class="pct dir-{d}">{pct:+.1f}%</span>' if isinstance(pct, (int, float)) else PCT_PAD
     return (f'<span class="vals"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
             f'<span class="new dir-{d}">{esc(new_s)}</span>{pct_s}</span>')
 

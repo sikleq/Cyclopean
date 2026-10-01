@@ -18,7 +18,10 @@ _LOWER_BETTER = re.compile(
     r'(cooldown|castdelay|cast_delay|casttime|reload|cycletime|spread|cost|price|'
     r'windup|lockout|recoil|delay(?!ed)|critdamagereceived|damagetaken|selfdamage|'
     r'chargetime|channeltime|backswing|fallofstart|penalty|fadetime|arming|'
-    r'm_unrequiredgold|goldthreshold|requiredgold|resurrectiontime|respawn)',
+    r'm_unrequiredgold|goldthreshold|requiredgold|resurrectiontime|respawn|'
+    # time between an effect's ticks: shorter = it heals / hits more often (Infest Heal Interval 3 -> 2
+    # is a buff); sound / think / trail intervals keep the default
+    r'(?:heal|tick|volley|pulse|impact|damage|attack|explosion|explode)interval)',
     re.I,
 )
 # fields where direction is not meaningful for the owner

@@ -186,6 +186,33 @@
     });
   });
 
+  /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
+  safe('table-fade', function () {
+    document.querySelectorAll('.table-fade > .table-scroll').forEach(function (sc) {
+      function check() {
+        sc.parentNode.classList.toggle('at-end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2);
+      }
+      sc.addEventListener('scroll', check, { passive: true });
+      // the Details button widens the table: watch sizes, not only window resizes
+      if (window.ResizeObserver) {
+        var ro = new ResizeObserver(check);
+        ro.observe(sc);
+        ro.observe(sc.firstElementChild);
+      } else {
+        window.addEventListener('resize', check);
+      }
+      check();
+    });
+  });
+
+  /* ---------- a clamped REWORK value line opens on click ---------- */
+  safe('rework-lines', function () {
+    document.addEventListener('click', function (ev) {
+      var v = ev.target.closest && ev.target.closest('.erow.rw .vals.wrap');
+      if (v) v.classList.toggle('open');
+    });
+  });
+
   /* ---------- heatmap toggle for the stats table ---------- */
   safe('heatmap', function () {
     var btn = document.querySelector('[data-heatmap]');

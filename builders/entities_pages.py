@@ -4,8 +4,8 @@ from __future__ import annotations
 from collections import defaultdict
 
 from .common import entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
-from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
-from .render import KIND_LABEL
+from .hero_page import hero_page, history_heading, history_table, prop_icon, prop_rows, stat_tables
+from .render import KIND_LABEL, top_pips
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -62,10 +62,12 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             hdr = '<div class="chips item-hdr">' + ''.join(
                 f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
                 f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
-        sections = ('<h2>Current values</h2>' + hdr + '<div class="ability-grid">' + ''.join(blocks) + '</div>'
-                    if blocks or hdr else '')
+        sections = ('<h2>Current values</h2>' + hdr + ''.join(blocks)) if blocks or hdr else ''
     hist = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel)
-    body = head + sections + '<h2>History</h2>' + hist
+    history = history_heading() + f'<div id="history">{hist}</div>'
+    # current values beside the history (design review: the values sat above a screen of empty space)
+    body = head + (f'<div class="item-layout"><aside class="item-now">{sections}</aside><div>{history}</div></div>'
+                   if sections else history)
     return page(name, body, rel, 'items')
 
 
@@ -82,16 +84,26 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) 
     if trow:
         stats = '<h2>Stats</h2>' + stat_tables(trow, cols, name, rel)
     hist = history_table([(f'npc_units.vdata:{u["id"]}', name, ic)], [name], by_ent, by_subject, rel)
-    return page(name, head + stats + '<h2>History</h2>' + hist, rel, 'units')
+    return page(name, head + stats + history_heading() + f'<div id="history">{hist}</div>', rel, 'units')
 
 
-def _card(e: dict, rel_icon: str | None, sub: str = '') -> str:
+def _hero_foot(hid: str) -> str:
+    """Under a hero portrait: what its newest patch did to it ('▲2 ▼1 · 09-16')."""
+    from .trail import hero_last
+    last = hero_last(hid)
+    if not last:
+        return ''
+    row, changes = last
+    return f'<span class="last">{top_pips(changes, 2)}<span class="d">{esc(row["date"][5:])}</span></span>'
+
+
+def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
     href = slug(e['file'], e['id']).split('/', 1)[1]
     cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
     name = e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
     return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc(name.lower())} {esc(e["id"])}">'
             f'{img(rel_icon, "", "px", glyph_for(e["file"], e["id"]))}<span class="nm">{esc(name)}</span>'
-            f'<span class="sub">{esc(sub)}</span></a>')
+            f'<span class="sub">{esc(sub)}</span>{foot}</a>')
 
 
 def build_all() -> dict[str, int]:
@@ -116,8 +128,8 @@ def build_all() -> dict[str, int]:
     live = sorted((h for h in heroes if h.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease')),
                   key=lambda h: h.get('name') or '')
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
-    grid = ''.join(_card(h, hero_icon(h['id'], rel), 'pre-release' if h.get('state') == 'EHeroDevState_PreRelease' else '')
-                   for h in live)
+    grid = ''.join(_card(h, hero_icon(h['id'], rel), 'pre-release' if h.get('state') == 'EHeroDevState_PreRelease' else '',
+                         _hero_foot(h['id'])) for h in live)
     grid2 = ''.join(_card(h, hero_icon(h['id'], rel), 'unreleased') for h in other)
     body = ('<h1>Heroes</h1><div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".card"></div>'
             f'<div class="grid heroes">{grid}</div>'

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from .cards import player_facing
 from .common import esc, load_json
 from .render import tag_of
 
@@ -32,7 +33,7 @@ def _index() -> tuple[list[dict], dict[str, dict[str, str]]]:
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
         for e in p['entities']:
-            ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
+            ch = player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY])
             if ch and e.get('id') != '@shared':
                 by_ent.setdefault(e['key'], {})[r['id']] = dominant(ch)
     return rows, by_ent
@@ -58,15 +59,35 @@ def patch_stats() -> dict[str, dict]:
         heroes: dict[str, int] = {}
         for e in p['entities']:
             owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
-            for c in e['changes']:
-                if c['cat'] not in GAMEPLAY:
-                    continue
+            for c in player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY]):
                 cls = tag_of(c)[0]
                 tags[cls] = tags.get(cls, 0) + 1
                 if owner and owner != 'hero_base':
                     heroes[owner] = heroes.get(owner, 0) + 1
         out[r['id']] = {'tags': tags, 'heroes': sorted(heroes, key=lambda h: (-heroes[h], h))}
     return out
+
+
+@lru_cache(maxsize=1)
+def _hero_changes() -> dict[str, tuple[dict, list[dict]]]:
+    """hero id -> (newest patch row that touched the hero or one of its abilities, its changes)."""
+    out: dict[str, tuple[dict, list[dict]]] = {}
+    for r in sorted(load_json('patches/index.json'), key=lambda r: r['date'], reverse=True):
+        p = load_json(f'patches/{r["id"]}.json.gz')
+        found: dict[str, list[dict]] = {}
+        for e in p['entities']:
+            owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
+            if owner and owner not in out:
+                found.setdefault(owner, []).extend(player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY]))
+        for hid, ch in found.items():
+            if ch:
+                out[hid] = (r, ch)
+    return out
+
+
+def hero_last(hid: str) -> tuple[dict, list[dict]] | None:
+    """The hero's newest patch (its own stats or any of its abilities) and what changed there."""
+    return _hero_changes().get(hid)
 
 
 def trail_html(key: str, current: str | None = None, rel: str = '../', n: int = TRAIL_LEN) -> str:

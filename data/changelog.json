@@ -1,6 +1,31 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Redesign: cards, banners, readable pixel fonts",
+    "items": [
+      "New fonts: Jersey 20 for headings and names (clear pixel digits), VT323 for labels and tags, IBM Plex Sans for text.",
+      "Every change list is a set of entity cards: big icon, name, ▲▼ counters and a strip of the last 12 patches; rows with the tag, the text and old → new with a % pill.",
+      "Patch pages open with a summary: buffs / nerfs / new / removed, the heroes hit (click to jump to their card), the notes check in one line, ◀ ▶ to step between patches.",
+      "Patch notes are grouped by hero and ability with section banners; exact lines no longer repeat their numbers.",
+      "Hero pages: official notes sit inside the ability they are about; older patches fold; abilities show their last change and history; the weapon's key numbers are large.",
+      "Patches index grouped by month with follow-ups under their parent, ▲▼ counts and the heroes hit.",
+      "A smaller bonus to cooldown (-20s → -18s) is now a nerf, not a buff.",
+      "Engine plumbing rows fold into 'Technical'; a renamed field shows as one change instead of removed + added.",
+      "Hero pages: the weapon's six key numbers in one row of equal tiles; history is one panel per patch with the abilities as sub-headers; 'Only hidden' sits next to the History heading.",
+      "Item pages: the current values sit beside the history.",
+      "Heroes list: under every portrait, what the hero's last patch did (▲▼✦✕) and its date.",
+      "Small names use a plain readable font; the pixel font stays for headings and big numbers.",
+      "Patch summaries count new and removed abilities per hero too; a replaced upgrade tier shows its old and new bonuses on one muted line.",
+      "Hero Stats: every column group is labelled at its start; a fade on the right shows there are more columns; a corner notch marks values changed in the last 45 days.",
+      "Every counter on every page counts the same rows: engine plumbing no longer makes a patch look like a hero's last change.",
+      "Ability text reads like the game: 'spirit damage over time' instead of 'SpiritDPS', '+2m' instead of '+2mm', keys shown as [Move Forward].",
+      "Names Valve wrote without a gap in the localization file are read (Viscous: Splatapult; labels such as 'Bounces').",
+      "A shorter time between heal or damage ticks is a buff (Rem: Infest Heal Interval 3 → 2).",
+      "Change rows are denser and their new values line up in one column."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Global lines, icons everywhere, tooltips that fit, one-line table headers",
     "items": [
       "Lines that move one stat of every hero by an amount ('Base HP reduced by 10 for all heroes', 'Bullet Cycle Time increased by 5%', 'Spirit Power scaling reduced by 7%') now cover those changes instead of leaving dozens 'hidden'.",

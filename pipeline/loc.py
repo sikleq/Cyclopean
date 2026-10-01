@@ -15,7 +15,10 @@ from . import cache, tracker
 
 SKIP_GROUPS = ('citadel_generated_vo',)
 
-_TOKEN_RE = re.compile(r'"((?:[^"\\\n]|\\.)+)"[ \t]+"((?:[^"\\]|\\.)*)"', re.S)
+# Valve sometimes writes "key""value" with no gap (InlineAttribute_BonusMoveSpeed, viscous_gootapult):
+# the game reads those, so the gap is optional
+_TOKEN_RE = re.compile(r'"((?:[^"\\\n]|\\.)+)"[ \t]*"((?:[^"\\]|\\.)*)"', re.S)
+LOC_CACHE = 'loc2'      # bump when parse() changes: cached token files are re-parsed
 _TAG_RE = re.compile(r':[a-z]+$')
 
 
@@ -33,7 +36,7 @@ def parse(text: str) -> dict[str, str]:
 
 @lru_cache(maxsize=256)
 def _file_tokens_cached(blob: str) -> dict[str, str]:
-    return cache.cached_json('loc', blob, lambda: parse(tracker.read_blob(blob).decode('utf-8-sig', 'replace')))
+    return cache.cached_json(LOC_CACHE, blob, lambda: parse(tracker.read_blob(blob).decode('utf-8-sig', 'replace')))
 
 
 def _file_tokens(blob: str) -> dict[str, str]:
