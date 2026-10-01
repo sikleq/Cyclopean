@@ -36,6 +36,7 @@ def build() -> dict:
     t0 = time.time()
     ents: dict[str, dict] = {}
     last_blobs: dict[str, str | None] = {}
+    current: dict[str, set[str]] = {}         # ids in the latest version of each file
     heroes: dict = {}
     head = tracker.builds()[-1]
     for b in tracker.builds():
@@ -58,6 +59,7 @@ def build() -> dict:
                     if isinstance(aid, str):
                         ability_slots.setdefault(aid, slot.replace('ESlot_', ''))
         for f, (_, data) in snap.items():
+            current[f] = {k for k, v in data.items() if isinstance(v, dict)}
             for eid, val in data.items():
                 if not isinstance(val, dict) or eid in ('generic_data_type', '_include'):
                     continue
@@ -84,7 +86,9 @@ def build() -> dict:
     # names from the last build each entity existed in
     by_commit: dict[str, list[dict]] = {}
     for e in ents.values():
-        e['alive'] = e['last'][2] == head.commit or e['last'][0] == head.build
+        # alive = still in the latest version of its file. Not "seen in the head build": a build
+        # that leaves abilities.vdata alone (6728) killed every item on the site (2026-10-01)
+        e['alive'] = e['id'] in current.get(e['file'], set())
         by_commit.setdefault(e['last'][2], []).append(e)
     for commit, group in by_commit.items():
         tok = loc.tokens(commit)

@@ -60,6 +60,15 @@ def main() -> int:
         if key not in manifest and key not in allowed:
             issues.append(('MEDIUM', f'hero {h["name"]} has no icon (run tools/extract_icons.py)'))
 
+    # the shop must not empty out: on 2026-10-01 a build that left abilities.vdata alone marked
+    # every item removed (catalog 'alive') and the live Items page showed none
+    ents = json.loads((DATA / 'entities.json').read_text(encoding='utf-8'))['entities']
+    for kind, least in (('item', 0.6), ('ability', 0.6), ('hero', 0.3)):
+        group = [e for e in ents if e.get('kind') == kind and not e.get('template')]
+        alive = sum(1 for e in group if e.get('alive'))
+        if group and alive / len(group) < least:
+            issues.append(('HIGH', f'only {alive} of {len(group)} {kind} entities are alive — catalog bug?'))
+
     for sev, msg in issues:
         print(f'[{sev}] {msg}')
     high = sum(1 for s, _ in issues if s == 'HIGH')

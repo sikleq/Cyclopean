@@ -198,11 +198,13 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
 
 
 def hero_entries(heroes: list[dict], rel: str) -> list[tuple]:
+    from .common import slug
     out = []
     for h in sorted(heroes, key=lambda h: (h.get('name') or h['id']).lower()):
         pre = h.get('state') != 'EHeroDevState_Release'
-        out.append((f'hero:{h["id"]}', h.get('name') or h['id'], hero_icon(h['id'], rel), f'{h["id"]}.html',
-                    'extra' if pre else ''))
+        # the page is heroes/atlas.html, not hero_atlas.html (every name link was a 404)
+        out.append((f'hero:{h["id"]}', h.get('name') or h['id'], hero_icon(h['id'], rel),
+                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else ''))
     return out
 
 
