@@ -7,7 +7,8 @@
       "The % next to a change gets stronger colour the bigger the change: a 2% nudge is faint, a 60% swing is full colour.",
       "Stat history tooltips no longer show an empty % box for a first value or a 0.0% step.",
       "Hero pages: every main stat is a tile in the header, the rest under 'All stats'; the weapon's six key numbers stay visible, the rest under 'All weapon stats'; values are centred.",
-      "Tags and counters use the site's own pixel icons (arrows, star, cross, swap, gear) instead of font symbols that looked different on every device."
+      "Tags and counters use the site's own pixel icons (arrows, star, cross, swap, gear) instead of font symbols that looked different on every device.",
+      "Build pages: a newly added hero, ability or item shows what it is (health, speed, abilities, key values) instead of hundreds of raw fields; the rest folds under 'All fields'."
     ]
   },
   {

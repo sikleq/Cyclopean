@@ -113,6 +113,15 @@ def _display_name(e: dict) -> str:
     return catalog_names().get(f"{e['file']}:{e['id']}") or pretty_id(e['id'], e.get('owner'))
 
 
+def _counted(e: dict) -> list[dict]:
+    """What the entity's counters count: a newly added entity is ONE new thing, not its N fields."""
+    if e.get('status') == 'added' and e['changes']:
+        first = e['changes'][0]
+        return [{'op': 'add', 'cat': 'mechanic', 'status': first.get('status', 'hidden'), 'key': first.get('key'),
+                 'label': 'Added'}]
+    return e['changes']
+
+
 def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     """All gameplay changes as entity cards: one card per hero (its abilities as
     sub-headers), then one per item, unit and rule; each with its history strip."""
@@ -143,7 +152,7 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     out = []
     for hid in sorted(by_owner, key=lambda h: hero_label(h).lower()):
         members = by_owner[hid]
-        all_ch = [c for e in members for c in e['changes']]
+        all_ch = [c for e in members for c in _counted(e)]
         hname = hero_label(hid)
         body = []
         for e in members:
@@ -153,8 +162,8 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
                 scope = _display_name(e)
                 ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
                 glyph = glyph_for(e['file'], e['id'], e.get('kind', ''))
-            body.append(sub_head(scope, ic, glyph, e['changes'], is_hidden(e['changes'])))
-            body.append(change_rows(e['changes']))
+            body.append(sub_head(scope, ic, glyph, _counted(e), is_hidden(e['changes'])))
+            body.append(change_rows(e['changes'], added=e.get('status') == 'added'))
         head = card_head(hname, hero_icon(hid, rel), 'heroes' if hid == 'hero_base' else 'hero', all_ch,
                          trail=trail_html(f'heroes.vdata:{hid}', pid, rel))
         out.append(card(head, ''.join(body), hidden=is_hidden(all_ch),
@@ -165,9 +174,10 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
         if e.get('targets'):
             name += f' ({len(e["targets"])})' if f'({len(e["targets"])})' not in name else ''
         ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
-        head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), e['changes'],
+        head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), _counted(e),
                          trail=trail_html(f"{e['file']}:{e['id']}", pid, rel))
-        out.append(card(head, change_rows(e['changes']), hidden=is_hidden(e['changes']), search=name.lower()))
+        out.append(card(head, change_rows(e['changes'], added=e.get('status') == 'added'), hidden=is_hidden(e['changes']),
+                        search=name.lower()))
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 

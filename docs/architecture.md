@@ -97,6 +97,11 @@ renamed fields merged, swapped upgrade tiers folded into one REWORK (per entity,
 engine plumbing (`cards.is_engine`, the "Technical" fold) left out. A patch that only touched plumbing is
 not the hero's "last change" and does not take one of the three open history bands.
 
+**A newly added entity** (build records: `status: added`) is one NEW thing: its counters count 1,
+its card shows "Added to the game files · N fields", the stats a player compares and its own abilities
+(`cards.ADDED_KEY`, at most 12), and folds the rest (level tables, item-cost curves every hero shares)
+under "All fields".
+
 Polarity notes: an interval between an effect's ticks (`HealInterval`, `TickInterval`, `DamageInterval`…)
 is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
 

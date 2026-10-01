@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 
 from .common import esc, mark, visual
+from .pixel_icons import tag_svg
 from .render import HIDDEN_LIKE, fold_tier_swaps, sort_changes, tag_html, tag_summary, vals_html
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
@@ -100,8 +101,38 @@ def change_row(c: dict) -> str:
     return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c), extra)
 
 
-def change_rows(changes: list[dict]) -> str:
+# A newly added entity arrives with every field it has (Baba in build 6711: 218 rows, most of them
+# the level table and item-cost curves every hero shares). What a reader wants is what it IS: the
+# stats a player compares and its own abilities; the rest folds under "All fields".
+ADDED_KEY = re.compile(
+    r'^m_mapStartingStats\.E(MaxHealth|BaseHealthRegen|MaxMoveSpeed|SprintSpeed|Stamina|LightMeleeDamage|'
+    r'HeavyMeleeDamage|BulletArmorDamageReduction|TechArmorDamageReduction)$'
+    r'|^m_mapBoundAbilities\.ESlot_(Signature_\d|Weapon_Primary)$'
+    r'|^m_eHeroDevelopmentState$'
+    r'|^m_mapAbilityProperties\.[^.]+\.m_strValue$'
+    r'|^m_(nMaxHealth|iMaxHealth|flMaxHealth|nCost|iItemTier|eItemSlotType)$')
+ADDED_KEY_LIMIT = 12
+
+
+def _added_split(rows: list[dict]) -> tuple[list[dict], list[dict]]:
+    key = [c for c in rows if ADDED_KEY.search(str(c.get('path') or '')) and str(c.get('new_s', '')) not in ('0', '')]
+    keep = key[:ADDED_KEY_LIMIT]
+    kept = {id(c) for c in keep}
+    return keep, [c for c in rows if id(c) not in kept]
+
+
+def change_rows(changes: list[dict], added: bool = False) -> str:
     rows = sort_changes(fold_tier_swaps(merge_renames(changes)))
+    if added:
+        keep, rest = _added_split(rows)
+        head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden') if rows else 'hidden',
+                   '<span class="tag new" data-g="8">' + tag_svg('new') + 'NEW</span>',
+                   f'Added to the game files · {len(rows)} fields')
+        html = head + ''.join(change_row(c) for c in keep)
+        if rest:
+            inner = ''.join(change_row(c) for c in rest)
+            html += f'<details class="tech"><summary>All fields ({len(rest)})</summary>{inner}</details>'
+        return html
     main = [c for c in rows if not is_engine(c)]
     tech = [c for c in rows if is_engine(c)]
     html = ''.join(change_row(c) for c in main)

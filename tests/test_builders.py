@@ -264,3 +264,15 @@ def test_pixel_icons_are_10x10_without_lone_pixels():
                 assert '#' in around, f'lone pixel in {tag} at {x},{y}'
     assert art_path(('#.#', '###')) == 'M0 0h1v1h-1zM2 0h1v1h-1zM0 1h3v1h-3z'
     assert tag_svg('buff').startswith('<svg class="ti"') and tag_svg('nope') == ''
+
+
+def test_added_entity_shows_a_summary_not_every_field():
+    from builders.cards import change_rows
+    rows = [ch(op='add', path='m_mapStartingStats.EMaxHealth', label='Max Health', old_s=None, new_s='780'),
+            ch(op='add', path='m_mapBoundAbilities.ESlot_Signature_1', label='Bound Abilities › Signature 1', old_s=None,
+               new_s='Splatter')]
+    rows += [ch(op='add', path=f'm_mapLevelInfo.{i}.m_unRequiredGold', label=f'{i} › Required Gold', old_s=None,
+                new_s=str(i * 100)) for i in range(1, 30)]
+    html = change_rows(rows, added=True)
+    assert 'Added to the game files · 31 fields' in html and 'Max Health' in html and 'Splatter' in html
+    assert 'All fields (29)' in html
