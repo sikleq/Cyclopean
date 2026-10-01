@@ -129,7 +129,7 @@ def steam_notes() -> list[Notes]:
 
 
 NOT_CHANGELOGS = {'changelog feedback process'}
-_SERVICE_LINE = re.compile(r'^(@@|Source: Steam News|View attachment)', re.I)
+_SERVICE_LINE = re.compile(r'^(@@|Source: Steam News|Source: Official update page|View attachment)', re.I)
 
 
 def forum_notes() -> list[Notes]:

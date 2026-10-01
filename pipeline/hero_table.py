@@ -203,6 +203,12 @@ def evaluate(hero: dict, abilities: dict) -> dict:
     return out
 
 
+def _sort_name(tok: dict[str, str], hero: dict, hid: str) -> str:
+    """'#hero_doorman_sort' -> 'Doorman' (localized); heroes without one sort by their name."""
+    key = str(hero.get('m_strHeroSortName') or '').lstrip('#').lower()
+    return tok.get(key) or loc.hero_name(tok, hid)
+
+
 def spirit_scaled(hero: dict) -> list[str]:
     stats = hero.get('m_mapScalingStats') or {}
     keys = []
@@ -273,8 +279,11 @@ def build() -> dict:
             'id': hid,
             'name': loc.hero_name(tok, hid),
             'state': 'prerelease' if state == 'EHeroDevState_PreRelease' else 'release',
-            'type': str(hero.get('m_eHeroType') or '').replace('EHeroType_', ''),
+            'type': str(hero.get('m_eHeroType') or '').rsplit('_', 1)[-1],      # ECitadelHeroType_Marksman
             'complexity': hero.get('m_nComplexity'),
+            # the hero grid's order in the game: the sort name ("The Doorman" sorts under D)
+            'sort_name': _sort_name(tok, hero, hid),
+            'new_player': str(hero.get('m_bNewPlayerRecommended')).lower() in ('true', '1'),
             'weapon': wid,
             'weapon_name': loc.plain(loc.entity_name(tok, wid, hid)) if wid else None,
             'first_seen': first_seen.get(hid),

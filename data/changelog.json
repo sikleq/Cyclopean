@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Items and heroes laid out like the game",
+    "items": [
+      "Items: the game's shop — a row per tier with its price, columns Weapon, Spirit, Vitality; cards show ACTIVE and IMBUE like in the shop; hovering an item lights up its components and what it builds into. Street Brawl legendaries and removed items have their own blocks.",
+      "Heroes: tall portraits in the game's order (The Doorman under D), a 'Great for new players' row, role and complexity under each name, a pre-release ribbon and what the last patch did."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Tags that mean something: fixed BUFF/NERF, UP/DOWN for shared objects, readable labels",
     "items": [
       "About 180 changes had BUFF and NERF the wrong way round: investment bonuses, Cooldown Reduction, enemy healing penalties, spread recovery. The direction is now read from the property's own name.",
@@ -9,7 +17,8 @@
       "The same edit to several copies of one object (Walker in 4 versions, two crate ids) is one card: 'Walker · 4 variants'.",
       "Tables edited row by row (souls per level, investment steps, the shotgun's pellet pattern) are one summary row with the range; the rows open on click.",
       "Readable labels: 'Level 22: souls needed', 'Vitality investment, step 5: bonus', 'Kit: Ability 3', 'Powerup: Fire Rate (early game)', 'Sight Range NPCs', 'Spawn Interval (s)'; values like 'EHeroDevState_PreRelease' read 'Pre Release'.",
-      "Vote stickers, rich presence text, name offsets, trooper hit animations, collision hulls and soul-orb physics are no longer listed as gameplay."
+      "Vote stickers, rich presence text, name offsets, trooper hit animations, collision hulls and soul-orb physics are no longer listed as gameplay.",
+      "City Never Sleeps: its official page is a full change list laid out as a magazine; its 195 lines (map, gameplay, The Broker, hero vote, interface, sandbox, settings and the 40 'Additional Update Notes') are now the patch notes, matched against the game files. Lore and taglines are not copied."
     ]
   },
   {

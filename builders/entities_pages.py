@@ -128,12 +128,9 @@ def build_all() -> dict[str, int]:
     live = sorted((h for h in heroes if h.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease')),
                   key=lambda h: h.get('name') or '')
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
-    grid = ''.join(_card(h, hero_icon(h['id'], rel), 'pre-release' if h.get('state') == 'EHeroDevState_PreRelease' else '',
-                         _hero_foot(h['id'])) for h in live)
-    grid2 = ''.join(_card(h, hero_icon(h['id'], rel), 'unreleased') for h in other)
-    body = ('<h1>Heroes</h1><div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".card"></div>'
-            f'<div class="grid heroes">{grid}</div>'
-            + (f'<div class="grid-group-title">Unreleased & hero labs</div><div class="grid heroes">{grid2}</div>' if grid2 else ''))
+    from .heroes_grid import heroes_grid_html
+    body = ('<h1>Heroes</h1><div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard"></div>'
+            + heroes_grid_html(live, other, trow, rel, _hero_foot))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
 
     items = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e['kind'] == 'item'
@@ -142,20 +139,10 @@ def build_all() -> dict[str, int]:
     for it in items:
         write(slug(it['file'], it['id']), item_page(it, cards.get(it['id']), by_ent, by_subject))
         counts['items'] += 1
-    groups = []
-    for slot, title in SLOT_NAMES.items():
-        sel = sorted((i for i in items if i.get('slot') == slot and i.get('alive') and not i.get('disabled')),
-                     key=lambda i: (i.get('tier', ''), i.get('name') or ''))
-        if sel:
-            groups.append(f'<div class="grid-group-title">{esc(title)}</div><div class="grid items">'
-                          + ''.join(_card(i, entity_icon(i['file'], i['id'], 'item', rel), i.get('tier', '').replace('EModTier_', 'T'))
-                                    for i in sel) + '</div>')
-    gone = sorted((i for i in items if not i.get('alive') or i.get('disabled')), key=lambda i: i.get('name') or '')
-    if gone:
-        groups.append('<div class="grid-group-title">Removed or disabled</div><div class="grid items">'
-                      + ''.join(_card(i, entity_icon(i['file'], i['id'], 'item', rel), 'gone') for i in gone) + '</div>')
-    body = ('<h1>Items</h1><div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".card"></div>'
-            + ''.join(groups))
+    # laid out like the game's shop: tiers x Weapon / Spirit / Vitality (builders/shop_page.py)
+    from .shop_page import shop_html
+    body = ('<h1>Items</h1><div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".icard"></div>'
+            + shop_html(items, cards, rel))
     write('items/index.html', page('Items', body, rel, 'items'))
 
     units = [e for e in ents.values() if e['file'] == 'npc_units.vdata' and not e.get('template')]

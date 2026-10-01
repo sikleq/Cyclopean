@@ -192,6 +192,10 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
             'activation': 'Passive' if 'PASSIVE' in str(a.get('m_eAbilityActivation', '')) else 'Active',
             'components': list(a.get('m_vecComponentItems') or []),
             'disabled': str(a.get('m_bDisabled')).lower() in ('true', '1'),
+            # T5 items exist only in Street Brawl's draft (ERequirementStreetBrawl), not in the shop
+            'street_brawl': 'StreetBrawl' in str(a.get('m_eAbilityRequirements') or ''),
+            # the shop's IMBUE label: the item is applied onto one of your abilities
+            'imbue': 'IMBUE' in json.dumps(a.get('m_TargetAbilityEffectsToApply') or ''),
         } if kind == 'item' else None,
     }
 

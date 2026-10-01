@@ -59,6 +59,7 @@
   --dev: #b48cf0;             /* hero still in development (unreleased) */
   --spirit: #c49bff;          /* spirit (tech) damage, as the game colours it */
   --weapon: #f0b06a;          /* bullet / weapon damage, as the game colours it */
+  --vitality: #a5ce3c;        /* the shop's Vitality column (the game's fortitude green) */
 
   /* translucent helpers (derived from tokens above) */
   --shadow: rgba(0, 0, 0, 0.55);
@@ -1068,3 +1069,94 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
   table.hist, table.notes, table.kvt { display: block; max-width: 100%; overflow-x: auto; }
   .hero-head .portrait { width: 110px; }
 }
+
+/* ---------- 12. Items index: the game's shop ("All Items") ---------- */
+.shop-filter { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
+.shop-filter .cat-i { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
+.shop { --cw: var(--weapon); padding: 10px 12px 12px; background: var(--bg-panel); }
+.shop-head, .shop-row { display: grid; grid-template-columns: 84px repeat(3, minmax(0, 1fr)); gap: 10px; }
+.shop-head { margin-bottom: 8px; }
+.cat-h { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font: 22px/1 var(--font-px); text-transform: uppercase;
+  letter-spacing: .06em; color: var(--c); background: color-mix(in srgb, var(--c) 12%, var(--bg-panel-2));
+  box-shadow: inset 0 -3px 0 var(--c); }
+.cat-h small { margin-left: auto; font: 17px/1 var(--font-label); color: var(--label); }
+.cat-h .cat-i { width: 22px; height: 22px; }
+.cat-h.w, .cell.w, .icard.w { --c: var(--weapon); }
+.cat-h.s, .cell.s, .icard.s { --c: var(--spirit); }
+.cat-h.v, .cell.v, .icard.v { --c: var(--vitality); }
+.shop-row { padding: 10px 0; border-top: 1px solid var(--line-soft); align-items: start; }
+/* the tier's price tag, slightly tilted like the game's sticker */
+.tier-tag { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px 4px; transform: rotate(-3deg);
+  background: var(--bg-panel-3); box-shadow: 0 0 0 2px var(--frame-line), 0 4px 10px var(--shadow); }
+.shop-row.t2 .tier-tag { transform: rotate(2deg); }
+.shop-row.t3 .tier-tag { transform: rotate(-2deg); }
+.shop-row.t4 .tier-tag { transform: rotate(0); background: var(--name); }
+.tier-tag .tally { font: 22px/1 var(--font-px); letter-spacing: 2px; color: var(--text-bright); }
+.tier-tag .price { display: flex; align-items: center; gap: 3px; font: 19px/1 var(--font-label); color: var(--patina-strong); }
+.tier-tag .price .cat-i { width: 14px; height: 14px; }
+.shop-row.t4 .tier-tag .tally, .shop-row.t4 .tier-tag .price { color: var(--bg-page); }
+.cell { display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start; min-height: 40px; }
+/* item card: icon, labels, name; T4 is the dark "experts only" tier, the rest panels edged in the column colour */
+.icard { position: relative; display: flex; flex-direction: column; align-items: center; width: 88px; padding: 6px 4px 5px;
+  background: color-mix(in srgb, var(--c) 7%, var(--bg-panel-2)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 35%, transparent);
+  color: var(--text-main); text-align: center; transition: opacity .15s, transform .15s; }
+.icard:hover { box-shadow: inset 0 0 0 2px var(--c); color: var(--text-bright); }
+.icard.t2 { background: color-mix(in srgb, var(--c) 11%, var(--bg-panel-2)); }
+.icard.t3 { background: color-mix(in srgb, var(--c) 16%, var(--bg-panel-2)); }
+.icard.t4 { background: var(--bg-page); box-shadow: inset 0 0 0 1px var(--c), 0 0 0 1px var(--bg-page); }
+.icard.t4 .it-nm { color: color-mix(in srgb, var(--c) 45%, var(--name)); }
+.it-ic img, .it-ic .noimg { display: block; width: 56px; height: 56px; object-fit: contain; }
+.icard.act .it-ic img { border-radius: 50%; box-shadow: 0 0 0 2px color-mix(in srgb, var(--c) 60%, transparent); }
+.it-nm { margin-top: 4px; font: 600 11.5px/1.15 var(--font-ui); min-height: 27px; display: flex; align-items: center; }
+.it-act { margin-top: 3px; padding: 1px 4px; font: 14px/1 var(--font-label); text-transform: uppercase; letter-spacing: .08em;
+  color: var(--text-dim); background: var(--bg-page); }
+.it-imb { margin-top: 2px; font: italic 600 10px/1 var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: var(--spirit); }
+.it-last { display: flex; align-items: center; gap: 4px; margin-top: 3px; }
+.it-last .pip { font-size: 14px; }
+.it-last .pip .ti { width: 9px; height: 9px; }
+.it-last .d { font: 14px/1 var(--font-label); color: var(--text-dimmer); }
+/* hover: components pulse, what it builds into lights up, the rest dims (the game's shop) */
+.shop.hovering .icard { opacity: .45; }
+.shop.hovering .icard.is-me, .shop.hovering .icard.is-comp, .shop.hovering .icard.is-up { opacity: 1; }
+.shop.hovering .icard.is-comp { transform: scale(1.06); box-shadow: inset 0 0 0 2px var(--patina-strong); }
+.shop.hovering .icard.is-up { box-shadow: inset 0 0 0 2px var(--text-bright); }
+.shop.only-w .cell:not(.w), .shop.only-w .cat-h:not(.w), .shop.only-s .cell:not(.s), .shop.only-s .cat-h:not(.s),
+.shop.only-v .cell:not(.v), .shop.only-v .cat-h:not(.v) { display: none; }
+.shop.only-w .shop-head, .shop.only-w .shop-row, .shop.only-s .shop-head, .shop.only-s .shop-row,
+.shop.only-v .shop-head, .shop.only-v .shop-row { grid-template-columns: 84px minmax(0, 1fr); }
+.gone-grid { display: flex; flex-wrap: wrap; gap: 6px; opacity: .7; }
+@media (max-width: 760px) {
+  .shop-head, .shop-row { grid-template-columns: 64px minmax(0, 1fr); }
+  .shop-head > span { display: none; }
+  .shop-head .cat-h:first-of-type { grid-column: 2; }
+  .shop .cell { grid-column: 2; }
+  .shop-row .tier-tag { grid-row: span 3; align-self: start; }
+  .shop-head { grid-template-columns: minmax(0, 1fr); }
+  .shop-head .cat-h { display: none; }
+  .icard { width: 76px; }
+  .shop .cell::before { content: attr(data-label); flex: 0 0 100%; font: 16px/1 var(--font-label); color: var(--c);
+    text-transform: uppercase; letter-spacing: .08em; }
+}
+
+/* ---------- 13. Heroes index: the game's hero grid (tall portraits, sort-name order) ---------- */
+.hgrid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.hgrid-cards.rec { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+.hgcard { position: relative; display: flex; flex-direction: column; background: var(--bg-panel-2); color: var(--text-main); }
+.hgcard:hover { box-shadow: 0 0 0 2px var(--patina), 0 0 14px var(--patina-25); color: var(--text-bright); }
+.hg-pic { position: relative; display: block; aspect-ratio: 206 / 280; background: var(--bg-panel-4); overflow: hidden; }
+.hg-pic img, .hg-pic .noimg { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.hg-rib { position: absolute; left: 0; right: 0; bottom: 8px; padding: 3px 0 2px; text-align: center;
+  font: 15px/1 var(--font-label); letter-spacing: .1em; text-transform: uppercase; color: var(--bg-page); background: var(--dev); }
+.hg-nm { padding: 6px 6px 2px; font: 600 13px/1.15 var(--font-ui); text-align: center; color: var(--name);
+  background: linear-gradient(var(--band), var(--bg-panel-2)); box-shadow: inset 0 2px 0 var(--frame-line); }
+.hgrid-cards.rec .hg-nm { font-size: 14px; }
+.hg-meta { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 2px 6px 4px; min-height: 18px; }
+.hg-role { font: 15px/1 var(--font-label); text-transform: uppercase; letter-spacing: .06em; color: var(--label); }
+.hg-cx { display: inline-flex; gap: 2px; }
+.hg-cx i { display: block; width: 5px; height: 5px; background: var(--frame-line); }
+.hg-cx i.on { background: var(--patina); }
+.hgcard .last { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 7px; padding: 0 4px 6px; margin-top: auto; }
+.hgcard .last .tsum { margin: 0; gap: 6px; }
+.hgcard .last .pip { font-size: 16px; }
+.hgcard .last .d { font: 15px/1 var(--font-label); color: var(--text-dimmer); white-space: nowrap; }
+.hgrid-cards.lab .hgcard { opacity: .8; }

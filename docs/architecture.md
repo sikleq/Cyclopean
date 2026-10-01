@@ -154,8 +154,15 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
 - % pills grade their colour strength by size (`render.pct_grade`, steps 5/15/30/60%; scripts.js
   `pctGrade` mirrors them); the history tooltip shows no pill for a first value or a 0.0% step.
 - Item page: current values in a sticky left column beside the history.
-- Heroes index: under each portrait the newest patch that touched the hero or its abilities
-  (`trail.hero_last`) — its two biggest counters and the date.
+- Heroes index (`builders/heroes_grid.py`), like the game's hero grid: tall portraits in the order of
+  the game's sort names (`m_strHeroSortName`: The Doorman under D), a "Great for new players" row
+  (`m_bNewPlayerRecommended`), the role as text (`m_eHeroType`; the game has no role icons) and
+  complexity as marks (`m_nComplexity`), a PRE-RELEASE ribbon; under each card the newest patch that
+  touched the hero or its abilities (`trail.hero_last`) — its two biggest counters and the date.
+- Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its
+  price tag, columns Weapon → Spirit → Vitality (the game's order), cards with ACTIVE / IMBUE labels
+  and the last change; hovering a card lights up its components and what it builds into, the rest
+  dims. Street Brawl's T5 draft items (`ERequirementStreetBrawl`) and removed items follow below.
 - Home "Biggest changes": one card per ability.
 - Hero Stats: group labels left-aligned (visible at each group's start), a right-edge fade while more
   columns are off-screen (`.table-fade`, removed when scrolled to the end).

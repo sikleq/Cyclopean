@@ -1,0 +1,54 @@
+{
+  "_why": "Big updates publish their change list as a designed page (playdeadlock.com/<slug>), not as text notes. pipeline/update_page.py turns the page's text keys into a notes file by these rules: changelog lines verbatim, feature cards as 'Title: Body', lore only as name lists (marketing text is not republished). Section titles follow pipeline/match_rules.SECTION_TOPICS so interface lines are not counted as hidden gameplay.",
+  "cityneversleeps": {
+    "title": "City Never Sleeps",
+    "date": "2026-09-29",
+    "skip": "^And many other misc changes",
+    "sections": [
+      {"title": "Map", "items": [
+        {"line": "Lane names: Blue Lane is {CNS_Blue_Name}, Green Lane is {CNS_Green_Name}, Yellow Lane is {CNS_Yellow_Name}"},
+        {"verbatim": "^CNS_Haunts_Note$"},
+        {"list": "Haunts (new neutral camps)", "keys": "^CNS_(Specimens|Ghouls|Barrels|PastDues|StageHands|Crabbage|Festival|Shrooms|Underhands)_Title$"},
+        {"list": "Districts between the lanes", "keys": "^CNS_Districts_Map_\\d+$"},
+        {"list": "Landmarks", "keys": "^CNS_Landmark_\\d+_Title$"}
+      ]},
+      {"title": "Gameplay", "items": [
+        {"cards": "^CNS_MustDo_(Pool|Bell|Crates|Containers|Healing|Vents)$"}
+      ]},
+      {"title": "Items", "items": [
+        {"cards": "^CNS_Broker_Card_\\d+$", "prefix": "The Broker: "}
+      ]},
+      {"title": "Heroes", "items": [
+        {"list": "New heroes", "keys": "^CNS_Hero_\\w+$"},
+        {"verbatim": "^CNS_Vote_SubHead_\\d$"},
+        {"cards": "^CNS_Vote_(Pregame|Card_\\d+)$", "prefix": "Hero vote: "}
+      ]},
+      {"title": "User Interface", "items": [
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_HealthBars_Kicker", "CNS_UI_Accessibility_Title"],
+         "skip_cards": "^CNS_UI_(Voice|VoiceLines|VoiceBrowser)$"}
+      ]},
+      {"title": "User Interface: Accessibility", "items": [
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_Accessibility_Title", "CNS_UI_Tools_Title"]}
+      ]},
+      {"title": "User Interface: Sandbox", "items": [
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_Tools_Title", "CNS_UI_Behavior_Title"]}
+      ]},
+      {"title": "User Interface: Behavior and Reporting", "items": [
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_Behavior_Title", "CNS_UI_Settings_Title"]}
+      ]},
+      {"title": "User Interface: Settings", "items": [
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_Settings_Title", "CNS_UI_Bar_Spectator_Title"]},
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_Bar_HealthDamage_Title", "CNS_Notes_Title"]}
+      ]},
+      {"title": "Spectating", "items": [
+        {"cards": "^CNS_UI_", "range": ["CNS_UI_Bar_Spectator_Title", "CNS_UI_Bar_HealthDamage_Title"]}
+      ]},
+      {"title": "Sound, Music, and VO", "items": [
+        {"cards": "^CNS_UI_(Voice|VoiceLines|VoiceBrowser)$"}
+      ]},
+      {"title": "Additional Update Notes", "items": [
+        {"verbatim": "^CNS_Notes_\\d+$"}
+      ]}
+    ]
+  }
+}

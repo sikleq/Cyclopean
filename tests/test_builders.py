@@ -318,3 +318,36 @@ def test_whole_level_added_is_one_row_and_moved_fields_drop():
     assert html.count('class="erow') == 1 and 'Level 35 added' in html and '47000 souls' in html
     assert merge_renames([ch(op='remove', label='Pickup Radius', old_s='85', new_s=None),
                           ch(op='add', label='Pickup Radius › Base', old_s=None, new_s='85')]) == []
+
+
+def test_items_index_is_the_game_shop_matrix(monkeypatch):
+    from builders import shop_page
+    monkeypatch.setattr('builders.trail.last_change', lambda key: None)
+    items = [{'file': 'abilities.vdata', 'id': f'upgrade_{n}', 'name': n.title(), 'alive': True} for n in
+             ('basic', 'sharp', 'spell', 'brawl', 'old')]
+    items[-1]['alive'] = False
+    cards = {'upgrade_basic': {'item': {'tier': '1', 'slot': 'WeaponMod', 'activation': 'Passive', 'cost': 800}},
+             'upgrade_sharp': {'item': {'tier': '2', 'slot': 'WeaponMod', 'activation': 'Active', 'cost': 1600,
+                                        'components': ['upgrade_basic']}},
+             'upgrade_spell': {'item': {'tier': '1', 'slot': 'Tech', 'activation': 'Passive', 'imbue': True, 'cost': 800}},
+             'upgrade_brawl': {'item': {'tier': '5', 'slot': 'Armor', 'street_brawl': True, 'cost': 9999}}}
+    html = shop_page.shop_html(items, cards, '../')
+    # the game's column order and one row per tier with its price
+    assert html.index('cat-h w') < html.index('cat-h s') < html.index('cat-h v')
+    assert 'shop-row t1' in html and 'shop-row t4' in html and '800' in html
+    assert 'data-comp="upgrade_basic"' in html and 'data-up="upgrade_sharp"' in html
+    assert 'it-act' in html and 'it-imb' in html
+    assert 'Street Brawl legendaries' in html and 'Removed or disabled' in html
+
+
+def test_heroes_grid_sorts_like_the_game():
+    from builders.heroes_grid import heroes_grid_html
+    live = [{'file': 'heroes.vdata', 'id': 'hero_doorman', 'name': 'The Doorman'},
+            {'file': 'heroes.vdata', 'id': 'hero_viscous', 'name': 'Viscous'},
+            {'file': 'heroes.vdata', 'id': 'hero_atlas', 'name': 'Abrams', 'state': 'EHeroDevState_PreRelease'}]
+    rows = {'hero_doorman': {'sort_name': 'Doorman', 'type': 'ECitadelHeroType_Mystic', 'complexity': 1},
+            'hero_viscous': {'new_player': True}}
+    html = heroes_grid_html(live, [], rows, '../', lambda hid: '')
+    allh = html.split('All heroes')[1]
+    assert allh.index('Abrams') < allh.index('The Doorman') < allh.index('Viscous')
+    assert 'Great for new players' in html and '>Mystic<' in html and 'Pre-release' in html

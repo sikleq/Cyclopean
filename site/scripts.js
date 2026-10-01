@@ -214,6 +214,45 @@
   });
 
   /* ---------- a clamped REWORK value line opens on click ---------- */
+  /* ---------- items shop: category filter; hover lights up components and upgrades ---------- */
+  safe('shop', function () {
+    var shops = document.querySelectorAll('.shop');
+    if (!shops.length) return;
+    document.querySelectorAll('[data-shop]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var cat = btn.getAttribute('data-shop');
+        shops.forEach(function (s) {
+          s.classList.remove('only-w', 'only-s', 'only-v');
+          if (cat !== 'all') s.classList.add('only-' + cat);
+        });
+        document.querySelectorAll('[data-shop]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+      });
+    });
+    shops.forEach(function (shop) {
+      var byId = {};
+      shop.querySelectorAll('.icard[data-id]').forEach(function (c) { byId[c.getAttribute('data-id')] = c; });
+      function mark(ids, cls) {
+        (ids || '').split(' ').forEach(function (id) { if (byId[id]) byId[id].classList.add(cls); });
+      }
+      function clear() {
+        shop.classList.remove('hovering');
+        shop.querySelectorAll('.is-me, .is-comp, .is-up').forEach(function (c) { c.classList.remove('is-me', 'is-comp', 'is-up'); });
+      }
+      shop.addEventListener('mouseover', function (ev) {
+        var card = ev.target.closest('.icard');
+        if (!card || card.classList.contains('is-me')) return;
+        clear();
+        var comp = card.getAttribute('data-comp'), up = card.getAttribute('data-up');
+        if (!comp && !up) return;
+        shop.classList.add('hovering');
+        card.classList.add('is-me');
+        mark(comp, 'is-comp');
+        mark(up, 'is-up');
+      });
+      shop.addEventListener('mouseleave', clear);
+    });
+  });
+
   safe('rework-lines', function () {
     document.addEventListener('click', function (ev) {
       var v = ev.target.closest && ev.target.closest('.erow.rw .vals.wrap');

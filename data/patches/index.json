@@ -2082,20 +2082,21 @@
  },
  {
   "id": "2026-09-29",
-  "title": "City Never Sleeps · 09-29-2026",
+  "title": "City Never Sleeps",
   "date": "2026-09-29",
   "builds": 4,
   "counts": {
    "documented": 0,
-   "described": 10,
-   "hidden": 1306,
+   "described": 114,
+   "hidden": 1205,
    "unannounced": 0,
-   "unreleased": 84
+   "unreleased": 83
   },
   "line_counts": {
-   "unmatched": 7,
-   "untracked": 3,
-   "described": 1
+   "untracked": 146,
+   "described": 10,
+   "unmatched": 46,
+   "fix": 4
   },
   "has_notes": true
  }

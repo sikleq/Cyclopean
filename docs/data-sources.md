@@ -49,8 +49,16 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
   (line 1 title, line 2 URL, then the text). Author follow-ups are appended after `[ Follow-up <date> ]`;
   threads whose first post only linked to Steam carry the Steam text after a `Source: Steam News …` line.
   Steam and forum copies of the same notes are de-duplicated (±2 days, ≥50% identical lines).
-- Marketing posts (hero reveals, events, the City Never Sleeps page) are stored as title + link only —
-  they are not changelogs and are not republished.
+- Marketing posts (hero reveals, events) are stored as title + link only — they are not changelogs and
+  are not republished.
+- **Big update pages** (playdeadlock.com/cityneversleeps, /oldgods) ARE changelogs, laid out as a
+  designed page: the HTML holds only the title, the words live in a webpack chunk
+  `<slug>_english.json` (found via `main.js` → chunk id, `manifest.js` → content hash, which changes
+  when Valve edits the text). `python tools/fetch_update_page.py <slug>` fetches it and writes
+  `data/notes/forum/<date>.txt` by the rules in `data/overrides/update_pages.json`: the "Additional
+  Update Notes" verbatim, feature cards as "Title: Body", lore (landmark stories, monster bios,
+  taglines) only as name lists. City Never Sleeps: 195 lines (it had 2). Old Gods, New Blood (2026-01)
+  has the same layout and is not imported yet.
 - Checked against the forum's thread list on 2026-10-01 (82 threads): the only missing one was
   "09-29-2026" (11 interface lines after the City Never Sleeps link) → `2026-09-29-2.txt`. A changelog
   titled only by a date next to an announcement takes its name ("City Never Sleeps · 09-29-2026").
