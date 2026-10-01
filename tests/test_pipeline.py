@@ -471,16 +471,27 @@ def test_units_without_a_loc_name_take_the_games_other_strings():
     assert loc.unit_name(tok, 'npc_neutral_bug', {}) == 'npc_neutral_bug'     # never named: the site prettifies it
 
 
-def test_history_bridges_gaps_in_the_data():
-    from pipeline.hero_table import history_changes
-    # Billy's weapon was missing from the files on 2025-08-18..08-20: one change 11.26 -> 11.62, not two
-    pts = [[5700, '2025-08-01', 11.26], [5747, '2025-08-18', None], [5789, '2025-08-20', 11.62]]
+def test_history_bridges_only_holes_in_the_data():
+    from pipeline.hero_table import MISSING, history_changes
+    # Billy's weapon was cut from the files on 2025-08-18..08-20: one change 11.26 -> 11.62, not two
+    pts = [[5700, '2025-08-01', 11.26], [5747, '2025-08-18', MISSING], [5789, '2025-08-20', 11.62]]
     assert history_changes(pts) == [[5789, '2025-08-20', 11.26, 11.62]]
-    # a gap that returns to the same value is no change at all
-    assert history_changes([[1, 'a', 5.0], [2, 'b', None], [3, 'c', 5.0]]) == []
-    # a value that is gone at the end stays a removal; one that starts later is its first value
-    assert history_changes([[1, 'a', 5.0], [2, 'b', None]]) == [[2, 'b', 5.0, None]]
+    assert history_changes([[1, 'a', 5.0], [2, 'b', MISSING], [3, 'c', 5.0]]) == []
+    # a stat REMOVED and later restored (an absent field, None) is two real changes with their dates
+    assert history_changes([[1, 'a', 16.0], [2, 'b', None], [3, 'c', 15.0]]) == [[2, 'b', 16.0, None], [3, 'c', None, 15.0]]
+    # gone at the end stays a removal; a later start is a first value
+    assert history_changes([[1, 'a', 5.0], [2, 'b', MISSING]]) == [[2, 'b', 5.0, None]]
     assert history_changes([[1, 'a', None], [2, 'b', 3.0]]) == [[2, 'b', None, 3.0]]
+
+
+def test_old_builds_bullet_speed_and_dash():
+    from pipeline.hero_table import _dash, bullet_speed, burst_cycle
+    curve = {'m_BulletSpeedCurve': {'m_spline': [{'x': 0, 'y': 39370}, {'x': 100, 'y': 39370}]}}
+    assert round(bullet_speed({}, curve, None)) == 1000             # a flat curve is the speed (before 5747)
+    assert burst_cycle({}, {'m_flCycleTime': 0.1}, None) == 0.0      # omitted = the game's default
+    hero = {'m_mapBoundAbilities': {'ESlot_Ability_Innate_1': 'citadel_ability_dash'}}
+    abil = {'citadel_ability_dash': {'m_mapAbilityProperties': {'AbilityDuration': {'m_strValue': '0.6'}}}}
+    assert _dash('EGroundDashDuration', 'AbilityDuration')(hero, {}, abil) == 0.6   # before 5706: the shared dash
 
 
 def test_bare_entity_name_line_is_a_heading():

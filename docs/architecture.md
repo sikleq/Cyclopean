@@ -170,11 +170,11 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
   colour), tag filters, pre-release heroes / removed items. Heroes index: pre-release heroes hide behind
   a switch, "Unreleased & hero labs" is folded.
-- Hero changes split what changed: a hero's tile is three parts — base stats | weapon (gun + melee) |
-  abilities (`dynamics_page.PARTS`, `part_of`), each striped by its own changes; ▸ (or "Split rows")
-  opens a row per part — base stats, the weapon, every ability with its icon; the hover card groups
-  the biggest changes by part. Heroes index cards are only the portrait and the name on a plate in the
-  hero's colour (no role, complexity or last-patch line — owner's call).
+- Hero changes: one tile per cell holds everything a patch did to the hero (stats, weapon, abilities);
+  a filter — All / Stats / Weapon / Abilities (`dynamics_page.PARTS`, `part_of`: weapon = gun + melee) —
+  redraws every tile from the part counts in the page JSON and narrows the hover card (owner, 10-01:
+  a filter, not split tiles). Heroes index cards are only the portrait and the name on a plate in
+  the hero's colour (no role, complexity or last-patch line — owner's call).
 - Change matrix cells: a bevelled tile, its number of changes in the corner; hovering opens a card drawn by
   scripts.js from the page's `.dyn-data` JSON (who, which patch, counts with the tag icons, the three
   biggest changes, "+N more").
@@ -194,8 +194,12 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   heatmap as a switch; numbers tinted by meaning (`COLUMN_TINT`: health green, weapon orange, spirit
   purple); a value with a history is underlined with dots. The page background is a fixed composited
   layer (`body::before`) and table tints are solid colours: scrolling a 46-column table stays smooth.
-  Cell histories bridge gaps in the data (`hero_table.history_changes`): a value missing from the files
-  for a few builds and then back (Billy's weapon, builds 5747-5788) is one change, not "x → —", "— → y".
+  Cell histories (`hero_table.history_changes`) bridge only holes in the data — a column whose SOURCE is
+  missing from the build (`MISSING`: Valve cut unrevealed heroes' weapons out of abilities.vdata until
+  their reveal, builds 5747-5878 and 6127-6281) is one change on the reveal build; an absent FIELD is a
+  real state, so a stat removed and later restored shows both changes with their dates. Old builds:
+  bullet speed from the flat `m_BulletSpeedCurve` before 5747, dash times from the shared dash ability
+  (Innate 1) before 5706, an omitted burst interval is 0 (audit of data gaps, 2026-10-01).
 - Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its
   price tag, columns Weapon → Spirit → Vitality (the game's order), cards with ACTIVE / IMBUE labels
   and the last change; hovering a card lights up its components and what it builds into, the rest

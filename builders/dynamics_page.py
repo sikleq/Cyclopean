@@ -2,10 +2,9 @@
 patch, each cell a tile striped in the colours of what the patch did (buff, nerf, new, removed…),
 each stripe as tall as its share.
 
-A hero's tile is split in three: base stats | weapon (gun and melee) | abilities, each part with its
-own stripes, so a glance tells WHAT changed, not only how much (owner, 2026-10-01). The ▸ before a
-hero opens one sub-row per part: base stats, the weapon, every ability with its icon.
-Switches: older patches, buff-vs-nerf (one net colour per cell), tag filters, pre-release heroes /
+A hero's tile holds everything the patch did to the hero — stats, weapon and abilities in one cell;
+a filter (All / Stats / Weapon / Abilities) narrows every tile to one part (owner, 2026-10-01: one
+cell, a filter, no split tiles). Switches: older patches, buff-vs-nerf (one net colour per cell), tag filters, pre-release heroes /
 removed items; a search over the rows; a hover card per cell (scripts.js, from the page's JSON)."""
 from __future__ import annotations
 
@@ -20,7 +19,7 @@ from .render import TAG_ORDER, TAG_WORDS, counts_text, tag_of
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
 SAMPLES = 2               # the hover card lists this many biggest changes per part
-PARTS = (('stats', 'Base stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
+PARTS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
 WEAPON_KINDS = ('weapon', 'melee')
 
 
@@ -50,13 +49,11 @@ def _collect() -> dict:
     rows       patch index rows, oldest first
     cells      {row key: {pid: {tag: n}}}
     parts      {row key: {pid: {part: {tag: n}}}}           (heroes: stats / weapon / abil)
-    subs       {row key: {sub key: {'name', 'part', 'file', 'id', 'kind', 'owner', 'cells': {pid: {tag: n}}}}}
-    samples    {row or sub key: {pid: [[what, field, old, new, tag, part], ...]}}"""
+    samples    {row key: {pid: [[what, field, old, new, tag, part], ...]}}"""
     from .cards import gameplay_entities, player_facing
     rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
     cells: dict = {}
     parts: dict = {}
-    subs: dict = {}
     raw: dict = {}
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
@@ -72,21 +69,15 @@ def _collect() -> dict:
             else:
                 continue
             part = part_of(e)
-            sub_key = f'{e["file"]}:{e["id"]}'
-            sub = subs.setdefault(key, {}).setdefault(sub_key, {
-                'name': _display(e), 'part': part, 'file': e['file'], 'id': e['id'], 'kind': e.get('kind', ''),
-                'owner': e.get('owner'), 'cells': {}})
             cell = cells.setdefault(key, {}).setdefault(r['id'], {})
             pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
-            scell = sub['cells'].setdefault(r['id'], {})
             for c in player_facing(e['changes']):
                 t = tag_of(c)[0]
-                for d in (cell, pcell, scell):
+                for d in (cell, pcell):
                     d[t] = d.get(t, 0) + 1
                 s = (_display(e), c.get('label') or '', str(c.get('old_s') or ''), str(c.get('new_s') or ''), t, part,
                      abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0)
                 raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
-                raw.setdefault(sub_key, {}).setdefault(r['id'], []).append(s)
     samples: dict = {}
     for k, per in raw.items():
         for pid, lst in per.items():
@@ -98,7 +89,7 @@ def _collect() -> dict:
                     picked.append(list(x[:6]))
             order = {p: i for i, (p, _) in enumerate(PARTS)}
             samples.setdefault(k, {})[pid] = sorted(picked, key=lambda x: order.get(x[5], 9))
-    return {'rows': rows, 'cells': cells, 'parts': parts, 'subs': subs, 'samples': samples}
+    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples}
 
 
 def _net(counts: dict[str, int]) -> str:
@@ -112,23 +103,15 @@ def _stripes(counts: dict[str, int]) -> str:
                    for t, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
 
 
-def _cell(prow: dict, counts: dict[str, int] | None, href: str, old: bool, k: int | None,
-          split: dict | None = None) -> str:
+def _cell(prow: dict, counts: dict[str, int] | None, href: str, old: bool, k: int | None) -> str:
     cls = 'dc old' if old else 'dc'
     if not counts:
         return f'<td class="{cls}"></td>'
     total = sum(counts.values())
-    if split is not None:
-        # stats | weapon | abilities: each third striped by its own changes, empty when untouched
-        inner = ''.join(f'<span class="seg s-{p}{"" if split.get(p) else " empty"}">{_stripes(split.get(p, {}))}</span>'
-                        for p, _ in PARTS)
-        tile = 'dsq split'
-    else:
-        inner, tile = _stripes(counts), 'dsq'
     tip = f'{patch_title_text(prow)}: {counts_text(counts)}'
     data_k = f' data-k="{k}"' if k is not None else ''
-    return (f'<td class="{cls}"><a class="{tile} {_net(counts)}" href="{esc(href)}"{data_k} aria-label="{esc(tip)}">'
-            f'{inner}<span class="dn">{total}</span></a></td>')
+    return (f'<td class="{cls}"><a class="dsq {_net(counts)}" href="{esc(href)}"{data_k} aria-label="{esc(tip)}">'
+            f'{_stripes(counts)}<span class="dn">{total}</span></a></td>')
 
 
 def _head(rows: list[dict], cutoff: str, label: str) -> str:
@@ -146,30 +129,27 @@ def _head(rows: list[dict], cutoff: str, label: str) -> str:
     return f'<thead><tr class="cats"><th class="name"></th>{top}</tr><tr class="cols"><th class="name">{esc(label)}</th>{sub}</tr></thead>'
 
 
-def _sub_order(sub: dict) -> tuple:
-    order = {p: i for i, (p, _) in enumerate(PARTS)}
-    return order.get(sub['part'], 9), sub['name'].lower()
-
-
-def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str, rel: str = '../') -> str:
+def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str) -> str:
     """entries: (row key, display name, icon url, page href, extra row class)."""
     d = _collect()
-    rows, cells, parts, subs, samples = d['rows'], d['cells'], d['parts'], d['subs'], d['samples']
+    rows, cells, parts, samples = d['rows'], d['cells'], d['parts'], d['samples']
     cutoff = (date.fromisoformat(rows[-1]['date'][:10]) - timedelta(days=OLD_DAYS)).isoformat() if rows else ''
     pidx = {r['id']: i for i, r in enumerate(rows)}
     tips: list = []
     body: list[str] = []
 
-    def tds(key: str, mine: dict, anchor: str, split_of: dict | None) -> str:
+    def tds(key: str, mine: dict, anchor: str, part_of_cell: dict | None) -> str:
         out = []
         for r in rows:
             counts = mine.get(r['id'])
             k = None
             if counts:
                 k = len(tips)
-                tips.append([pidx[r['id']], counts, samples.get(key, {}).get(r['id'], [])])
-            split = (split_of or {}).get(r['id'], {}) if split_of is not None else None
-            out.append(_cell(r, counts, f'../patches/{r["id"]}.html{anchor}', r['date'] < cutoff, k, split))
+                entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], [])]
+                if part_of_cell is not None:
+                    entry.append(part_of_cell.get(r['id'], {}))     # {part: {tag: n}} for the filter
+                tips.append(entry)
+            out.append(_cell(r, counts, f'../patches/{r["id"]}.html{anchor}', r['date'] < cutoff, k))
         return ''.join(out)
 
     for key, name, ic, href, extra in entries:
@@ -178,26 +158,9 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str,
             continue
         img = f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
         anchor = f'#c-{key.split(":", 1)[1]}' if kind == 'hero' else ''
-        rid = key.split(':', 1)[1]
-        is_hero = kind == 'hero'
-        toggle = (f'<button class="dyn-open" data-open="{esc(rid)}" aria-label="Show stats, weapon and abilities">'
-                  f'▸</button>' if is_hero else '')
         body.append(f'<tr class="{esc(extra)}" data-search="{esc(name.lower())}" data-name="{esc(name)}" '
-                    f'data-icon="{esc(ic or "")}"><td class="name"><span class="nm-wrap">{toggle}<a href="{esc(href)}">{img}{esc(name)}</a></span></td>'
-                    f'{tds(key, mine, anchor, parts.get(key, {}) if is_hero else None)}</tr>')
-        if not is_hero:
-            continue
-        for sub_key, sub in sorted(subs.get(key, {}).items(), key=lambda kv: _sub_order(kv[1])):
-            if not sub['cells']:
-                continue
-            sic = (hero_icon(sub['id'], rel) if sub['file'] == 'heroes.vdata'
-                   else entity_icon(sub['file'], sub['id'], sub['kind'], rel, sub['name'], sub['owner']))
-            simg = f'<img src="{esc(sic)}" alt="" loading="lazy">' if sic else ''
-            label = dict(PARTS)[sub['part']] if sub['part'] == 'stats' else sub['name']
-            body.append(f'<tr class="sub p-{sub["part"]} {esc(extra)}" data-parent="{esc(rid)}" '
-                        f'data-search="{esc(name.lower())} {esc(label.lower())}" data-name="{esc(name)} · {esc(label)}" '
-                        f'data-icon="{esc(sic or "")}"><td class="name"><span class="sub-l">{simg}{esc(label)}</span></td>'
-                        f'{tds(sub_key, sub["cells"], anchor, None)}</tr>')
+                    f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
+                    f'{tds(key, mine, anchor, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
             'cells': tips, 'icons': {t: tag_svg(t) for t in MATRIX_TAGS}, 'words': TAG_WORDS,
             'parts': dict(PARTS)}
@@ -215,22 +178,18 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
     rows_switch = (f'<label class="switch"><input type="checkbox" data-toggle-class="show-extra" data-target="{target}">'
                    f'<span class="track"></span>{esc(hidden_label)} <span class="n">{n_hidden_rows}</span></label>'
                    if n_hidden_rows else '')
-    # how to read a hero's tile: the three parts, and "open all" for their rows
-    legend = ''
+    # which part of a hero the tiles show: everything, or only its stats / weapon / abilities
+    parts_filter = ''
     if kind == 'hero':
-        legend = ('<span class="sep"></span><span class="dyn-legend"><span class="dsq split demo">'
-                  '<span class="seg s-stats"><span class="st t-buff"></span></span>'
-                  '<span class="seg s-weapon"><span class="st t-nerf"></span></span>'
-                  '<span class="seg s-abil"><span class="st t-new"></span></span></span>'
-                  '<span>stats · weapon · abilities</span></span>'
-                  f'<label class="switch"><input type="checkbox" data-toggle-class="open-all" data-target="{target}">'
-                  '<span class="track"></span>Split rows</label>')
-    return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr:not(.sub)">'
+        parts_filter = ('<span class="sep"></span><span class="dyn-parts">' + ''.join(
+            f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}">{esc(lbl)}</button>'
+            for p, lbl in (('all', 'All'),) + PARTS) + '</span>')
+    return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
             f'<span class="sep"></span>'
             f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
             f'<span class="track"></span>Older patches</label>'
             f'<label class="switch"><input type="checkbox" data-toggle-class="bvn" data-target="{target}">'
-            f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{legend}'
+            f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{parts_filter}'
             f'<span class="sep"></span><span class="dyn-tags">{tags}</span></div>')
 
 

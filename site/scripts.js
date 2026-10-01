@@ -215,6 +215,11 @@
       if (!d || k === null) return;
       var c = d.cells[+k], p = d.patches[c[0]], tr = a.closest('tr');
       var counts = c[1], samples = c[2], order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
+      var part = table.getAttribute('data-part') || 'all';
+      if (part !== 'all' && c[3]) {             // the filter: only this part's counts and changes
+        counts = c[3][part] || {};
+        samples = samples.filter(function (s) { return s[5] === part; });
+      }
       var total = 0;
       Object.keys(counts).forEach(function (t) { total += counts[t]; });
       var icon = tr.getAttribute('data-icon');
@@ -228,7 +233,7 @@
         // the biggest changes, grouped by part: base stats, weapon, abilities
         var lastPart = null, rowsHtml = '';
         samples.forEach(function (s) {
-          if (s[5] !== lastPart && d.parts && d.parts[s[5]] && !tr.classList.contains('sub')) {
+          if (s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
             lastPart = s[5];
             rowsHtml += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
           }
@@ -258,15 +263,35 @@
   });
 
   /* ---------- change matrices: ▸ opens a hero's rows for base stats, weapon and each ability ---------- */
-  safe('dyn-open', function () {
-    document.addEventListener('click', function (ev) {
-      var btn = ev.target.closest && ev.target.closest('.dyn-open');
-      if (!btn) return;
-      ev.preventDefault();
-      var table = btn.closest('table'), id = btn.getAttribute('data-open');
-      var open = !btn.classList.contains('on');
-      btn.classList.toggle('on', open);
-      table.querySelectorAll('tr.sub[data-parent="' + id + '"]').forEach(function (tr) { tr.classList.toggle('open', open); });
+  /* ---------- hero changes: a filter narrows every tile to one part (stats / weapon / abilities) ---------- */
+  safe('dyn-parts', function () {
+    var btns = document.querySelectorAll('[data-part]');
+    if (!btns.length) return;
+    var order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var table = document.querySelector(btn.getAttribute('data-target'));
+        var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
+        if (!table || !blob) return;
+        var d = JSON.parse(blob.textContent), part = btn.getAttribute('data-part');
+        btns.forEach(function (b) { b.classList.toggle('on', b === btn); });
+        table.setAttribute('data-part', part);
+        table.querySelectorAll('a.dsq[data-k]').forEach(function (a) {
+          var c = d.cells[+a.getAttribute('data-k')];
+          var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
+          var tags = order.filter(function (t) { return counts[t]; }), total = 0;
+          tags.forEach(function (t) { total += counts[t]; });
+          a.classList.toggle('part-out', !total);
+          if (!total) return;
+          a.innerHTML = tags.map(function (t) {
+            return '<span class="st t-' + t + '" style="flex:' + counts[t] + '"></span>';
+          }).join('') + '<span class="dn">' + total + '</span>';
+          var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
+          var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
+          a.classList.remove('net-buff', 'net-nerf', 'net-mix');
+          a.classList.add(good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix');
+        });
+      });
     });
   });
 

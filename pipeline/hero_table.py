@@ -61,6 +61,43 @@ def _wf(name, meters=False):
     return f
 
 
+def bullet_speed(h, w, g):
+    """m/s. Before build 5747 the speed was a curve (m_BulletSpeedCurve) whose points were all equal;
+    since then m_flBulletSpeed (audit 2026-10-01: 18 changes of 12 heroes were invisible)."""
+    v = _num(w.get('m_flBulletSpeed')) if w else None
+    if v is None and w:
+        spline = (w.get('m_BulletSpeedCurve') or {}).get('m_spline') or []
+        ys = [_num(pt.get('y')) for pt in spline if isinstance(pt, dict)]
+        if ys and None not in ys and max(ys) == min(ys):
+            v = ys[0]
+    return v / UNITS_PER_METER if v is not None else None
+
+
+def burst_cycle(h, w, g):
+    """An omitted m_flIntraBurstCycleTime is 0 (the game's default; build 6711 started writing it)."""
+    return (_num(w.get('m_flIntraBurstCycleTime')) or 0.0) if w else None
+
+
+def _dash(stat: str, ability_prop: str):
+    """The hero's own dash time; before build 5706 one shared dash ability (the hero's Innate 1,
+    citadel_ability_dash) held it for everyone."""
+    def f(h, w, abilities):
+        v = _num((h.get('m_mapStartingStats') or {}).get(stat))
+        if v is not None or not abilities:
+            return v
+        aid = (h.get('m_mapBoundAbilities') or {}).get('ESlot_Ability_Innate_1')
+        ab = abilities.get(aid) if aid else None
+        prop = ((ab or {}).get('m_mapAbilityProperties') or {}).get(ability_prop) if isinstance(ab, dict) else None
+        return _num(prop.get('m_strValue')) if isinstance(prop, dict) else None
+    return f
+
+
+# a column whose source is missing from the build (the weapon id points at nothing: Valve cut unrevealed
+# heroes' kits out of abilities.vdata until their reveal) — a hole in the data, bridged by history_changes;
+# an absent FIELD is a real value ("—") and is not bridged
+MISSING = 'missing'
+
+
 def weapon_info(hero: dict, abilities: dict) -> dict:
     wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
     ab = abilities.get(wid) if wid else None
@@ -146,8 +183,8 @@ COLUMNS: tuple[Col, ...] = (
     Col('bps', 'Bullets / s', 'Damage', bullets_per_sec, scaling_stat='EFireRate'),
     Col('pellets', 'Pellets', 'Damage', _wf('m_iBullets'), digits=0),
     Col('burst', 'Burst', 'Damage', _wf('m_iBurstShotCount'), digits=0),
-    Col('burst_cycle', 'Burst Interval (s)', 'Damage', _wf('m_flIntraBurstCycleTime'), pol=-1, digits=4),
-    Col('bullet_speed', 'Bullet Speed (m/s)', 'Damage', _wf('m_flBulletSpeed', True), digits=0),
+    Col('burst_cycle', 'Burst Interval (s)', 'Damage', burst_cycle, pol=-1, digits=4),
+    Col('bullet_speed', 'Bullet Speed (m/s)', 'Damage', bullet_speed, digits=0),
     Col('bullet_radius', 'Bullet Radius', 'Damage', _wf('m_flBulletRadius')),
     Col('spread', 'Spread', 'Damage', _wf('m_Spread'), pol=-1),
     Col('pellet_spread', 'Pellet Spread', 'Damage', _wf('m_flPelletScatterSpreadFactor'), pol=-1),
@@ -179,8 +216,8 @@ COLUMNS: tuple[Col, ...] = (
     Col('stamina', 'Stamina', 'Mobility', _stat('EStamina'), digits=0, scaling_stat='EStamina'),
     Col('stamina_regen', 'Stamina Regen', 'Mobility', _stat('EStaminaRegenPerSecond'), digits=3, scaling_stat='EStaminaRegenPerSecond'),
     Col('crouch', 'Crouch Speed', 'Mobility', _stat('ECrouchSpeed')),
-    Col('ground_dash', 'Ground Dash (s)', 'Mobility', _stat('EGroundDashDuration'), pol=-1),
-    Col('air_dash', 'Air Dash (s)', 'Mobility', _stat('EAirDashDuration'), pol=-1),
+    Col('ground_dash', 'Ground Dash (s)', 'Mobility', _dash('EGroundDashDuration', 'AbilityDuration'), pol=-1),
+    Col('air_dash', 'Air Dash (s)', 'Mobility', _dash('EAirDashDuration', 'AirDashTravelTime'), pol=-1),
     # --- Spirit ---
     Col('spirit_lvl', '+Spirit / boon', 'Spirit', _lvl('MODIFIER_VALUE_TECH_POWER')),
 )
@@ -194,22 +231,29 @@ def _round(v, digits):
 
 def evaluate(hero: dict, abilities: dict) -> dict:
     w = weapon_info(hero, abilities)
+    wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
+    weapon_cut = bool(wid) and not isinstance(abilities.get(wid), dict)
     out = {}
     for c in COLUMNS:
+        if weapon_cut and c.group == 'Damage':
+            out[c.key] = MISSING
+            continue
         try:
-            out[c.key] = _round(c.fn(hero, w, None), c.digits)
+            out[c.key] = _round(c.fn(hero, w, abilities), c.digits)
         except (TypeError, ValueError, ZeroDivisionError):
             out[c.key] = None
     return out
 
 
 def history_changes(pts: list[list]) -> list[list]:
-    """[[build, date, value], …] -> [[build, date, old, new], …]. A stretch where the value is missing
-    from the files and then comes back (Billy's weapon, builds 5747-5788) is a gap in the data, not two
-    changes: it bridges into one old -> new on the build where it returned (none if it returned
-    unchanged). A value missing at the very end stays a removal; at the start, a first value."""
-    kept = [p for i, p in enumerate(pts)
-            if p[2] is not None or i == len(pts) - 1 or all(q[2] is None for q in pts[:i])]
+    """[[build, date, value], …] -> [[build, date, old, new], …]. A stretch whose source is MISSING
+    from the build (Billy's weapon cut from abilities.vdata, builds 5747-5788) is a hole in the data:
+    it bridges into one old -> new on the build where the source returned (none if unchanged). An
+    absent field (None) is a real state — a stat removed and later restored is two changes with their
+    own dates (audit 2026-10-01: bridging those hid 54 item events). MISSING at the end reads as gone."""
+    kept = [p for p in pts if p[2] != MISSING]
+    if pts and pts[-1][2] == MISSING and kept and kept[-1][2] is not None:
+        kept.append([pts[-1][0], pts[-1][1], None])
     out = []
     for prev, cur in zip(kept, kept[1:]):
         if prev[2] != cur[2]:
@@ -302,7 +346,7 @@ def build() -> dict:
             'weapon': wid,
             'weapon_name': loc.plain(loc.entity_name(tok, wid, hid)) if wid else None,
             'first_seen': first_seen.get(hid),
-            'values': {k: pts[-1][2] for k, pts in hs.items()},
+            'values': {k: (None if pts[-1][2] == MISSING else pts[-1][2]) for k, pts in hs.items()},
             'history': history,
             'spirit_scaled': spirit_scaled(hero),
             'scaling': scaling_detail(hero),

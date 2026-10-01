@@ -380,10 +380,7 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     cells = {'hero:hero_atlas': {'p2': {'buff': 2, 'nerf': 1}}, 'hero:hero_x': {'p1': {'new': 1}}}
     samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf', 'abil']]}}
     parts = {'hero:hero_atlas': {'p2': {'abil': {'nerf': 1}, 'stats': {'buff': 2}}}}
-    subs = {'hero:hero_atlas': {'abilities.vdata:a1': {'name': 'Siphon Life', 'part': 'abil', 'file': 'abilities.vdata',
-                                                      'id': 'a1', 'kind': 'ability', 'owner': 'hero_atlas',
-                                                      'cells': {'p2': {'nerf': 1}}}}}
-    monkeypatch.setattr(dynamics_page, '_collect', lambda: {'rows': rows, 'cells': cells, 'parts': parts, 'subs': subs,
+    monkeypatch.setattr(dynamics_page, '_collect', lambda: {'rows': rows, 'cells': cells, 'parts': parts,
                                                             'samples': samples})
     html = dynamics_page.matrix_html([('hero:hero_atlas', 'Abrams', None, 'hero_atlas.html', ''),
                                       ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
@@ -394,10 +391,11 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert '#c-hero_atlas' in html and 'tr class="extra"' in html
     # the hover card's data: the cell's counts and its biggest changes, the number on the tile
     assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
-    # a hero's tile in three parts (stats has buffs, weapon empty, abilities a nerf); its sub-rows behind the toggle
-    assert 'dsq split' in html and 'seg s-weapon empty' in html and 'tr class="sub p-abil' in html and 'data-open="hero_atlas"' in html
+    # one tile per cell (no split, owner 10-01); the part counts ride in the data for the filter
+    assert 'dsq split' not in html and 'tr class="sub' not in html and '{"abil":{"nerf":1}' in html
     bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
     assert 'show-old' in bar and 'bvn' in bar and 'hide-buff' in bar and 'show-extra' in bar
+    assert 'data-part="weapon"' in bar and 'data-part="all"' in bar
 
 
 def test_unit_table_names_and_copies():

@@ -1377,29 +1377,9 @@ table.stats td.tint-spi { color: color-mix(in srgb, var(--spirit) 55%, var(--tex
 table.stats td.has-hist { text-decoration: underline dotted color-mix(in srgb, var(--text-dim) 60%, transparent);
   text-underline-offset: 3px; }
 
-/* ---------- 20. hero changes: tiles split stats | weapon | abilities, sub-rows per part ---------- */
-.dsq.split { flex-direction: row; gap: 1px; background: var(--bg-page); }
-.dsq.split .seg { display: flex; flex-direction: column; flex: 1; min-width: 0; }
-.dsq.split .seg.empty { background: var(--bg-panel-3); }
-table.dyn.bvn .dsq.split .seg { display: none; }
-table.dyn tr.sub { display: none; }
-table.dyn tr.sub.open, table.dyn.open-all tr.sub { display: table-row; }
-table.dyn:not(.show-extra) tr.sub.extra { display: none; }
-table.dyn tr.sub td { background: var(--bg-page); }
-table.dyn tr.sub td.name { background: var(--bg-page); }
-table.dyn tr.sub .sub-l { display: flex; align-items: center; gap: 7px; padding-left: 26px; font: 500 12px/1.1 var(--font-ui); color: var(--text-dim); }
-table.dyn tr.sub .sub-l img { width: 20px; height: 20px; object-fit: contain; background: var(--bg-panel-4); }
-table.dyn tr.sub.p-stats .sub-l { color: var(--text-main); }
-table.dyn tr.sub.p-weapon .sub-l { color: color-mix(in srgb, var(--weapon) 50%, var(--text-main)); }
-table.dyn tr.sub .dsq { width: 22px; height: 22px; }
-table.dyn td.name .nm-wrap { display: flex; align-items: center; gap: 6px; }
-.dyn-open { width: 18px; height: 18px; flex: none; padding: 0; border: 0; cursor: pointer; font: 12px/18px var(--font-ui);
-  color: var(--text-dim); background: var(--bg-panel-3); box-shadow: inset 0 0 0 1px var(--grid-strong); transition: transform .12s; }
-.dyn-open:hover { color: var(--text-bright); }
-.dyn-open.on, table.dyn.open-all .dyn-open { transform: rotate(90deg); color: var(--patina-strong); }
-.dyn-legend { display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1 var(--font-ui); color: var(--text-dim); }
-.dyn-legend .dsq.demo { width: 30px; height: 18px; pointer-events: none; }
-.dyn-legend .dsq.demo .st { flex: 1; }
+/* ---------- 20. hero changes: the part filter (All / Stats / Weapon / Abilities) ---------- */
+.dyn-parts { display: inline-flex; gap: 4px; }
+.dsq.part-out { visibility: hidden; }
 table.dt-rows tr.dt-part td { padding: 6px 6px 3px; text-align: left; font: 600 11px/1 var(--font-ui); text-transform: uppercase;
   letter-spacing: .08em; color: var(--label); border-right: 0; }
 table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 60%, var(--label)); }
