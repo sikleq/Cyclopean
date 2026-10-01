@@ -13,7 +13,7 @@ import json
 import time
 
 from . import cache, loc, tracker
-from .classify import ability_kind, hero_bound_abilities, unit_kind
+from .classify import ability_kind, hero_bound_abilities, unit_is_helper, unit_kind
 
 OUT = tracker.ROOT / 'data' / 'entities.json'
 FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata', 'misc.vdata', 'modifiers.vdata', 'generic_data.vdata')
@@ -25,7 +25,8 @@ def _kind(file: str, eid: str, data: dict, owners: dict) -> str:
     if file == 'abilities.vdata':
         return ability_kind(eid, data, owners)
     if file == 'npc_units.vdata':
-        return unit_kind(eid, data)
+        kind = unit_kind(eid, data)
+        return 'helper' if kind == 'unit' and unit_is_helper(eid, data) else kind
     if file == 'modifiers.vdata':
         return 'modifier'
     return 'global'

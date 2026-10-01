@@ -145,6 +145,24 @@ _BUILDING_WORDS = ('guard', 'walker', 'boss', 'barrack', 'shrine', 'patron', 'ti
                    'destroyable')
 
 
+_GAMEPLAY = ('balance', 'mechanic', 'availability')
+
+
+def unit_is_helper(uid: str, data: dict) -> bool:
+    """A unit entry nobody fights or tunes (owner asked to sort them out, 2026-10-01): the Hideout's
+    toys (basketball, clock, target spawner), the bots' brain, and entries that carry only looks —
+    a model, particles, sounds — for an ability or a map prop (Paradox's time wall, the bounce pad,
+    an animated cat). Abilities do not name them (the code spawns them by class), so their own
+    fields decide: not one gameplay field means a helper."""
+    from .flatten import flatten
+    cls = str(data.get('_class', '')) if isinstance(data, dict) else ''
+    if 'hideout' in f'{uid} {cls}'.lower() or 'bot_brain' in uid:
+        return True
+    if not isinstance(data, dict) or not data:
+        return False                           # nothing left to judge (a removed unit)
+    return not any(category(p, None, v) in _GAMEPLAY for p, v in flatten(data).items())
+
+
 def unit_kind(uid: str, data: dict) -> str:
     """The id decides before the class: neutral camps and Guardians are npc_trooper
     subclasses in the data ('neutral_lantern_weak', 'npc_boss_tier1'), yet neither is a trooper."""

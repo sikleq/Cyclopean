@@ -9,7 +9,7 @@ from .render import KIND_LABEL
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
-               ('unit', 'Other units'))
+               ('unit', 'Other units'), ('helper', 'Hideout, bots & effects'))
 SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vitality', 'EItemSlotType_Tech': 'Spirit'}
 
 
@@ -192,14 +192,19 @@ def build_all() -> dict[str, int]:
     for kind, title in UNIT_GROUPS:
         sel = sorted((u for u in units if u['kind'] == kind), key=lambda u: (not u.get('alive'), u.get('name') or ''))
         if sel:
-            groups.append(f'<div class="grid-group-title">{esc(title)}</div><div class="grid units">'
+            # the Hideout's toys, the bots' brain, effect-only entries: behind their own switch
+            wrap = ' class="helper-group"' if kind == 'helper' else ''
+            groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
                           + ''.join(_card(u, entity_icon(u['file'], u['id'], kind, rel),
                                           variants.get(u['id'], '') if u.get('alive') else 'removed')
-                                    for u in sel) + '</div>')
+                                    for u in sel) + '</div></div>')
     n_gone = sum(1 for u in units if not u.get('alive'))
-    gone_switch = (f'<span class="sep"></span><label class="switch"><input type="checkbox" data-toggle-class="show-gone" '
-                   f'data-target="#units-grid"><span class="track"></span>Removed <span class="n">{n_gone}</span></label>'
-                   if n_gone else '')
+    n_helpers = sum(1 for u in units if u['kind'] == 'helper')
+    gone_switch = ''.join(
+        f'<label class="switch"><input type="checkbox" data-toggle-class="{cls}" data-target="#units-grid">'
+        f'<span class="track"></span>{label} <span class="n">{n}</span></label>'
+        for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', 'Hideout, bots & effects', n_helpers)) if n)
+    gone_switch = f'<span class="sep"></span>{gone_switch}' if gone_switch else ''
     body = ('<h1>Units</h1>' + sub_tabs('units', 'index')
             + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'
             + f'<div id="units-grid">{"".join(groups)}</div>')
@@ -208,6 +213,6 @@ def build_all() -> dict[str, int]:
     entries = unit_entries(units, UNIT_GROUPS, rel)
     n_gone = sum(1 for e in entries if e[4])
     write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
-                                     + toolbar('unit', n_gone, 'Removed') + matrix_html(entries, 'unit'),
+                                     + toolbar('unit', n_gone, 'Removed & helpers') + matrix_html(entries, 'unit'),
                                      rel, 'units', wide=True))
     return counts

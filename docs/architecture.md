@@ -201,7 +201,10 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   complexity or last-patch line (owner's call, 2026-10-01).
 - Units index: units that share a name (4 Walkers, 5 "Gutter Ghoul I") carry what tells them apart —
   the words of their id the namesakes do not share (`entities_pages.unit_variants`: "alt weak",
-  "amber", "dock creature", "model 2"); removed units hide behind a "Removed" switch.
+  "amber", "dock creature", "model 2"); removed units hide behind a "Removed" switch. Helpers — the
+  Hideout's toys, the bots' brain, entries with only a model / particles / sounds and not one gameplay
+  field (`classify.unit_is_helper`, catalog kind `helper`; the code spawns them by class, abilities do
+  not name them) — hide behind "Hideout, bots & effects" and with the removed rows in Unit changes.
 - Hero / item / unit change matrices (`builders/dynamics_page.py`, Sloppy's "Dynamics"): heroes/changes.html,
   items/changes.html and units/changes.html, sub-tabs of the three indexes. A row per hero (its stats + every
   ability it owns), item or unit (in the Units index order), a column per patch (months above, gold day =

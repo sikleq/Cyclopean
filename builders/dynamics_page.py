@@ -213,8 +213,9 @@ def unit_entries(units: list[dict], groups: tuple[tuple[str, str], ...], rel: st
     out = []
     for u in sorted(units, key=lambda u: (order.get(u.get('kind'), len(order)), (u.get('name') or u['id']).lower())):
         name = u['name'] if u.get('name') and u['name'] != u['id'] else pretty_id(u['id'])
+        hidden = not u.get('alive') or u.get('kind') == 'helper'      # removed, or Hideout / bots / effects
         out.append((f'unit:{u["id"]}', name, entity_icon(u['file'], u['id'], u.get('kind') or 'unit', rel),
-                    slug(u['file'], u['id']).split('/', 1)[1], '' if u.get('alive') else 'extra'))
+                    slug(u['file'], u['id']).split('/', 1)[1], 'extra' if hidden else ''))
     return out
 
 

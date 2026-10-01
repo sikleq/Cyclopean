@@ -14,7 +14,7 @@ TAG_ORDER = {'new': 0, 'rework': 1, 'buff': 2, 'nerf': 3, 'del': 4, 'on': 5, 'of
 KIND_LABEL = {
     'hero': 'Hero', 'ability': 'Ability', 'weapon': 'Weapon', 'melee': 'Melee', 'item': 'Item',
     'ability_other': 'Ability', 'trooper': 'Trooper', 'building': 'Building', 'neutral': 'Neutral',
-    'unit': 'Unit', 'modifier': 'Modifier', 'global': 'Game rules',
+    'unit': 'Unit', 'helper': 'Helper', 'modifier': 'Modifier', 'global': 'Game rules',
 }
 # availability fields where a truthy value means "switched OFF" ('Disabled', 'In Development');
 # for the rest ('Player Selectable', 'Enabled') truthy means ON

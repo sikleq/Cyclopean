@@ -62,6 +62,15 @@ def test_valve_style_sentences():
     assert sentence('Mina', {'path': '@add', 'op': 'add'}) == 'Mina: added to the game'
 
 
+def test_units_with_only_looks_are_helpers():
+    from pipeline.classify import unit_is_helper
+    assert unit_is_helper('citadel_cat_animating', {'_class': 'citadel_cat_animating', 'm_sModelName': 'cat.vmdl'})
+    assert unit_is_helper('citadel_basketball', {'_class': 'citadel_hideout_ball', 'm_flMass': 3})   # a Hideout toy
+    assert unit_is_helper('npc_player_bot_brain', {'m_flSightRange': 900})
+    assert not unit_is_helper('npc_necro_skele', {'_class': 'npc_necro_skele', 'm_flRunSpeed': 300})
+    assert not unit_is_helper('gone_unit', {})                       # nothing left to judge
+
+
 def test_screen_flash_sounds_and_offsets_are_not_balance():
     assert category('EFlashType_BulletDamage.m_flCoverage', 1, 0.75) == 'visual'      # damage screen flash
     assert category('m_vecOriginOffsetsLeft[1]', 1, 2) == 'visual'
