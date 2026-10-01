@@ -99,15 +99,19 @@ def fold_tier_swaps(changes: list[dict]) -> list[dict]:
     return out
 
 
+TAG_GLYPH = {'buff': '▲', 'nerf': '▼', 'new': '✦', 'del': '✕', 'rework': '⟳', 'mech': '◆', 'changed': '●',
+             'on': '●', 'off': '○'}
+
+
 def tag_summary(changes: list[dict]) -> str:
-    """Tiny counters for an entity header: '3 BUFF 1 NERF'."""
+    """Counters for an entity header in the index's glyph grammar: '▲3 ▼1 ✦2' (no zeros)."""
     counts: dict[str, int] = {}
     for c in changes:
         cls = tag_of(c)[0]
         counts[cls] = counts.get(cls, 0) + 1
     return '<span class="tsum">' + ''.join(
-        f'<span class="pip {cls}">{n}</span>' for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))
-    ) + '</span>'
+        f'<span class="pip {cls}">{TAG_GLYPH.get(cls, "●")}{n}</span>'
+        for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
 
 
 def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | None = None) -> str:
@@ -141,14 +145,21 @@ def entity_rows(name: str, icon_url: str | None, changes: list[dict], search: st
     rows = sort_changes(fold_tier_swaps(changes))
     if not rows:
         return []
+    return [entity_header(name, icon_url, rows, search, href, glyph)] + [change_row(c, '', search) for c in rows]
+
+
+def entity_header(name: str, icon_url: str | None, counted: list[dict], search: str = '', href: str = '',
+                  glyph: str = 'abilities', hidden: bool | None = None) -> str:
+    """The icon + name + tag counters row that opens an entity's block."""
     ic = visual(icon_url, glyph)
     nm = f'<a href="{esc(href)}">{esc(name)}</a>' if href else esc(name)
-    hidden = ' has-hidden' if any(c.get('status', 'hidden') in HIDDEN_LIKE for c in rows) else ''
-    dev = ' dev' if any(c.get('status') == 'unreleased' for c in rows) else ''
+    if hidden is None:
+        hidden = any(c.get('status', 'hidden') in HIDDEN_LIKE for c in counted)
+    dev = ' dev' if any(c.get('status') == 'unreleased' for c in counted) else ''
     ds = f' data-search="{esc(search)}"' if search else ''
-    head = (f'<tr class="eh{hidden}{dev}"{ds}><td colspan="4"><span class="en">{ic}{nm}</span>'
-            f'{tag_summary(rows)}</td></tr>')
-    return [head] + [change_row(c, '', search) for c in rows]
+    counters = tag_summary(counted) if counted else ''
+    return (f'<tr class="eh{" has-hidden" if hidden else ""}{dev}"{ds}><td colspan="4"><span class="en">{ic}{nm}</span>'
+            f'{counters}</td></tr>')
 
 
 _FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|MODIFIER_STATE_|MODIFIER_VALUE_|EAbility|E[A-Z][a-z]+_|DOTA_)')

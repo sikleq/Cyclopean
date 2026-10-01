@@ -89,6 +89,21 @@ their namesake with the same owner (`common.entity_icon`).
 Tag look: coloured text on a tint of the tag colour with a 2px bar and notched corners; the tint grows
 with the size of the change (`data-g`).
 
+## Visual system (design review 2026-10-01, three designer agents, three rounds)
+
+- Fonts: Jersey 20 (headings, names, big numbers — unambiguous pixel digits, weight 400 only), VT323
+  (labels, badges, dates; 16px and up), IBM Plex Sans (body, table numbers, tabular).
+- One entity-card component for every change list (`builders/cards.py`): framed 48px icon (32px in a
+  compact card of 1–2 rows), name, ▲▼✦✕ counters, the 12-patch history strip (`builders/trail.py`);
+  rows on a grid status | tag | text | old → new with a % pill. Documented rows carry no mark (the normal
+  case); hidden rows get an orange stripe. Engine plumbing rows fold into "Technical (N)"; a field
+  re-keyed between builds (DEL + NEW, same label) shows as one CHANGED row.
+- Section banners (Sloppy's band, in verdigris) for patch-note sections, months, hero-history patches.
+- Patch page first screen: tag tiles + proportion bar, released heroes hit (portrait, ▲▼ below), one
+  line of the notes check (zero items hidden), ◀ ▶ patch switcher.
+- Hero history: one collapsible band per patch (latest 3 open), a card per ability: its official
+  lines (prefix dropped), then the file changes no line spelled out exactly.
+
 ## Patch notes tab (`builders/notes_view.py`)
 
 Valve's text is not reproduced as a wall of lines: each section's lines are grouped by subject (hero,

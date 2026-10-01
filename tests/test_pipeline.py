@@ -99,6 +99,13 @@ def test_cooldown_increase_is_a_nerf():
     assert d == 'nerf' and round(pct, 1) == 7.4
 
 
+def test_upgrade_bonus_direction_follows_the_sign():
+    # Shoulder Charge T3 "-20s cooldown" -> "-18s": a smaller reduction is a nerf
+    p = 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus'
+    assert semantics.direction(p, -20, -18)[0] == 'nerf'
+    assert semantics.direction(p, -18, -20)[0] == 'buff'
+
+
 def test_damage_increase_is_a_buff_and_negative_debuff_magnitude():
     assert semantics.direction('m_mapAbilityProperties.Damage.m_strValue', 80, 150)[0] == 'buff'
     # -8% resist shred -> -7%: weaker effect

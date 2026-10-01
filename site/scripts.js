@@ -233,7 +233,23 @@
       });
     });
     var start = location.hash.replace('#', '');
-    if (start && document.getElementById(start) && document.getElementById(start).classList.contains('tab-panel')) open(start);
+    var startEl = start && document.getElementById(start);
+    if (startEl && startEl.classList.contains('tab-panel')) open(start);
+    else if (startEl && startEl.closest('.tab-panel')) {    // arrived from another page at a card
+      open(startEl.closest('.tab-panel').id);
+      startEl.scrollIntoView({ block: 'start' });
+    }
+    // a link to a card inside another tab (the hero strip -> "#c-hero_atlas"): open that tab, then scroll
+    document.addEventListener('click', function (ev) {
+      var a = ev.target.closest && ev.target.closest('a[href^="#"]');
+      if (!a) return;
+      var target = document.getElementById(a.getAttribute('href').slice(1));
+      var panel = target && target.closest('.tab-panel');
+      if (!panel || panel.classList.contains('on')) return;
+      ev.preventDefault();
+      open(panel.id);
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   });
 
   /* ---------- search: filters elements with data-search ---------- */

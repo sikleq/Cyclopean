@@ -11,26 +11,64 @@ GAMEPLAY = ('balance', 'mechanic', 'availability')
 FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
 
 
-def _counts_html(p: dict) -> str:
+SUMMARY_TAGS = (('buff', 'Buffs'), ('nerf', 'Nerfs'), ('new', 'New'), ('del', 'Removed'), ('rework', 'Reworks'),
+                ('other', 'Other'))
+
+
+def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> str:
+    """The patch's first screen: how big and which way (tag counters + bar), who was hit
+    (hero portraits with up/down counts), then one thin line of the notes check."""
+    from .common import hero_icon
+    from .render import tag_of
+    counts = {k: 0 for k, _ in SUMMARY_TAGS}
+    per_hero: dict[str, list[int]] = {}
+    for e in gameplay:
+        owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
+        for c in e['changes']:
+            cls = tag_of(c)[0]
+            counts[cls if cls in counts else 'other'] += 1
+            if owner and owner != 'hero_base':
+                ud = per_hero.setdefault(owner, [0, 0])
+                if cls == 'buff':
+                    ud[0] += 1
+                elif cls == 'nerf':
+                    ud[1] += 1
+    total = sum(counts.values()) or 1
+    tiles = ''.join(f'<div class="sum-tile t-{k}"><span class="n">{counts[k]}</span><span class="l">{esc(lbl)}</span></div>'
+                    for k, lbl in SUMMARY_TAGS if counts[k])
+    bar = ''.join(f'<span class="b-{k}" style="width:{counts[k] / total * 100:.2f}%"></span>' for k, _ in SUMMARY_TAGS
+                  if counts[k])
+    names = hero_names()
+    live = released_heroes()
+    heroes = sorted(per_hero, key=lambda h: (-(sum(per_hero[h])), names.get(h, h)))
+    # heroes still in development (placeholder art) do not crowd the strip: one counter for them
+    in_dev = [h for h in heroes if h not in live]
+    strip = ''.join(
+        f'<a class="hchip" href="{esc(link_base)}#c-{esc(h)}" data-tooltip="{esc(names.get(h, h))}">'
+        f'<img class="px" src="{esc(hero_icon(h, rel) or "")}" alt="{esc(names.get(h, h))}" loading="lazy">'
+        f'<span class="hc">{"<span class=up>▲" + str(per_hero[h][0]) + "</span>" if per_hero[h][0] else ""}'
+        f'{"<span class=dn>▼" + str(per_hero[h][1]) + "</span>" if per_hero[h][1] else ""}</span></a>'
+        for h in heroes if h in live and hero_icon(h, rel))
+    if in_dev:
+        strip += f'<span class="chip dev hdev">{mark("unreleased")}+{len(in_dev)} in development</span>'
     c = p.get('counts', {})
     lc = p.get('line_counts', {})
-    if not p.get('sections'):
-        boxes = [('hidden', c.get('unannounced', 0), 'changes in the files — no official numbers published')]
-        if c.get('documented'):     # notes of an earlier patch that only landed in these builds
-            boxes.append(('documented', c['documented'], 'announced in earlier patch notes'))
-    else:
-        boxes = [
-            ('documented', c.get('documented', 0), 'changes with exact numbers in the notes'),
-            ('described', c.get('described', 0), 'changes covered by a general line'),
-            ('hidden', c.get('hidden', 0), 'changes missing from the notes'),
-            ('mismatch', lc.get('mismatch', 0), 'note lines that disagree with the files'),
-            ('fix', lc.get('fix', 0), 'bug fixes listed'),
-        ]
+    if p.get('sections'):
+        audit = [('documented', c.get('documented', 0), 'exact in the notes'),
+                 ('described', c.get('described', 0), 'covered by a general line'),
+                 ('hidden', c.get('hidden', 0), 'not in the notes'),
+                 ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
+                 ('fix', lc.get('fix', 0), 'bug fixes')]
         if c.get('unreleased'):
-            boxes.insert(3, ('unreleased', c['unreleased'], 'changes to heroes still in development'))
-    return '<div class="stat-strip">' + ''.join(
-        f'<div class="stat-box px-frame {cls}"><div class="n">{n}</div><div class="l">{esc(lbl)}</div></div>'
-        for cls, n, lbl in boxes) + '</div>'
+            audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))
+    else:
+        audit = [('hidden', c.get('unannounced', 0), 'changes, no official notes')]
+        if c.get('documented'):
+            audit.append(('documented', c['documented'], 'announced in earlier notes'))
+    audit_html = ''.join(f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>' for k, n, lbl in audit if n)
+    return (f'<section class="summary px-frame"><div class="sum-tiles">{tiles}</div><div class="sum-bar">{bar}</div>'
+            f'{"<div class=sum-heroes>" + strip + "</div>" if strip else ""}'
+            f'<div class="sum-audit">{audit_html}</div></section>')
 
 
 @lru_cache(maxsize=1)
@@ -38,6 +76,14 @@ def hero_names() -> dict[str, str]:
     """hero id -> display name from the entity catalog (heroes that did not change themselves)."""
     return {e['id']: e.get('name') or e['id'] for e in load_json('entities.json')['entities']
             if e['file'] == 'heroes.vdata'}
+
+
+@lru_cache(maxsize=1)
+def released_heroes() -> set[str]:
+    """Heroes a player can pick today (release or pre-release, still in the files)."""
+    return {e['id'] for e in load_json('entities.json')['entities']
+            if e['file'] == 'heroes.vdata' and e.get('alive')
+            and e.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease')}
 
 
 @lru_cache(maxsize=1)
@@ -56,10 +102,13 @@ def _display_name(e: dict) -> str:
     return catalog_names().get(f"{e['file']}:{e['id']}") or pretty_id(e['id'], e.get('owner'))
 
 
-def _changes_table(ents: list[dict], rel: str) -> str:
-    """All gameplay changes: one table, grouped by hero (with its abilities), then items, units, rules."""
-    from .common import entity_icon, glyph_for, hero_icon, visual
-    from .render import HIDDEN_LIKE, change_row, entity_rows, fold_tier_swaps, sort_changes
+def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
+    """All gameplay changes as entity cards: one card per hero (its abilities as
+    sub-headers), then one per item, unit and rule; each with its history strip."""
+    from .cards import card, card_head, change_rows, is_hidden, sub_head
+    from .common import entity_icon, glyph_for, hero_icon
+    from .render import KIND_LABEL
+    from .trail import trail_html
     heroes = {e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
     by_owner: dict[str, list] = {}
     rest = []
@@ -72,7 +121,6 @@ def _changes_table(ents: list[dict], rel: str) -> str:
             rest.append(e)
     order_rest = {'shared': 0, 'item': 1, 'building': 2, 'trooper': 3, 'neutral': 4, 'unit': 5}
     rest.sort(key=lambda e: (order_rest.get(e.get('kind'), 9), e.get('name') or ''))
-    groups = []
     names = hero_names()
 
     def hero_label(hid: str) -> str:
@@ -81,39 +129,36 @@ def _changes_table(ents: list[dict], rel: str) -> str:
         return (heroes.get(hid, {}).get('name') or names.get(hid)
                 or next((x.get('owner_name') for x in by_owner[hid] if x.get('owner_name')), hid))
 
+    out = []
     for hid in sorted(by_owner, key=lambda h: hero_label(h).lower()):
-        hname = hero_label(hid)
-        groups.append((hname, hero_icon(hid, rel), by_owner[hid], 'heroes' if hid == 'hero_base' else 'hero'))
-    for e in rest:
-        groups.append((_display_name(e), entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'),
-                                                     e.get('owner')), [e], glyph_for(e['file'], e['id'], e.get('kind', ''))))
-    trs = []
-    for gname, gicon, members, gglyph in groups:
+        members = by_owner[hid]
         all_ch = [c for e in members for c in e['changes']]
-        n_h = sum(1 for c in all_ch if c.get('status') == 'hidden')
-        n_dev = sum(1 for c in all_ch if c.get('status') == 'unreleased')
-        icon_html = visual(gicon, gglyph, 'px gi')
-        chips = f' <span class="chip">{mark("hidden")}{n_h}</span>' if n_h else ''
-        if n_dev:
-            chips += f' <span class="chip dev">{mark("unreleased")}{n_dev} in development</span>'
-        search = gname.lower()
-        dev = ' dev' if n_dev else ''
-        dev += ' has-hidden' if any(c.get('status', 'hidden') in HIDDEN_LIKE for c in all_ch) else ''
-        trs.append(f'<tr class="ph{dev}" data-search="{esc(search)}"><td colspan="4"><span class="t">{icon_html}'
-                   f'{esc(gname)}</span>{chips}</td></tr>')
-        solo = len(members) == 1 and members[0].get('kind') not in ('ability', 'weapon', 'melee')
+        hname = hero_label(hid)
+        body = []
         for e in members:
-            if solo:          # an item / unit group: its header already names it
-                trs.extend(change_row(c, '', search) for c in sort_changes(fold_tier_swaps(e['changes'])))
-                continue
-            scope = _display_name(e)
-            if e['file'] == 'heroes.vdata' and e['id'] != '@shared':
-                scope = 'Base stats'
-            if e.get('targets'):
-                scope += f' ({len(e["targets"])})'
-            ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
-            trs.extend(entity_rows(scope, ic, e['changes'], search, glyph=glyph_for(e['file'], e['id'], e.get('kind', ''))))
-    return f'<table class="hist grouped">{"".join(trs)}</table>'
+            if e['file'] == 'heroes.vdata':
+                scope, ic, glyph = 'Base stats', hero_icon(hid, rel), 'hero'
+            else:
+                scope = _display_name(e)
+                ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
+                glyph = glyph_for(e['file'], e['id'], e.get('kind', ''))
+            body.append(sub_head(scope, ic, glyph, e['changes'], is_hidden(e['changes'])))
+            body.append(change_rows(e['changes']))
+        head = card_head(hname, hero_icon(hid, rel), 'heroes' if hid == 'hero_base' else 'hero', all_ch,
+                         trail=trail_html(f'heroes.vdata:{hid}', pid, rel))
+        out.append(card(head, ''.join(body), hidden=is_hidden(all_ch),
+                        dev=any(c.get('status') == 'unreleased' for c in all_ch),
+                        search=hname.lower(), anchor=f'c-{hid}'))
+    for e in rest:
+        name = _display_name(e)
+        if e.get('targets'):
+            name += f' ({len(e["targets"])})' if f'({len(e["targets"])})' not in name else ''
+        ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
+        head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), e['changes'],
+                         trail=trail_html(f"{e['file']}:{e['id']}", pid, rel))
+        out.append(card(head, change_rows(e['changes']), hidden=is_hidden(e['changes']), search=name.lower(),
+                        rows=len(e['changes'])))
+    return '<div class="ecards">' + ''.join(out) + '</div>'
 
 
 def _key_changes(p: dict, rel: str) -> str:
@@ -154,13 +199,18 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         for c in e['changes']:
             c['ent_name'] = _display_name(e)
             change_by_key[c['key']] = c
+    # patch switcher next to the title (players step through patches)
+    step = ''
+    if prev:
+        step += f'<a class="step" href="{esc(prev["id"])}.html" data-tooltip="{esc(prev["title"])}">◀</a>'
+    if nxt:
+        step += f'<a class="step" href="{esc(nxt["id"])}.html" data-tooltip="{esc(nxt["title"])}">▶</a>'
     parts = [f'<div class="crumbs"><a href="index.html">Patches</a> / {esc(p["date"])}</div>',
-             f'<h1>{esc(p["title"])}</h1>']
+             f'<div class="ptitle"><h1>{esc(p["title"])}</h1><span class="steps">{step}</span></div>']
     builds = ', '.join(f'<a href="{build_href(b["file"], rel)}">{b["build"]}</a>' for b in p['builds'][:30])
     link_text = 'official notes' if p.get('source') != 'announcement' else 'official announcement'
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
     parts.append(f'<div class="meta muted">{esc(p["date"])}{src} · builds: {builds or "—"}</div>')
-    parts.append(_counts_html(p))
 
     gameplay = []
     for e in p['entities']:
@@ -171,6 +221,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     for e in gameplay:
         if e.get('owner'):
             e['owner_name'] = names.get(e['owner'])
+    parts.append(_summary(p, gameplay, rel))
     ex = p.get('extras', {})
     tabs = []
     if p['sections']:
@@ -187,7 +238,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
                      _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
     changes_panel = ('<div class="toolbar"><button class="px-btn" data-toggle-class="only-hidden" data-target="#changes">'
                      'Only hidden</button><span class="sep"></span><input type="search" placeholder="Hero, item…" '
-                     'data-search-target="#changes tr[data-search]"></div>' + _changes_table(gameplay, rel))
+                     'data-search-target="#changes .ecard[data-search]"></div>' + _changes_table(gameplay, rel, p['id']))
     tabs.append(('changes', 'All changes', sum(len(e['changes']) for e in gameplay), changes_panel))
     extra_parts = _extras_parts(p, rel)
     for key, label, count, html in extra_parts:
@@ -297,19 +348,70 @@ def convar_li(x: dict) -> str:
             f'<span class="vals">{vals}</span></li>')
 
 
+MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',
+          'November', 'December')
+INDEX_HEROES = 6
+
+
+def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
+    from .common import hero_icon
+    c, lc = p['counts'], p['line_counts']
+    st = stats.get(p['id'], {'tags': {}, 'heroes': []})
+    t = st['tags']
+    # four fixed cells (empty when zero) so the counts line up from row to row
+    dirs = ''.join(f'<span class="ix-{k}">{sym + str(t[k]) if t.get(k) else ""}</span>'
+                   for k, sym in (('buff', '▲'), ('nerf', '▼'), ('new', '✦'), ('del', '✕')))
+    names = hero_names()
+    faces = ''.join(f'<img class="px" src="{esc(hero_icon(h, rel) or "")}" alt="" loading="lazy" '
+                    f'data-tooltip="{esc(names.get(h, h))}">' for h in st['heroes'][:INDEX_HEROES] if hero_icon(h, rel))
+    if p.get('has_notes'):
+        audit = (f'<span class="au">{mark("documented")}<b>{c.get("documented", 0)}</b></span>'
+                 f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("hidden", 0)}</b></span>')
+        if p['line_counts'].get('mismatch'):
+            audit += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
+    else:
+        audit = f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("unannounced", 0)}</b> no notes</span>'
+    title = p['title'].split(' · follow-up ')[-1] if follow else p['title']
+    title = f'follow-up {title}' if follow else title
+    return (f'<a class="ix{" fu" if follow else ""}" href="{esc(p["id"])}.html">'
+            f'<span class="ixd">{esc(p["date"])}</span>'
+            f'<span class="ixt"><span class="t">{esc(title)}</span><span class="b">{p["builds"]} builds</span></span>'
+            f'<span class="ixs">{dirs}</span><span class="ixh">{faces}</span>'
+            f'<span class="ixa">{audit}{_bar(c)}</span></a>')
+
+
 def index_page(index: list[dict]) -> str:
-    rows = []
-    for p in reversed(index):
-        c = p['counts']
-        rows.append(
-            f'<li><span class="date">{esc(p["date"])}</span>'
-            f'<span><a class="ttl" href="{esc(p["id"])}.html">{esc(p["title"])}</a>'
-            f'<small>{p["builds"]} builds</small>{_bar(c)}</span>'
-            f'<span class="nums"><span class="chip">{mark("documented")}{c.get("documented", 0)}</span>'
-            f'<span class="chip">{mark("hidden")}{c.get("hidden", 0)}</span>'
-            f'<span class="chip">{mark("mismatch")}{p["line_counts"].get("mismatch", 0)}</span></span></li>')
-    body = f'<h1>Patches</h1><ul class="timeline px-frame">{"".join(rows)}</ul>'
-    return page('Patches', body, '../', 'patches')
+    """Patches by month; a follow-up sits under its parent; each row says which way the
+    patch went and who it hit."""
+    from .trail import patch_stats
+    stats = patch_stats()
+    rel = '../'
+    # a thread's follow-ups stay with their parent (06-30 Update and its 07-01..07-28 follow-ups),
+    # families newest first, the month taken from the parent
+    families: dict[str, list[dict]] = {}
+    for p in index:
+        families.setdefault(p['title'].split(' · follow-up ')[0], []).append(p)
+    ordered = []
+    for fam in families.values():
+        parent = next((p for p in fam if ' · follow-up ' not in p['title']), fam[0])
+        follows = sorted((p for p in fam if p is not parent), key=lambda p: p['date'], reverse=True)
+        ordered.append((parent, follows))
+    ordered.sort(key=lambda pf: pf[0]['date'], reverse=True)
+    month_n: dict[str, int] = {}
+    for parent, _ in ordered:
+        month_n[parent['date'][:7]] = month_n.get(parent['date'][:7], 0) + 1
+    out, month = [], None
+    for parent, follows in ordered:
+        m = parent['date'][:7]
+        if m != month:
+            month = m
+            n = month_n[m]
+            out.append(f'<div class="banner sub"><span class="bt">{MONTHS[int(m[5:7]) - 1]} {m[:4]}</span>'
+                       f'<span class="bc">{n} update{"s" if n != 1 else ""}</span></div>')
+        out.append(_index_row(parent, stats, rel, False))
+        out.extend(_index_row(f, stats, rel, True) for f in follows)
+    body = f'<h1>Patches</h1><div class="ixlist">{"".join(out)}</div>'
+    return page('Patches', body, rel, 'patches')
 
 
 def build_all() -> int:

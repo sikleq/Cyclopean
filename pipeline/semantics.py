@@ -49,8 +49,17 @@ def direction(path: str, old, new, kind: str = '') -> tuple[str, float | None]:
     pct = None if a == 0 else (b - a) / a * 100.0
     if pol == 0 or a == b:
         return 'changed', pct
+    if UPGRADE_BONUS.search(path):
+        # a T1-T3 bonus is added to the stat, so its SIGN counts: a cooldown bonus going
+        # -20 -> -18 cuts 2s less (nerf), though the magnitude shrank (reported 2026-10-01)
+        x, y = float(old), float(new)
+        better = (y > x) if pol > 0 else (y < x)
+        return ('buff' if better else 'nerf'), pct
     better = (b > a) if pol > 0 else (b < a)
     return ('buff' if better else 'nerf'), pct
+
+
+UPGRADE_BONUS = re.compile(r'm_vecAbilityUpgrades.*\.m_strBonus$')
 
 
 def gradient(pct: float | None) -> int:

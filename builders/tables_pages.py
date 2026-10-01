@@ -57,8 +57,19 @@ def _fmt(v, digits: int) -> str:
     return s
 
 
+RECENT_DAYS = 45      # the corner dot marks values changed this recently; older history is on hover only
+
+
+def _recent_cutoff(as_of: str | None) -> str:
+    from datetime import date, timedelta
+    if not as_of:
+        return '9999'
+    return (date.fromisoformat(as_of[:10]) - timedelta(days=RECENT_DAYS)).isoformat()
+
+
 def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict], str], name_title: str,
-                 extra_cls: Callable[[dict, dict], list[str]] | None = None) -> str:
+                 extra_cls: Callable[[dict, dict], list[str]] | None = None, as_of: str | None = None) -> str:
+    cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
     for c in cols:
         if groups and groups[-1][0] == c['group']:
@@ -66,6 +77,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
         else:
             groups.append([c['group'], 1])
     first_of_group = {cols[sum(n for _, n in groups[:i])]['key'] for i in range(len(groups))}
+    # every other column group gets a faint tint so the eye keeps its place in 46 columns
+    odd_groups = {g for i, (g, _) in enumerate(groups) if i % 2}
 
     def gcls(group: str) -> str:
         return ' g-details' if group == DETAILS else ''
@@ -88,11 +101,15 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             cls = ['grp-start'] if c['key'] in first_of_group else []
             if c['group'] == DETAILS:
                 cls.append('g-details')
+            if c['group'] in odd_groups:
+                cls.append('g-odd')
             if extra_cls:
                 cls += extra_cls(r, c)
             attrs = f' data-col="{c["key"]}" data-sort="{"" if v is None else v}" data-pol="{c["pol"]}" data-digits="{c["digits"]}"'
             if hist:
                 cls.append('has-hist')
+                if str(hist[-1][1])[:10] >= cutoff:
+                    cls.append('recent')
                 attrs += (f' data-hist="{esc(json.dumps(hist, separators=(",", ":")))}"'
                           f' data-title="{esc(r["name"])} · {esc(c["label"])}"')
             cells.append(f'<td class="{" ".join(cls)}"{attrs}>{_fmt(v, c["digits"])}</td>')
@@ -108,7 +125,7 @@ def _toolbar(placeholder: str, legend_spirit: bool, details: bool = False) -> st
     return ('<div class="toolbar">'
             f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr">'
             f'<span class="sep"></span><button class="px-btn" data-heatmap>Heatmap</button>{more}'
-            f'<span class="sep"></span><span class="chip legend-hist">has history</span>{spirit}</div>')
+            f'<span class="sep"></span><span class="chip legend-hist">changed in the last 45 days</span>{spirit}</div>')
 
 
 def heroes_table() -> str:
@@ -123,7 +140,7 @@ def heroes_table() -> str:
                 f'{esc(h["id"].removeprefix("hero_"))}.html">{img_html}{esc(h["name"])}{pre}</a></td>')
 
     table = render_table(laid_out(t['columns'], HERO_LAYOUT), t['heroes'], name_cell, 'Hero',
-                         lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [])
+                         lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [], as_of=t.get('date'))
     body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', True, details=True) + table
     return page('Hero Stats', body, rel, 'tables', build=t['build'],
                 description='Deadlock hero stats with the full history of every value', wide=True)
@@ -140,7 +157,7 @@ def units_table() -> str:
         return (f'<td class="name" data-col="name" data-sort="{esc(u["name"])}"><a href="{rel}units/{esc(u["id"])}.html">'
                 f'{img_html}{esc(u["name"])}<span class="pre">{esc(kind)}</span></a></td>')
 
-    table = render_table(t['columns'], t['units'], name_cell, 'Unit')
+    table = render_table(t['columns'], t['units'], name_cell, 'Unit', as_of=t.get('date'))
     body = '<h1>Units & Buildings</h1>' + tabs('units') + _toolbar('Unit…', False) + table
     return page('Units & Buildings', body, rel, 'tables', build=t['build'],
                 description='Deadlock troopers, guardians, walkers, patron and neutrals with the history of every value', wide=True)
@@ -157,7 +174,7 @@ def items_table() -> str:
                 f'{esc(it["id"].removeprefix("upgrade_"))}.html">{img_html}{esc(it["name"])}'
                 f'<span class="pre">{esc(it["slot"])} · {esc(it["activation"])}</span></a></td>')
 
-    table = render_table(t['columns'], t['items'], name_cell, 'Item')
+    table = render_table(t['columns'], t['items'], name_cell, 'Item', as_of=t.get('date'))
     body = '<h1>Items</h1>' + tabs('items') + _toolbar('Item…', False) + table
     return page('Item Stats', body, rel, 'tables', build=t['build'],
                 description='Deadlock shop items with the history of every value', wide=True)

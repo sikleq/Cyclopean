@@ -53,7 +53,7 @@ def test_tier_swap_folds_into_one_rework_row():
 def test_entity_rows_name_once_with_counters():
     html = ''.join(entity_rows('Seismic Impact', None, [ch(label='a'), ch(label='b', dir='buff'), ch(label='c')]))
     assert html.count('Seismic Impact') == 1
-    assert 'class="pip nerf">2<' in html and 'class="pip buff">1<' in html
+    assert 'class="pip nerf">▼2<' in html and 'class="pip buff">▲1<' in html
     assert 'eh has-hidden' in html
 
 
@@ -126,15 +126,18 @@ def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
     notes_view._abilities_of.cache_clear()
     change = ch(key='k1', file='abilities.vdata', id='upgrade_kevlar', label='Spirit Power', old_s='35', new_s='40',
                 dir='buff', status='documented', ent_name="Diviner's Kevlar")
-    p = {'entities': [], 'sections': [{'title': 'Items', 'lines': [
+    p = {'id': '2026-07-28', 'entities': [], 'sections': [{'title': 'Items', 'lines': [
         {'text': "Diviner's Kevlar: Spirit power increased from +35 to +40", 'subject': "Diviner's Kevlar",
          'status': 'documented', 'changes': ['k1']},
         {'text': "Diviner's Kevlar: No longer grants a shield", 'subject': "Diviner's Kevlar",
          'status': 'unmatched', 'changes': []}]}]}
+    monkeypatch.setattr('builders.trail.trail_html', lambda *a, **k: '')
     html = notes_view.notes_table(p, {'k1': change}, '../')
-    assert html.count('class="nh"') == 1 and html.count("Diviner&#x27;s Kevlar") == 1   # one header, name once
+    assert 'class="banner"' in html and html.count('class="ecard-h"') == 1            # section banner, one card
+    assert html.count("Diviner&#x27;s Kevlar") == 1                                     # name only in the header
     assert 'Spirit power increased from <span class="o">+35</span> to <span class="n dir-buff">+40</span>' in html
     assert 'tag buff' in html and 'No longer grants a shield' in html
+    assert 'tag del' in html                       # a line without a matched change still gets a tag (No longer → DEL)
     notes_view._by_name.cache_clear()
     notes_view._abilities_of.cache_clear()
 

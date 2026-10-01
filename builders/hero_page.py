@@ -4,10 +4,11 @@ history grouped by patch and by ability."""
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 import re
 
-from .common import entity_icon, esc, glyph_for, hero_icon, icon, img, mark, page, pretty_id
-from .render import HIDDEN_LIKE, entity_rows
+from .common import entity_icon, esc, glyph_for, hero_icon, icon, img, load_json, mark, page, pretty_id
+from .history_view import history_table  # noqa: F401  (re-exported for entities_pages)
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
 SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Signature_1': 'Ability 1',
@@ -15,6 +16,7 @@ SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Sig
 # the head strip: survivability and movement; gun numbers live in the weapon block right below
 KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina', 'spirit_lvl')
 WEAPON_GROUP = 'Damage'
+WEAPON_TOP = ('dps', 'bullet_dmg', 'bps', 'clip', 'reload', 'falloff_end')
 LINE_STATUSES = ('documented', 'rounded', 'described', 'mismatch', 'fix')
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
@@ -40,6 +42,13 @@ def _fmt(v, digits) -> str:
     return s.rstrip('0').rstrip('.') if '.' in s else s
 
 
+@lru_cache(maxsize=1)
+def _recent_cutoff() -> str:
+    """Values changed after this date get the corner dot (the rest: history on hover only)."""
+    from .tables_pages import _recent_cutoff as cutoff
+    return cutoff(load_json('tables/heroes.json').get('date'))
+
+
 def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
     hist = row['history'].get(col['key'])
     cls = []
@@ -48,6 +57,8 @@ def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
     attrs = f' data-pol="{col["pol"]}" data-digits="{col["digits"]}"'
     if hist:
         cls.append('has-hist')
+        if str(hist[-1][1])[:10] >= _recent_cutoff():
+            cls.append('recent')
         attrs += (f' data-hist="{esc(json.dumps(hist, separators=(",", ":")))}"'
                   f' data-title="{esc(name)} · {esc(col["label"])}"')
     return ' '.join(cls), attrs
@@ -101,13 +112,16 @@ def stat_tables(row: dict, cols: list[dict], name: str, rel: str = '../', skip: 
 def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel: str) -> str:
     """The gun is not an ability: its own block, first, with every Damage-group number."""
     wcols = [c for c in cols if c['group'] == WEAPON_GROUP]
+    # the numbers a player compares first are big, the rest a smaller grid (design review)
+    wcols.sort(key=lambda c: WEAPON_TOP.index(c['key']) if c['key'] in WEAPON_TOP else len(WEAPON_TOP))
     cells = []
     for c in wcols:
         v = row['values'].get(c['key'])
         if v is None:
             continue
         cls, attrs = _hist_attrs(row, c, name)
-        cells.append(f'<div class="wcell {cls}"{attrs}>{_stat_icon(c["key"], rel)}<span class="v">{_fmt(v, c["digits"])}</span>'
+        top = ' top' if c['key'] in WEAPON_TOP else ''
+        cells.append(f'<div class="wcell{top} {cls}"{attrs}>{_stat_icon(c["key"], rel)}<span class="v">{_fmt(v, c["digits"])}</span>'
                      f'<span class="l">{esc(c["label"])}</span></div>')
     wname = (card or {}).get('name') or row.get('weapon_name') or ''
     # heroes in development often have no localized gun name yet: never show the internal id
@@ -149,8 +163,19 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         f'{esc(t["text"] or ", ".join(b["label"] + " " + b["value"] for b in t["bonuses"]))}</span></div>'
         for t in c.get('tiers', []))
     name = c['name'] if c.get('name') and c['name'] != c['id'] else pretty_id(c['id'], c.get('owner'))
+    # what happened to it lately: the last patch that touched it, and its 12-patch strip
+    from .render import TAG_GLYPH
+    from .trail import last_change, trail_html
+    key = f'abilities.vdata:{c["id"]}'
+    last = last_change(key)
+    last_html = ''
+    if last:
+        prow, tag = last
+        last_html = (f'<a class="ac-last t-{esc(tag)}" href="{rel}patches/{esc(prow["id"])}.html">'
+                     f'{TAG_GLYPH.get(tag, "●")} {esc(prow["date"])}</a>')
     return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{img(ic, "", "px", "abilities")}'
-            f'<div><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}</div></div></div>'
+            f'<div class="ac-id"><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}{last_html}</div>'
+            f'{trail_html(key, None, rel)}</div></div>'
             f'{"<div class=ac-hdr>" + hdr + "</div>" if hdr else ""}{desc}{table}'
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
 
@@ -163,51 +188,6 @@ def _strip_subject(text: str, names: list[str]) -> str:
         return text
     out = re.sub(rf'^\s*(?:{alts})\s*[:\-–—]\s*', '', text, flags=re.I)
     return out[:1].upper() + out[1:] if out else text
-
-
-def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_ent, by_subject, rel: str) -> str:
-    """keys: [(entity key, display name, icon url)] in display order; one table, grouped
-    by patch (newest first), then by entity: a header per ability, its changes below."""
-    order = {k: i for i, (k, _, _) in enumerate(keys)}
-    per_patch: dict[str, dict] = {}
-    for key, nm, ic in keys:
-        for row, ch in by_ent.get(key, []):
-            slot = per_patch.setdefault(row['id'], {'row': row, 'ents': {}, 'lines': []})
-            ent = slot['ents'].setdefault(key, (nm, ic, []))
-            ent[2].extend(ch)
-    for n in names:
-        for row, ln in by_subject.get(n.lower(), []):
-            slot = per_patch.setdefault(row['id'], {'row': row, 'ents': {}, 'lines': []})
-            if ln not in slot['lines']:
-                slot['lines'].append(ln)
-    if not per_patch:
-        return '<p class="muted">No recorded changes.</p>'
-    trs = []
-    for pid in sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True):
-        slot = per_patch[pid]
-        row = slot['row']
-        all_ch = [c for _, _, ch in slot['ents'].values() for c in ch]
-        n_hidden = sum(1 for c in all_ch if c.get('status') == 'hidden')
-        n_dev = sum(1 for c in all_ch if c.get('status') == 'unreleased')
-        chips = ''
-        if n_hidden:
-            chips += f' <span class="chip">{mark("hidden")}{n_hidden} hidden</span>'
-        if n_dev:
-            chips += f' <span class="chip dev">{mark("unreleased")}{n_dev} in development</span>'
-        dev = ' dev' if n_dev else ''
-        dev += ' has-hidden' if any(c.get('status', 'hidden') in HIDDEN_LIKE for c in all_ch) else ''
-        trs.append(f'<tr class="ph{dev}"><td colspan="4"><a class="t" href="{rel}patches/{esc(pid)}.html">{esc(row["title"])}</a>'
-                   f'<span class="d">{esc(row["date"])}</span>{chips}</td></tr>')
-        for ln in slot['lines']:
-            st = ln['status']
-            m = mark(st) if st in LINE_STATUSES else ''
-            trs.append(f'<tr class="nl st-{esc(st)}"><td class="st">{m}</td><td colspan="3">'
-                       f'{esc(_strip_subject(ln["text"], names))}</td></tr>')
-        for key in sorted(slot['ents'], key=lambda k: order[k]):
-            nm, ic, ch = slot['ents'][key]
-            file, _, eid = key.partition(':')
-            trs.extend(entity_rows(nm, ic, ch, glyph=glyph_for(file, eid)))
-    return f'<table class="hist grouped">{"".join(trs)}</table>'
 
 
 def _owned_keys(hid: str, name: str, mine: list[dict], ents_by_id: dict, rel: str) -> list[tuple]:
