@@ -93,6 +93,7 @@ class MChange:
     drawback: bool = False                        # the holder's own downside (enrich.drawbacks)
     neg_base: bool = False                        # a bonus to a property stored negative (enrich.negative_props)
     unit: str = ''                                # what the tooltip prints after the value ('s', '%', 'm')
+    invert: bool = False                          # a rate the game shows as a time (stamina per second -> cooldown)
 
     @property
     def key(self) -> str:
@@ -283,7 +284,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                             ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
                             [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
                             drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
-                            unit=d.get('unit', ''))
+                            unit=d.get('unit', ''), invert=bool(d.get('invert')))
                     else:
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
@@ -669,8 +670,8 @@ def change_json(c: MChange) -> dict:
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.label,
-        'old_s': semantics.with_unit(semantics.display_raw(c.old, c.meters), c.unit),
-        'new_s': semantics.with_unit(semantics.display_raw(c.new, c.meters), c.unit),
+        'old_s': semantics.show(c.old, c.meters, c.unit, c.invert),
+        'new_s': semantics.show(c.new, c.meters, c.unit, c.invert),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
         'same': semantics.reencoded(c.old, c.new, c.path),

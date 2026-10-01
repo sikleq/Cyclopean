@@ -188,7 +188,11 @@ Five-auditor review of every build and page (2026-10-01, record format 5, enrich
   (`_ENEMY_DEBUFF`: Enemy Dash Slow −25 → −22 is a nerf);
 - labels of nested fields read as words (`semantics.context_label`: `CONTAINER_WORDS` "Projectile ›
   Speed", "Heavy melee › Cooldown On Hit"; `FLAG_FIELDS` "Behaviour", "Can target", "Interrupted by";
-  a modifier's script value named by what it changes, "Aura › Bullet Armor Damage Resist") (enrich 20).
+  a modifier's script value named by what it changes, "Aura › Bullet Armor Damage Resist") (enrich 20);
+- a hero's base stat keeps only a length, speed or time unit (the stat panel's "%" postfix is for
+  bonuses: "Crit Bonus Scale 1% → 0.8%" was a multiplier); stamina per second shows as the game's
+  stamina cooldown (`describe` → `invert`, `semantics.show`: 0.2 → "5s") (enrich 21). The Hero Stats
+  table keeps the owner's sheet layout (Stamina Regen per second).
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

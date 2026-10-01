@@ -5,7 +5,8 @@
     "items": [
       "Old Gods, New Blood (January 2026) has its official page notes: Street Brawl, the six-hero schedule, Ballistic Enchantment and Recharging Rush, the interface changes.",
       "Nested values read as words: \"Projectile › Speed\", \"Heavy melee › Cooldown On Hit\", \"Behaviour\" with the flags that came and went, an aura's \"Bullet Armor Damage Resist\".",
-      "Matching: Sinclair and renamed items are found by their old and new names, \"Veil Walker\" is no longer the Walkers, minutes match seconds, headings and Steam image placeholders are not notes lines."
+      "Matching: Sinclair and renamed items are found by their old and new names, \"Veil Walker\" is no longer the Walkers, minutes match seconds, headings and Steam image placeholders are not notes lines.",
+      "Hero stats: stamina recovery reads as the game's stamina cooldown (5s → 6s), multipliers no longer get a \"%\"."
     ]
   },
   {

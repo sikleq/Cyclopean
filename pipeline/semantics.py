@@ -433,7 +433,13 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         return {'label': f'{prefix}: {label}', 'meters': False, 'group': 'tier', 'prop': prop, 'tier': tier, 'unit': unit}
     if path.startswith('m_mapStartingStats.'):
         stat = path.split('.')[1]
-        return {'label': stat_label(tok, stat), 'meters': False, 'group': 'stat', 'unit': stat_unit(tok, stat)}
+        if stat == 'EStaminaRegenPerSecond':
+            # stamina per second (0.2) is what the game prints as a stamina cooldown (5s)
+            return {'label': 'Stamina Cooldown', 'meters': False, 'group': 'stat', 'unit': 's', 'invert': True}
+        # the stat panel's postfix is for BONUSES ("+12%"); a base value keeps only a length, speed or time
+        unit = stat_unit(tok, stat).strip()
+        return {'label': stat_label(tok, stat), 'meters': False, 'group': 'stat',
+                'unit': unit if unit in ('m', 'm/s', 's') else ''}
     if path.startswith('m_mapStandardLevelUpUpgrades.'):
         mod = path.split('.')[1]
         label = LEVEL_UP_LABELS.get(mod) or _loc_label(tok, mod) or humanize(mod.replace('MODIFIER_VALUE_', '').lower())
@@ -621,6 +627,16 @@ def display_raw(v, meters: bool | str = False) -> str:
                 return display_value(x) + ('m/s' if meters == SPEED else 'm')
             return display_value(x, meters)
     return display_value(v, meters)
+
+
+def show(v, meters: bool | str = False, unit: str = '', invert: bool = False) -> str:
+    """A record value as a change row prints it: units as the field says, the tooltip's unit, and a
+    rate shown the way the game does (stamina per second 0.2 -> a 5s cooldown)."""
+    if invert and v is not None and not isinstance(v, bool):
+        m = _RAW_NUM.match(str(v))
+        if m and float(m.group(1)):
+            v = round(1 / float(m.group(1)), 4)
+    return with_unit(display_raw(v, meters), unit)
 
 
 def display_value(v, meters: bool | str = False) -> str:

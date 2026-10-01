@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 20       # 20: readable container / flag labels; 19: enemy-debuff tier bonuses; 18: tooltip units
+ENRICH_VERSION = 21       # 21: base stats keep length/speed/time units, stamina as a cooldown; 20: nested labels
 
 
 def _num(v):
@@ -116,8 +116,8 @@ def enrich_record(rec: dict) -> dict:
             if d.get('unit'):
                 c['unit'] = d['unit']
             if 'old' in c or 'new' in c:
-                c['old_s'] = semantics.with_unit(_display(c.get('old'), d['meters']), d.get('unit', ''))
-                c['new_s'] = semantics.with_unit(_display(c.get('new'), d['meters']), d.get('unit', ''))
+                c['old_s'] = semantics.show(c.get('old'), d['meters'], d.get('unit', ''), d.get('invert', False))
+                c['new_s'] = semantics.show(c.get('new'), d['meters'], d.get('unit', ''), d.get('invert', False))
                 # the property itself, not a T1-T3 bonus to it (a bigger bonus there shrinks the downside)
                 worse = c['path'].startswith('m_mapAbilityProperties.') and semantics.property_name(c['path']) in downsides
                 if worse:
