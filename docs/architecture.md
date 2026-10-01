@@ -24,7 +24,10 @@ pipeline/patches.py    groups builds into patch windows (changelogs; notes-less 
 pipeline/match.py      -> data/patches/<id>.json.gz  notes lines ⇄ data changes; documented/described/hidden/mismatch/fix
                           (+ line statuses heading/untracked/nodata; change status unreleased)
 data/tracker_head.txt  last processed tracker commit: update-data.yml checks it against `git ls-remote`
-                          every 15 min and only clones + rebuilds when the tracker moved
+                          every 15 min and only clones + rebuilds when the tracker moved. GitHub skips
+                          most of those cron runs (1 of ~40 overnight on 2026-10-01), so a fallback runs
+                          on the maintainer's PC: tools/watch_tracker.ps1 from the Task Scheduler every
+                          20 min dispatches update-data when the tracker moved and nothing is running
 pipeline/jsonio.py     JSON I/O; *.json.gz is gzip (deterministic, mtime=0) — indexes stay plain JSON
         │
         ▼  (data/ is committed; the site never needs the tracker)
@@ -85,6 +88,15 @@ their namesake with the same owner (`common.entity_icon`).
 
 Tag look: coloured text on a tint of the tag colour with a 2px bar and notched corners; the tint grows
 with the size of the change (`data-g`).
+
+## Patch notes tab (`builders/notes_view.py`)
+
+Valve's text is not reproduced as a wall of lines: each section's lines are grouped by subject (hero,
+item, ability, unit — consecutive lines, a bare-name heading opens a group) under an icon header with tag
+counters; the subject prefix is dropped from the lines; a hero's line shows the icon of the ability it
+matched (or names); each line gets the tag of the change it matched (counters when it matched several
+kinds); "from A to B" / "by N" numbers are highlighted in the direction's colour; the right column keeps
+what the files say.
 
 ## Icons without per-entity art
 

@@ -4,6 +4,8 @@ name: update-data
 # commit it and dispatch `build` (which deploys). The cheap check runs every
 # 15 minutes: `git ls-remote` against the last processed tracker commit, no
 # clone. Kept separate from the deploy so an outage never blocks publishing.
+# GitHub skips most */15 schedules; tools/watch_tracker.ps1 (Windows Task
+# Scheduler) dispatches this workflow as a fallback.
 
 on:
   schedule:

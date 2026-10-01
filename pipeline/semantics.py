@@ -6,6 +6,7 @@ cover fields the game never labels (weapon internals, NPC fields).
 """
 from __future__ import annotations
 
+import html
 import re
 
 UNITS_PER_METER = 39.37
@@ -180,7 +181,8 @@ def humanize(key: str) -> str:
 def _loc_label(tok: dict[str, str], name: str, ability: str | None = None) -> str | None:
     for key in ((f'{ability}_{name}_label' if ability else None), f'{name}_label', name):
         if key and key.lower() in tok:
-            val = re.sub(r'<[^>]+>', '', tok[key.lower()]).strip()
+            # loc text carries HTML entities ("Bullet &amp; Spirit Lifesteal"): plain text out
+            val = html.unescape(re.sub(r'<[^>]+>', '', tok[key.lower()])).strip()
             if val and '{' not in val:
                 return val
     return None

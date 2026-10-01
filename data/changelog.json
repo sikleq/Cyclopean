@@ -10,7 +10,9 @@
       "Tooltips stay inside the screen and can be tapped on phones.",
       "Hero Stats: short one-line headers (full name on hover); niche columns (spread, gravity, collision…) behind a Details button.",
       "City Never Sleeps now uses its forum changelog (interface lines) and keeps a 'From the files' tab with the biggest changes.",
-      "Neutral camps and Guardians are no longer listed as troopers."
+      "Neutral camps and Guardians are no longer listed as troopers.",
+      "Patch notes are laid out by hero, item and ability with icons, a tag per line and highlighted old → new numbers, instead of Valve's plain text.",
+      "Labels from the game no longer show '&amp;' instead of '&'."
     ]
   },
   {

@@ -118,6 +118,27 @@ def test_rows_without_game_art_get_a_category_glyph():
     assert 'glyph g-map' in html and '<svg' in html and 'noimg' not in html
 
 
+def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
+    from builders import notes_view
+    monkeypatch.setattr(notes_view, '_catalog', lambda: [
+        {'file': 'abilities.vdata', 'id': 'upgrade_kevlar', 'name': "Diviner's Kevlar", 'kind': 'item', 'alive': True}])
+    notes_view._by_name.cache_clear()
+    notes_view._abilities_of.cache_clear()
+    change = ch(key='k1', file='abilities.vdata', id='upgrade_kevlar', label='Spirit Power', old_s='35', new_s='40',
+                dir='buff', status='documented', ent_name="Diviner's Kevlar")
+    p = {'entities': [], 'sections': [{'title': 'Items', 'lines': [
+        {'text': "Diviner's Kevlar: Spirit power increased from +35 to +40", 'subject': "Diviner's Kevlar",
+         'status': 'documented', 'changes': ['k1']},
+        {'text': "Diviner's Kevlar: No longer grants a shield", 'subject': "Diviner's Kevlar",
+         'status': 'unmatched', 'changes': []}]}]}
+    html = notes_view.notes_table(p, {'k1': change}, '../')
+    assert html.count('class="nh"') == 1 and html.count("Diviner&#x27;s Kevlar") == 1   # one header, name once
+    assert 'Spirit power increased from <span class="o">+35</span> to <span class="n dir-buff">+40</span>' in html
+    assert 'tag buff' in html and 'No longer grants a shield' in html
+    notes_view._by_name.cache_clear()
+    notes_view._abilities_of.cache_clear()
+
+
 def test_hero_page_lines_drop_the_hero_name():
     assert _strip_subject('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
         'Melee damage per boon increased by 10%'

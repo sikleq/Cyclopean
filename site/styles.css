@@ -581,6 +581,28 @@ table.notes td.fv .v { color: var(--text-bright); }
 table.notes tr.st-mismatch td.fv { color: var(--tag-mismatch); }
 table.notes tr:hover td { background: var(--bg-hover); }
 table.notes tr.sub td { padding-top: 10px; font: 15px/1.1 var(--font-px); color: var(--text-bright); border-bottom: 0; }
+/* notes grouped by entity: icon header, then its lines (tag, ability icon, highlighted numbers) */
+table.notes tr.nh td { padding: 9px 8px 4px; border-bottom: 0; }
+table.notes tr.nh .en { display: inline-flex; align-items: center; gap: 8px; font: 15px/1 var(--font-px); color: var(--text-bright); }
+table.notes tr.nh .en img, table.notes tr.nh .en .glyph { width: 24px; height: 24px; object-fit: contain; }
+table.notes tr.nl.in td.st { padding-left: 16px; }
+table.notes td.tg { width: 1%; white-space: nowrap; }
+table.notes td.tx { line-height: 1.45; }
+table.notes .li { width: 18px; height: 18px; object-fit: contain; vertical-align: -4px; margin-right: 7px; }
+table.notes .li.glyph { display: inline-flex; }
+table.notes .tx .o { color: var(--text-dim); }
+table.notes .tx .n { font-weight: 700; }
+table.notes .tx .n.dir-changed { color: var(--text-bright); }
+/* phones: the files' values go under the line instead of squeezing it into a strip */
+@media (max-width: 700px) {
+  table.notes tr.nl { display: grid; grid-template-columns: 22px auto minmax(0, 1fr); column-gap: 4px;
+    border-bottom: 1px solid var(--line-soft); }
+  table.notes tr.nl td { border-bottom: 0; padding: 4px 4px; }
+  table.notes tr.nl.in td.st { padding-left: 4px; }
+  table.notes tr.nl td.fv { grid-column: 3; width: auto; padding-top: 0; }
+  table.notes tr.nl td.fv:empty { display: none; }
+  table.notes tr.sec, table.notes tr.nh { display: block; }
+}
 table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-repeated td { color: var(--text-dim); }
 .mark.untracked, .mark.nodata, .mark.repeated { color: var(--text-dimmer); }
 .topic { font: 600 10px/1 var(--font-ui); text-transform: uppercase; letter-spacing: .5px; color: var(--text-dimmer);

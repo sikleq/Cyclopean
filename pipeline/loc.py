@@ -7,6 +7,7 @@ are skipped — 4.7 MB of dialogue with no balance value.
 """
 from __future__ import annotations
 
+import html
 import re
 from functools import lru_cache
 
@@ -130,4 +131,5 @@ _HTML_RE = re.compile(r'<[^>]+>')
 
 
 def plain(s: str | None) -> str:
-    return _HTML_RE.sub('', s or '').strip()
+    """Display text: no markup, HTML entities decoded ('&amp;' -> '&'; pages escape it once)."""
+    return html.unescape(_HTML_RE.sub('', s or '')).strip()

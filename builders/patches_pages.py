@@ -4,6 +4,7 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
+from .notes_view import notes_table
 from .common import build_href, esc, ids_to_names, load_json, mark, names_by_id, page, pretty_id, write
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -30,53 +31,6 @@ def _counts_html(p: dict) -> str:
     return '<div class="stat-strip">' + ''.join(
         f'<div class="stat-box px-frame {cls}"><div class="n">{n}</div><div class="l">{esc(lbl)}</div></div>'
         for cls, n, lbl in boxes) + '</div>'
-
-
-def _notes_table(p: dict, change_by_key: dict) -> str:
-    rows = []
-    for s in p['sections']:
-        rows.append(f'<tr class="sec"><td colspan="3">{esc(s["title"])}</td></tr>')
-        rows.extend(_note_row(ln, change_by_key) for ln in s['lines'])
-    return f'<table class="notes">{"".join(rows)}</table>'
-
-
-TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
-               'map': 'map', 'bots': 'bots', 'performance': 'performance'}
-
-
-def _note_row(ln: dict, change_by_key: dict) -> str:
-    """status | the official line | what the game files say."""
-    st = ln['status']
-    if st == 'heading':
-        return f'<tr class="sub"><td></td><td colspan="2">{esc(ln["text"])}</td></tr>'
-    m = mark(st) if st in ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata',
-                           'repeated') else ''
-    files = ''
-    if st == 'repeated':
-        files = f'also in <a href="{esc(ln["see"]["patch"])}.html">{esc(ln["see"]["title"])}</a>'
-    elif st == 'untracked':
-        files = f'<span class="topic">{esc(TOPIC_LABEL.get(ln.get("topic"), ln.get("topic") or ""))}</span>'
-    if st in ('mismatch', 'rounded') and ln.get('data'):
-        files = f'<span class="v">{esc(ln["data"][0])}</span><span class="arrow">→</span><span class="v">{esc(ln["data"][1])}</span>'
-        files = ('files: ' if st == 'mismatch' else 'exact: ') + files
-    elif st == 'documented' and ln.get('late'):
-        # the value changed in a later build than the notes (a follow-up days after)
-        late = ln['late']
-        blds = ', '.join(str(b) for b in late.get('builds', []))
-        files = (f'landed later: build {esc(blds)} · <a href="{esc(late["patch"])}.html">{esc(late["title"])}</a>')
-    elif st == 'documented' and ln.get('changes'):
-        c = change_by_key.get(ln['changes'][0])
-        if c:
-            files = (f'{esc(c.get("ent_name", ""))} · {esc(c["label"])}: <span class="v">{esc(c["old_s"])}</span>'
-                     f'<span class="arrow">→</span><span class="v">{esc(c["new_s"])}</span>')
-    elif st == 'described' and ln.get('changes'):
-        items = [change_by_key.get(k) for k in ln['changes'][:60]]
-        lis = ''.join(f'<li>{esc(c.get("ent_name", ""))} · {esc(c["label"])}: {esc(c["old_s"])} → {esc(c["new_s"])}</li>'
-                      for c in items if c)
-        more = len(ln['changes']) - 60
-        files = (f'<details><summary>{len(ln["changes"])} exact values</summary><ul>{lis}</ul>'
-                 f'{"<span class=muted>+" + str(more) + " more</span>" if more > 0 else ""}</details>')
-    return f'<tr class="st-{esc(st)}"><td class="st">{m}</td><td>{esc(ln["text"])}</td><td class="fv">{files}</td></tr>'
 
 
 @lru_cache(maxsize=1)
@@ -220,7 +174,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     ex = p.get('extras', {})
     tabs = []
     if p['sections']:
-        tabs.append(('notes', 'Patch notes', sum(len(s['lines']) for s in p['sections']), _notes_table(p, change_by_key)))
+        tabs.append(('notes', 'Patch notes', sum(len(s['lines']) for s in p['sections']), notes_table(p, change_by_key, rel)))
         c = p.get('counts', {})
         # notes that say little about a big update (City Never Sleeps: 11 interface lines,
         # 1,400+ gameplay changes): the files' own summary sits next to the official text
