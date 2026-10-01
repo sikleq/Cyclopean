@@ -106,6 +106,40 @@ def fold_tier_swaps(changes: list[dict]) -> list[dict]:
     return out
 
 
+CORRUPTED = 'm_CorruptedItemInfo'
+CORRUPTED_MIN = 3
+
+
+def _signed(v) -> str:
+    s = str(v or '')
+    return f'+{s}' if re.match(r'^\d', s) else s
+
+
+def fold_corrupted(changes: list[dict]) -> list[dict]:
+    """City Never Sleeps gave 97 items a Corrupted version (the Broker trades it for the item:
+    bonuses plus random penalties, m_CorruptedItemInfo): ~5 bonus rows an item, 474 NEW rows in all.
+    An item whose corrupted bonuses all appear (or all go) at once is ONE row — "Corrupted version:
+    Cooldown -4, Base Health +10" — and one change for the counters; a later tweak of a few bonuses
+    stays row by row with its own direction."""
+    mine = [c for c in changes if str(c.get('path') or '').startswith(CORRUPTED)]
+    ops = {c.get('op') for c in mine}
+    if len(mine) < CORRUPTED_MIN or len(ops) != 1 or ops & {'change'}:
+        return changes
+    op = ops.pop()
+    side = 'new_s' if op == 'add' else 'old_s'
+    # sub-fields ("… › Fixed Corrupted Bonus") are how the bonus rolls, not a bonus
+    parts = [f'{str(c.get("label", "")).removeprefix("Corrupted: ")} {_signed(c.get(side))}'.strip()
+             for c in mine if '›' not in str(c.get('label', ''))]
+    status = min((c.get('status', 'hidden') for c in mine), key=lambda s: _STATUS_WEIGHT.get(s, 9))
+    first = changes.index(mine[0])
+    row = {**mine[0], 'op': op, 'cat': 'balance', 'label': 'Corrupted version', 'path': CORRUPTED,
+           'old_s': ', '.join(parts) if op == 'remove' else '', 'new_s': ', '.join(parts) if op == 'add' else '',
+           'status': status, 'dir': 'changed', 'pct': None, 'folded': len(mine), 'bonus_list': True}
+    folded = {id(c) for c in mine}
+    rest = [c for c in changes if id(c) not in folded]
+    return rest[:first] + [row] + rest[first:]     # where the first bonus row was
+
+
 # the counters' icons are the site's own pixel art (builders/pixel_icons.py), not font glyphs;
 # tooltips (plain text) use words
 TAG_WORDS = {'buff': 'buffs', 'nerf': 'nerfs', 'new': 'new', 'del': 'removed', 'rework': 'reworked', 'up': 'up', 'down': 'down',
@@ -171,7 +205,7 @@ def entity_rows(name: str, icon_url: str | None, changes: list[dict], search: st
                 glyph: str = 'abilities') -> list[str]:
     """Header row (icon, name, tag counters) + one row per change, name not repeated.
     No game icon: the category glyph (`common.glyph_for`) in the same box."""
-    rows = sort_changes(fold_tier_swaps(changes))
+    rows = sort_changes(fold_tier_swaps(fold_corrupted(changes)))
     if not rows:
         return []
     return [entity_header(name, icon_url, rows, search, href, glyph)] + [change_row(c, '', search) for c in rows]
@@ -272,6 +306,8 @@ def vals_html(c: dict) -> str:
     if op == 'rework':            # folded tier swap: bonus lists, may wrap
         return (f'<span class="vals wrap"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
                 f'<span class="new">{esc(new_s)}</span></span>')
+    if c.get('bonus_list'):       # folded corrupted version: one list of bonuses, may wrap
+        return f'<span class="vals wrap"><span class="{"new" if op == "add" else "old"}">{esc(new_s or old_s)}</span></span>'
     fl = flags_html(old_s, new_s)
     if fl:
         return fl

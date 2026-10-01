@@ -8,7 +8,7 @@ import re
 
 from .common import esc, mark, visual
 from .pixel_icons import tag_svg
-from .render import HIDDEN_LIKE, fold_tier_swaps, sort_changes, tag_html, tag_summary, vals_html
+from .render import HIDDEN_LIKE, fold_corrupted, fold_tier_swaps, sort_changes, tag_html, tag_summary, vals_html
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
@@ -154,7 +154,7 @@ def player_facing(changes: list[dict]) -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for c in changes:
         groups.setdefault(':'.join(str(c.get('key') or '').split(':', 2)[:2]), []).append(c)
-    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(merge_renames(g)))
+    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(fold_corrupted(merge_renames(g))))
             if not is_engine(c) and not is_noop(c)]
 
 
@@ -178,7 +178,7 @@ def is_noop(c: dict) -> bool:
 def change_row(c: dict) -> str:
     # a replaced tier lists both bonus sets: they go on their own full-width line under the
     # label (two lines at most, click to expand) instead of a tall right-aligned column
-    extra = 'rw' if c.get('op') == 'rework' else ''
+    extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
     return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c), extra)
 
 
@@ -299,7 +299,7 @@ def _added_split(rows: list[dict]) -> tuple[list[dict], list[dict]]:
 
 
 def change_rows(changes: list[dict], added: bool = False) -> str:
-    rows = sort_changes(fold_tier_swaps(merge_renames(changes)))
+    rows = sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
     if added:
         keep, rest = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden') if rows else 'hidden',

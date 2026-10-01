@@ -48,6 +48,11 @@ def test_property_prefix_and_units():
     assert fmt_prop(tok, 'BonusHealth', '125', 'a') == '+125'
     assert fmt_prop(tok, 'BonusHealth', '-50', 'a') == '-50'
     assert fmt_prop(tok, 'AbilityCastRange', '20m', 'a') == '20m'
+    # a postfix with a space, or "s" after a value in seconds: the unit once
+    tok2 = {'bonusmovespeed_postfix': ' m', 'bonusmovespeed_prefix': '{s:sign}', 'slowduration_postfix': 's'}
+    assert fmt_prop(tok2, 'BonusMoveSpeed', '3m', 'a') == '+3m'
+    assert fmt_prop(tok2, 'SlowDuration', '2s', 'a', bonus=True) == '+2s'
+    assert fmt_prop({'fervormovespeed_postfix': ' m/s'}, 'FervorMovespeed', '4m', 'a') == '4m/s'
 
 
 def test_valve_style_sentences():

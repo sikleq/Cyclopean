@@ -146,7 +146,17 @@ Audit of the patch pages (2026-10-01):
 - ability card texts fill `{s:X}` through the property's `m_strLocTokenOverride` too, `{s:X_scale}`
   from the tier's scaling bonus and `{s:hero_name}` with the owner (`abilities._tokens`: "for
   BuffDurations" in 40-odd upgrade lines);
-- `m_bWarnIfNoAffectedAbilities` (an editor check) is technical.
+- `m_bWarnIfNoAffectedAbilities` (an editor check) is technical;
+- an item's Corrupted version (City Never Sleeps: the Broker trades a high-tier item for it — bonuses
+  plus random penalties, `m_CorruptedItemInfo`) appearing or going at once is ONE row "Corrupted
+  version: Cooldown -4, Base Health +10" and one change for every counter (`render.fold_corrupted`;
+  474 NEW rows → 97); a later tweak of a few bonuses stays row by row;
+- ability cards leave out zero values with a unit ("+0m") and print a unit once ("+3m", "4m/s" —
+  the postfix " m" doubled it on 47 rows).
+
+The tracker clone follows upstream with `git reset --hard` (`tracker.sync`): it is a read-only
+mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see binaries such as
+`vconsole2.exe` as modified forever, which made the fast-forward merge refuse updates.
 
 ## Visual system (design review 2026-10-01, three designer agents, four rounds)
 

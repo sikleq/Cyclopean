@@ -50,6 +50,12 @@ _TAG_RE = re.compile(r'<br\s*/?>', re.I)
 _HTML_RE = re.compile(r'<[^>]+>')
 
 
+def _empty(v) -> bool:
+    """A value the tooltip leaves out: none, 0 (also "0m", "0s", "0%": Smoke Bomb showed
+    "Invis Sprint Speed +0m"), or the engine's -1 / -2 placeholders."""
+    return str(v).strip() in EMPTY or _num_s(v).rstrip('ms%') == '0'
+
+
 def _num_s(v) -> str:
     s = str(v).strip()
     m = re.match(r'^(-?\d*\.?\d+)(m|s|%)?$', s)
@@ -88,8 +94,12 @@ def fmt_prop(tok, prop, value, aid, bonus=False) -> str:
     pre, post = _affix(tok, prop, 'prefix'), _affix(tok, prop, 'postfix')
     if '{s:sign}' in pre:                  # the game prints the value's own sign
         pre = pre.replace('{s:sign}', '' if v.startswith('-') else '+')
-    if v.endswith('m') and post == 'm':
+    # the value already carries the unit the postfix adds ("3m" + " m" printed "+3m m" on 47 rows)
+    unit = post.strip()
+    if unit and v.endswith(unit):
         post = ''
+    elif unit and v[-1:].isalpha() and unit.startswith(v[-1]):      # "4m" + " m/s" -> "4m/s"
+        v, post = v[:-1], unit
     if bonus and not v.startswith('-') and not pre:
         pre = '+'
     if pre == '-' and v.startswith('-'):
@@ -148,7 +158,7 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
 
     def row(p):
         d = props.get(p)
-        if not isinstance(d, dict) or str(d.get('m_strValue', '')).strip() in EMPTY:
+        if not isinstance(d, dict) or _empty(d.get('m_strValue', '')):
             return None
         scale = (d.get('m_subclassScaleFunction') or {}).get('m_flStatScale')
         return {'prop': p, 'label': _label(tok, p, aid, alias.get(p)), 'value': fmt_prop(tok, p, d['m_strValue'], aid),
@@ -158,7 +168,7 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
     header = []
     for p, lbl in HEADER_PROPS:
         d = props.get(p)
-        if isinstance(d, dict) and str(d.get('m_strValue', '')).strip() not in EMPTY:
+        if isinstance(d, dict) and not _empty(d.get('m_strValue', '')):
             header.append({'prop': p, 'label': lbl, 'value': fmt_prop(tok, p, d['m_strValue'], aid),
                            'css': css_class(d)})
     header_props = {h['prop'] for h in header}

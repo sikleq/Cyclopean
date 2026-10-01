@@ -21,6 +21,23 @@ def test_tags():
     assert tag_of(ch(dir='changed', pct=None)) == ('changed', 'CHANGED')
 
 
+def test_a_corrupted_version_is_one_row():
+    from builders.render import fold_corrupted
+    p = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
+    rows = [{'op': 'add', 'path': p % 'AbilityCooldown', 'label': 'Corrupted: Cooldown', 'new_s': '-4', 'status': 'hidden'},
+            {'op': 'add', 'path': p % 'BonusHealth', 'label': 'Corrupted: Base Health', 'new_s': '10', 'status': 'hidden'},
+            {'op': 'add', 'path': p % 'X' + '.m_bFixedCorruptedBonus', 'label': 'Corrupted: X › Fixed Corrupted Bonus',
+             'new_s': 'yes', 'status': 'hidden'},
+            {'op': 'change', 'path': 'm_mapAbilityProperties.Radius.m_strValue', 'label': 'Radius', 'old_s': '5', 'new_s': '6'}]
+    out = fold_corrupted(rows)
+    assert len(out) == 2 and out[1]['label'] == 'Radius'
+    # Broker's trade (City Never Sleeps): one NEW row, the bonuses listed, how they roll left out
+    assert (out[0]['op'], out[0]['label'], out[0]['new_s']) == ('add', 'Corrupted version', 'Cooldown -4, Base Health +10')
+    assert tag_of(out[0])[0] == 'new'
+    # a later tweak of one or two bonuses stays row by row
+    assert fold_corrupted(rows[:2]) == rows[:2]
+
+
 def test_units_sharing_a_name_get_their_variant():
     from builders.entities_pages import unit_variants
     walkers = [{'id': i, 'name': 'Walker', 'alive': True}

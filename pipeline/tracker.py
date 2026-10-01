@@ -74,10 +74,14 @@ def ensure_clone() -> None:
 
 
 def sync() -> str:
-    """Fast-forward the main tracker clone (the predecessor is archived); returns HEAD."""
+    """Move the main tracker clone to upstream's HEAD (the predecessor is archived); returns HEAD.
+    The clone is a read-only mirror (data is read with `git show`), so it follows upstream with a
+    hard reset: the tracker's own .gitattributes (`* text eol=lf`) marks binaries such as
+    vconsole2.exe as text, git then always sees them as modified, and a fast-forward merge
+    refused every update that touched one (2026-10-01, build 6728)."""
     ensure_clone()
     git('fetch', '--quiet', 'origin')
-    git('merge', '--quiet', '--ff-only', 'origin/HEAD')
+    git('reset', '--quiet', '--hard', 'origin/HEAD')
     builds.cache_clear()
     _repo_of.cache_clear()
     return git('rev-parse', 'HEAD').strip()
