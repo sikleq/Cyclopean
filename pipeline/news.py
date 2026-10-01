@@ -80,8 +80,11 @@ class Notes:
 
 
 _TAG_RE = re.compile(r'\[/?(?:b|i|u|p|h\d|list|olist|url[^\]]*|img[^\]]*|previewyoutube[^\]]*|hr|strike|spoiler|quote[^\]]*|code|table|tr|td|th)\]', re.I)
-_IMAGE_LINE = re.compile(r'^\{STEAM_CLAN_IMAGE\}\S*$|^https?://\S+\.(jpe?g|png|gif|webp)$', re.I)
+_IMAGE_LINE = re.compile(r'^\{STEAM_CLAN(_LOC)?_IMAGE\}\S*$|^https?://\S+\.(jpe?g|png|gif|webp)$', re.I)
 _SECTION_RE = re.compile(r'^\[\s*(.+?)\s*\]$')
+# other section heads posts use: "General Changes ==", "== Gameplay ==", an all-caps line ("RANKED
+# CHANGES") — they were read as notes lines (audit 2026-10-01)
+_HEADING_RE = re.compile(r'^=*\s*([A-Za-z][^=]{1,60}?)\s*=+\s*$|^([A-Z][A-Z &/\-]{3,40})$')
 
 
 def bbcode_lines(text: str) -> list[str]:
@@ -97,9 +100,12 @@ def bbcode_lines(text: str) -> list[str]:
 def parse_lines(lines: list[str]) -> list[Section]:
     sections = [Section('General')]
     for ln in lines:
-        m = _SECTION_RE.match(ln)
+        if _IMAGE_LINE.match(ln.strip()):
+            continue
+        m = _SECTION_RE.match(ln) or _HEADING_RE.match(ln.strip())
         if m:
-            sections.append(Section(m.group(1).strip()))
+            sections.append(Section(next(g for g in m.groups() if g).strip().title()
+                                    if not _SECTION_RE.match(ln) else m.group(1).strip()))
             continue
         ln = re.sub(r'^[-•*]\s*', '', ln)
         if sections[-1].lines and not re.match(r'^[A-Z0-9"\'(]', ln) and not sections[-1].lines[-1].endswith(('.', ')')):

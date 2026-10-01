@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Old Gods, New Blood, readable labels, sharper matching",
+    "items": [
+      "Old Gods, New Blood (January 2026) has its official page notes: Street Brawl, the six-hero schedule, Ballistic Enchantment and Recharging Rush, the interface changes.",
+      "Nested values read as words: \"Projectile › Speed\", \"Heavy melee › Cooldown On Hit\", \"Behaviour\" with the flags that came and went, an aura's \"Bullet Armor Damage Resist\".",
+      "Matching: Sinclair and renamed items are found by their old and new names, \"Veil Walker\" is no longer the Walkers, minutes match seconds, headings and Steam image placeholders are not notes lines."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Site audit, part 2: how the game files are read",
     "items": [
       "Units: distances in metres and speeds in m/s everywhere (Walker's protection range 34 → 22 m, not 1338 → 866); values written another way (units → metres, -1 = no limit) no longer read as huge changes.",

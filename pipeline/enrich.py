@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 19       # 19: enemy-debuff tier bonuses; 18: tooltip units and override labels; 17: site audit
+ENRICH_VERSION = 20       # 20: readable container / flag labels; 19: enemy-debuff tier bonuses; 18: tooltip units
 
 
 def _num(v):

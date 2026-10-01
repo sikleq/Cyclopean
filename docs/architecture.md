@@ -185,7 +185,24 @@ Five-auditor review of every build and page (2026-10-01, record format 5, enrich
   the override's own label ("Shield Duration", `override_label`; enrich keeps `loc_token` / `unit` on
   the change, MChange carries `unit`) (enrich 18);
 - a tier bonus to an enemy debuff written as a negative compares magnitudes even when the base is 0
-  (`_ENEMY_DEBUFF`: Enemy Dash Slow −25 → −22 is a nerf).
+  (`_ENEMY_DEBUFF`: Enemy Dash Slow −25 → −22 is a nerf);
+- labels of nested fields read as words (`semantics.context_label`: `CONTAINER_WORDS` "Projectile ›
+  Speed", "Heavy melee › Cooldown On Hit"; `FLAG_FIELDS` "Behaviour", "Can target", "Interrupted by";
+  a modifier's script value named by what it changes, "Aura › Bullet Armor Damage Resist") (enrich 20).
+
+Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
+split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to
+the patch's own post; short dated changelogs are notes (`patches.is_patch_notes`); a build of 1,000+
+gameplay fields far from a main changelog is an update of its own (`HUGE_BUILD_FIELDS`); unreleased is
+judged at the build a change shipped in; a line's percent must move the field the way its verb says
+(`verb_sign`, a rate may move a time field the other way); number transforms follow the field
+(`value_matches`: metres only for lengths/speeds, ×100 only for fractions, 1/x only for rates) and
+`close` is relative only; minutes in a line also match seconds; the name index carries the name at the
+build AND the latest one (Sinclair); an alias word inside a longer name the line uses is not an alias
+(Veil Walker); a line naming an ability describes only its mechanics, never from a sound / visual line;
+post headings ("General Changes ==", all caps) and Steam image placeholders are not lines.
+Old Gods, New Blood (2026-01-22) comes from its update page (`data/overrides/update_pages.json`
+"oldgods": cards, the hero schedule, "Also in this update"; the Patrons' lore is not republished).
 
 The tracker clone follows upstream with `git reset --hard` (`tracker.sync`): it is a read-only
 mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see binaries such as

@@ -1,0 +1,65 @@
+Old Gods, New Blood
+https://www.playdeadlock.com/oldgods
+Source: Official update page https://www.playdeadlock.com/oldgods (page text; lore and taglines not republished)
+[ Street Brawl ]
+- Street Brawl · Short Game Format: Join a quick 4v4 battle for the city over a best-of-five match. Each round takes a couple of minutes.
+- Street Brawl · Streamlined Shopping: Players choose from a random set of items, adding three items to their inventory each round.
+- Street Brawl · Level Playing Field: Each round players start with equal resources. No farming.
+- If you're lucky, an Enhanced or Legendary item might make an appearance.
+[ Patrons ]
+- Behold the Patrons: NEW BOSSES, BASES, TROOPERS, & DEFENSIVE ABILITIES
+[ Heroes ]
+- Six New Arrivals: Two heroes release per week (MONDAYS & THURSDAYS AT 2PM PST STARTING JANUARY 26TH); Your vote determines the release order (EARN VOTES BY PLAYING)
+- Hero vote · First Win of the Day: Play a Standard Match or Street Brawl to earn votes. Your first win of the day gives you 4 additional votes. Cast your votes in the ballot box located in the Hideout.
+- Hero vote · New Hero Priority Tokens: Starting on the first hero release, playing will earn you priority tokens. Tokens can be used to more reliably select the new hero you want to play the most. Tokens are earned at a faster rate the more new heroes are in the pool.
+- Hero vote · In-game Sprays: Use the new spray feature to demonstrate your support for your favorite upcoming hero by campaigning for their release around the map during your match.
+[ Items ]
+- Ballistic Enchantment: Imbue an ability with increased range. Dealing damage with that ability grants you increased weapon damage per target hit.
+- Recharging Rush: Dealing significant Weapon Damage replenishes a charge for each of your charged abilities.
+[ User Interface ]
+- Revamped Postgame: NEW MVP SCORING SYSTEM AND POSTGAME SUMMARY
+- Reactive Portraits: Your hero portrait changes based on how you are doing in game.
+- Kill Streaks: Show off your hot streak.
+- Chat: Various chat visual improvements and updated ally vs. enemy chat styles.
+- Updated Scoreboard: Everything you need at a glance.
+- Objective Health Bars: Defeat the enemy Patron in style.
+- New Damage Numbers: More responsive hit feedback while shooting and using abilities.
+- Custom Channel Bars: Players now have animated custom channel bars for each of their channeled abilities.
+- Visibility Outlines: Improved readability for players and structures during gameplay.
+- Hole Punch View: A new Camera Hole Punch system reduces the amount of unexpected camera movement when running in front of obstructions. The camera will peer through the objects instead of pushing toward the player character.
+- Steam Game Recording: Timeline improvements for various game events.
+- Rejuv Duration Timer: More easily track the rejuv timer before it expires.
+- Damage Impact Indicator: Hit them where it hurts.
+- Mid Boss Timer: Keep track of when Mid Boss will spawn next directly on the minimap.
+- Random Hero Button: Leave the choice to fate.
+- Neutrals Near Walls: Jungle camps now glow through walls when you are in close proximity, to help aid in navigation.
+[ User Interface: Settings ]
+- Settings Search: Quickly find and update the setting you are looking for on the fly.
+- Custom Reticle Control: New custom reticle editor with live-preview to help you find the perfect crosshair.
+- FOV Slider: Instead of a single legacy FOV option, you can now adjust the camera more gradually.
+[ Additional Update Notes ]
+- Improved trooper AI
+- New music added
+- New voices for the patrons
+- Build authoring improvements
+- Chat settings rework
+- Improved anticheat
+- Improved replay compatibility across game updates
+- Network prediction improvements
+- Improved trooper zipline movement code
+- New item sounds
+- Minor UI updates to ability tooltips
+- Rendering performance improvements
+- Improved light map compression
+- Improved last hit/death feedback for troopers and players
+- Improving healing related sounds
+- Improved how heroes attach to ziplines
+- Improved reverb for player sounds
+- Items now display what abilities they imbue in tooltips
+- Ultimate ability VO lines now receive unique processing to distinguish them from other VO lines
+- Improved bullet whizby sound detection
+- Additional VO for various heroes
+- Refinements to announce response rules
+- Chat Wheel now supports multiple nested segments and has improved gamefeel
+- Improvements to damage flashes
+- Added new tunnel routes in the map for tiny heroes

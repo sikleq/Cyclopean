@@ -259,7 +259,9 @@ def flags_html(old_s, new_s) -> str | None:
     a, b = _flags(old_s), _flags(new_s)
     if a is None and b is None:
         return None
-    a, b = set(a or ([old_s] if old_s else [])), set(b or ([new_s] if new_s else []))
+    none = ('', '—', None)                    # an absent side is no flag ("−—" on 41 rows)
+    a = set(a or ([old_s] if old_s not in none else []))
+    b = set(b or ([new_s] if new_s not in none else []))
     added = ''.join(f'<span class="flag add">+{esc(_short_flag(f))}</span>' for f in sorted(b - a))
     removed = ''.join(f'<span class="flag rem">−{esc(_short_flag(f))}</span>' for f in sorted(a - b))
     return f'<span class="vals flags">{added}{removed}</span>'

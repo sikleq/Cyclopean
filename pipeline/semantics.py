@@ -540,12 +540,46 @@ def _segment(seg: str) -> str:
     return text
 
 
+# containers and flag fields a player knows by another name (audit 2026-10-01: 1,677 rows read
+# "Projectile Info › Speed", "Modifer › Script Values MODIFIER_VALUE_… › Value", "Ability Behaviors Bits")
+CONTAINER_WORDS = {'m_projectileInfo': 'Projectile', 'm_mapAttacks': '', 'EAttackType_Heavy': 'Heavy melee',
+                   'EAttackType_Light': 'Light melee', 'EAttackType_HeavyAir': 'Air heavy melee',
+                   'EAttackType_Slide': 'Slide melee', 'm_deploymentInfo': 'Deploy', 'm_sModifer': 'Effect',
+                   'm_sModifier': 'Effect', 'm_ModifierProvidedByAura': 'Aura', 'm_FriendlyAuraModifier': 'Ally aura',
+                   'm_ObjectiveRegen': 'Regen', 'm_EnemyTrooperDamageReduction': 'Vs troopers'}
+FLAG_FIELDS = {'m_AbilityBehaviorsBits': 'Behaviour', 'm_nAbilityBehaviors': 'Behaviour',
+               'm_nAbilityTargetTypes': 'Can target', 'm_nAbilityTargetFlags': 'Targeting rules',
+               'm_bitsInterruptingStates': 'Interrupted by', 'm_nBehaviors': 'Behaviour',
+               'm_eAbilityTargetingLocation': 'Targeting', 'm_eAbilityTargetingShape': 'Targeting shape'}
+_SCRIPT_VALUE = re.compile(r'^m_vecScriptValues\{(?:MODIFIER_VALUE_)?([A-Z0-9_]+)[^}]*\}$')
+
+
+def _context_segment(seg: str) -> str:
+    m = _SCRIPT_VALUE.match(seg)
+    if m:                                    # what the modifier changes: "Cooldown Reduction Percentage"
+        return m.group(1).replace('_', ' ').title()
+    base = re.sub(r'[\[{].*$', '', seg)
+    if base in FLAG_FIELDS:
+        return FLAG_FIELDS[base]
+    if base in CONTAINER_WORDS:
+        return CONTAINER_WORDS[base]
+    return _segment(seg)
+
+
 def context_label(path: str, depth: int = 3) -> str:
     """'m_mapPurchaseBonuses.EItemSlotType_WeaponMod[2].m_flValue'
-    -> 'Purchase Bonuses › WeaponMod #3 › Value' (a bare leaf name is meaningless)."""
+    -> 'Purchase Bonuses › WeaponMod #3 › Value' (a bare leaf name is meaningless);
+    'm_projectileInfo.m_flSpeed' -> 'Projectile › Speed'; a modifier's script value is named by what
+    it changes, its trailing '.m_value' dropped; a word repeated by the path once."""
     parts = [p for p in path.split('.') if p]
-    shown = [_segment(p) for p in parts[-depth:]]
-    return ' › '.join(s for s in shown if s)
+    if len(parts) > 1 and parts[-1] == 'm_value' and _SCRIPT_VALUE.match(parts[-2]):
+        parts = parts[:-1]
+    shown = []
+    for p in parts[-depth:]:
+        s = _context_segment(p)
+        if s and (not shown or shown[-1] != s):
+            shown.append(s)
+    return ' › '.join(shown)
 
 
 _RAW_NUM = re.compile(r'^\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*(m|s|%|u)?\s*$')

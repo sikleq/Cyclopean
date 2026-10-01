@@ -50,5 +50,37 @@
         {"verbatim": "^CNS_Notes_\\d+$"}
       ]}
     ]
+  },
+  "_why_oldgods": "Old Gods, New Blood (build 6127, 2026-01-22): imported 2026-10-01 at the owner's request. The Patrons' taglines (Hidden King, Archmother) are lore and are not republished; the page's feature cards, the hero-release schedule and the 'Also in this update' bullets are.",
+  "oldgods": {
+    "title": "Old Gods, New Blood",
+    "date": "2026-01-22",
+    "skip": "^And many other misc changes",
+    "sections": [
+      {"title": "Street Brawl", "items": [
+        {"cards": "^OG_Brawl_CallOut_\\d+$", "prefix": "Street Brawl · "},
+        {"verbatim": "^OG_Brawl_Items_Body$"}
+      ]},
+      {"title": "Patrons", "items": [
+        {"line": "{OG_Patrons_Title}: {OG_Patrons_SubHead}"}
+      ]},
+      {"title": "Heroes", "items": [
+        {"line": "{OG_Heroes_Title}: {OG_Heroes_TextBreak_1_Title} ({OG_Heroes_TextBreak_1_Body}); {OG_Heroes_TextBreak_2_Title} ({OG_Heroes_TextBreak_2_Body})"},
+        {"cards": "^OG_Heroes_CallOut_\\d+$", "prefix": "Hero vote · "}
+      ]},
+      {"title": "Items", "items": [
+        {"cards": "^OG_Items_CallOut_\\d+$"}
+      ]},
+      {"title": "User Interface", "items": [
+        {"line": "{OG_PostGame_Title}: {OG_PostGame_SubHead}"},
+        {"cards": "^OG_UI_CallOut_\\d+$"}
+      ]},
+      {"title": "User Interface: Settings", "items": [
+        {"cards": "^OG_Settings_CallOut_\\d+$"}
+      ]},
+      {"title": "Additional Update Notes", "items": [
+        {"verbatim": "^OG_More_ContentBlock_Bullet_\\d+$"}
+      ]}
+    ]
   }
 }

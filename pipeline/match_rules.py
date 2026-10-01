@@ -55,11 +55,13 @@ _alias(('slide', 'sliding'), [('abilities.vdata', 'citadel_ability_slide')])
 _alias(('melee', 'parry'), [('abilities.vdata', 'citadel_ability_melee_parry')])
 
 
-def alias_keys(text: str) -> set[str]:
+def alias_keys(text: str, longer: tuple[str, ...] = ()) -> set[str]:
+    """Entities a line names by a common word ('walkers'). `longer`: names the line uses that contain
+    such a word ("veil walker") — then the word is part of that name, not an alias."""
     low = text.lower()
     out = set()
     for word, keys in ALIASES.items():
-        if re.search(rf'\b{re.escape(word)}\b', low):
+        if re.search(rf'\b{re.escape(word)}\b', low) and not any(word in n for n in longer):
             out |= {f'{f}:{i}' for f, i in keys} | {f'{f}:{i}_herotest' for f, i in keys}
     return out
 
@@ -265,7 +267,9 @@ UNTRACKED_TOPICS = (
     ('sound', re.compile(r'\b(sfx|sound ?effects?|sound design|sound (is|are|now|no longer|cues?|volume|mix)|'
                          r'(new|updated|improved|adjusted|reduced|lowered|increased|added|louder|quieter|missing)'
                          r'(\s\w+)? sounds?|sounds? (for|when|on|of (the|an?) (ability|hero|item|weapon))|'
-                         r'audio|music|vo|voice ?lines?|voiceover|whizby|footsteps?|pings?)\b', re.I)),
+                         r'audio|music|vo|voice ?lines?|voiceover|whizby|footsteps?|pings?|'
+                         # "Updated McGinnis weapon sounds", "Haze's sounds" (audit 2026-10-01)
+                         r"(weapon|ability|item|hero|impact|reload|gun)\s+sounds?|\w+'s\s+sounds?)\b", re.I)),
     # 'effects' alone is gameplay ("removes movement effects"): only the visual kinds
     ('visual', re.compile(r'\b(visuals?|vfx|(visual|particle|impact|cast|trail|ambient|preview|screen|hit|updated)'
                           r' effects?|effects? revisions?|particles?|animations?|models?|lighting|textures?|art|'
@@ -276,12 +280,15 @@ UNTRACKED_TOPICS = (
                              r'(in|to) (the )?settings|keybinds?|replays?|spectat\w*|dialog|minimap|crosshair|'
                              r'kill ?feed|chat|party|friends?|invites?|matchmaking|queue|lobby|profile|localization|'
                              r'translations?|sandbox|hero labs?|tutorial|camera|mouse|controller|damage report|'
-                             r'default builds?|suggested|hud message|voice chat|text chat|mute|report(ing)? players?)\b',
+                             r'default builds?|suggested|hud message|voice chat|text chat|mute|report(ing)? players?|'
+                             r'settings? options?|options? (menu|to (show|hide|toggle)))\b',
                              re.I)),
     # map geometry only: "walls"/"cover"/"zipline"/"bounce pad"/"geometry" appear in gameplay
     # lines ("can be cast through walls", "no longer prevents zipline usage", Holliday's Bounce Pad)
     ('map', re.compile(r'\b(map|rooftops?|veils? (to|at|in|on|near|around)|terrain|garage|night ?club|courtyard|'
-                       r'traversal|navigat\w*|spawn area|fountain|stairs|ledges?|balcon(y|ies)|alley|juke)\b', re.I)),
+                       r'traversal|navigat\w*|spawn area|fountain|stairs|ledges?|balcon(y|ies)|alley|juke|'
+                       # level geometry words of the map notes (audit 2026-10-01: ~300 unmatched lines)
+                       r'hallways?|alcoves?|tunnels?|corridors?|signage|street ?lights|buildings)\b', re.I)),
     ('bots', re.compile(r'\bbots?\b', re.I)),
     ('performance', re.compile(r'\b(performance|optimi[sz]\w*|fps|memory|crash(es)?|stability|servers?|network\w*|'
                                r'netcode|tick ?rate|latency|hitch\w*|stutter\w*|loading|shaders?|dlss|fsr\d?|'

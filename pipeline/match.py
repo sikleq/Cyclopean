@@ -330,10 +330,21 @@ def name_index(changes: list[MChange], cat: dict[str, dict], tok: dict[str, str]
             nm = loc.hero_name(tok, e['id'])
         elif e['file'] == 'abilities.vdata':
             nm = loc.entity_name(tok, e['id'], e.get('owner'))
-        if nm and nm != e['id']:
-            for variant in rules.name_variants(loc.plain(nm)):
-                idx.setdefault(variant, []).append(key)
+        # the name at that build AND the latest one: notes said "Sinclair:" while the files still
+        # called him "The Magnificent Sinclair" (22 lines), items renamed later (~30) — audit 2026-10-01
+        for name in {nm, e.get('name')}:
+            if name and name != e['id']:
+                for variant in rules.name_variants(loc.plain(name)):
+                    if key not in idx.get(variant, []):
+                        idx.setdefault(variant, []).append(key)
     return idx
+
+
+def inline_alias(text: str, idx: dict[str, list[str]]) -> set[str]:
+    """Aliases named inside a line — unless the word is part of a longer name the line uses
+    ("Veil Walker" is an item, not the Walkers: 11 lines were given to the bosses)."""
+    low = text.lower()
+    return rules.alias_keys(text, tuple(n for n in idx if ' ' in n and len(n) > 5 and n in low))
 
 
 def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]) -> Subject | None:
@@ -357,6 +368,7 @@ def label_words(c: MChange) -> set[str]:
     return rules.expand_label_words(words(c.label))
 
 
+_MINUTES = re.compile(r'\b(minutes?|mins?)\b', re.I)
 _UP_VERB = re.compile(r'\b(increas\w*|rais\w*|more|higher|boost\w*)\b', re.I)
 _DOWN_VERB = re.compile(r'\b(reduc\w*|decreas\w*|lower\w*|less|cut)\b', re.I)
 _TIME_LIKE = re.compile(r'(time|cooldown|interval|delay|cost|duration)', re.I)
@@ -481,6 +493,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         subject = resolve_subject(prefix, idx, cat)
     lw = expand_words(words(rest))
     pairs = parse_pairs(rest)
+    if _MINUTES.search(rest):
+        # "Rejuv duration 4 -> 3 minutes" while the files count seconds (240 -> 180): 8 lines unmatched
+        pairs = pairs + [(a * 60, b * 60) for a, b in pairs]
     m = _BY_RE.search(rest)
     by_pct = float(m.group('p')) if m else None
     tm = _TIER_RE.search(rest)
@@ -491,7 +506,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         covered = rules.global_line(text, changes, cat, num) or rules.global_delta_line(text, changes, cat, num)
         if covered:
             return _link(result, covered, text, 'described')
-        aliased = rules.alias_keys(text)
+        aliased = inline_alias(text, idx)
         if aliased:            # "Walker bounty increased by 5%": the unit is named inside the line
             subject = Subject(aliased, None, 'alias_inline')
 
