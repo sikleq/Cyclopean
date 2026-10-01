@@ -146,7 +146,10 @@ Audit of the patch pages (2026-10-01):
 - ability card texts fill `{s:X}` through the property's `m_strLocTokenOverride` too, `{s:X_scale}`
   from the tier's scaling bonus and `{s:hero_name}` with the owner (`abilities._tokens`: "for
   BuffDurations" in 40-odd upgrade lines);
-- `m_bWarnIfNoAffectedAbilities` (an editor check) is technical;
+- `m_bWarnIfNoAffectedAbilities` (an editor check) is technical; the screen flash on taking damage
+  (`EFlashType_*` in generic_data's `m_mapDamageFlash`) and where a gun's bullets leave the model
+  (`m_vecOriginOffsets*`) are visual, `m_bIsHiddenOverhead` / minimap `vOffset2D` UI, a trooper's
+  self-destruct sound names audio — they had read as balance or mechanics;
 - an item's Corrupted version (City Never Sleeps: the Broker trades a high-tier item for it — bonuses
   plus random penalties, `m_CorruptedItemInfo`) appearing or going at once is ONE row "Corrupted
   version: Cooldown -4, Base Health +10" and one change for every counter (`render.fold_corrupted`;

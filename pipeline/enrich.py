@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 15       # 15: drawbacks (m_bIsNegativeAttribute); 14: 4 significant digits, "(weapon damage scaling)"
+ENRICH_VERSION = 16       # 16: screen flash / offsets / sounds out of balance; 15: drawbacks (m_bIsNegativeAttribute); 14: 4 significant digits, "(weapon damage scaling)"
 
 
 def _num(v):

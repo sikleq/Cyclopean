@@ -62,6 +62,14 @@ def test_valve_style_sentences():
     assert sentence('Mina', {'path': '@add', 'op': 'add'}) == 'Mina: added to the game'
 
 
+def test_screen_flash_sounds_and_offsets_are_not_balance():
+    assert category('EFlashType_BulletDamage.m_flCoverage', 1, 0.75) == 'visual'      # damage screen flash
+    assert category('m_vecOriginOffsetsLeft[1]', 1, 2) == 'visual'
+    assert category('m_NearDeathModifier.m_sSelfDestructEnd', 'a', 'b') == 'audio'
+    assert category('m_ImmunityModifier.m_bIsHiddenOverhead', None, True) == 'ui'
+    assert category('m_bWarnIfNoAffectedAbilities', None, True) == 'technical'
+
+
 def test_engine_plumbing_is_technical_not_balance():
     assert category('m_mapAbilityProperties.Damage.m_subclassScaleFunction._class', 'a', 'b') == 'technical'
     assert category('m_mapWeaponInfos.primary.m_BulletSpeedCurve.m_spline[3].x', 1, 2) == 'technical'

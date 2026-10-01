@@ -250,7 +250,7 @@
   "counts": {
    "documented": 77,
    "described": 47,
-   "hidden": 42,
+   "hidden": 39,
    "unannounced": 0,
    "unreleased": 3
   },
@@ -272,7 +272,7 @@
   "counts": {
    "documented": 114,
    "described": 56,
-   "hidden": 69,
+   "hidden": 67,
    "unannounced": 0,
    "unreleased": 31
   },
@@ -356,7 +356,7 @@
   "counts": {
    "documented": 139,
    "described": 68,
-   "hidden": 142,
+   "hidden": 134,
    "unannounced": 0,
    "unreleased": 45
   },
@@ -564,7 +564,7 @@
   "counts": {
    "documented": 112,
    "described": 89,
-   "hidden": 96,
+   "hidden": 95,
    "unannounced": 0,
    "unreleased": 58
   },
@@ -625,8 +625,8 @@
   "builds": 13,
   "counts": {
    "documented": 119,
-   "described": 100,
-   "hidden": 95,
+   "described": 99,
+   "hidden": 94,
    "unannounced": 0,
    "unreleased": 162
   },
@@ -791,7 +791,7 @@
   "builds": 1,
   "counts": {
    "documented": 15,
-   "described": 9,
+   "described": 7,
    "hidden": 5,
    "unannounced": 0,
    "unreleased": 0
@@ -1238,7 +1238,7 @@
   "builds": 8,
   "counts": {
    "documented": 13,
-   "described": 101,
+   "described": 91,
    "hidden": 49,
    "unannounced": 0,
    "unreleased": 0
@@ -1257,8 +1257,8 @@
   "builds": 7,
   "counts": {
    "documented": 12,
-   "described": 32,
-   "hidden": 80,
+   "described": 30,
+   "hidden": 74,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -1531,7 +1531,7 @@
   "counts": {
    "documented": 9,
    "described": 5,
-   "hidden": 1065,
+   "hidden": 1040,
    "unannounced": 0,
    "unreleased": 30
   },
@@ -1685,7 +1685,7 @@
   "builds": 7,
   "counts": {
    "documented": 474,
-   "described": 860,
+   "described": 859,
    "hidden": 151,
    "unannounced": 0,
    "unreleased": 0
@@ -1729,7 +1729,7 @@
   "builds": 3,
   "counts": {
    "documented": 126,
-   "described": 140,
+   "described": 139,
    "hidden": 114,
    "unannounced": 0,
    "unreleased": 1
@@ -2092,7 +2092,7 @@
   "counts": {
    "documented": 0,
    "described": 114,
-   "hidden": 1214,
+   "hidden": 1153,
    "unannounced": 0,
    "unreleased": 306
   },

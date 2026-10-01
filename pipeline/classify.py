@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastHit|Footstep)')
+AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastHit|Footstep|m_sSelfDestruct(Start|End))')
 VISUAL_RE = re.compile(
     r'(Particle|Material|Model|Image|Icon|[Cc]olor|Anim|Decal|Effect|Glow|Tracer|Muzzle|'
     r'Screen(?!ing)|Skin|Camera|Shake|Light(?!ning)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
@@ -59,11 +59,14 @@ UI_EXTRA_RE = re.compile(
     r'm_vecAlwaysShowInStatModifierUI|m_strSubCastUICSSClass|m_strConditionalLocTokenOverride)')
 VISUAL_EXTRA_RE = re.compile(
     r'(m_CustomCrosshairSettings|m_DOFWhileZoomed|m_flFade|m_flChaseCam|m_vFinishOffset|m_flOrbSpawnOffsetZ|'
-    r'm_strAG2|m_AG2|m_sAG2|HitReactClips|MovementBlockedClips|m_strVoteSticker|Readability)')
+    r'm_strAG2|m_AG2|m_sAG2|HitReactClips|MovementBlockedClips|m_strVoteSticker|Readability|'
+    # the screen flash when you take damage (generic_data m_mapDamageFlash: coverage, brightness…),
+    # where a gun's bullets leave the model: 30-odd rows read as balance (audit 2026-10-01)
+    r'^EFlashType_|m_vecOriginOffsets)')
 # fields players never see as gameplay (audit 2026-10-01): HUD placement, presence text, unit name
 # keys, collision hulls, the flight physics of soul orbs, what NPCs (not heroes) can see
 UI_MORE_RE = re.compile(r'(RichPresence|m_eHudStyle|HudStyle|m_nNameOffset|HealthBarOffset|m_strLocUnitName|'
-                        r'm_sLocUnitName|NameOffset)')
+                        r'm_sLocUnitName|NameOffset|m_bIsHiddenOverhead|vOffset2D)')
 META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
 TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
                            r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities|'
