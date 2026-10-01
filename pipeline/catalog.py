@@ -91,7 +91,7 @@ def build() -> dict:
             if e['file'] == 'heroes.vdata':
                 e['name'] = loc.hero_name(tok, e['id'])
             elif e['file'] == 'npc_units.vdata':
-                e['name'] = loc.plain(tok.get(e.get('loc_key', ''))) or tok.get(e['id'].lower()) or e['id']
+                e['name'] = loc.unit_name(tok, e['id'], {'m_sLocUnitName': e.get('loc_key', '')})
             else:
                 e['name'] = loc.entity_name(tok, e['id'], e.get('owner'))
     for e in ents.values():

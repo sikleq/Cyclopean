@@ -79,6 +79,8 @@
   --eye-06: rgba(255, 154, 60, 0.06);
   --eye-53: rgba(255, 154, 60, 0.53);
   --bone-08: rgba(224, 216, 198, 0.08);
+  --grid: rgba(224, 216, 198, 0.08);         /* table lines, both directions (owner: translucent) */
+  --grid-strong: rgba(224, 216, 198, 0.18);  /* a column group's first line */
   --glow-top: rgba(31, 74, 64, 0.45);
   --spore-hi: rgba(95, 196, 164, 0.24);
   --spore-lo: rgba(95, 196, 164, 0.10);
@@ -698,9 +700,9 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
   border: var(--px) solid var(--line);
 }
 table.stats { border-collapse: separate; border-spacing: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-table.stats th, table.stats td { padding: 3px 6px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--line-soft); border-right: 1px solid var(--line-soft); }
+table.stats th, table.stats td { padding: 3px 6px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
 table.stats thead th { position: sticky; background: var(--bg-panel-2); z-index: 3; color: var(--text-dim); font-weight: 600; }
-table.stats thead tr.cats th { top: 0; font: 600 12px/1 var(--font-ui); color: var(--text-bright); text-align: left; padding: 6px 10px; border-bottom: var(--px) solid var(--line); border-left: var(--px) solid var(--line); }
+table.stats thead tr.cats th { top: 0; font: 600 12px/1 var(--font-ui); color: var(--text-bright); text-align: center; padding: 6px 10px; border-bottom: 1px solid var(--grid-strong); border-left: 1px solid var(--grid-strong); }
 /* one line per header: short labels, the full one is the tooltip */
 table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: 11.5px; line-height: 1.2; white-space: nowrap; min-width: 40px; vertical-align: bottom; }
 .table-scroll:not(.show-details) .g-details { display: none; }
@@ -708,6 +710,7 @@ table.stats thead tr.cols th:hover { color: var(--text-bright); }
 table.stats thead th.sorted { color: var(--patina-strong); }
 table.stats thead th.sorted::after { content: attr(data-arrow); margin-left: 3px; font-family: var(--font-px-small); }
 table.stats th.name, table.stats td.name { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--bg-panel); }
+table.stats thead th.name { text-align: center; }
 table.stats thead th.name { z-index: 4; }
 table.stats td.name a { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 15px/1 var(--font-ui); }
 table.stats td.name img { width: 22px; height: 22px; object-fit: contain; }
@@ -716,7 +719,7 @@ table.stats td.g-odd { background-image: linear-gradient(var(--patina-06), var(-
 table.stats td.name .pre { font: 17px/1 var(--font-label); color: var(--eye); margin-left: 4px; }
 table.stats tbody tr:hover td { background-image: linear-gradient(var(--bg-hover), var(--bg-hover)); }
 table.stats tbody tr.marked td { box-shadow: inset 0 2px 0 var(--patina), inset 0 -2px 0 var(--patina); }
-table.stats td.grp-start, table.stats th.grp-start { border-left: var(--px) solid var(--line); }
+table.stats td.grp-start, table.stats th.grp-start { border-left: 1px solid var(--grid-strong); }
 table.stats td.has-hist { cursor: help; position: relative; }
 /* changed lately: a corner notch (a 4px dot read as a background speck), numbers stay centred */
 table.stats td.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
@@ -1249,3 +1252,107 @@ table.dyn:not(.show-extra) tr.extra { display: none; }
 .dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .dyn-tags .tag { cursor: pointer; border: 0; }
 .dyn-tags .tag.on { opacity: .35; }
+
+/* ---------- 16. stats tables: sections, copies, pre-release, category banners ---------- */
+table.stats:not(.show-pre) tr.pre { display: none; }
+table.stats tr.sec td { position: sticky; background: var(--bg-panel-3); border-bottom: 1px solid var(--grid-strong);
+  font: 600 12px/1 var(--font-ui); color: var(--text-dim); text-align: left; padding: 5px 10px; }
+table.stats tr.sec td.name { z-index: 2; color: var(--text-bright); }
+table.stats td.name .copies { margin-left: 6px; font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); }
+table.stats td.name .it-act { margin: 0 0 0 6px; }
+.tbl-sec .cat-i { width: 20px; height: 20px; margin-right: 8px; vertical-align: -4px; }
+.tbl-sec.w { box-shadow: inset 4px 0 0 var(--weapon), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
+.tbl-sec.s { box-shadow: inset 4px 0 0 var(--spirit), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
+.tbl-sec.v { box-shadow: inset 4px 0 0 var(--vitality), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
+.tbl-sec.w .bt { color: var(--weapon); }
+.tbl-sec.s .bt { color: var(--spirit); }
+.tbl-sec.v .bt { color: var(--vitality); }
+.tbl-sec + .table-fade { margin-bottom: 18px; }
+/* the stat history tooltip is a small table too: centred columns, translucent lines both ways */
+.hist-tip ol { column-gap: 0; row-gap: 0; }
+.hist-tip li > span { padding: 4px 8px; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+.hist-tip li > span:last-child { border-right: 0; }
+.hist-tip li:last-child > span { border-bottom: 0; }
+.hist-tip li .o, .hist-tip li .p { text-align: center; }
+.hist-tip li .arrow { padding: 4px 2px; }
+
+/* ---------- 17. change matrix: tiles and the hover card ---------- */
+/* a tile: stripes in tag colours, a pixel bevel, the number of changes in the corner */
+.dsq { position: relative; width: 28px; height: 28px;
+  box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
+.dsq .dn { position: absolute; right: 2px; bottom: 1px; font: 600 9px/1 var(--font-ui); color: var(--bg-page);
+  text-shadow: 0 0 2px var(--bone-08); pointer-events: none; }
+.dsq:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; transform: translateY(-1px); }
+table.dyn td.dc { border-right: 1px solid var(--grid); }
+table.dyn th, table.dyn td { border-bottom: 1px solid var(--grid); }
+table.dyn thead tr.cats th { text-align: center; border-left: 1px solid var(--grid-strong); }
+table.dyn th.name { text-align: center; }
+.dyn-tip { position: fixed; z-index: var(--z-tooltip); display: none; min-width: 260px; max-width: 420px; padding: 10px 12px;
+  background: var(--bg-panel-3); pointer-events: none; font-size: 13px; }
+.dyn-tip.on { display: block; }
+.dt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.dt-head img { width: 28px; height: 28px; object-fit: cover; background: var(--bg-panel-4); }
+.dt-name { font: 600 14px/1.1 var(--font-ui); color: var(--name); }
+.dt-patch { margin-left: auto; font: 500 12px/1 var(--font-ui); color: var(--label); }
+.dt-patch.named { color: var(--gold); }
+.dt-counts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+.dt-counts .pip { font-size: 18px; }
+.dt-counts .pip em { margin-left: 4px; font: 500 12px/1 var(--font-ui); font-style: normal; color: var(--text-dim); }
+table.dt-rows { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+table.dt-rows td { padding: 4px 6px; text-align: center; border-top: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+table.dt-rows td:last-child { border-right: 0; }
+.dt-what { color: var(--text-bright); font-weight: 600; }
+.dt-field { color: var(--text-dim); }
+.dt-vals { white-space: nowrap; color: var(--label); font-variant-numeric: tabular-nums; }
+.dt-vals i { font-style: normal; color: var(--arrow); padding: 0 3px; }
+.dt-vals b.t-buff { color: var(--tag-buff); }
+.dt-vals b.t-nerf { color: var(--tag-nerf); }
+.dt-vals b.t-new { color: var(--tag-new); }
+.dt-vals b.t-del { color: var(--tag-del); }
+.dt-vals b.t-rework { color: var(--tag-rework); }
+.dt-vals b { color: var(--text-bright); }
+.dt-foot { margin-top: 8px; font: 500 11.5px/1 var(--font-ui); color: var(--text-dimmer); text-align: center; }
+
+/* ---------- 18. Patch calendar (Sloppy's Calendar) ---------- */
+.cal-years { margin: 0 0 10px; gap: 6px; }
+.cal-legend { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font: 500 12px/1 var(--font-ui); color: var(--text-dim); }
+.cal-legend i.cd { width: 14px; height: 14px; display: inline-block; }
+.cal-legend .sep { width: 12px; }
+.cal-year { display: none; padding: 12px 14px; background: var(--bg-panel); margin-bottom: 14px; overflow-x: auto; }
+.cal-year.on { display: block; }
+.cal-grid { display: flex; flex-direction: column; gap: 3px; min-width: 1080px; }
+.cal-row { display: grid; grid-template-columns: 44px repeat(31, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.cm { font: 600 12px/26px var(--font-ui); color: var(--text-dim); text-align: center; }
+.cd { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 26px;
+  font: 500 10.5px/1 var(--font-ui); font-variant-numeric: tabular-nums; color: var(--text-dimmer);
+  background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid); }
+.cd.none { background: transparent; box-shadow: none; }
+/* how many game builds landed that day: patina, faint to strong */
+.cd.s1 { background: color-mix(in srgb, var(--patina) 14%, var(--bg-panel-2)); color: var(--text-dim); }
+.cd.s2 { background: color-mix(in srgb, var(--patina) 26%, var(--bg-panel-2)); color: var(--text-main); }
+.cd.s3 { background: color-mix(in srgb, var(--patina) 40%, var(--bg-panel-2)); color: var(--text-bright); }
+.cd.s4 { background: color-mix(in srgb, var(--patina) 58%, var(--bg-panel-2)); color: var(--bg-page); }
+.cd.today { box-shadow: inset 0 0 0 2px var(--text-bright); }
+/* a patch day: a raised tile with its name; named updates in gold */
+.cd.patch { background: var(--bg-panel-4); color: var(--text-bright); box-shadow: inset 0 0 0 2px var(--patina), 0 2px 6px var(--shadow); }
+.cd.patch.named { background: color-mix(in srgb, var(--gold) 30%, var(--bg-panel-3)); box-shadow: inset 0 0 0 2px var(--gold), 0 2px 6px var(--shadow); }
+.cd.patch.fu { box-shadow: inset 0 0 0 1px var(--patina-dim); }
+.cd.patch b { font: 700 10.5px/1 var(--font-ui); }
+.cd.patch .pl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 8.5px/1.1 var(--font-ui);
+  color: var(--label); padding: 0 1px; }
+.cd.patch.named .pl { color: var(--gold); }
+.cd.patch:hover { outline: 2px solid var(--text-bright); }
+.cal-stats { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--grid); }
+.cs { display: flex; align-items: baseline; gap: 6px; font: 500 12.5px/1.2 var(--font-ui); color: var(--text-dim); }
+.cs b { font: 22px/1 var(--font-px); color: var(--text-bright); }
+.cadence { padding: 12px 14px; background: var(--bg-panel); }
+.cad-h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.cad-h b { font: 22px/1 var(--font-px); color: var(--text-bright); }
+.cad-h span { font: 500 12.5px/1 var(--font-ui); color: var(--text-dim); }
+.cad-bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; height: 150px; align-items: end; }
+.cb { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.cb .bar { position: relative; display: flex; flex-direction: column; justify-content: flex-start; width: 100%; max-width: 46px; min-height: 2px;
+  background: color-mix(in srgb, var(--patina) 55%, var(--bg-panel-3)); box-shadow: inset 0 2px 0 var(--patina-strong); }
+.cb .nb { display: block; width: 100%; background: var(--gold); }
+.cb .n { font: 600 12px/1 var(--font-ui); color: var(--text-bright); }
+.cb .m { font: 500 11px/1 var(--font-ui); color: var(--text-dim); }

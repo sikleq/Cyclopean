@@ -7,7 +7,6 @@ from typing import Callable
 
 from .common import entity_icon, esc, hero_icon, load_json, page, write
 
-UNIT_KIND_LABEL = {'building': 'Building', 'trooper': 'Trooper', 'neutral': 'Neutral'}
 
 # Hero table layout: the group header gives the context, so column headers stay one
 # short line ("+/boon" under Vitality); the full label is the header's tooltip.
@@ -67,8 +66,15 @@ def _recent_cutoff(as_of: str | None) -> str:
     return (date.fromisoformat(as_of[:10]) - timedelta(days=RECENT_DAYS)).isoformat()
 
 
+def non_empty(cols: list[dict], rows: list[dict]) -> list[dict]:
+    """Columns with at least one value in these rows (a category's table drops the others)."""
+    return [c for c in cols if any(r['values'].get(c['key']) is not None for r in rows)]
+
+
 def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict], str], name_title: str,
-                 extra_cls: Callable[[dict, dict], list[str]] | None = None, as_of: str | None = None) -> str:
+                 extra_cls: Callable[[dict, dict], list[str]] | None = None, as_of: str | None = None,
+                 row_cls: Callable[[dict], str] | None = None, table_id: str = '',
+                 section_of: Callable[[dict], str] | None = None) -> str:
     cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
     for c in cols:
@@ -92,7 +98,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
         return f'<th data-col="{esc(c["key"])}" class="{cls.strip()}"{tip}>{esc(short or c["label"])}</th>'
     col_row = (f'<tr class="cols"><th class="name" data-col="name">{esc(name_title)}</th>'
                + ''.join(head(c) for c in cols) + '</tr>')
-    body = []
+    body: list[str] = []
+    last_section: list[str | None] = [None]
     for r in rows:
         cells = [name_cell(r)]
         for c in cols:
@@ -113,20 +120,25 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                 attrs += (f' data-hist="{esc(json.dumps(hist, separators=(",", ":")))}"'
                           f' data-title="{esc(r["name"])} · {esc(c["label"])}"')
             cells.append(f'<td class="{" ".join(cls)}"{attrs}>{_fmt(v, c["digits"])}</td>')
-        body.append(f'<tr data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
+        if section_of:
+            sec = section_of(r)
+            if sec != last_section[0]:
+                last_section[0] = sec
+                body.append(f'<tr class="sec"><td class="name">{sec}</td><td colspan="{len(cols)}"></td></tr>')
+        rc = f' class="{row_cls(r)}"' if row_cls and row_cls(r) else ''
+        body.append(f'<tr{rc} data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
     # the fade on the right edge says "more columns this way" until the table is scrolled to its end
-    return (f'<div class="table-fade"><div class="table-scroll"><table class="stats"><thead>{cat_row}{col_row}</thead>'
+    tid = f' id="{esc(table_id)}"' if table_id else ''
+    return (f'<div class="table-fade"><div class="table-scroll"><table class="stats"{tid}><thead>{cat_row}{col_row}</thead>'
             f'<tbody>{"".join(body)}</tbody></table></div></div>')
 
 
-def _toolbar(placeholder: str, legend_spirit: bool, details: bool = False) -> str:
-    spirit = '<span class="chip legend-spirit">scales with Spirit</span>' if legend_spirit else ''
+def _toolbar(placeholder: str, details: bool = False, extra: str = '') -> str:
     more = ('<button class="px-btn" data-toggle-class="show-details" data-target=".table-scroll">Details</button>'
             if details else '')
     return ('<div class="toolbar">'
-            f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr">'
-            f'<span class="sep"></span><button class="px-btn" data-heatmap>Heatmap</button>{more}'
-            f'<span class="sep"></span><span class="chip legend-hist">changed in the last 45 days</span>{spirit}</div>')
+            f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr:not(.sec)">'
+            f'<span class="sep"></span><button class="px-btn" data-heatmap>Heatmap</button>{more}{extra}</div>')
 
 
 def heroes_table() -> str:
@@ -141,10 +153,60 @@ def heroes_table() -> str:
                 f'{esc(h["id"].removeprefix("hero_"))}.html">{img_html}{esc(h["name"])}{pre}</a></td>')
 
     table = render_table(laid_out(t['columns'], HERO_LAYOUT), t['heroes'], name_cell, 'Hero',
-                         lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [], as_of=t.get('date'))
-    body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', True, details=True) + table
+                         lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [], as_of=t.get('date'),
+                         row_cls=lambda h: 'pre' if h['state'] == 'prerelease' else '', table_id='hero-stats')
+    n_pre = sum(1 for h in t['heroes'] if h['state'] == 'prerelease')
+    # pre-release heroes (vote candidates, template stats) hide until asked for, as on the heroes page
+    switch = (f'<span class="sep"></span><label class="switch"><input type="checkbox" data-toggle-class="show-pre" '
+              f'data-target="#hero-stats"><span class="track"></span>Pre-release <span class="n">{n_pre}</span></label>'
+              if n_pre else '')
+    body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', details=True, extra=switch) + table
     return page('Hero Stats', body, rel, 'tables', build=t['build'],
                 description='Deadlock hero stats with the full history of every value', wide=True)
+
+
+UNIT_SECTIONS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutral camps'),
+                 ('unit', 'Other units'))
+_UNIT_ID_PREFIX = ('npc_', 'neutral_')
+
+
+def unit_label(u: dict) -> str:
+    """The game's name; a unit the game never names reads as words, never as its raw id."""
+    if u['name'] != u['id']:
+        return u['name']
+    words = u['id']
+    for pre in _UNIT_ID_PREFIX:
+        words = words.removeprefix(pre)
+    return words.replace('_', ' ').strip().title()
+
+
+def merge_copies(rows: list[dict]) -> list[dict]:
+    """One unit kept under several ids with the same numbers (Walker x4, Guardian x2) is one row x N."""
+    seen: dict[tuple, dict] = {}
+    out = []
+    for r in rows:
+        key = (unit_label(r), tuple(sorted((k, v) for k, v in r['values'].items())))
+        if key in seen:
+            seen[key]['copies'] = seen[key].get('copies', 1) + 1
+            continue
+        r = {**r}
+        seen[key] = r
+        out.append(r)
+    return out
+
+
+def _section_tables(groups: list[tuple[str, str, list[dict]]], cols: list[dict], name_cell, name_title: str,
+                    as_of: str | None, section_of=None) -> str:
+    """One banner + table per group, each with only the columns its rows fill."""
+    out = []
+    for key, title, rows in groups:
+        if not rows:
+            continue
+        out.append(f'<div class="banner sub tbl-sec {esc(key)}"><span class="bt">{title}</span>'
+                   f'<span class="bc">{len(rows)}</span></div>'
+                   + render_table(non_empty(cols, rows), rows, name_cell, name_title, as_of=as_of,
+                                  section_of=section_of))
+    return ''.join(out)
 
 
 def units_table() -> str:
@@ -154,29 +216,52 @@ def units_table() -> str:
     def name_cell(u):
         ic = entity_icon('npc_units.vdata', u['id'], u['kind'], rel)
         img_html = f'<img class="px" src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
-        kind = UNIT_KIND_LABEL.get(u['kind'], u['kind'])
-        return (f'<td class="name" data-col="name" data-sort="{esc(u["name"])}"><a href="{rel}units/{esc(u["id"])}.html">'
-                f'{img_html}{esc(u["name"])}<span class="pre">{esc(kind)}</span></a></td>')
+        copies = f'<span class="copies">×{u["copies"]}</span>' if u.get('copies') else ''
+        label = unit_label(u)
+        return (f'<td class="name" data-col="name" data-sort="{esc(label)}"><a href="{rel}units/{esc(u["id"])}.html">'
+                f'{img_html}{esc(label)}{copies}</a></td>')
 
-    table = render_table(t['columns'], t['units'], name_cell, 'Unit', as_of=t.get('date'))
-    body = '<h1>Units & Buildings</h1>' + tabs('units') + _toolbar('Unit…', False) + table
+    groups = []
+    for kind, title in UNIT_SECTIONS:
+        rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind]
+        groups.append((kind, esc(title), merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
+    body = ('<h1>Units & Buildings</h1>' + tabs('units') + _toolbar('Unit…')
+            + _section_tables(groups, t['columns'], name_cell, 'Unit', t.get('date')))
     return page('Units & Buildings', body, rel, 'tables', build=t['build'],
                 description='Deadlock troopers, guardians, walkers, patron and neutrals with the history of every value', wide=True)
 
 
+ITEM_SECTIONS = (('Weapon', 'w', 'courage'), ('Spirit', 's', 'spirit'), ('Vitality', 'v', 'fortitude'))
+
+
 def items_table() -> str:
+    from .common import icon
     rel = '../'
     t = load_json('tables/items.json')
+    cards = load_json('abilities.json')['abilities']
 
     def name_cell(it):
         ic = entity_icon('abilities.vdata', it['id'], 'item', rel)
         img_html = f'<img class="px" src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
+        act = '<span class="it-act">Active</span>' if it.get('activation') == 'Active' else ''
         return (f'<td class="name" data-col="name" data-sort="{esc(it["name"])}"><a href="{rel}items/'
-                f'{esc(it["id"].removeprefix("upgrade_"))}.html">{img_html}{esc(it["name"])}'
-                f'<span class="pre">{esc(it["slot"])} · {esc(it["activation"])}</span></a></td>')
+                f'{esc(it["id"].removeprefix("upgrade_"))}.html">{img_html}{esc(it["name"])}{act}</a></td>')
 
-    table = render_table(t['columns'], t['items'], name_cell, 'Item', as_of=t.get('date'))
-    body = '<h1>Items</h1>' + tabs('items') + _toolbar('Item…', False) + table
+    def in_shop(it) -> bool:
+        info = (cards.get(it['id']) or {}).get('item') or {}
+        return not info.get('street_brawl') and not info.get('disabled') and (it['values'].get('tier') or 0) <= 4
+
+    # the game's shop: Weapon, Spirit, Vitality, each by tier (game order), only the columns it fills
+    groups = []
+    for slot, css, ik in ITEM_SECTIONS:
+        rows = sorted((it for it in t['items'] if it.get('slot') == slot and in_shop(it)),
+                      key=lambda it: (it['values'].get('tier') or 9, it['name'].lower()))
+        src = icon(f'prop:{ik}', rel)
+        title = (f'<img class="cat-i" src="{esc(src)}" alt="">' if src else '') + esc(slot)
+        groups.append((css, title, rows))
+    body = ('<h1>Items</h1>' + tabs('items') + _toolbar('Item…')
+            + _section_tables(groups, t['columns'], name_cell, 'Item', t.get('date'),
+                              section_of=lambda it: f'Tier {it["values"].get("tier")} · {_fmt(it["values"].get("cost"), 0)} souls'))
     return page('Item Stats', body, rel, 'tables', build=t['build'],
                 description='Deadlock shop items with the history of every value', wide=True)
 

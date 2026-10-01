@@ -170,6 +170,20 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
   colour), tag filters, pre-release heroes / removed items. Heroes index: pre-release heroes hide behind
   a switch, "Unreleased & hero labs" is folded.
+- Change matrix cells: a bevelled tile, its number of changes in the corner; hovering opens a card drawn by
+  scripts.js from the page's `.dyn-data` JSON (who, which patch, counts with the tag icons, the three
+  biggest changes, "+N more").
+- Patch calendar (`builders/calendar_page.py`, patches/calendar.html, Sloppy's Calendar): per year, months
+  by days; a day's shade = game builds that day, a patch day a raised tile with its name (named update
+  in gold); the year's numbers (patches, named, follow-ups, builds, median / longest / shortest stretch)
+  and the cadence of all years by month.
+- Stats tables (`builders/tables_pages.py`): items and units come as one table per category (Weapon /
+  Spirit / Vitality; buildings, troopers, neutral camps) with only the columns that category fills,
+  items split by tier rows, a unit kept under several ids with the same numbers is one row "×N", unit
+  names from the game (`loc.unit_name`, `data/overrides/unit_names.json`: kill feed / attacker-class
+  strings), never raw ids. Hero Stats hides pre-release heroes behind a switch. Every table centres its
+  cells and headers and draws translucent lines both ways (`--grid`, `--grid-strong`), the stat history
+  tooltip included.
 - Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its
   price tag, columns Weapon → Spirit → Vitality (the game's order), cards with ACTIVE / IMBUE labels
   and the last change; hovering a card lights up its components and what it builds into, the rest

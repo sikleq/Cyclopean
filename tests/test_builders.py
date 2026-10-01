@@ -377,7 +377,8 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     rows = [{'id': 'p1', 'date': '2024-01-01', 'title': '01-01-2024 Update'},
             {'id': 'p2', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}]
     cells = {'hero:hero_atlas': {'p2': {'buff': 2, 'nerf': 1}}, 'hero:hero_x': {'p1': {'new': 1}}}
-    monkeypatch.setattr(dynamics_page, '_cells', lambda: (rows, cells))
+    samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf']]}}
+    monkeypatch.setattr(dynamics_page, '_cells_and_samples', lambda: (rows, cells, samples))
     html = dynamics_page.matrix_html([('hero:hero_atlas', 'Abrams', None, 'hero_atlas.html', ''),
                                       ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
                                       ('hero:hero_none', 'Nothing', None, 'n.html', '')], 'hero')
@@ -385,5 +386,27 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert 'st t-buff" style="flex:2"' in html and 'net-buff' in html
     assert 'class="dc old"' in html and 'dd named' in html          # >1 year old column; gold named patch
     assert '#c-hero_atlas' in html and 'tr class="extra"' in html
+    # the hover card's data: the cell's counts and its biggest changes, the number on the tile
+    assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
     bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
     assert 'show-old' in bar and 'bvn' in bar and 'hide-buff' in bar and 'show-extra' in bar
+
+
+def test_unit_table_names_and_copies():
+    from builders.tables_pages import merge_copies, non_empty, unit_label
+    assert unit_label({'id': 'npc_neutral_bug', 'name': 'npc_neutral_bug'}) == 'Bug'
+    assert unit_label({'id': 'trooper_zipline_container', 'name': 'trooper_zipline_container'}) == 'Trooper Zipline Container'
+    assert unit_label({'id': 'npc_boss_tier2', 'name': 'Walker'}) == 'Walker'
+    rows = [{'id': f'w{i}', 'name': 'Walker', 'values': {'hp': 6000, 'x': None}} for i in range(4)]
+    rows.append({'id': 'g', 'name': 'Guardian', 'values': {'hp': 5500, 'x': None}})
+    merged = merge_copies(rows)
+    assert [(r['name'], r.get('copies')) for r in merged] == [('Walker', 4), ('Guardian', None)]
+    cols = [{'key': 'hp'}, {'key': 'x'}]
+    assert [c['key'] for c in non_empty(cols, merged)] == ['hp']
+
+
+def test_calendar_shades_and_gaps():
+    from builders.calendar_page import _gaps, _shade
+    assert [_shade(n) for n in (0, 1, 3, 6, 10)] == [0, 1, 2, 3, 4]
+    ps = [{'date': '2026-01-01', 'title': 'a'}, {'date': '2026-01-11', 'title': 'b'}, {'date': '2026-01-13', 'title': 'c'}]
+    assert [g[0] for g in _gaps(ps)] == [10, 2]

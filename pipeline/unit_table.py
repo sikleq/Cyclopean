@@ -98,10 +98,9 @@ def build() -> dict:
         values = {k: pts[-1][2] for k, pts in hs.items()}
         if not any(v is not None for v in values.values()):
             continue
-        key = str(u.get('m_sLocUnitName', '')).lstrip('#').lower()
         rows.append({
             'id': uid,
-            'name': loc.plain(tok.get(key)) or uid,
+            'name': loc.unit_name(tok, uid, u),
             'kind': unit_kind(uid, u),
             'values': values,
             'history': {k: [[pts[i][0], pts[i][1], pts[i - 1][2], pts[i][2]] for i in range(1, len(pts))]

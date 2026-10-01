@@ -198,6 +198,58 @@
   });
 
   /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
+  /* ---------- change matrices: a hover card per cell (who, which patch, counts, the biggest changes) ---------- */
+  safe('dyn-tip', function () {
+    var blobs = document.querySelectorAll('script.dyn-data');
+    if (!blobs.length) return;
+    var data = {};
+    blobs.forEach(function (b) { data[b.getAttribute('data-for')] = JSON.parse(b.textContent); });
+    var tip = document.createElement('div');
+    tip.className = 'dyn-tip px-frame';
+    document.body.appendChild(tip);
+    function txt(s) { var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
+    function show(a) {
+      var table = a.closest('table.dyn');
+      var d = table && data[table.id];
+      var k = a.getAttribute('data-k');
+      if (!d || k === null) return;
+      var c = d.cells[+k], p = d.patches[c[1]], tr = a.closest('tr');
+      var counts = c[2], order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
+      var total = 0;
+      Object.keys(counts).forEach(function (t) { total += counts[t]; });
+      var icon = tr.getAttribute('data-icon');
+      var html = '<div class="dt-head">' + (icon ? '<img src="' + txt(icon) + '" alt="">' : '') +
+        '<span class="dt-name">' + txt(tr.getAttribute('data-name')) + '</span>' +
+        '<span class="dt-patch' + (p[2] ? ' named' : '') + '">' + txt(p[1]) + '</span></div>';
+      html += '<div class="dt-counts">' + order.filter(function (t) { return counts[t]; }).map(function (t) {
+        return '<span class="pip ' + t + '">' + (d.icons[t] || '') + counts[t] + '<em>' + txt(d.words[t] || t) + '</em></span>';
+      }).join('') + '</div>';
+      if (c[3].length) {
+        html += '<table class="dt-rows">' + c[3].map(function (s) {
+          var vals = s[2] && s[3] ? txt(s[2]) + '<i>→</i><b class="t-' + s[4] + '">' + txt(s[3]) + '</b>'
+            : '<b class="t-' + s[4] + '">' + txt(s[3] || s[2]) + '</b>';
+          return '<tr><td class="dt-what">' + txt(s[0]) + '</td><td class="dt-field">' + txt(s[1]) + '</td>' +
+            '<td class="dt-vals">' + vals + '</td></tr>';
+        }).join('') + '</table>';
+      }
+      var more = total - c[3].length;
+      html += '<div class="dt-foot">' + (more > 0 ? '+' + more + ' more · ' : '') + 'click to open the patch</div>';
+      tip.innerHTML = html;
+      tip.classList.add('on');
+      var r = a.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+      var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), window.innerWidth - tw - 8);
+      var y = r.bottom + 8;
+      if (y + th > window.innerHeight - 8) y = r.top - th - 8;
+      tip.style.left = x + 'px';
+      tip.style.top = Math.max(8, y) + 'px';
+    }
+    document.addEventListener('mouseover', function (ev) {
+      var a = ev.target.closest && ev.target.closest('table.dyn .dsq');
+      if (a) show(a); else tip.classList.remove('on');
+    });
+    window.addEventListener('scroll', function () { tip.classList.remove('on'); }, true);
+  });
+
   /* ---------- change matrices open at the newest patches (the right end); older columns re-scroll ---------- */
   safe('dyn-scroll', function () {
     document.querySelectorAll('table.dyn').forEach(function (t) {
@@ -267,6 +319,18 @@
     });
   });
 
+  /* ---------- calendar: year buttons show that year's grid ---------- */
+  safe('calendar', function () {
+    var btns = document.querySelectorAll('[data-year].px-btn');
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var y = btn.getAttribute('data-year');
+        btns.forEach(function (b) { b.classList.toggle('on', b === btn); });
+        document.querySelectorAll('.cal-year').forEach(function (s) { s.classList.toggle('on', s.getAttribute('data-year') === y); });
+      });
+    });
+  });
+
   safe('rework-lines', function () {
     document.addEventListener('click', function (ev) {
       var v = ev.target.closest && ev.target.closest('.erow.rw .vals.wrap');
@@ -278,10 +342,13 @@
   safe('heatmap', function () {
     var btn = document.querySelector('[data-heatmap]');
     if (!btn) return;
-    var table = document.querySelector('table.stats');
+    // every table on the page (items and units come as one table per category), ranked within itself
     btn.addEventListener('click', function () {
       var on = !btn.classList.contains('on');
       btn.classList.toggle('on', on);
+      document.querySelectorAll('table.stats').forEach(function (table) { heat(table, on); });
+    });
+    function heat(table, on) {
       table.querySelectorAll('td.hm-hi, td.hm-lo').forEach(function (td) { td.classList.remove('hm-hi', 'hm-lo'); });
       if (!on) return;
       var cols = {};
@@ -304,7 +371,7 @@
           else if (rank <= 0.4) td.classList.add('hm-lo');
         });
       });
-    });
+    }
   });
 
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */

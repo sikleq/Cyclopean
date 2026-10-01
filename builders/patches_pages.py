@@ -407,6 +407,13 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
             f'<span class="ixa">{audit}{_bar(c)}</span></a>')
 
 
+def patch_tabs(active: str) -> str:
+    """The patch list and its calendar (Sloppy's Patches / Calendar pair)."""
+    return '<div class="flex table-tabs">' + ''.join(
+        f'<a class="px-btn{" on" if k == active else ""}" href="{k}.html">{lbl}</a>'
+        for k, lbl in (('index', 'List'), ('calendar', 'Calendar'))) + '</div>'
+
+
 def index_page(index: list[dict]) -> str:
     """Patches by month; a follow-up sits under its parent; each row says which way the
     patch went and who it hit."""
@@ -437,7 +444,7 @@ def index_page(index: list[dict]) -> str:
                        f'<span class="bc">{n} update{"s" if n != 1 else ""}</span></div>')
         out.append(_index_row(parent, stats, rel, False))
         out.extend(_index_row(f, stats, rel, True) for f in follows)
-    body = f'<h1>Patches</h1><div class="ixlist">{"".join(out)}</div>'
+    body = f'<h1>Patches</h1>{patch_tabs("index")}<div class="ixlist">{"".join(out)}</div>'
     return page('Patches', body, rel, 'patches')
 
 
@@ -449,4 +456,6 @@ def build_all() -> int:
         nxt = index[i + 1] if i + 1 < len(index) else None
         write(f'patches/{row["id"]}.html', patch_page(p, prev, nxt))
     write('patches/index.html', index_page(index))
+    from .calendar_page import calendar_page
+    write('patches/calendar.html', calendar_page(patch_tabs('calendar')))
     return len(index)

@@ -125,6 +125,27 @@ def loc_base(tok: dict[str, str], eid: str, owner: str | None = None) -> str:
     return eid.lower()
 
 
+@lru_cache(maxsize=1)
+def _unit_name_rules() -> list[tuple[re.Pattern, str]]:
+    path = tracker.ROOT / 'data' / 'overrides' / 'unit_names.json'
+    if not path.exists():
+        return []
+    import json
+    return [(re.compile(rx), key.lower()) for rx, key in json.loads(path.read_text(encoding='utf-8'))['rules']]
+
+
+def unit_name(tok: dict[str, str], uid: str, data: dict | None) -> str:
+    """A unit's name: its m_sLocUnitName, else the string the game uses for it elsewhere
+    (data/overrides/unit_names.json: kill feed, attacker class), else its id."""
+    key = str((data or {}).get('m_sLocUnitName', '')).lstrip('#').lower()
+    if key and tok.get(key):
+        return plain(tok[key])
+    for rx, k in _unit_name_rules():
+        if rx.search(uid) and tok.get(k):
+            return plain(tok[k])
+    return uid
+
+
 def entity_name(tok: dict[str, str], eid: str, owner: str | None = None) -> str:
     base = loc_base(tok, eid, owner)
     return tok.get(base) or tok.get(base + ':n') or eid

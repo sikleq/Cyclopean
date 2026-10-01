@@ -462,6 +462,15 @@ def test_loc_pairs_without_a_gap_are_read():
     assert tok['maxbounces_label'] == 'Bounces' and tok['x_desc'] == 'a "q" b'
 
 
+def test_units_without_a_loc_name_take_the_games_other_strings():
+    from pipeline import loc
+    tok = {'titan_unit': 'Patron', 'citadel_attackerclass_class_trooper_medic': 'Medic Trooper', 'guardian_unit': 'Guardian'}
+    assert loc.unit_name(tok, 'alt_npc_boss_tier3', {}) == 'Patron'
+    assert loc.unit_name(tok, 'trooper_medic', {}) == 'Medic Trooper'
+    assert loc.unit_name(tok, 'npc_boss_tier1', {'m_sLocUnitName': '#guardian_unit'}) == 'Guardian'
+    assert loc.unit_name(tok, 'npc_neutral_bug', {}) == 'npc_neutral_bug'     # never named: the site prettifies it
+
+
 def test_bare_entity_name_line_is_a_heading():
     from pipeline.match import heading
     idx = {'sinclair': ['heroes.vdata:hero_magician'], 'boundless spirit': ['abilities.vdata:upgrade_x']}

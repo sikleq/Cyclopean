@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 12
+ENRICH_VERSION = 13
 
 
 def _num(v):
@@ -61,8 +61,7 @@ def enrich_record(rec: dict) -> dict:
         elif f == 'npc_units.vdata':
             data = units.get(eid, {})
             e['kind'] = unit_kind(eid, data) if eid != '@shared' else 'shared'
-            key = str(data.get('m_sLocUnitName', '')).lstrip('#').lower()
-            e['name'] = loc.plain(tok.get(key)) or eid if eid != '@shared' else 'Many units'
+            e['name'] = loc.unit_name(tok, eid, data) if eid != '@shared' else 'Many units'
         else:
             e['kind'] = 'modifier' if f == 'modifiers.vdata' else 'global'
             e['name'] = eid if eid != '@shared' else f'Many entries ({f})'

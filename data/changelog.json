@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Patch calendar, richer hero changes, cleaner stat tables",
+    "items": [
+      "Patches → Calendar: every year by month and day, shaded by how many game builds landed, patch days marked (named updates in gold), with the year's numbers and the monthly cadence.",
+      "Hero and item changes: tiles show how many changes a patch made; hovering opens a card with the patch, the counts and the three biggest changes.",
+      "Items and Units & Buildings tables: one table per category with only the columns it uses; items by tier; identical copies of a unit are one row (×N); Patron, Mid Boss and troopers named as in the game.",
+      "Hero Stats: pre-release heroes hidden behind a switch; the legend chips are gone.",
+      "All tables: centred cells and headers, light lines both ways, the history tooltip included."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Hero and item change matrices",
     "items": [
       "Heroes → Hero changes and Items → Item changes: every hero or item against every patch; each square is striped in the colours of what changed (buffs, nerfs, new, removed…), with switches for older patches, buff vs nerf and each tag, and a search.",
