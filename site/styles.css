@@ -189,6 +189,14 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
   text-shadow: 0 2px 0 var(--bg-page); }
 .banner .bt a { color: inherit; }
 .banner .bd { font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em; }
+/* patch titles: the date once; a named update gets a gold star and its name, the date beside it */
+.pname::before { content: "✦"; color: var(--tag-new); margin-right: .35em; font-size: .8em; vertical-align: .08em; }
+.pdate:not(.solo) { margin-left: 12px; font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em; text-transform: none; }
+.pkind { margin-left: 10px; font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.pfu { margin-left: 10px; font: 16px/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.ixt .t > :first-child, .recent .rt > :first-child { margin-left: 0; }
+.banner.named { box-shadow: inset 4px 0 0 var(--tag-new), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
+.ptitle h1 .pdate:not(.solo) { font-size: 22px; }
 .banner .bc { margin-left: auto; display: flex; gap: 8px; align-items: center; font: 18px/1 var(--font-label);
   color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
 .banner.sub { min-height: 36px; margin: 16px 0 8px; }
@@ -373,10 +381,18 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .vals .new { color: var(--name); font-weight: 600; }
 .vals .new.dir-buff { color: var(--tag-buff); }
 .vals .new.dir-nerf { color: var(--tag-nerf); }
-.pct { --c: var(--tag-changed); display: inline-block; min-width: 60px; margin-left: 8px; padding: 3px 6px 2px;
-  text-align: center; font: 17px/1 var(--font-label); color: var(--c);
-  background: color-mix(in srgb, var(--c) 16%, var(--bg-panel));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent); }
+/* the pill's colour strength follows the size of the change (data-g 1..5): a 2% nudge is faint,
+   a 60% swing is full colour */
+.pct { --c: var(--tag-changed); --mix: 16%; --ink: 80%; display: inline-block; min-width: 60px; margin-left: 8px; padding: 3px 6px 2px;
+  text-align: center; font: 17px/1 var(--font-label);
+  color: color-mix(in srgb, var(--c) var(--ink), var(--text-dimmer));
+  background: color-mix(in srgb, var(--c) var(--mix), var(--bg-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) calc(var(--mix) * 2 + 10%), transparent); }
+.pct[data-g="1"] { --mix: 5%; --ink: 55%; }
+.pct[data-g="2"] { --mix: 12%; --ink: 75%; }
+.pct[data-g="3"] { --mix: 20%; --ink: 90%; }
+.pct[data-g="4"] { --mix: 30%; --ink: 100%; }
+.pct[data-g="5"] { --mix: 44%; --ink: 100%; color: var(--text-bright); }
 .pct-pad { display: none; }
 .erow .vv .pct { width: 84px; min-width: 0; box-sizing: border-box; }
 .erow .vv .pct-pad { display: inline-block; width: 84px; margin-left: 8px; }
@@ -742,14 +758,25 @@ table.stats td.hm-lo { background-image: linear-gradient(var(--nerf-14), var(--n
 .hero-head h1 { font-size: 40px; margin: 0; }
 .hero-head .meta { color: var(--text-dim); font-size: 13px; margin: 4px 0 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.keystats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px; margin-top: 10px; }
-.keystat { position: relative; padding: 7px 10px 7px 34px; background: var(--bg-panel-2); }
-.keystat .si { position: absolute; left: 9px; top: 9px; }
+.keystats { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 6px; margin-top: 10px; }
+/* values centred in their tile; the stat icon sits in the corner, "changed lately" is a corner notch */
+.keystat { position: relative; min-height: 62px; padding: 8px 6px 7px; background: var(--bg-panel-2); text-align: center; }
+.keystat .si { position: absolute; left: 7px; top: 7px; width: 14px; height: 14px; opacity: .85; }
 .keystat .v { font: 22px/1 var(--font-px); color: var(--text-bright); }
-.keystat .l { font: 16px/1.1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .04em; margin-top: 4px; white-space: nowrap; }
-.keystat { min-height: 62px; }
+.keystat .l { font: 16px/1.1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .04em; margin-top: 5px; white-space: nowrap; }
 .keystat.has-hist, .wcell.has-hist { cursor: help; }
-.keystat.has-hist.recent .v::after, .wcell.has-hist.recent .v::after { content: ""; display: inline-block; width: 4px; height: 4px; margin-left: 5px; vertical-align: 4px; background: var(--patina-dim); }
+.keystat.has-hist.recent::after, .wcell.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
+  border-top: 7px solid var(--patina); border-left: 7px solid transparent; }
+/* secondary stats fold under a quiet "+ ALL STATS 12" line */
+details.more { margin-top: 8px; }
+details.more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0;
+  font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "+"; color: var(--patina); }
+details.more[open] > summary::before { content: "-"; }
+details.more > summary:hover { color: var(--text-bright); }
+details.more > summary .n { color: var(--text-dimmer); }
+details.more[open] > .stat-flow, details.more[open] > .wb-cells { margin-top: 8px; }
 .si { display: inline-block; width: 16px; height: 16px; object-fit: contain; flex: none; }
 
 /* weapon: not an ability card — a wide band, first after the head */
@@ -769,17 +796,18 @@ table.stats td.hm-lo { background-image: linear-gradient(var(--nerf-14), var(--n
 .wb-nums { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .wb-top { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .wb-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; align-content: start; }
-.wcell { display: grid; grid-template-columns: 18px minmax(0, 1fr); column-gap: 7px; align-items: center; padding: 5px 9px; background: var(--bg-panel); outline: 1px solid var(--line-soft); }
-.wcell .si { grid-row: span 2; }
+/* weapon tiles: value centred over its label, the stat icon in the corner */
+.wcell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  min-height: 52px; padding: 7px 8px 6px; background: var(--bg-panel); outline: 1px solid var(--line-soft); text-align: center; }
+.wcell .si { position: absolute; left: 6px; top: 6px; width: 14px; height: 14px; opacity: .85; }
 .wcell .v { font: 20px/1 var(--font-px); color: var(--text-bright); font-variant-numeric: tabular-nums; }
-.wcell .l { font-size: 12px; line-height: 1.25; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wcell .l { max-width: 100%; font-size: 12px; line-height: 1.25; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wcell.spirit .v { color: var(--tag-rework); }
 .wcell .v .u { margin-left: 2px; font: 15px/1 var(--font-label); color: var(--label); }
-.wcell.top { grid-template-columns: 20px minmax(0, 1fr); grid-template-areas: "i l" "v v"; row-gap: 6px;
-  padding: 9px 10px 10px; background: var(--bg-panel-2); outline: 0; box-shadow: inset 0 -2px 0 var(--patina-dim); }
-.wcell.top .si { grid-area: i; grid-row: auto; width: 20px; height: 20px; }
-.wcell.top .l { grid-area: l; font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .05em; }
-.wcell.top .v { grid-area: v; font-size: 32px; }
+.wcell.top { min-height: 72px; gap: 6px; padding: 10px 8px; background: var(--bg-panel-2); outline: 0; box-shadow: inset 0 -2px 0 var(--patina-dim); }
+.wcell.top .si { width: 18px; height: 18px; }
+.wcell.top .l { order: 2; font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .05em; }
+.wcell.top .v { order: 1; font-size: 32px; }
 .wcell:hover { background: var(--bg-hover); }
 @media (max-width: 1100px) { .wb-top, .wb-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .weapon-block { grid-template-columns: minmax(0, 1fr); } }

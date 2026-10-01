@@ -303,3 +303,39 @@ def build_href(file_name: str, rel: str) -> str:
 
 def fmt_date(iso: str) -> str:
     return (iso or '')[:10]
+
+
+# ---- patch titles: the date once; a named update shows its name -------------------------
+_TITLE_DATE = re.compile(r'\b\d{2}-\d{2}-\d{4}\b|\b\d{4}-\d{2}-\d{2}\b')
+FOLLOW_UP = ' · follow-up '
+
+
+def patch_name(title: str) -> str | None:
+    """The update's own name without dates: 'City Never Sleeps · 09-29-2026' -> 'City Never Sleeps',
+    'Gameplay Update - 03-06-2026' -> 'Gameplay Update'; '09-16-2026 Update' has none (its only
+    name was the date, which the site shows anyway). A follow-up carries its parent's name."""
+    base = title.split(FOLLOW_UP)[0]
+    rest = _TITLE_DATE.sub(' ', base)
+    rest = re.sub(r'[\s·\-–—]+', ' ', rest).strip()
+    return None if rest.lower() in ('', 'update', 'patch', 'patch notes') else rest
+
+
+def patch_parts(row: dict) -> tuple[str | None, str, bool]:
+    """(name or None, ISO date, is a follow-up) for a patch index row."""
+    return patch_name(row['title']), fmt_date(row['date']), FOLLOW_UP in row['title']
+
+
+def patch_title_text(row: dict) -> str:
+    """Plain text for tooltips and <title>: 'City Never Sleeps · 2026-09-29', '2026-09-16 update'."""
+    name, date, follow = patch_parts(row)
+    out = f'{name} · {date}' if name else f'{date} update'
+    return out + (' · follow-up' if follow else '')
+
+
+def patch_title_html(row: dict) -> str:
+    """A named update: its name highlighted, then the date; otherwise the date alone."""
+    name, date, follow = patch_parts(row)
+    fu = '<span class="pfu">follow-up</span>' if follow else ''
+    if name:
+        return f'<span class="pname">{esc(name)}</span><span class="pdate">{esc(date)}</span>{fu}'
+    return f'<span class="pdate solo">{esc(date)}</span><span class="pkind">update</span>{fu}'

@@ -2,7 +2,8 @@
 the site's totals, recent patches, all heroes."""
 from __future__ import annotations
 
-from .common import EYE_SVG, esc, glyph_for, hero_icon, load_json, mark, page, visual, write
+from .common import (EYE_SVG, esc, glyph_for, hero_icon, load_json, mark, page, patch_name, patch_parts,
+                     patch_title_html, visual, write)
 from .patches_pages import GAMEPLAY, _summary, hero_names
 from .render import tag_html, vals_html
 
@@ -47,11 +48,18 @@ def _latest(row: dict | None) -> str:
     quiet = (' · <span class="no-notes">no balance notes</span>'
              if p.get('sections') and not c.get('documented') and not c.get('described') else '')
     return (f'<section class="latest px-frame hero-frame">'
-            f'<div class="banner"><span class="bt"><a href="{href}">{esc(row["title"])}</a></span>'
-            f'<span class="bd">latest update · {esc(row["date"])}{quiet}</span>'
+            f'<div class="banner{" named" if patch_name(row["title"]) else ""}"><span class="bt"><a href="{href}">'
+            f'{patch_title_html(row)}</a></span><span class="bd">latest update{quiet}</span>'
             f'<span class="bc"><a class="px-btn" href="{href}">Open the patch →</a></span></div>'
             f'{_summary(p, gameplay, "", link_base=href).replace("summary px-frame", "summary")}'
             f'<h3 class="mini-h">Biggest changes</h3>{_biggest(p)}</section>')
+
+
+def _recent_name(r: dict) -> str:
+    """The date is in its own column: the row shows the update's name, or a quiet 'update'."""
+    name, _, follow = patch_parts(r)
+    fu = ' <span class="pfu">follow-up</span>' if follow else ''
+    return (f'<span class="pname">{esc(name)}</span>' if name else '<span class="pkind">update</span>') + fu
 
 
 def _recent(patches: list[dict]) -> str:
@@ -66,7 +74,7 @@ def _recent(patches: list[dict]) -> str:
         if lc.get('mismatch'):
             chips += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
         rows.append(f'<a class="rp" href="patches/{esc(r["id"])}.html"><span class="rd">{esc(r["date"])}</span>'
-                    f'<span class="rt">{esc(r["title"])}</span><span class="rb">{r["builds"]} builds</span>'
+                    f'<span class="rt">{_recent_name(r)}</span><span class="rb">{r["builds"]} builds</span>'
                     f'<span class="rc">{chips}</span></a>')
     return '<div class="recent px-frame">' + ''.join(rows) + '</div>'
 

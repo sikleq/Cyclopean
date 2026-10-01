@@ -5,7 +5,8 @@ import re
 from functools import lru_cache
 
 from .notes_view import notes_table
-from .common import build_href, esc, ids_to_names, load_json, mark, names_by_id, page, pretty_id, write
+from .common import (build_href, esc, ids_to_names, load_json, mark, names_by_id, page, patch_name, patch_title_html,
+                     patch_title_text, pretty_id, write)
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
@@ -212,15 +213,16 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     # patch switcher next to the title (players step through patches)
     step = ''
     if prev:
-        step += f'<a class="step" href="{esc(prev["id"])}.html" data-tooltip="{esc(prev["title"])}">◀</a>'
+        step += f'<a class="step" href="{esc(prev["id"])}.html" data-tooltip="{esc(patch_title_text(prev))}">◀</a>'
     if nxt:
-        step += f'<a class="step" href="{esc(nxt["id"])}.html" data-tooltip="{esc(nxt["title"])}">▶</a>'
-    parts = [f'<div class="crumbs"><a href="index.html">Patches</a> / {esc(p["date"])}</div>',
-             f'<div class="ptitle"><h1>{esc(p["title"])}</h1><span class="steps">{step}</span></div>']
+        step += f'<a class="step" href="{esc(nxt["id"])}.html" data-tooltip="{esc(patch_title_text(nxt))}">▶</a>'
+    named = ' named' if patch_name(p['title']) else ''
+    parts = ['<div class="crumbs"><a href="index.html">Patches</a></div>',
+             f'<div class="ptitle{named}"><h1>{patch_title_html(p)}</h1><span class="steps">{step}</span></div>']
     builds = ', '.join(f'<a href="{build_href(b["file"], rel)}">{b["build"]}</a>' for b in p['builds'][:30])
     link_text = 'official notes' if p.get('source') != 'announcement' else 'official announcement'
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
-    parts.append(f'<div class="meta muted">{esc(p["date"])}{src} · builds: {builds or "—"}</div>')
+    parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
     gameplay = []
     for e in p['entities']:
@@ -260,12 +262,12 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{html}</div>')
     nav = []
     if prev:
-        nav.append(f'<a class="px-btn" href="{esc(prev["id"])}.html">← {esc(prev["title"])}</a>')
+        nav.append(f'<a class="px-btn" href="{esc(prev["id"])}.html">← {esc(patch_title_text(prev))}</a>')
     if nxt:
-        nav.append(f'<a class="px-btn" href="{esc(nxt["id"])}.html">{esc(nxt["title"])} →</a>')
+        nav.append(f'<a class="px-btn" href="{esc(nxt["id"])}.html">{esc(patch_title_text(nxt))} →</a>')
     parts.append('<div class="flex">' + ''.join(nav) + '</div>')
-    return page(p['title'], ''.join(parts), rel, 'patches',
-                description=f'Deadlock {p["title"]}: official notes vs game files')
+    return page(patch_title_text(p), ''.join(parts), rel, 'patches',
+                description=f'Deadlock {patch_title_text(p)}: official notes vs game files')
 
 
 def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
@@ -381,11 +383,13 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
             audit += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
     else:
         audit = f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("unannounced", 0)}</b> no notes</span>'
-    title = p['title'].split(' · follow-up ')[-1] if follow else p['title']
-    title = f'follow-up {title}' if follow else title
+    # the date is the row's first column: the title cell shows only the name (or 'update')
+    name = patch_name(p['title'])
+    title = ('<span class="pfu">follow-up</span>' if follow
+             else f'<span class="pname">{esc(name)}</span>' if name else '<span class="pkind">update</span>')
     return (f'<a class="ix{" fu" if follow else ""}" href="{esc(p["id"])}.html">'
             f'<span class="ixd">{esc(p["date"])}</span>'
-            f'<span class="ixt"><span class="t">{esc(title)}</span><span class="b">{p["builds"]} builds</span></span>'
+            f'<span class="ixt"><span class="t">{title}</span><span class="b">{p["builds"]} builds</span></span>'
             f'<span class="ixs">{dirs}</span><span class="ixh">{faces}</span>'
             f'<span class="ixa">{audit}{_bar(c)}</span></a>')
 

@@ -118,8 +118,15 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   open) over ONE full-width panel — an ability sub-header, its official lines (prefix dropped), then the
   file changes no line spelled out exactly; a single-entity page (item, unit) has no sub-header. The
   "Only hidden" filter sits in the History heading row (`hero_page.history_heading`).
-- Hero page weapon panel: six equal headline tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg,
-  Bullets/s, Ammo, Reload) with one-line labels, the rest of the Damage group in an even grid.
+- Hero page head: every main non-gun stat as a tile (`hero_page.KEY_STATS`: health, regen, resists,
+  movement, melee, spirit growth), values centred; the secondary ones fold under "All stats". Weapon
+  panel: six headline tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload),
+  the rest under "All weapon stats" (units ride on the number). "Changed lately" is a corner notch.
+- Patch titles (`common.patch_title_html` / `patch_title_text`): the date once. A named update (City
+  Never Sleeps, Matchmaking Update) shows ✦ name + date and a gold banner bar; a dated one ("09-16-2026
+  Update") shows only its date + "update"; follow-ups say so.
+- % pills grade their colour strength by size (`render.pct_grade`, steps 5/15/30/60%; scripts.js
+  `pctGrade` mirrors them); the history tooltip shows no pill for a first value or a 0.0% step.
 - Item page: current values in a sticky left column beside the history.
 - Heroes index: under each portrait the newest patch that touched the hero or its abilities
   (`trail.hero_last`) — its two biggest counters and the date.

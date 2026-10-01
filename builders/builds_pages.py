@@ -1,7 +1,7 @@
 """Build pages: every tracked game build and exactly what its files changed."""
 from __future__ import annotations
 
-from .common import build_pages, esc, load_json, page, write
+from .common import build_pages, esc, load_json, page, patch_title_text, write
 from .patches_pages import _changes_table, _loc_li, convar_li
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -40,7 +40,7 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
             f'<h1>Build {rec["build"]}</h1>',
             f'<div class="page-head"><div class="meta">Tracked {esc(rec["date"][:16].replace("T", " "))} UTC'
             f'{" · game build date " + esc(rec["version_date"]) if rec.get("version_date") else ""}'
-            f'{" · part of <a href=" + chr(34) + rel + "patches/" + esc(patch["id"]) + ".html" + chr(34) + ">" + esc(patch["title"]) + "</a>" if patch else ""}'
+            f'{" · part of <a href=" + chr(34) + rel + "patches/" + esc(patch["id"]) + ".html" + chr(34) + ">" + esc(patch_title_text(patch)) + "</a>" if patch else ""}'
             f'</div></div>']
     boxes = [
         ('', len(ents), 'entities with gameplay changes'),
@@ -97,7 +97,7 @@ def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
         if not (gp or r.get('loc') or r.get('convars') or r.get('added') or r.get('removed')):
             continue
         patch = patch_of.get(r['file'])
-        ptxt = f'<small>{esc(patch["title"])}</small>' if patch else ''
+        ptxt = f'<small>{esc(patch_title_text(patch))}</small>' if patch else ''
         chips = []
         if gp:
             chips.append(f'<span class="chip">{gp} gameplay</span>')

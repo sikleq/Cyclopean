@@ -13,8 +13,10 @@ from .history_view import history_table  # noqa: F401  (re-exported for entities
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
 SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Signature_1': 'Ability 1',
               'Signature_2': 'Ability 2', 'Signature_3': 'Ability 3', 'Signature_4': 'Ultimate'}
-# the head strip: survivability and movement; gun numbers live in the weapon block right below
-KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina', 'spirit_lvl')
+# the head strip: every main non-gun stat (survival, movement, melee, spirit growth); the rest of
+# the stats fold under "All stats" right below it, the gun's under the weapon block (user, 10-01)
+KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina',
+             'light_melee', 'heavy_melee', 'spirit_lvl')
 WEAPON_GROUP = 'Damage'
 # the six numbers a player compares first: one row of equal tiles with one-line labels
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
@@ -85,6 +87,15 @@ def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
     return '<div class="keystats">' + ''.join(out) + '</div>'
 
 
+def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
+    """Secondary stats (per-boon growth of resists, dashes, collision…) folded under the head."""
+    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS)
+    if not panels:
+        return ''
+    n = panels.count('class="sc-row"')
+    return f'<details class="more"><summary>All stats <span class="n">{n}</span></summary>{panels}</details>'
+
+
 def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
     out = []
     for c in cs:
@@ -152,7 +163,14 @@ def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel:
     return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px", "abilities")}'
             f'<div><div class="wb-kicker">Weapon</div>{name_html}{desc}</div></div>'
             f'<div class="wb-nums"><div class="wb-top">{"".join(top)}</div>'
-            f'<div class="wb-cells">{"".join(rest)}</div></div></section>')
+            f'{_more_weapon(rest)}</div></section>')
+
+
+def _more_weapon(cells: list[str]) -> str:
+    if not cells:
+        return ''
+    return (f'<details class="more"><summary>All weapon stats <span class="n">{len(cells)}</span></summary>'
+            f'<div class="wb-cells">{"".join(cells)}</div></details>')
 
 
 def prop_icon(css: str | None, rel: str) -> str:
@@ -256,18 +274,15 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div><h1>{esc(name)}</h1>'
             f'<div class="meta">First seen: build {h["first"][0]} ({esc(h["first"][1])})</div>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'{key_stats(table_row, cols, name, rel) if table_row else ""}</div></div>')
+            f'{key_stats(table_row, cols, name, rel) + more_stats(table_row, cols, name, rel) if table_row else ""}'
+            f'</div></div>')
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
     weapon = weapon_block(weapon_card, table_row, cols, name, rel) if table_row else ''
     # without a stats row there is no weapon block: the gun stays an ordinary card
     abil_cards = [ability_card(c, rel, SLOT_LABEL.get(c.get('slot', ''), c.get('slot', '')))
                   for c in mine if c.get('slot') != 'Weapon_Primary' or not table_row]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
-    stats = ''
-    if table_row:
-        panels = stat_tables(table_row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS)
-        stats = f'<h2>Stats</h2>{panels}' if panels else ''
     keys = _owned_keys(hid, name, mine, ents_by_id, rel)
     hist = history_table(keys, [name], by_ent, by_subject, rel)
-    body = head + weapon + abil + stats + history_heading() + f'<div id="history">{hist}</div>'
+    body = head + weapon + abil + history_heading() + f'<div id="history">{hist}</div>'
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: stats, abilities and every change')

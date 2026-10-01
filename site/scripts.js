@@ -88,14 +88,18 @@
       for (var i = hist.length - 1; i >= 0; i--) {
         var h = hist[i];
         var cls = dirClass(h[2], h[3], pol);
-        var pct = '';
+        // the pill only when there is a real change to measure: a first value or a 0.0% step gets none
+        var pill = '';
         if (typeof h[2] === 'number' && typeof h[3] === 'number' && h[2] !== 0) {
           var q = (h[3] - h[2]) / Math.abs(h[2]) * 100;
-          pct = (q > 0 ? '+' : '') + q.toFixed(1) + '%';
+          if (Math.abs(q) >= 0.05) {
+            pill = '<span class="' + cls + ' pct" data-g="' + pctGrade(q) + '">' + (q > 0 ? '+' : '') + q.toFixed(1) + '%</span>';
+          }
         }
-        html += '<li><span class="d">' + h[1] + '</span><span>' + fmtNum(h[2], digits) +
-          '<span class="arrow">→</span><span class="' + cls + '">' + fmtNum(h[3], digits) + '</span></span>' +
-          '<span class="' + cls + ' pct">' + pct + '</span></li>';
+        var vals = (h[2] === null || h[2] === undefined)
+          ? '<span class="first">' + fmtNum(h[3], digits) + '</span>'
+          : fmtNum(h[2], digits) + '<span class="arrow">→</span><span class="' + cls + '">' + fmtNum(h[3], digits) + '</span>';
+        html += '<li><span class="d">' + h[1] + '</span><span>' + vals + '</span>' + pill + '</li>';
       }
       html += '</ol>';
       tip.innerHTML = html;
@@ -107,6 +111,10 @@
       if (y + th > window.innerHeight - 8) y = r.top - th - 8;
       tip.style.left = x + 'px';
       tip.style.top = Math.max(8, y) + 'px';
+    }
+    function pctGrade(q) {
+      var a = Math.abs(q);
+      return a < 5 ? 1 : a < 15 ? 2 : a < 30 ? 3 : a < 60 ? 4 : 5;     // same steps as render.pct_grade
     }
     function dirClass(a, b, pol) {
       if (typeof a !== 'number' || typeof b !== 'number' || a === b || pol === 0) return 'dir-changed';

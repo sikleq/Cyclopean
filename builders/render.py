@@ -214,6 +214,13 @@ def _clip(s) -> str:
 
 
 PCT_PAD = '<span class="pct-pad"></span>'
+PCT_STEPS = (5, 15, 30, 60)      # |%| boundaries of the pill's 5 colour strengths (scripts.js pctGrade mirrors them)
+
+
+def pct_grade(pct: float) -> int:
+    """1 (a nudge, faint pill) .. 5 (60%+, full colour)."""
+    a = abs(pct)
+    return 1 + sum(a >= s for s in PCT_STEPS)
 
 
 def vals_html(c: dict) -> str:
@@ -237,7 +244,8 @@ def vals_html(c: dict) -> str:
         return f'<span class="vals"><span class="old">{esc(old_s)}</span>{PCT_PAD}</span>'
     d = c.get('dir', 'changed')
     pct = c.get('pct')
-    pct_s = f'<span class="pct dir-{d}">{pct:+.1f}%</span>' if isinstance(pct, (int, float)) else PCT_PAD
+    pct_s = (f'<span class="pct dir-{d}" data-g="{pct_grade(pct)}">{pct:+.1f}%</span>'
+             if isinstance(pct, (int, float)) else PCT_PAD)
     return (f'<span class="vals"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
             f'<span class="new dir-{d}">{esc(new_s)}</span>{pct_s}</span>')
 

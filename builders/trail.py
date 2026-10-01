@@ -6,7 +6,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from .cards import player_facing
-from .common import esc, load_json
+from .common import esc, load_json, patch_title_text
 from .render import tag_of
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -107,7 +107,7 @@ def trail_html(key: str, current: str | None = None, rel: str = '../', n: int = 
         tag = hits.get(r['id'])
         cur = ' cur' if r['id'] == current else ''
         if tag:
-            tip = f'{r["title"]} · {TAG_WORD.get(tag, tag)}'
+            tip = f'{patch_title_text(r)} · {TAG_WORD.get(tag, tag)}'
             cells.append(f'<a class="sq t-{tag}{cur}" href="{rel}patches/{esc(r["id"])}.html" '
                          f'data-tooltip="{esc(tip)}"></a>')
         else:

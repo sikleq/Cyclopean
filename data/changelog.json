@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Patch titles, graded % pills, hero stats in the header",
+    "items": [
+      "Patch titles show the date once; named updates (City Never Sleeps, Matchmaking Update) get a star and their name with the date beside it.",
+      "The % next to a change gets stronger colour the bigger the change: a 2% nudge is faint, a 60% swing is full colour.",
+      "Stat history tooltips no longer show an empty % box for a first value or a 0.0% step.",
+      "Hero pages: every main stat is a tile in the header, the rest under 'All stats'; the weapon's six key numbers stay visible, the rest under 'All weapon stats'; values are centred."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Redesign: cards, banners, readable pixel fonts",
     "items": [
       "New fonts: Jersey 20 for headings and names (clear pixel digits), VT323 for labels and tags, IBM Plex Sans for text.",

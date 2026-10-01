@@ -229,3 +229,20 @@ def test_hero_last_skips_engine_only_patches(monkeypatch):
     row, changes = trail.hero_last('hero_atlas')
     assert row['id'] == 'p1' and len(changes) == 1
     trail._hero_changes.cache_clear()
+
+
+def test_patch_titles_show_the_date_once():
+    from builders.common import patch_name, patch_title_html, patch_title_text
+    assert patch_name('City Never Sleeps · 09-29-2026') == 'City Never Sleeps'
+    assert patch_name('Gameplay Update - 03-06-2026') == 'Gameplay Update'
+    assert patch_name('09-16-2026 Update') is None
+    assert patch_name('06-30-2026 Update · follow-up 2026-07-28') is None
+    row = {'title': '09-16-2026 Update', 'date': '2026-09-16'}
+    assert patch_title_html(row).count('2026-09-16') == 1 and '09-16-2026' not in patch_title_html(row)
+    assert patch_title_text({'title': 'City Never Sleeps · 09-29-2026', 'date': '2026-09-29'}) == 'City Never Sleeps · 2026-09-29'
+
+
+def test_pct_pill_strength_follows_size():
+    from builders.render import pct_grade, vals_html
+    assert [pct_grade(x) for x in (2, -7, 20, -45, 122)] == [1, 2, 3, 4, 5]
+    assert 'data-g="3"' in vals_html(ch(old_s='40', new_s='32', pct=-20.0))

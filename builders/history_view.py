@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 
-from .common import esc, glyph_for, mark
+from .common import esc, glyph_for, mark, patch_name, patch_title_html
 from .notes_view import _highlight, _line_tag
 
 LINE_STATUSES = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked')
@@ -124,9 +124,9 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         head = '' if single else sub_head(nm, ic, glyph_for(file, eid), counted, hidden)
         parts.append(f'<div class="hgroup{" has-hidden" if hidden else ""}">{head}{"".join(rows)}{change_rows(rest)}</div>')
     hidden_cls = ' has-hidden' if is_hidden(all_ch) else ''
-    summary = (f'<summary class="banner{" hidden-only" if n_hidden and n_hidden == len(all_ch) else ""}">'
-               f'<span class="bt"><a href="{rel}patches/{esc(pid)}.html">{esc(hdr["title"])}</a></span>'
-               f'<span class="bd">{esc(hdr["date"])}</span>'
+    cls = (' hidden-only' if n_hidden and n_hidden == len(all_ch) else '') + (' named' if patch_name(hdr['title']) else '')
+    summary = (f'<summary class="banner{cls}">'
+               f'<span class="bt"><a href="{rel}patches/{esc(pid)}.html">{patch_title_html(hdr)}</a></span>'
                f'<span class="bc">{tag_summary(player_facing(counted_all))}{chips}</span></summary>')
     return (f'<details class="pblock{hidden_cls}"{" open" if open_ else ""}>{summary}'
             f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div></details>')
