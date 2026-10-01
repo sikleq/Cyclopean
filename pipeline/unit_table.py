@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import time
 
+from .hero_table import history_changes
 from . import cache, loc, tracker
 from .classify import unit_kind
 from .semantics import UNITS_PER_METER
@@ -103,8 +104,7 @@ def build() -> dict:
             'name': loc.unit_name(tok, uid, u),
             'kind': unit_kind(uid, u),
             'values': values,
-            'history': {k: [[pts[i][0], pts[i][1], pts[i - 1][2], pts[i][2]] for i in range(1, len(pts))]
-                        for k, pts in hs.items() if len(pts) > 1},
+            'history': {k: history_changes(pts) for k, pts in hs.items() if len(history_changes(pts))},
         })
     data = {
         'build': last_build.build, 'date': last_build.date,

@@ -203,6 +203,20 @@ def evaluate(hero: dict, abilities: dict) -> dict:
     return out
 
 
+def history_changes(pts: list[list]) -> list[list]:
+    """[[build, date, value], …] -> [[build, date, old, new], …]. A stretch where the value is missing
+    from the files and then comes back (Billy's weapon, builds 5747-5788) is a gap in the data, not two
+    changes: it bridges into one old -> new on the build where it returned (none if it returned
+    unchanged). A value missing at the very end stays a removal; at the start, a first value."""
+    kept = [p for i, p in enumerate(pts)
+            if p[2] is not None or i == len(pts) - 1 or all(q[2] is None for q in pts[:i])]
+    out = []
+    for prev, cur in zip(kept, kept[1:]):
+        if prev[2] != cur[2]:
+            out.append([cur[0], cur[1], prev[2], cur[2]])
+    return out
+
+
 def _sort_name(tok: dict[str, str], hero: dict, hid: str) -> str:
     """'#hero_doorman_sort' -> 'Doorman' (localized); heroes without one sort by their name."""
     key = str(hero.get('m_strHeroSortName') or '').lstrip('#').lower()
@@ -271,7 +285,7 @@ def build() -> dict:
         hs = series.get(hid, {})
         history = {}
         for k, pts in hs.items():
-            changes = [[pts[i][0], pts[i][1], pts[i - 1][2], pts[i][2]] for i in range(1, len(pts))]
+            changes = history_changes(pts)
             if changes:
                 history[k] = changes
         wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')

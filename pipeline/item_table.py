@@ -11,6 +11,7 @@ from __future__ import annotations
 import json
 import time
 
+from .hero_table import history_changes
 from . import cache, loc, tracker
 
 OUT = tracker.ROOT / 'data' / 'tables' / 'items.json'
@@ -104,8 +105,7 @@ def build() -> dict:
             'slot': SLOTS.get(str(it.get('m_eItemSlotType')), ''),
             'activation': active,
             'values': values,
-            'history': {k: [[pts[i][0], pts[i][1], pts[i - 1][2], pts[i][2]] for i in range(1, len(pts))]
-                        for k, pts in hs.items() if len(pts) > 1},
+            'history': {k: history_changes(pts) for k, pts in hs.items() if len(history_changes(pts))},
         })
     cols = [{'key': 'tier', 'label': 'Tier', 'group': 'Shop', 'pol': 0, 'digits': 0},
             {'key': 'cost', 'label': 'Cost', 'group': 'Shop', 'pol': -1, 'digits': 0}]

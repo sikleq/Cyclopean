@@ -1274,7 +1274,11 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 .hist-tip li > span:last-child { border-right: 0; }
 .hist-tip li:last-child > span { border-bottom: 0; }
 .hist-tip li .o, .hist-tip li .p { text-align: center; }
+/* was → now is one value cell: no lines inside it, only around it */
+.hist-tip li .o, .hist-tip li .arrow { border-right: 0; }
+.hist-tip li .o { padding-right: 2px; text-align: right; }
 .hist-tip li .arrow { padding: 4px 2px; }
+.hist-tip li .n { padding-left: 2px; text-align: left; }
 
 /* ---------- 17. change matrix: tiles and the hover card ---------- */
 /* a tile: stripes in tag colours, a pixel bevel, the number of changes in the corner */

@@ -7,7 +7,8 @@
       "Hero and item changes: tiles show how many changes a patch made; hovering opens a card with the patch, the counts and the three biggest changes.",
       "Items and Units & Buildings tables: one table per category with only the columns it uses; items by tier; identical copies of a unit are one row (×N); Patron, Mid Boss and troopers named as in the game.",
       "Hero Stats: pre-release heroes hidden behind a switch; the legend chips are gone.",
-      "All tables: centred cells and headers, light lines both ways, the history tooltip included."
+      "All tables: centred cells and headers, light lines both ways, the history tooltip included.",
+      "Stat histories no longer show '11.26 → —' and '— → 11.62' when a value was briefly missing from the game files: it is one change, 11.26 → 11.62."
     ]
   },
   {
