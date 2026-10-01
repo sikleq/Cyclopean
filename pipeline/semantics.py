@@ -28,10 +28,18 @@ _LOWER_BETTER = re.compile(
 # 2026-10-01, 91 rows): what has to be shorter / smaller …
 _LOWER_FIRST = re.compile(
     r'(decaydelay|postcast|armtime|chargeuptime|deploytime|timetogain|fadeto|telegraph|gravity|ammoconsumed|'
-    r'bulletstofully|drainrate|durationformax|expandtime|spindecay|nonheroreduction)', re.I)
+    r'bulletstofully|drainrate|durationformax|expandtime|spindecay|nonheroreduction|'
+    # a dash covers a fixed distance (EGround/AirDashDistanceInMeters): longer = slower ("same
+    # distance, slower to get there", 2025-07-29) — 22 rows read BUFF (audit 2026-10-01)
+    r'dashduration|airdashtraveltime)', re.I)
+# a slow on the player's own movement (mantle / climb rope when hit): smaller is better — checked on
+# the whole path, the field itself is a generic "Percentage Multiplier Start"
+_SELF_SLOW = re.compile(r'(SlowOnHit|SlowFromRecentDamage)Modifier\.', re.I)
 # … and what has to be bigger: health on respawn, a delay that grows with spirit, a bonus to the
 # damage the ENEMY takes (Alchemical Fire), how long before rage drains
-_HIGHER_FIRST = re.compile(r'(respawnhealth|wakeupdelay|draindelay|bonus\w*damagetaken)', re.I)
+_HIGHER_FIRST = re.compile(r'(respawnhealth|wakeupdelay|draindelay|bonus\w*damagetaken|'
+                           # the parried enemy takes it: "Parry bonus damage reduced from 30% to 25%" is a nerf
+                           r'victimdamagetaken|meleedamagetakenscale)', re.I)
 # fields where direction is not meaningful for the owner
 _NEUTRAL = re.compile(r'(tangent|spline|curve|domain|seed|index|order|count_max_ui|_class|mask|bits|flags?$)', re.I)
 
@@ -61,6 +69,8 @@ def polarity(path: str) -> int:
     name = property_name(path)
     if _NEUTRAL.search(name):
         return 0
+    if _SELF_SLOW.search(path) and 'PercentageMultiplier' in name:
+        return -1
     if _HIGHER_FIRST.search(name):
         return 1
     if _LOWER_FIRST.search(name):
@@ -86,6 +96,10 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
         return 'changed', None
     a, b = abs(float(old)), abs(float(new))
     pct = None if a == 0 else (b - a) / a * 100.0
+    if _ARMOR_INVEST.search(path) and min(a, b) > 0 and max(a, b) >= 5 * min(a, b):
+        # Vitality investment switched units twice (a % of base health <-> flat HP; builds 6044 and
+        # 6403): "8 → 75 +837%" was a unit, not a buff (audit 2026-10-01)
+        return 'changed', None
     if (float(old) in SENTINELS or float(new) in SENTINELS) and not UPGRADE_BONUS.search(path):
         return 'changed', None              # "no limit" (-1, 9999) on one side: no direction, no %
     if drawback and kind not in SHARED_KINDS:
@@ -126,6 +140,7 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
 
 
 UPGRADE_BONUS = re.compile(r'm_vecAbilityUpgrades.*\.m_strBonus$')
+_ARMOR_INVEST = re.compile(r'^m_MapModCostBonuses\.EItemSlotType_Armor\W.*\.flBonus$')
 # a property that hits the enemy, written as a negative: a bigger (more negative) tier bonus is a stronger
 # debuff even when the base value is 0 (Aura of Suffering T1 Enemy Dash Slow -25 -> -22 is a nerf)
 _ENEMY_DEBUFF = re.compile(r'(enemy|slow|shred|debuff|armordamagereduction|resistreduction)', re.I)
@@ -171,9 +186,12 @@ CUSTOM_STAT_LABELS = {
     'StaminaRegenPerSecond': 'Stamina Regen',
     'LightMeleeDamage': 'Light Melee Damage',
     'HeavyMeleeDamage': 'Heavy Melee Damage',
-    'CritDamageReceivedScale': 'Headshot Damage Taken',
-    'CritDamageBonusScale': 'Headshot Damage Bonus',
+    'CritDamageReceivedScale': 'Headshot Damage Taken ×',
+    'CritDamageBonusScale': 'Headshot Damage Bonus ×',
 }
+# our own words win over the game's for these: "Crit Reduction 0.75 → 0.65" read as a nerf of a
+# reduction; the value is the multiplier on headshot damage taken (audit 2026-10-01)
+CUSTOM_FIRST = ('CritDamageReceivedScale', 'CritDamageBonusScale')
 
 LEVEL_UP_LABELS = {
     'MODIFIER_VALUE_BASE_HEALTH_FROM_LEVEL': 'Health per boon',
@@ -183,6 +201,7 @@ LEVEL_UP_LABELS = {
     'MODIFIER_VALUE_TECH_POWER': 'Spirit power per boon',
     'MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST': 'Bullet resist per boon',
     'MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST': 'Spirit resist per boon',
+    'MODIFIER_VALUE_TECH_RESIST': 'Spirit resist per boon',          # the key's name since build 6541
     'MODIFIER_VALUE_BONUS_ATTACK_RANGE': 'Weapon range per boon',
     'MODIFIER_VALUE_BOON_COUNT': 'Boons per level',
     'MODIFIER_VALUE_OUT_OF_COMBAT_HEALTH_REGEN': 'Out-of-combat regen per boon',
@@ -198,10 +217,22 @@ _NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|De
                            re.I)
 
 
+METRES = 'metres'          # already metres: shown as is with "m"
+MPS = 'mps'                # already metres per second: shown as is with "m/s"
+# engine floats Valve writes in metres / m/s already (the rope's climb speed 13 -> 14 in the 2024-09-12
+# notes; the dash's drag thresholds 12 / 14 m/s against a 10 m dash in 0.68 s)
+_ALREADY_MPS = re.compile(r'(ClimbSpeed|AirSpeedFor\w*Drag)')
+
+
 def engine_unit(leaf: str) -> bool | str:
     """An engine float named like a length or a speed is in engine units: Walker 'Invul Modifier Range
     1338.58 → 866.14' is 34 → 22 m, a projectile 'Speed 1050 → 400' is 26.7 → 10.2 m/s (audit
-    2026-10-01: 302 rows of abilities, 225 of units in raw units)."""
+    2026-10-01: 302 rows of abilities, 225 of units in raw units) — unless its name says metres
+    ("Dash Jump Distance In Meters 18 → 19" was divided into 0.46 m)."""
+    if 'Meters' in leaf:
+        return MPS if re.search(r'(PerSecond|Speed)', leaf) else METRES
+    if _ALREADY_MPS.search(leaf):
+        return MPS
     if not leaf.startswith('m_fl') or _NOT_A_LENGTH.search(leaf[4:]):
         return False
     if re.search(r'(Speed|Velocity)', leaf):
@@ -303,7 +334,7 @@ def _loc_label(tok: dict[str, str], name: str, ability: str | None = None) -> st
 def stat_label(tok: dict[str, str], stat: str) -> str:
     base = stat[1:] if stat.startswith('E') and stat[1:2].isupper() else stat
     key = 'StatDesc_' + STAT_DESC_EXCEPTIONS.get(base, base)
-    if key.lower() in tok:
+    if key.lower() in tok and base not in CUSTOM_FIRST:
         return re.sub(r'<[^>]+>', '', tok[key.lower()]).strip()
     return CUSTOM_STAT_LABELS.get(base) or humanize(base)
 
@@ -436,14 +467,24 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         if stat == 'EStaminaRegenPerSecond':
             # stamina per second (0.2) is what the game prints as a stamina cooldown (5s)
             return {'label': 'Stamina Cooldown', 'meters': False, 'group': 'stat', 'unit': 's', 'invert': True}
-        # the stat panel's postfix is for BONUSES ("+12%"); a base value keeps only a length, speed or time
+        # the stat panel's postfix is for BONUSES; a base value keeps a length, speed, time or a
+        # resist's % — not a multiplier's ("Crit Bonus Scale 1% → 0.8%") or a regen's
         unit = stat_unit(tok, stat).strip()
+        if stat.endswith('Speed') and unit == 'm':
+            unit = 'm/s'                         # Valve's run / sprint postfix says "m" since 2026-01
+        elif re.search(r'(Duration|Time|Cooldown)$', stat):
+            unit = 's'
+        elif unit == '%' and re.search(r'(Scale|Regen|PerSecond|Rate)', stat):
+            unit = ''
         return {'label': stat_label(tok, stat), 'meters': False, 'group': 'stat',
-                'unit': unit if unit in ('m', 'm/s', 's') else ''}
+                'unit': unit if unit in ('m', 'm/s', 's', '%') else ''}
     if path.startswith('m_mapStandardLevelUpUpgrades.'):
         mod = path.split('.')[1]
         label = LEVEL_UP_LABELS.get(mod) or _loc_label(tok, mod) or humanize(mod.replace('MODIFIER_VALUE_', '').lower())
-        return {'label': label, 'meters': False, 'group': 'levelup'}
+        # range per boon is engine units (48 -> 59 is 1.22 -> 1.5 m, as the 2025-09-04 notes say)
+        meters = mod == 'MODIFIER_VALUE_BONUS_ATTACK_RANGE'
+        unit = '%' if 'RESIST' in mod else ''
+        return {'label': label, 'meters': meters, 'group': 'levelup', 'unit': unit}
     if path.startswith('m_mapScalingStats.'):
         stat = path.split('.')[1]
         return {'label': f'{stat_label(tok, stat)} per Spirit', 'meters': False, 'group': 'scaling'}
@@ -480,9 +521,10 @@ _LEVEL_RE = re.compile(r'^m_mapLevelInfo\.(?:"?)(\d+)(?:"?)\.(.+)$')
 _LEVEL_FIELD = {'m_unRequiredGold': 'souls needed', 'm_bUseStandardUpgrade': 'gives a boon',
                 'm_mapBonusCurrencies.EAbilityPoints': 'ability points',
                 'm_mapBonusCurrencies.EAbilityUnlocks': 'ability unlocks'}
-_INVEST_RE = re.compile(r'^m_MapModCostBonuses\.EItemSlotType_(\w+)\[(\d+)\]\.(\w+)$')
+# a step by its index (old records) or by its souls threshold ({6400}, flatten.NUMERIC_ID_FIELDS)
+_INVEST_RE = re.compile(r'^m_MapModCostBonuses\.EItemSlotType_(\w+)(?:\[(\d+)\]|\{(\d+)\})\.(\w+)$')
 _INVEST_FIELD = {'flBonus': 'bonus', 'nGoldThreshold': 'souls spent', 'flPercentOnGraph': 'bar width'}
-_PURCHASE_RE = re.compile(r'^m_mapPurchaseBonuses\.EItemSlotType_(\w+)\[(\d+)\]\.(\w+)$')
+_PURCHASE_RE = re.compile(r'^m_mapPurchaseBonuses\.EItemSlotType_(\w+)(?:\[(\d+)\]|\{(\d+)\})\.(\w+)$')
 _BOUND_RE = re.compile(r'^m_mapBoundAbilities\.ESlot_(\w+)$')
 _POWERUP_VALUE_RE = re.compile(r'^m_sModifer\.m_vecModifierValues\{MODIFIER_VALUE_([A-Z_]+)\}\.m_value(Min|Max)$')
 _EMPOWERED_RE = re.compile(r'm_EmpoweredModifierLevel(\d+)\.')
@@ -507,12 +549,14 @@ def plain_label(path: str) -> dict | None:
     m = _INVEST_RE.match(path)
     if m:
         slot = SHOP_SLOT.get(m.group(1), m.group(1))
-        return {'label': f'{slot} investment, step {int(m.group(2)) + 1}: {_INVEST_FIELD.get(m.group(3), humanize(m.group(3)))}',
-                'meters': False, 'group': 'investment'}
+        field = _INVEST_FIELD.get(m.group(4), humanize(m.group(4)))
+        where = f'at {int(m.group(3)):,} souls' if m.group(3) else f', step {int(m.group(2)) + 1}'
+        return {'label': f'{slot} investment {where}: {field}'.replace(' ,', ','), 'meters': False, 'group': 'investment'}
     m = _PURCHASE_RE.match(path)
     if m:
         slot = SHOP_SLOT.get(m.group(1), m.group(1))
-        return {'label': f'{slot} purchase bonus, tier {int(m.group(2)) + 1}: {humanize(m.group(3)).lower()}',
+        tier = int(m.group(3)) if m.group(3) else int(m.group(2)) + 1      # keyed by its tier, or an old index
+        return {'label': f'{slot} purchase bonus, tier {tier}: {humanize(m.group(4)).lower()}',
                 'meters': False, 'group': 'investment'}
     m = _BOUND_RE.match(path)
     if m:
@@ -520,8 +564,11 @@ def plain_label(path: str) -> dict | None:
     m = _POWERUP_VALUE_RE.match(path)
     if m:
         stage = 'early game' if m.group(2) == 'Min' else 'late game'
-        what = m.group(1).replace('_PERCENT', '').replace('_', ' ').title()
-        return {'label': f'Powerup: {what} ({stage})', 'meters': False, 'group': 'powerup'}
+        # only a trailing _PERCENT: '_PERCENTAGE' left "Cooldown Reductionage" (audit 2026-10-01)
+        what = re.sub(r'_PERCENT(AGE)?$', '', m.group(1)).replace('_', ' ').title()
+        # a sprint / move speed bonus is engine units (78.74 -> 118.11 is 2 -> 3 m/s)
+        return {'label': f'Powerup: {what} ({stage})', 'meters': SPEED if 'SPEED' in m.group(1) and 'PERCENT' not in m.group(1)
+                else False, 'group': 'powerup'}
     if path == 'm_sModifer.m_flDuration':
         return {'label': 'Powerup: buff duration', 'meters': False, 'group': 'powerup'}
     if _SCATTER_RE.search(path):
@@ -624,7 +671,7 @@ def display_raw(v, meters: bool | str = False) -> str:
         if m:
             x = float(m.group(1))
             if m.group(2) == 'm':
-                return display_value(x) + ('m/s' if meters == SPEED else 'm')
+                return display_value(x) + ('m/s' if meters in (SPEED, MPS) else 'm')
             return display_value(x, meters)
     return display_value(v, meters)
 
@@ -645,7 +692,7 @@ def display_value(v, meters: bool | str = False) -> str:
     if isinstance(v, bool):
         return 'yes' if v else 'no'
     if isinstance(v, (int, float)):
-        x = float(v) / UNITS_PER_METER if meters else float(v)
+        x = float(v) / UNITS_PER_METER if meters and meters not in (METRES, MPS) else float(v)
         if x.is_integer():
             s = str(int(x))
         elif abs(x) < 1:
@@ -654,7 +701,7 @@ def display_value(v, meters: bool | str = False) -> str:
             s = f'{float(f"{x:.4g}"):.8f}'.rstrip('0').rstrip('.')
         else:
             s = f'{x:.2f}'.rstrip('0').rstrip('.')
-        return s + ('m/s' if meters == SPEED else 'm' if meters else '')
+        return s + ('m/s' if meters in (SPEED, MPS) else 'm' if meters else '')
     if isinstance(v, list):
         return ', '.join(display_value(x) for x in v)
     return str(v)

@@ -50,8 +50,14 @@ def _stat(name):
     return lambda h, w, g: _num((h.get('m_mapStartingStats') or {}).get(name))
 
 
-def _lvl(name):
-    return lambda h, w, g: _num((h.get('m_mapStandardLevelUpUpgrades') or {}).get(name))
+def _lvl(*names, meters=False):
+    """A per-boon gain; the first key the hero has (Valve renames them: TECH_ARMOR_DAMAGE_RESIST is
+    TECH_RESIST since build 6541 — the column read "—" after it); engine units as metres if asked."""
+    def f(h, w, g):
+        ups = h.get('m_mapStandardLevelUpUpgrades') or {}
+        v = next((_num(ups[n]) for n in names if n in ups), None)
+        return v / UNITS_PER_METER if v is not None and meters else v
+    return f
 
 
 def _wf(name, meters=False):
@@ -63,17 +69,23 @@ def _wf(name, meters=False):
 
 def bullet_speed(h, w, g):
     """m/s. Before build 5747 the speed was a curve (m_BulletSpeedCurve) whose points were all equal;
-    since then m_flBulletSpeed (audit 2026-10-01: 18 changes of 12 heroes were invisible). A flat
-    curve wins over a field beside it (Haze: field 8000, curve 30000, and 30000 after 5747)."""
-    v = None
-    if w:
-        spline = (w.get('m_BulletSpeedCurve') or {}).get('m_spline') or []
-        ys = [_num(pt.get('y')) for pt in spline if isinstance(pt, dict)]
-        if ys and None not in ys and max(ys) == min(ys):
-            v = ys[0]
-        if v is None:
-            v = _num(w.get('m_flBulletSpeed'))
+    since then m_flBulletSpeed (audit 2026-10-01: 18 changes of 12 heroes were invisible). Before 5747
+    a flat curve wins over a field beside it (Haze: field 8000, curve 30000, and 30000 after 5747);
+    after it the field wins — new guns carry a placeholder curve of 22500 (Graves, Silver, Apollo read
+    571.5 m/s instead of 635 / 813 / 127)."""
+    if not w:
+        return None
+    field = _num(w.get('m_flBulletSpeed'))
+    spline = (w.get('m_BulletSpeedCurve') or {}).get('m_spline') or []
+    ys = [_num(pt.get('y')) for pt in spline if isinstance(pt, dict)]
+    curve = ys[0] if ys and None not in ys and max(ys) == min(ys) else None
+    old_build = _BUILD[0] is not None and _BUILD[0] < CURVE_ERA_END
+    v = (curve if curve is not None else field) if old_build or field is None else field
     return v / UNITS_PER_METER if v is not None else None
+
+
+CURVE_ERA_END = 5747        # the build that replaced m_BulletSpeedCurve with m_flBulletSpeed
+_BUILD: list = [None]       # the build evaluate() is looking at (bullet_speed reads it)
 
 
 def burst_cycle(h, w, g):
@@ -196,7 +208,8 @@ COLUMNS: tuple[Col, ...] = (
     Col('range', 'Max Range (m)', 'Damage', _wf('m_flRange', True), digits=1),
     Col('falloff_start', 'Falloff Start (m)', 'Damage', _wf('m_flDamageFalloffStartRange', True), digits=1),
     Col('falloff_end', 'Falloff End (m)', 'Damage', _wf('m_flDamageFalloffEndRange', True), digits=1),
-    Col('range_lvl', '+Range / boon', 'Damage', _lvl('MODIFIER_VALUE_BONUS_ATTACK_RANGE')),
+    # engine units: Bebop's 59 is 1.5 m, as the 2025-09-04 notes say
+    Col('range_lvl', '+Range / boon (m)', 'Damage', _lvl('MODIFIER_VALUE_BONUS_ATTACK_RANGE', meters=True), digits=2),
     # --- Melee ---
     Col('light_melee', 'Light Melee', 'Melee', _stat('ELightMeleeDamage'), scaling_stat='ELightMeleeDamage'),
     Col('melee_lvl', '+Melee / boon', 'Melee', _lvl('MODIFIER_VALUE_BASE_MELEE_DAMAGE_FROM_LEVEL'), digits=3),
@@ -208,7 +221,8 @@ COLUMNS: tuple[Col, ...] = (
     Col('bullet_resist', 'Bullet Resist', 'Vitality', _stat('EBulletArmorDamageReduction'), scaling_stat='EBulletArmorDamageReduction'),
     Col('bullet_resist_lvl', '+Bullet Resist / boon', 'Vitality', _lvl('MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST')),
     Col('spirit_resist', 'Spirit Resist', 'Vitality', _stat('ETechArmorDamageReduction'), scaling_stat='ETechArmorDamageReduction'),
-    Col('spirit_resist_lvl', '+Spirit Resist / boon', 'Vitality', _lvl('MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST')),
+    Col('spirit_resist_lvl', '+Spirit Resist / boon', 'Vitality',
+        _lvl('MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST', 'MODIFIER_VALUE_TECH_RESIST')),
     Col('headshot_taken', 'Headshot Taken ×', 'Vitality', _stat('ECritDamageReceivedScale'), pol=-1),
     Col('collision_r', 'Collision Radius', 'Vitality', lambda h, w, g: _num(h.get('m_flCollisionRadius')), pol=-1,
         note='Removed from hero data in later builds; history ends there.'),
@@ -232,10 +246,30 @@ def _round(v, digits):
     return round(v, max(digits, 3) + 1)
 
 
-def evaluate(hero: dict, abilities: dict) -> dict:
+def borrowed_guns(heroes: dict) -> set[str]:
+    """Heroes whose primary weapon another hero owns: a gun bound by several heroes belongs to the one
+    its id names (citadel_weapon_inferno_set -> hero_inferno); the rest borrow it as a stand-in
+    (heroes in development showed Infernus' DPS 52.38 as theirs)."""
+    by_gun: dict[str, list[str]] = {}
+    for hid, h in heroes.items():
+        if hid.startswith('hero_') and isinstance(h, dict) and not h.get('_not_pickable'):
+            gun = (h.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
+            if gun:
+                by_gun.setdefault(gun, []).append(hid)
+    out = set()
+    for gun, hids in by_gun.items():
+        owner = next((h for h in hids if f'_{h[5:]}_' in f'_{gun}_'), None)
+        if len(hids) > 1 and owner:
+            out |= {h for h in hids if h != owner}
+    return out
+
+
+def evaluate(hero: dict, abilities: dict, build: int | None = None, borrowed: bool = False) -> dict:
+    """Every column for one hero at one build; a borrowed gun (borrowed_guns) counts as no gun."""
+    _BUILD[0] = build
     w = weapon_info(hero, abilities)
     wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
-    weapon_cut = bool(wid) and not isinstance(abilities.get(wid), dict)
+    weapon_cut = (bool(wid) and not isinstance(abilities.get(wid), dict)) or borrowed
     out = {}
     for c in COLUMNS:
         if weapon_cut and c.group == 'Damage':
@@ -310,10 +344,11 @@ def build() -> dict:
     last_abilities: dict = {}
     last_build = None
     for b, heroes, abilities in snapshots():
+        borrowed = borrowed_guns(heroes)
         for hid, hero in heroes.items():
             if not hid.startswith('hero_') or not isinstance(hero, dict) or hero.get('_not_pickable'):
                 continue
-            vals = evaluate(hero, abilities)
+            vals = evaluate(hero, abilities, b.build, hid in borrowed)
             hs = series.setdefault(hid, {})
             first_seen.setdefault(hid, [b.build, b.date[:10]])
             for k, v in vals.items():

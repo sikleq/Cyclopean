@@ -78,7 +78,11 @@ META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
 TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
                            r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities|'
                            # physics / netcode / NPC steering, not a number a player plays against
-                           r'DamageForce|MaxLagCompensation|HullCapsule|ClipCapsule|navHull|Squad|Strafe|TurnRate|'
+                           # (a heavy melee's turn rate is how far a swing can be steered: gameplay)
+                           r'DamageForce|MaxLagCompensation|HullCapsule|ClipCapsule|navHull|Squad|Strafe|'
+                           r'(?<!HeavyMeleeMax)TurnRate|'
+                           # the number that keys a table row (flatten.NUMERIC_ID_FIELDS) is the row's name
+                           r'\{\d+\}\.(nGoldThreshold|m_nTier)$|'
                            # an editor check ("warn the designer if no ability is affected"), shown as NEW
                            # on five headshot items in 2026-01-30
                            r'm_bWarnIfNoAffectedAbilities)')

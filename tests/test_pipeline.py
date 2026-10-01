@@ -546,6 +546,44 @@ def test_the_holders_own_downside_grows_as_a_nerf():
     assert semantics.direction(path, -15, -10, 'item', drawback=True)[0] == 'buff'
 
 
+def test_mechanics_audit_cases():
+    # investment steps keyed by their souls threshold: a step inserted at 6,400 shifts nothing
+    o = {'m_MapModCostBonuses': {'EItemSlotType_Armor': [{'nGoldThreshold': 800, 'flBonus': 8},
+                                                         {'nGoldThreshold': 6400, 'flBonus': 34}]}}
+    assert 'm_MapModCostBonuses.EItemSlotType_Armor{6400}.flBonus' in flatten(o)
+    assert semantics.describe('m_MapModCostBonuses.EItemSlotType_Armor{6400}.flBonus', {})['label'] == \
+        'Vitality investment at 6,400 souls: bonus'
+    # a % <-> flat HP switch is not an 837% buff
+    assert semantics.direction('m_MapModCostBonuses.EItemSlotType_Armor{800}.flBonus', 8, 75, 'hero') == ('changed', None)
+    # a placeholder speed curve does not beat the field after build 5747
+    w = {'m_flBulletSpeed': 25000, 'm_BulletSpeedCurve': {'m_spline': [{'x': 0, 'y': 22500}, {'x': 1, 'y': 22500}]}}
+    assert flatten(w, curve_wins=False) == {'m_flBulletSpeed': 25000}
+    assert flatten(w) == {'m_flBulletSpeed': 22500}
+    # directions: a longer dash over a fixed distance is slower; a smaller self-slow is better; the
+    # parried enemy's damage taken is ours to raise
+    assert semantics.direction('m_mapStartingStats.EGroundDashDuration', 0.68, 0.7, 'hero')[0] == 'nerf'
+    assert semantics.direction('m_MantleSlowOnHitModifier.m_flPercentageMultiplierStart', 80, 64, 'ability')[0] == 'buff'
+    assert semantics.direction('m_mapAbilityProperties.VictimDamageTakenScale.m_strValue', 30, 25, 'ability')[0] == 'nerf'
+    # values Valve writes in metres / m/s are not divided again
+    assert semantics.display_raw(18, semantics.engine_unit('m_flDashJumpDistanceInMeters')) == '18m'
+    assert semantics.display_raw(13, semantics.engine_unit('m_flClimbSpeedUp')) == '13m/s'
+    # base stat units: speeds in m/s, times in s, no % on a multiplier
+    tok = {'statdesc_runspeed_postfix': 'm', 'statdesc_critdamagebonusscale_postfix': '%'}
+    assert semantics.describe('m_mapStartingStats.ERunSpeed', tok)['unit'] == 'm/s'
+    assert semantics.describe('m_mapStartingStats.EGroundDashDuration', tok)['unit'] == 's'
+    assert semantics.describe('m_mapStartingStats.ECritDamageBonusScale', tok)['unit'] == ''
+
+
+def test_hero_table_audit_cases():
+    from pipeline.hero_table import _lvl, borrowed_guns
+    hero = {'m_mapStandardLevelUpUpgrades': {'MODIFIER_VALUE_TECH_RESIST': 0.625, 'MODIFIER_VALUE_BONUS_ATTACK_RANGE': 59}}
+    assert _lvl('MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST', 'MODIFIER_VALUE_TECH_RESIST')(hero, {}, {}) == 0.625
+    assert round(_lvl('MODIFIER_VALUE_BONUS_ATTACK_RANGE', meters=True)(hero, {}, {}), 2) == 1.5
+    gun = {'m_mapBoundAbilities': {'ESlot_Weapon_Primary': 'citadel_weapon_inferno_set'}}
+    assert borrowed_guns({'hero_inferno': gun, 'hero_baba': gun, 'hero_atlas':
+                          {'m_mapBoundAbilities': {'ESlot_Weapon_Primary': 'citadel_weapon_bull_set'}}}) == {'hero_baba'}
+
+
 def test_values_carry_the_tooltip_unit_and_label():
     tok = {'abilitycooldown_postfix': 's', 'buffduration_label': 'Shield Duration', 'buffduration_postfix': 's',
            'enemyslow_postfix': '%'}

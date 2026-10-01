@@ -53,7 +53,9 @@ def main() -> int:
     manifest = json.loads(manifest_path.read_text(encoding='utf-8')) if manifest_path.exists() else {}
     allowed = json.loads((DATA / 'overrides' / 'missing_icons.json').read_text(encoding='utf-8'))
     for h in table['heroes']:
-        for col in ('hp', 'bullet_dmg', 'move'):
+        # a hero in development may hold another hero's gun as a stand-in: no gun numbers is right
+        cols = ('hp', 'bullet_dmg', 'move') if h.get('state') == 'release' else ('hp', 'move')
+        for col in cols:
             if h['values'].get(col) is None:
                 issues.append(('HIGH', f'hero {h["name"]} has no {col}'))
         key = f'heroes:{h["id"]}'

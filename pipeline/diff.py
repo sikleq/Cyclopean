@@ -66,8 +66,10 @@ def _eq(a, b) -> bool:
     return a == b
 
 
-def diff_entity(a: dict, b: dict) -> list[FieldChange]:
-    fa, fb = flatten(a), flatten(b)
+def diff_entity(a: dict, b: dict, curve_old: bool = True, curve_new: bool = True) -> list[FieldChange]:
+    """`curve_old` / `curve_new`: each side's build predates 5747 (flatten: a flat bullet-speed curve
+    is the speed then, a placeholder after)."""
+    fa, fb = flatten(a, curve_wins=curve_old), flatten(b, curve_wins=curve_new)
     out = []
     for path in fa.keys() | fb.keys():
         if path in fa and path in fb:
@@ -123,14 +125,15 @@ def collapse_shared(changes: list[EntityChange]) -> list[EntityChange]:
     return result
 
 
-def diff_file(name: str, old: dict, new: dict) -> list[EntityChange]:
+def diff_file(name: str, old: dict, new: dict, curve_old: bool = True, curve_new: bool = True) -> list[EntityChange]:
     old = old or {}
     new = new or {}
     result = []
     for eid in sorted((old.keys() | new.keys()) - SKIP_TOP):
         a, b = old.get(eid), new.get(eid)
         if a is None:
-            result.append(EntityChange(name, eid, 'added', diff_entity({}, b if isinstance(b, dict) else {'value': b})))
+            result.append(EntityChange(name, eid, 'added', diff_entity({}, b if isinstance(b, dict) else {'value': b},
+                                                                       curve_old, curve_new)))
         elif b is None:
             result.append(EntityChange(name, eid, 'removed', []))
         else:
@@ -138,7 +141,7 @@ def diff_file(name: str, old: dict, new: dict) -> list[EntityChange]:
                 a = {'value': a}
             if not isinstance(b, dict):
                 b = {'value': b}
-            ch = diff_entity(a, b)
+            ch = diff_entity(a, b, curve_old, curve_new)
             if ch:
                 result.append(EntityChange(name, eid, 'changed', ch))
     return collapse_shared(result)

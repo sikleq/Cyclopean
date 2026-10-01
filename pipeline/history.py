@@ -17,9 +17,11 @@ from . import cache, extras, jsonio, loc, tracker
 from .diff import EntityChange, diff_entity, diff_file
 
 OUT = tracker.ROOT / 'data' / 'builds'
-FORMAT_VERSION = 5        # 5: numbers in lists keep their order, a flat speed curve wins; 4: 'returned' entities
+FORMAT_VERSION = 6        # 6: table rows keyed by souls threshold / tier, speed curve wins only before 5747,
+#                           the spirit-resist-per-boon key rename; 5: numbers in lists keep their order
 SUFFIX = '.json.gz'
 GONE = '@gone'            # last_known[GONE][vdata path][entity id] = blob of the last version before removal
+CURVE_ERA_END = 5747      # the build that replaced m_BulletSpeedCurve with m_flBulletSpeed
 
 
 def _dump(path: Path, obj) -> None:
@@ -64,11 +66,14 @@ def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict | N
         new = cache.vdata_blob(new_blob) if new_blob else {}
         name = path.rsplit('/', 1)[1]
         graves = gone.setdefault(path, {})
-        for ec in diff_file(name, old, new):
+        # before build 5747 a flat bullet-speed curve was the speed; after it, a placeholder (flatten._legacy)
+        curve_old = (prev.build or cur.build or 0) < CURVE_ERA_END
+        curve_new = (cur.build or prev.build or 0) < CURVE_ERA_END
+        for ec in diff_file(name, old, new, curve_old, curve_new):
             if ec.status == 'removed':
                 graves[ec.id] = old_blob
             elif ec.status == 'added' and ec.id in graves:
-                ec = _returned(name, ec.id, cache.vdata_blob(graves.pop(ec.id)), new)
+                ec = _returned(name, ec.id, cache.vdata_blob(graves.pop(ec.id)), new, curve_old, curve_new)
             rec = ec.to_json()
             if ec.status in ('added', 'returned'):
                 # a new entity keeps gameplay data only; cosmetics would bloat
@@ -77,11 +82,11 @@ def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict | N
     return entities
 
 
-def _returned(name: str, eid: str, before: dict, now: dict) -> EntityChange:
+def _returned(name: str, eid: str, before: dict, now: dict, curve_old: bool = True, curve_new: bool = True) -> EntityChange:
     a, b = before.get(eid), now.get(eid)
     a = a if isinstance(a, dict) else {'value': a}
     b = b if isinstance(b, dict) else {'value': b}
-    return EntityChange(name, eid, 'returned', diff_entity(a, b))
+    return EntityChange(name, eid, 'returned', diff_entity(a, b, curve_old, curve_new))
 
 
 def is_baseline(prev: tracker.Build) -> bool:

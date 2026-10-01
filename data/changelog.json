@@ -1,5 +1,15 @@
 [
   {
+    "date": "2026-10-02",
+    "title": "Hero mechanics: dashes, slows, investments, bullet speeds",
+    "items": [
+      "Dashes cover a fixed distance, so a longer dash is a nerf (22 rows were tagged the other way); slows on yourself when hit on a ledge or rope, and parry's bonus damage, now read the right way.",
+      "Investment bonuses are listed by their souls threshold: the new 6,400-souls step no longer looks like every later step changed, and the switch between % of base health and flat HP is not a +837% buff.",
+      "Hero Stats: real bullet speeds for Graves, Silver and Apollo, Spirit Resist per boon is back, weapon range per boon in metres, and heroes in development no longer show Infernus' gun.",
+      "Values Valve already writes in metres or m/s (dash jump distance, rope climb speed) are no longer divided again; run and sprint speeds say m/s, dash times say s, resists say %."
+    ]
+  },
+  {
     "date": "2026-10-01",
     "title": "Old Gods, New Blood, readable labels, sharper matching",
     "items": [

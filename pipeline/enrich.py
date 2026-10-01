@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 21       # 21: base stats keep length/speed/time units, stamina as a cooldown; 20: nested labels
+ENRICH_VERSION = 22       # 22: mechanics audit (dash, self-slows, parry, metres as is); 21: stat units; 20: labels
 
 
 def _num(v):

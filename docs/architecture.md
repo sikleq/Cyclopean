@@ -194,6 +194,27 @@ Five-auditor review of every build and page (2026-10-01, record format 5, enrich
   stamina cooldown (`describe` → `invert`, `semantics.show`: 0.2 → "5s") (enrich 21). The Hero Stats
   table keeps the owner's sheet layout (Stamina Regen per second).
 
+Hero mechanics audit (2026-10-02, record format 6, enrich 22):
+- a dash covers a fixed distance (`EGround/AirDashDistanceInMeters`), so a longer dash duration is a
+  NERF (`_LOWER_FIRST` dashduration / airdashtraveltime); the mantle / climb-rope slow on the player
+  is better smaller (`_SELF_SLOW`, on the whole path); parry's victim damage taken is better bigger;
+- engine floats Valve already writes in metres (`…InMeters`, `…Meters`) or m/s (rope climb speed,
+  the dash's drag thresholds) are shown as is (`semantics.METRES`, `MPS`);
+- table rows keyed by the number that names them (`flatten.NUMERIC_ID_FIELDS`: an investment step by
+  its souls threshold, a purchase bonus by its tier) — a step inserted at 6,400 souls no longer shifts
+  every later step; the Vitality investment's two unit switches (% of base health ↔ flat HP, builds
+  6044 and 6403) have no direction;
+- the bullet-speed curve wins over the field only before 5747 (`flatten(curve_wins=…)`, history passes
+  each side's era; `hero_table.bullet_speed` reads the build): Graves / Silver / Apollo carry a
+  placeholder curve of 22500;
+- the spirit-resist-per-boon key renamed at 6541 (`…TECH_ARMOR_DAMAGE_RESIST` → `…TECH_RESIST`) is an
+  alias, and the Hero Stats column reads both; range per boon is metres; heroes in development bound to
+  another hero's gun (`hero_table.borrowed_guns`: Infernus' as a stand-in) show no gun numbers;
+- base stats: run / sprint speeds in m/s (Valve's postfix says "m" since 2026-01), times in s,
+  resists keep "%", multipliers do not; "Headshot Damage Taken ×" over the game's "Crit Reduction";
+  powerup labels no longer cut "_PERCENTAGE" ("Cooldown Reductionage"); a heavy melee's turn rate is
+  gameplay; a rule for "All heroes" is unreleased only if every hero it touches is.
+
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to
 the patch's own post; short dated changelogs are notes (`patches.is_patch_notes`); a build of 1,000+

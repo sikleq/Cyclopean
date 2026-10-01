@@ -774,7 +774,11 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
             if grp is None:
                 grp = shared_groups[sig] = {'change': change_json(c), 'targets': []}
             grp['targets'].append(name)
-            if STATUS_RANK[c.status] > STATUS_RANK[grp['change']['status']]:
+            cur = grp['change']['status']
+            # a rule for all heroes is "unreleased" only if every hero it touches is: a dev hero listed
+            # first had made 41 "All heroes" rows unreleased (audit 2026-10-01)
+            if STATUS_RANK[c.status] > STATUS_RANK[cur] or (cur == 'unreleased' and c.status != 'unreleased'
+                                                             and STATUS_RANK[c.status] == STATUS_RANK[cur]):
                 grp['change']['status'] = c.status
             continue
         k = ent_key(c)
