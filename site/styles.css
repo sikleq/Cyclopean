@@ -79,6 +79,10 @@
   --eye-06: rgba(255, 154, 60, 0.06);
   --eye-53: rgba(255, 154, 60, 0.53);
   --bone-08: rgba(224, 216, 198, 0.08);
+  --cell-odd: color-mix(in srgb, var(--patina) 6%, var(--bg-panel));   /* solid table tints (cheap to scroll) */
+  --cell-hover: color-mix(in srgb, var(--bone-08) 100%, var(--bg-panel-3));
+  --cell-hi: color-mix(in srgb, var(--tag-buff) 14%, var(--bg-panel));
+  --cell-lo: color-mix(in srgb, var(--tag-nerf) 14%, var(--bg-panel));
   --grid: rgba(224, 216, 198, 0.08);         /* table lines, both directions (owner: translucent) */
   --grid-strong: rgba(224, 216, 198, 0.18);  /* a column group's first line */
   --glow-top: rgba(31, 74, 64, 0.45);
@@ -129,8 +133,12 @@ body {
   font: 15px/1.55 var(--font-ui);
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
-  /* atmosphere: a verdigris glow from the top and copper "spores" (Sloppy's starfield) */
   background-color: var(--bg-page);
+}
+/* atmosphere: a verdigris glow from the top and copper "spores" (Sloppy's starfield). On its own fixed,
+   composited layer: a `background-attachment: fixed` body repainted the whole screen on every scroll frame */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; will-change: transform;
   background-image:
     radial-gradient(1100px 520px at 50% -8%, var(--glow-top), transparent 70%),
     radial-gradient(circle at 37px 61px, var(--spore-hi) 1px, transparent 2px),
@@ -143,7 +151,6 @@ body {
     radial-gradient(circle at 255px 470px, var(--spore-lo) 1px, transparent 2px);
   background-size: 100% 100%, 480px 480px, 480px 480px, 480px 480px, 480px 480px, 480px 480px, 480px 480px,
                    480px 480px, 480px 480px;
-  background-attachment: fixed;
 }
 a { color: var(--patina); text-decoration: none; }
 a:hover { color: var(--patina-strong); }
@@ -397,7 +404,7 @@ details.collapsible > summary .chip { margin-left: 8px; }
 /* the pill's colour strength follows the size of the change (data-g 1..5): a 2% nudge is faint,
    a 60% swing is full colour */
 .pct { --c: var(--tag-changed); --mix: 16%; --ink: 80%; display: inline-block; min-width: 60px; margin-left: 8px; padding: 3px 6px 2px;
-  text-align: center; font: 17px/1 var(--font-label);
+  text-align: center; font: 600 11.5px/1.15 var(--font-ui); font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--c) var(--ink), var(--text-dimmer));
   background: color-mix(in srgb, var(--c) var(--mix), var(--bg-panel));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) calc(var(--mix) * 2 + 10%), transparent); }
@@ -407,8 +414,8 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .pct[data-g="4"] { --mix: 30%; --ink: 100%; }
 .pct[data-g="5"] { --mix: 44%; --ink: 100%; color: var(--text-bright); }
 .pct-pad { display: none; }
-.erow .vv .pct { width: 84px; min-width: 0; box-sizing: border-box; }
-.erow .vv .pct-pad { display: inline-block; width: 84px; margin-left: 8px; }
+.erow .vv .pct { width: 70px; min-width: 0; box-sizing: border-box; }
+.erow .vv .pct-pad { display: inline-block; width: 70px; margin-left: 8px; }
 .pct.dir-buff { --c: var(--tag-buff); }
 .pct.dir-nerf { --c: var(--tag-nerf); }
 
@@ -694,7 +701,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
   background: linear-gradient(90deg, transparent, var(--bg-page)); transition: opacity .2s; }
 .table-fade.at-end::after { opacity: 0; }
 .table-scroll {
-  position: relative;
+  position: relative; contain: paint;
   overflow: auto;
   max-height: calc(100vh - var(--nav-h) - 24px);
   border: var(--px) solid var(--line);
@@ -715,9 +722,9 @@ table.stats thead th.name { z-index: 4; }
 table.stats td.name a { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 15px/1 var(--font-ui); }
 table.stats td.name img { width: 22px; height: 22px; object-fit: contain; }
 table.stats tbody td { background-color: var(--bg-panel); }
-table.stats td.g-odd { background-image: linear-gradient(var(--patina-06), var(--patina-06)); }
+table.stats td.g-odd { background-color: var(--cell-odd); }
 table.stats td.name .pre { font: 17px/1 var(--font-label); color: var(--eye); margin-left: 4px; }
-table.stats tbody tr:hover td { background-image: linear-gradient(var(--bg-hover), var(--bg-hover)); }
+table.stats tbody tr:hover td { background-color: var(--cell-hover); }
 table.stats tbody tr.marked td { box-shadow: inset 0 2px 0 var(--patina), inset 0 -2px 0 var(--patina); }
 table.stats td.grp-start, table.stats th.grp-start { border-left: 1px solid var(--grid-strong); }
 table.stats td.has-hist { cursor: help; position: relative; }
@@ -729,8 +736,8 @@ table.stats td.spirit { color: var(--tag-rework); }
 .chip.legend-hist::before { content: ""; width: 0; height: 0; border-top: 7px solid var(--patina); border-left: 7px solid transparent; align-self: flex-start; }
 .chip.legend-spirit { color: var(--tag-rework); }
 table.stats td .dash, .dash { color: var(--text-dimmer); }
-table.stats td.hm-hi { background-image: linear-gradient(var(--buff-14), var(--buff-14)); }
-table.stats td.hm-lo { background-image: linear-gradient(var(--nerf-14), var(--nerf-14)); }
+table.stats td.hm-hi { background-color: var(--cell-hi); }
+table.stats td.hm-lo { background-color: var(--cell-lo); }
 
 .hist-tip {
   position: fixed; z-index: var(--z-tooltip);
@@ -1276,9 +1283,10 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 .hist-tip li .o, .hist-tip li .p { text-align: center; }
 /* was → now is one value cell: no lines inside it, only around it */
 .hist-tip li .o, .hist-tip li .arrow { border-right: 0; }
-.hist-tip li .o { padding-right: 2px; text-align: right; }
-.hist-tip li .arrow { padding: 4px 2px; }
-.hist-tip li .n { padding-left: 2px; text-align: left; }
+/* was and now each centred in their own column, so a short number ("116") sits where the others do */
+.hist-tip li .o { padding: 4px 4px 4px 8px; text-align: center; }
+.hist-tip li .arrow { padding: 4px 0; }
+.hist-tip li .n { padding: 4px 8px 4px 4px; text-align: center; }
 
 /* ---------- 17. change matrix: tiles and the hover card ---------- */
 /* a tile: stripes in tag colours, a pixel bevel, the number of changes in the corner */
@@ -1360,3 +1368,17 @@ table.dt-rows td:last-child { border-right: 0; }
 .cb .nb { display: block; width: 100%; background: var(--gold); }
 .cb .n { font: 600 12px/1 var(--font-ui); color: var(--text-bright); }
 .cb .m { font: 500 11px/1 var(--font-ui); color: var(--text-dim); }
+
+/* ---------- 19. Hero Stats extras (Sloppy): boons box, role filter, tinted columns, history underline ---------- */
+.boons { display: inline-flex; align-items: center; gap: 8px; font: 600 13px/1 var(--font-ui); color: var(--text-main); }
+.boons input { width: 56px; padding: 5px 6px; text-align: center; font: 600 14px/1 var(--font-ui); color: var(--text-bright);
+  background: var(--bg-page); border: 2px solid var(--frame-line); }
+.boons input:focus { outline: none; border-color: var(--patina); }
+table.stats td.boosted { color: var(--patina-strong); font-weight: 600; }
+table.stats tr.role-out { display: none; }
+table.stats td.tint-vit { color: color-mix(in srgb, var(--vitality) 55%, var(--text-main)); }
+table.stats td.tint-wpn { color: color-mix(in srgb, var(--weapon) 45%, var(--text-main)); }
+table.stats td.tint-spi { color: color-mix(in srgb, var(--spirit) 55%, var(--text-main)); }
+/* a value with a history to show on hover: a dotted underline, as Sloppy marks its hoverable numbers */
+table.stats td.has-hist { text-decoration: underline dotted color-mix(in srgb, var(--text-dim) 60%, transparent);
+  text-underline-offset: 3px; }

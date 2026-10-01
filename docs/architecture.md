@@ -184,6 +184,11 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
   strings), never raw ids. Hero Stats hides pre-release heroes behind a switch. Every table centres its
   cells and headers and draws translucent lines both ways (`--grid`, `--grid-strong`), the stat history
   tooltip included (the name column stays left; "was → now" is one cell without lines around the arrow).
+  Hero Stats (Sloppy's toolbar): a Boons box (0-35) shows the table at N boons — base + N × the per-boon
+  column (`tables_pages.BOON_PER`; DPS grows with the bullet), role buttons (the game's m_eHeroType), the
+  heatmap as a switch; numbers tinted by meaning (`COLUMN_TINT`: health green, weapon orange, spirit
+  purple); a value with a history is underlined with dots. The page background is a fixed composited
+  layer (`body::before`) and table tints are solid colours: scrolling a 46-column table stays smooth.
   Cell histories bridge gaps in the data (`hero_table.history_changes`): a value missing from the files
   for a few builds and then back (Billy's weapon, builds 5747-5788) is one change, not "x → —", "— → y".
 - Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its

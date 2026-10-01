@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Hero Stats at any boon, role filter, smoother scrolling",
+    "items": [
+      "Hero Stats: a Boons box shows health, bullet damage, DPS, melee and resists at any number of boons; role buttons (Marksman, Assassin, Brawler, Mystic); the heatmap is a switch.",
+      "Numbers are tinted by what they are (health green, weapon orange, spirit purple); values with a history are underlined.",
+      "History tooltips: was and now in centred columns; the % uses a plain font.",
+      "Scrolling large tables and long pages is smoother (the background no longer repaints on every frame)."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Patch calendar, richer hero changes, cleaner stat tables",
     "items": [
       "Patches → Calendar: every year by month and day, shaded by how many game builds landed, patch days marked (named updates in gold), with the year's numbers and the monthly cadence.",

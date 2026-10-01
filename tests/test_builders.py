@@ -410,3 +410,12 @@ def test_calendar_shades_and_gaps():
     assert [_shade(n) for n in (0, 1, 3, 6, 10)] == [0, 1, 2, 3, 4]
     ps = [{'date': '2026-01-01', 'title': 'a'}, {'date': '2026-01-11', 'title': 'b'}, {'date': '2026-01-13', 'title': 'c'}]
     assert [g[0] for g in _gaps(ps)] == [10, 2]
+
+
+def test_hero_stats_boons_and_roles():
+    from builders.tables_pages import boon_attrs
+    r = {'values': {'hp': 800, 'hp_lvl': 49, 'dps': 51.4, 'bullet_dmg': 3.6, 'bullet_dmg_lvl': 0.1}}
+    assert boon_attrs(r, {'key': 'hp'}) == ' data-per="49"'
+    # DPS grows with the bullet: 51.4 * 0.1 / 3.6 per boon
+    assert boon_attrs(r, {'key': 'dps'}) == ' data-per="1.42778"'
+    assert boon_attrs(r, {'key': 'reload'}) == ''

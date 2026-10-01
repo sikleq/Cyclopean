@@ -319,6 +319,47 @@
     });
   });
 
+  /* ---------- Hero Stats at N boons (Sloppy's LVL box): base + N x per-boon, shown in its own colour ---------- */
+  safe('boons', function () {
+    document.querySelectorAll('input[data-boons]').forEach(function (inp) {
+      var table = document.querySelector(inp.getAttribute('data-boons'));
+      if (!table) return;
+      var cells = table.querySelectorAll('td[data-per]');
+      cells.forEach(function (td) { td.setAttribute('data-base', td.getAttribute('data-sort')); });
+      function fmt(v, digits) {
+        var s = v.toFixed(Math.max(0, digits));
+        return s.indexOf('.') >= 0 ? s.replace(/0+$/, '').replace(/\.$/, '') : s;
+      }
+      function apply() {
+        var n = Math.max(0, Math.min(+inp.max || 35, parseInt(inp.value || '0', 10) || 0));
+        cells.forEach(function (td) {
+          var base = parseFloat(td.getAttribute('data-base')), per = parseFloat(td.getAttribute('data-per'));
+          if (isNaN(base) || isNaN(per)) return;
+          var v = base + per * n;
+          td.textContent = fmt(v, parseInt(td.getAttribute('data-digits') || '2', 10));
+          td.setAttribute('data-sort', v);
+          td.classList.toggle('boosted', n > 0);
+        });
+      }
+      inp.addEventListener('input', apply);
+    });
+  });
+
+  /* ---------- Hero Stats: one role at a time (Sloppy's Melee / Ranged buttons) ---------- */
+  safe('role-filter', function () {
+    var btns = document.querySelectorAll('[data-role-filter]');
+    btns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var table = document.querySelector(btn.getAttribute('data-target'));
+        var role = btn.classList.contains('on') ? '' : btn.getAttribute('data-role-filter');
+        btns.forEach(function (b) { b.classList.toggle('on', b === btn && !!role); });
+        table.querySelectorAll('tbody tr[data-role]').forEach(function (tr) {
+          tr.classList.toggle('role-out', !!role && tr.getAttribute('data-role') !== role);
+        });
+      });
+    });
+  });
+
   /* ---------- calendar: year buttons show that year's grid ---------- */
   safe('calendar', function () {
     var btns = document.querySelectorAll('[data-year].px-btn');

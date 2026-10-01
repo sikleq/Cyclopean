@@ -74,7 +74,9 @@ def non_empty(cols: list[dict], rows: list[dict]) -> list[dict]:
 def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict], str], name_title: str,
                  extra_cls: Callable[[dict, dict], list[str]] | None = None, as_of: str | None = None,
                  row_cls: Callable[[dict], str] | None = None, table_id: str = '',
-                 section_of: Callable[[dict], str] | None = None) -> str:
+                 section_of: Callable[[dict], str] | None = None,
+                 cell_attrs: Callable[[dict, dict], str] | None = None,
+                 row_attrs: Callable[[dict], str] | None = None) -> str:
     cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
     for c in cols:
@@ -113,6 +115,11 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             if extra_cls:
                 cls += extra_cls(r, c)
             attrs = f' data-col="{c["key"]}" data-sort="{"" if v is None else v}" data-pol="{c["pol"]}" data-digits="{c["digits"]}"'
+            if cell_attrs:
+                attrs += cell_attrs(r, c)
+            tint = COLUMN_TINT.get(c['key'])
+            if tint:
+                cls.append(tint)
             if hist:
                 cls.append('has-hist')
                 if str(hist[-1][1])[:10] >= cutoff:
@@ -126,7 +133,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                 last_section[0] = sec
                 body.append(f'<tr class="sec"><td class="name">{sec}</td><td colspan="{len(cols)}"></td></tr>')
         rc = f' class="{row_cls(r)}"' if row_cls and row_cls(r) else ''
-        body.append(f'<tr{rc} data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
+        ra = row_attrs(r) if row_attrs else ''
+        body.append(f'<tr{rc}{ra} data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
     # the fade on the right edge says "more columns this way" until the table is scrolled to its end
     tid = f' id="{esc(table_id)}"' if table_id else ''
     return (f'<div class="table-fade"><div class="table-scroll"><table class="stats"{tid}><thead>{cat_row}{col_row}</thead>'
@@ -138,7 +146,28 @@ def _toolbar(placeholder: str, details: bool = False, extra: str = '') -> str:
             if details else '')
     return ('<div class="toolbar">'
             f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr:not(.sec)">'
-            f'<span class="sep"></span><button class="px-btn" data-heatmap>Heatmap</button>{more}{extra}</div>')
+            f'<span class="sep"></span><label class="switch"><input type="checkbox" data-heatmap>'
+            f'<span class="track"></span>Heatmap</label>{more}{extra}</div>')
+
+
+MAX_BOONS = 35            # levels 2-36 each give a boon (heroes.vdata m_mapLevelInfo)
+# a column's value at N boons = base + N x its per-boon column (DPS grows with the bullet's damage)
+BOON_PER = {'hp': 'hp_lvl', 'bullet_dmg': 'bullet_dmg_lvl', 'light_melee': 'melee_lvl', 'heavy_melee': 'melee_lvl',
+            'bullet_resist': 'bullet_resist_lvl', 'spirit_resist': 'spirit_resist_lvl'}
+# numbers tinted by what they are, as Sloppy tints HP green and mana blue
+COLUMN_TINT = {'hp': 'tint-vit', 'hp_lvl': 'tint-vit', 'hp_regen': 'tint-vit', 'dps': 'tint-wpn', 'dps_max': 'tint-wpn',
+               'bullet_dmg': 'tint-wpn', 'bullet_dmg_lvl': 'tint-wpn', 'bullet_dmg_max': 'tint-wpn',
+               'spirit_lvl': 'tint-spi', 'spirit': 'tint-spi'}
+
+
+def boon_attrs(r: dict, c: dict) -> str:
+    vals = r['values']
+    key = c['key']
+    if key in BOON_PER and vals.get(key) is not None and vals.get(BOON_PER[key]):
+        return f' data-per="{vals[BOON_PER[key]]}"'
+    if key == 'dps' and vals.get('dps') and vals.get('bullet_dmg') and vals.get('bullet_dmg_lvl'):
+        return f' data-per="{vals["dps"] * vals["bullet_dmg_lvl"] / vals["bullet_dmg"]:.6g}"'
+    return ''
 
 
 def heroes_table() -> str:
@@ -154,13 +183,22 @@ def heroes_table() -> str:
 
     table = render_table(laid_out(t['columns'], HERO_LAYOUT), t['heroes'], name_cell, 'Hero',
                          lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [], as_of=t.get('date'),
-                         row_cls=lambda h: 'pre' if h['state'] == 'prerelease' else '', table_id='hero-stats')
+                         row_cls=lambda h: 'pre' if h['state'] == 'prerelease' else '', table_id='hero-stats',
+                         cell_attrs=boon_attrs,
+                         row_attrs=lambda h: f' data-role="{esc(str(h.get("type") or "").rsplit("_", 1)[-1].lower())}"')
     n_pre = sum(1 for h in t['heroes'] if h['state'] == 'prerelease')
     # pre-release heroes (vote candidates, template stats) hide until asked for, as on the heroes page
     switch = (f'<span class="sep"></span><label class="switch"><input type="checkbox" data-toggle-class="show-pre" '
               f'data-target="#hero-stats"><span class="track"></span>Pre-release <span class="n">{n_pre}</span></label>'
               if n_pre else '')
-    body = '<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', details=True, extra=switch) + table
+    roles = sorted({str(h.get('type') or '').rsplit('_', 1)[-1] for h in t['heroes'] if h.get('type')})
+    # Sloppy's LVL box: the table at N boons; and its Melee/Ranged buttons, here the game's roles
+    boons = (f'<span class="sep"></span><label class="boons">Boons <input type="number" min="0" max="{MAX_BOONS}" '
+             f'value="0" data-boons="#hero-stats"></label>')
+    role_btns = '<span class="sep"></span>' + ''.join(
+        f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats">{esc(r)}</button>' for r in roles)
+    body = ('<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
+            + table)
     return page('Hero Stats', body, rel, 'tables', build=t['build'],
                 description='Deadlock hero stats with the full history of every value', wide=True)
 
