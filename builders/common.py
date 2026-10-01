@@ -114,7 +114,7 @@ def ids_to_names(s: str) -> str:
     return _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
 
 
-_ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_)')
+_ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_|npc_)')
 
 
 def pretty_id(eid: str, owner: str | None = None) -> str:

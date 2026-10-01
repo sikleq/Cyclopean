@@ -1,4 +1,4 @@
-"""Hero / item changes as a matrix (Sloppy's "Hero Dynamics"): one row per hero or item, one column per
+"""Hero / item / unit changes as a matrix (Sloppy's "Hero Dynamics"): one row per hero, item or unit, one column per
 patch, each cell a tile striped in the colours of what the patch did (buff, nerf, new, removed…),
 each stripe as tall as its share.
 
@@ -18,7 +18,8 @@ from .render import TAG_ORDER, TAG_WORDS, counts_text, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
-SAMPLES = 2               # the hover card lists this many biggest changes per part
+SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
+SAMPLES_ONE = 3           # … and of an item or unit (one part: the row itself)
 PARTS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
 WEAPON_KINDS = ('weapon', 'melee')
 
@@ -66,6 +67,8 @@ def _collect() -> dict:
                 key = f'hero:{e["owner"]}'
             elif e.get('kind') == 'item':
                 key = f'item:{e["id"]}'
+            elif e['file'] == 'npc_units.vdata':
+                key = f'unit:{e["id"]}'
             else:
                 continue
             part = part_of(e)
@@ -83,8 +86,9 @@ def _collect() -> dict:
         for pid, lst in per.items():
             ranked = sorted(lst, key=lambda x: (-x[6], TAG_ORDER.get(x[4], 9)))
             picked, seen = [], {}
+            limit = SAMPLES if k.startswith('hero:') else SAMPLES_ONE
             for x in ranked:                      # the biggest per part, the parts in their order
-                if seen.get(x[5], 0) < SAMPLES:
+                if seen.get(x[5], 0) < limit:
                     seen[x[5]] = seen.get(x[5], 0) + 1
                     picked.append(list(x[:6]))
             order = {p: i for i, (p, _) in enumerate(PARTS)}
@@ -199,6 +203,18 @@ def hero_entries(heroes: list[dict], rel: str) -> list[tuple]:
         pre = h.get('state') != 'EHeroDevState_Release'
         out.append((f'hero:{h["id"]}', h.get('name') or h['id'], hero_icon(h['id'], rel), f'{h["id"]}.html',
                     'extra' if pre else ''))
+    return out
+
+
+def unit_entries(units: list[dict], groups: tuple[tuple[str, str], ...], rel: str) -> list[tuple]:
+    """Units in the order of the Units index (buildings, troopers, neutrals, others); removed ones hide."""
+    from .common import slug
+    order = {k: i for i, (k, _) in enumerate(groups)}
+    out = []
+    for u in sorted(units, key=lambda u: (order.get(u.get('kind'), len(order)), (u.get('name') or u['id']).lower())):
+        name = u['name'] if u.get('name') and u['name'] != u['id'] else pretty_id(u['id'])
+        out.append((f'unit:{u["id"]}', name, entity_icon(u['file'], u['id'], u.get('kind') or 'unit', rel),
+                    slug(u['file'], u['id']).split('/', 1)[1], '' if u.get('alive') else 'extra'))
     return out
 
 

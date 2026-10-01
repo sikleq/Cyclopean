@@ -25,6 +25,22 @@ def test_inline_attributes_read_like_the_game_and_units_do_not_double():
     assert fill('for {s:D}s', {'D': '5'}) == 'for 5s'
 
 
+def test_tier_text_uses_the_tooltip_token_names():
+    from pipeline.abilities import card
+    a = {'m_mapAbilityProperties': {
+            'SpeedOnLandDuration': {'m_strValue': '0', 'm_strLocTokenOverride': 'BuffDuration'},
+            'MaxBonusBulletDamage': {'m_strValue': '10'}},
+         'm_vecAbilityUpgrades': [{'m_vecPropertyUpgrades': [
+             {'m_strPropertyName': 'SpeedOnLandDuration', 'm_strBonus': '4'},
+             {'m_strPropertyName': 'MaxBonusBulletDamage', 'm_strBonus': '0.5', 'm_eUpgradeType': 'EAddToScale'}]}]}
+    tok = {'x_t1_desc': 'Move speed for {s:BuffDuration}s and +{s:MaxBonusBulletDamage_scale}% scaling',
+           'x_desc': '{s:hero_name} floats', 'hero_x': 'Paradox'}
+    c = card('x', a, tok, 'ability', 'hero_x')
+    # the text names the property by its m_strLocTokenOverride; a scale bonus by "<prop>_scale"
+    assert c['tiers'][0]['text'] == 'Move speed for 4s and +0.5% scaling'
+    assert c['desc'] == 'Paradox floats'
+
+
 def test_property_prefix_and_units():
     tok = {'enemyslowpct_prefix': '-', 'enemyslowpct_postfix': '%', 'bonushealth_prefix': '{s:sign}',
            'abilitycastrange_postfix': 'm'}

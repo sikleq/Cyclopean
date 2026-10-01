@@ -18,7 +18,7 @@ import re
 
 from . import cache, loc, tracker
 from .classify import ability_kind, hero_bound_abilities
-from .semantics import humanize
+from .semantics import humanize, scaling_suffix
 
 OUT = tracker.ROOT / 'data' / 'abilities.json'
 HEADER_PROPS = (
@@ -60,8 +60,18 @@ def _num_s(v) -> str:
     return t + (m.group(2) or '')
 
 
-def _label(tok, prop, aid):
-    for key in (f'{aid}_{prop}_label', f'{prop}_label'):
+def _tokens(vals: dict[str, str], alias: dict[str, str]) -> dict[str, str]:
+    """Values under the names the tooltip text uses: a property's m_strLocTokenOverride as well as
+    its own name ({s:BuffDuration} in Bounce Pad's T2 is SpeedOnLandDuration; without this the
+    card printed "for BuffDurations" in 40-odd upgrade lines)."""
+    return {**vals, **{o: vals[p] for p, o in alias.items() if p in vals and o not in vals}}
+
+
+def _label(tok, prop, aid, alias: str | None = None):
+    keys = [f'{aid}_{prop}_label', f'{prop}_label']
+    if alias:
+        keys += [f'{aid}_{alias}_label', f'{alias}_label']
+    for key in keys:
         v = tok.get(key.lower())
         if v and '{' not in v:
             return _HTML_RE.sub('', v).strip()
@@ -116,10 +126,15 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
 
 def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -> dict:
     props = a.get('m_mapAbilityProperties') or {}
+    alias = {p: str(d['m_strLocTokenOverride']) for p, d in props.items()
+             if isinstance(d, dict) and d.get('m_strLocTokenOverride')}
     base_vals = {}
     for p, d in props.items():
         if isinstance(d, dict) and d.get('m_strValue') is not None:
             base_vals[p] = _num_s(d['m_strValue']).rstrip('ms%') if not str(d['m_strValue']).endswith('m') else _num_s(d['m_strValue'])
+    base_vals = _tokens(base_vals, alias)
+    # "{s:hero_name} is slowed" — the game prints the owner's name
+    base_vals['hero_name'] = loc.plain(loc.hero_name(tok, owner)) if owner else 'the hero'
     important, basic = [], []
     for sec in ((a.get('m_AbilityTooltipDetails') or {}).get('m_vecAbilityInfoSections') or []):
         for blk in sec.get('m_vecAbilityPropertiesBlock') or []:
@@ -136,7 +151,7 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
         if not isinstance(d, dict) or str(d.get('m_strValue', '')).strip() in EMPTY:
             return None
         scale = (d.get('m_subclassScaleFunction') or {}).get('m_flStatScale')
-        return {'prop': p, 'label': _label(tok, p, aid), 'value': fmt_prop(tok, p, d['m_strValue'], aid),
+        return {'prop': p, 'label': _label(tok, p, aid, alias.get(p)), 'value': fmt_prop(tok, p, d['m_strValue'], aid),
                 'scale': float(scale) if isinstance(scale, (int, float)) and scale else None,
                 'css': css_class(d)}
 
@@ -158,10 +173,14 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
                 continue
             scale = u.get('m_eUpgradeType') in ('EAddToScale', 'EMultiplyScale')
             vals.setdefault(p, _num_s(b))
-            if not scale:
+            if scale:                          # "{s:MaxBonusBulletDamage_scale}%": the tier's scaling bonus
+                vals[f'{p}_scale'] = _num_s(b)
+            else:
                 vals[p] = _num_s(b).lstrip('-') if _affix(tok, p, 'prefix') == '-' else _num_s(b)
-            bonuses.append({'label': _label(tok, p, aid) + (' (spirit scaling)' if scale else ''),
+            suffix = scaling_suffix([u.get('m_eUpgradeType'), u.get('m_eScaleStatFilter')]) if scale else ''
+            bonuses.append({'label': _label(tok, p, aid, alias.get(p)) + suffix,
                             'value': fmt_prop(tok, p, b, aid, bonus=True)})
+        vals.update({o: vals[p] for p, o in alias.items() if p in vals and o not in props})
         text = fill(tok.get(f'{aid}_t{i}_desc'.lower()), vals, tok)
         tiers.append({'tier': i, 'text': text, 'bonuses': bonuses})
     sections = []

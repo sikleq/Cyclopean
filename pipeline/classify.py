@@ -66,7 +66,10 @@ UI_MORE_RE = re.compile(r'(RichPresence|m_eHudStyle|HudStyle|m_nNameOffset|Healt
                         r'm_sLocUnitName|NameOffset)')
 META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
 TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
-                           r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities)')
+                           r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities|'
+                           # an editor check ("warn the designer if no ability is affected"), shown as NEW
+                           # on five headshot items in 2026-01-30
+                           r'm_bWarnIfNoAffectedAbilities)')
 
 
 def _zero(v) -> bool:

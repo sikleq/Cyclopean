@@ -158,9 +158,21 @@ def player_facing(changes: list[dict]) -> list[dict]:
             if not is_engine(c) and not is_noop(c)]
 
 
+_ZERO_RE = re.compile(r'^[+-]?0(?:\.0+)?\s*(?:m|s|%|m/s|x|u)?$')
+
+
 def is_noop(c: dict) -> bool:
-    """'1.5 → 1.5': the shown values are equal (a re-keyed or re-typed field), nothing to read."""
-    return c.get('op') == 'change' and str(c.get('old_s')) == str(c.get('new_s'))
+    """'1.5 → 1.5': the shown values are equal (a re-keyed or re-typed field), nothing to read.
+    A field added or removed with a zero / "no" value changes nothing either: the patch window's
+    final value decides (Sleep Dagger's "Explosion Radius 0" NEW in City Never Sleeps was a field
+    tuned to 0 within the window)."""
+    op = c.get('op')
+    if op == 'change':
+        return str(c.get('old_s')) == str(c.get('new_s'))
+    if op in ('add', 'remove') and not str(c.get('path') or '').startswith('@'):
+        v = str(c.get('new_s' if op == 'add' else 'old_s') or '').strip().lower()
+        return bool(_ZERO_RE.match(v)) or v in ('no', 'false')
+    return False
 
 
 def change_row(c: dict) -> str:

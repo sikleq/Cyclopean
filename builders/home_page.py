@@ -7,7 +7,7 @@ from .common import (EYE_SVG, esc, glyph_for, hero_icon, load_json, mark, page, 
 from .patches_pages import GAMEPLAY, _summary, hero_names
 from .render import tag_html, vals_html
 
-RECENT_PATCHES = 6
+RECENT_PATCHES = 20       # the column beside the hero grid (8 rows of faces): 6 left most of it empty
 BIGGEST = 8
 
 
@@ -23,7 +23,10 @@ def _biggest(p: dict) -> str:
         if r['entity'] not in seen:
             seen.add(r['entity'])
             picked.append(r)
-    for r in picked[:BIGGEST]:
+    picked = picked[:BIGGEST]
+    if len(picked) > 1:
+        picked = picked[:len(picked) // 2 * 2]      # two columns: full rows only, no stretched last card
+    for r in picked:
         file, _, eid = r['entity'].partition(':')
         ic = entity_icon(file, eid, r.get('kind') or '', '', r.get('name'), r.get('owner'))
         who = names.get(r.get('owner') or '', '')

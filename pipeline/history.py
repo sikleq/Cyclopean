@@ -14,11 +14,12 @@ import time
 from pathlib import Path
 
 from . import cache, extras, jsonio, loc, tracker
-from .diff import diff_file
+from .diff import EntityChange, diff_entity, diff_file
 
 OUT = tracker.ROOT / 'data' / 'builds'
-FORMAT_VERSION = 3
+FORMAT_VERSION = 4        # 4: 'returned' entities; the pre-5747 bullet-speed curve reads as m_flBulletSpeed
 SUFFIX = '.json.gz'
+GONE = '@gone'            # last_known[GONE][vdata path][entity id] = blob of the last version before removal
 
 
 def _dump(path: Path, obj) -> None:
@@ -29,15 +30,21 @@ def record_path(build: tracker.Build) -> Path:
     return OUT / f'{build.build}_{build.short}{SUFFIX}'
 
 
-def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, str] | None = None) -> list[dict]:
+def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict | None = None) -> list[dict]:
     """Diff each tracked vdata file against its LAST KNOWN version.
 
     Some predecessor builds (5034-5043) carry no vdata at all: a missing file
     means "no data for this build", never "everything was removed", and the
     next build is compared with the last version seen. The first version of a
-    file is the baseline, not a change."""
+    file is the baseline, not a change.
+
+    An entity that comes back after a removal (Valve cut unrevealed heroes' kits
+    from the files until their reveal) is 'returned': diffed against its last
+    version before the removal, not against nothing (audit 2026-10-01: 705
+    balance fields of 47 entities read as all-new)."""
     entities = []
     boundary = prev.repo != cur.repo
+    gone = last_known.setdefault(GONE, {}) if last_known is not None else {}
     for path in tracker.VDATA_PATHS:
         if path not in cur.files and not boundary:
             continue
@@ -56,13 +63,25 @@ def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict[str
         old = cache.vdata_blob(old_blob) if old_blob else {}
         new = cache.vdata_blob(new_blob) if new_blob else {}
         name = path.rsplit('/', 1)[1]
+        graves = gone.setdefault(path, {})
         for ec in diff_file(name, old, new):
+            if ec.status == 'removed':
+                graves[ec.id] = old_blob
+            elif ec.status == 'added' and ec.id in graves:
+                ec = _returned(name, ec.id, cache.vdata_blob(graves.pop(ec.id)), new)
             rec = ec.to_json()
-            if ec.status == 'added':
+            if ec.status in ('added', 'returned'):
                 # a new entity keeps gameplay data only; cosmetics would bloat
                 rec['changes'] = [c for c in rec['changes'] if c['cat'] in ('balance', 'mechanic', 'availability')]
             entities.append(rec)
     return entities
+
+
+def _returned(name: str, eid: str, before: dict, now: dict) -> EntityChange:
+    a, b = before.get(eid), now.get(eid)
+    a = a if isinstance(a, dict) else {'value': a}
+    b = b if isinstance(b, dict) else {'value': b}
+    return EntityChange(name, eid, 'returned', diff_entity(a, b))
 
 
 def is_baseline(prev: tracker.Build) -> bool:
@@ -133,6 +152,7 @@ def summary(rec: dict, file_name: str) -> dict:
         'entities': len(rec['entities']),
         'added': sum(1 for e in rec['entities'] if e['status'] == 'added'),
         'removed': sum(1 for e in rec['entities'] if e['status'] == 'removed'),
+        'returned': sum(1 for e in rec['entities'] if e['status'] == 'returned'),
         'fields': by_cat,
         'loc': len(rec['loc']),
         'convars': len(rec['convars']),
@@ -156,7 +176,7 @@ def run(rebuild: bool = False) -> None:
             if rec.get('v') != FORMAT_VERSION:
                 rec = None
             else:
-                remember(last_known, prev, cur)
+                remember(last_known, prev, cur, rec)
         if rec is None:
             rec = build_record(prev, cur, last_known)
             if rec is None:
@@ -172,13 +192,24 @@ def run(rebuild: bool = False) -> None:
     print(f'{len(index)} build records, {time.time() - t0:.0f}s')
 
 
-def remember(last_known: dict[str, str], prev: tracker.Build, cur: tracker.Build) -> None:
-    """Advance last-known versions for a build whose record came from disk."""
+def remember(last_known: dict, prev: tracker.Build, cur: tracker.Build, rec: dict) -> None:
+    """Advance last-known versions (and removed entities' last versions) for a build whose
+    record came from disk."""
     boundary = prev.repo != cur.repo
+    gone = last_known.setdefault(GONE, {})
     for path in tracker.VDATA_PATHS:
         if path in cur.files or boundary:
             blob = tracker.blob_id(cur.commit, path)
             if blob:
+                name = path.rsplit('/', 1)[1]
+                graves = gone.setdefault(path, {})
+                for e in rec['entities']:
+                    if e['file'] != name:
+                        continue
+                    if e['status'] == 'removed' and last_known.get(path):
+                        graves[e['id']] = last_known[path]
+                    elif e['status'] in ('added', 'returned'):
+                        graves.pop(e['id'], None)
                 last_known[path] = blob
     t = touches(cur, prev)
     if t['@loc'] and loc.english_files(cur.commit):

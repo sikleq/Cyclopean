@@ -1008,8 +1008,7 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 .latest > .banner { margin: 0 0 4px; }
 .latest .summary { margin: 0; padding: 12px 16px 6px; box-shadow: none; background: none; }
 .latest .mini-h { margin: 10px 16px 8px; }
-.minis { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px; padding: 0 16px; }
-.minis > .mini:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.minis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 0 16px; }
 .mini { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center;
   padding: 8px 10px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--frame-line); }
 .mini .mi img, .mini .mi .glyph { width: 40px; height: 40px; object-fit: contain; display: block; background: var(--bg-panel-4); }
@@ -1205,6 +1204,7 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .switch input:focus-visible + .track { outline: 2px solid var(--patina); outline-offset: 2px; }
 .switch .n { color: var(--text-dimmer); font-weight: 500; }
 #heroes-grid:not(.show-pre) .hgcard.pre { display: none; }
+#units-grid:not(.show-gone) .card.gone { display: none; }
 details.fold-group > summary { cursor: pointer; list-style: none; }
 details.fold-group > summary::-webkit-details-marker { display: none; }
 details.fold-group > summary::before { content: "+ "; color: var(--patina); }
@@ -1221,7 +1221,7 @@ table.dyn thead tr.cols th.named a { color: var(--gold); font-weight: 700; }
 table.dyn thead tr.cats th { font: 600 12px/1 var(--font-ui); color: var(--text-bright); border-left: 1px solid var(--line); text-align: left; padding: 6px; }
 table.dyn th.name, table.dyn td.name { position: sticky; left: 0; z-index: 2; background: var(--bg-panel); text-align: left; min-width: 170px; }
 table.dyn thead th.name { z-index: 4; background: var(--bg-panel-2); }
-table.dyn td.name a { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 13px/1 var(--font-ui); }
+table.dyn td.name a { display: flex; align-items: center; gap: 8px; min-height: 26px; color: var(--name); font: 600 13px/1 var(--font-ui); }
 table.dyn td.name img { width: 26px; height: 26px; object-fit: cover; background: var(--bg-panel-4); }
 table.dyn td.dc { width: 30px; min-width: 30px; padding: 3px; background: var(--bg-panel); }
 table.dyn tbody tr:hover td { background: var(--bg-hover); }

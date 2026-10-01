@@ -7,11 +7,12 @@
 "entities":103,
 "added":7,
 "removed":1,
+"returned":0,
 "fields":{
-"balance":204,
+"balance":209,
 "mechanic":89,
 "audio":21,
-"technical":51,
+"technical":50,
 "ui":43,
 "visual":48,
 "meta":3
@@ -38,6 +39,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -53,6 +55,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -68,6 +71,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -84,6 +88,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -99,6 +104,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -114,6 +120,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -129,6 +136,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":64,
 "convars":0,
@@ -142,6 +150,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -155,12 +164,13 @@
 "entities":112,
 "added":4,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":148,
+"balance":151,
 "mechanic":52,
 "ui":123,
 "visual":45,
-"technical":97,
+"technical":94,
 "audio":22
 },
 "loc":78,
@@ -185,6 +195,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -203,6 +214,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2,
 "mechanic":2,
@@ -225,6 +237,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -246,6 +259,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2
 },
@@ -263,6 +277,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -281,6 +296,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -296,6 +312,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":2
 },
@@ -314,6 +331,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -331,6 +349,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -346,8 +365,9 @@
 "entities":85,
 "added":8,
 "removed":2,
+"returned":0,
 "fields":{
-"balance":180,
+"balance":187,
 "mechanic":66,
 "visual":11,
 "technical":77,
@@ -377,6 +397,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -395,6 +416,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -413,6 +435,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -430,6 +453,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -445,6 +469,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":2,
 "audio":3
@@ -465,6 +490,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1
 },
@@ -482,6 +508,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -497,6 +524,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2
 },
@@ -515,6 +543,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -530,6 +559,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -545,6 +575,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4,
 "balance":4,
@@ -564,9 +595,10 @@
 "entities":122,
 "added":9,
 "removed":4,
+"returned":0,
 "fields":{
 "mechanic":76,
-"balance":218,
+"balance":219,
 "visual":149,
 "meta":3,
 "technical":316,
@@ -595,6 +627,7 @@
 "entities":12,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":12,
 "balance":1,
@@ -617,6 +650,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1
 },
@@ -634,6 +668,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":5,
 "ui":2,
@@ -654,13 +689,14 @@
 "entities":144,
 "added":15,
 "removed":8,
+"returned":0,
 "fields":{
 "mechanic":85,
 "meta":20,
-"balance":252,
+"balance":254,
 "audio":20,
 "technical":198,
-"ui":113,
+"ui":103,
 "visual":11
 },
 "loc":400,
@@ -685,6 +721,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1,
 "balance":3
@@ -703,6 +740,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -721,6 +759,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -734,6 +773,7 @@
 "entities":10,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1,
 "mechanic":2,
@@ -755,6 +795,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1,
 "mechanic":2
@@ -775,6 +816,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":4
 },
@@ -792,6 +834,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -807,6 +850,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -822,11 +866,12 @@
 "entities":109,
 "added":2,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":145,
+"balance":147,
 "mechanic":35,
 "audio":39,
-"technical":114,
+"technical":111,
 "ui":58,
 "visual":24
 },
@@ -852,6 +897,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":5,
 "convars":0,
@@ -869,6 +915,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -885,6 +932,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "technical":1
@@ -903,6 +951,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -919,6 +968,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -932,6 +982,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -949,6 +1000,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -965,6 +1017,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -980,8 +1033,9 @@
 "entities":188,
 "added":2,
 "removed":1,
+"returned":0,
 "fields":{
-"balance":248,
+"balance":249,
 "visual":33,
 "meta":3,
 "technical":204,
@@ -1012,6 +1066,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -1030,6 +1085,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -1049,6 +1105,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -1062,6 +1119,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1077,6 +1135,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -1095,6 +1154,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1110,6 +1170,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1125,6 +1186,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1149,14 +1211,15 @@
 "entities":138,
 "added":7,
 "removed":3,
+"returned":0,
 "fields":{
 "ui":163,
-"balance":319,
+"balance":323,
 "meta":9,
 "visual":81,
 "availability":1,
 "mechanic":97,
-"technical":281,
+"technical":278,
 "audio":43
 },
 "loc":398,
@@ -1181,6 +1244,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":6,
 "ui":2
@@ -1199,6 +1263,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1217,6 +1282,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1233,6 +1299,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1248,6 +1315,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -1265,6 +1333,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":6,
 "mechanic":1
@@ -1285,6 +1354,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -1303,6 +1373,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -1320,6 +1391,7 @@
 "entities":23,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":25
 },
@@ -1337,6 +1409,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1352,6 +1425,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1369,6 +1443,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":5,
 "convars":0,
@@ -1384,6 +1459,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1400,6 +1476,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "ui":12,
@@ -1418,6 +1495,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -1435,6 +1513,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1450,6 +1529,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1465,17 +1545,17 @@
 "entities":192,
 "added":11,
 "removed":5,
+"returned":0,
 "fields":{
-"ui":242,
-"visual":117,
-"balance":466,
+"ui":226,
+"visual":112,
+"balance":477,
 "mechanic":201,
 "availability":2,
-"technical":777,
-"audio":50,
-"meta":6
+"technical":232,
+"audio":50
 },
-"loc":1552,
+"loc":1543,
 "convars":0,
 "assets":{
 "animation":2,
@@ -1498,6 +1578,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1
 },
@@ -1516,6 +1597,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -1535,6 +1617,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -1552,11 +1635,12 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":8,
-"balance":12,
-"technical":15,
-"mechanic":5
+"balance":13,
+"mechanic":5,
+"technical":12
 },
 "loc":10,
 "convars":0,
@@ -1578,6 +1662,7 @@
 "entities":3,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "mechanic":1
@@ -1598,6 +1683,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "mechanic":1
@@ -1616,6 +1702,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "mechanic":1
@@ -1634,6 +1721,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1649,6 +1737,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -1666,6 +1755,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -1683,6 +1773,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1698,6 +1789,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -1715,6 +1807,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":7,
 "ui":2,
@@ -1735,6 +1828,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -1748,14 +1842,15 @@
 "entities":183,
 "added":7,
 "removed":2,
+"returned":0,
 "fields":{
 "audio":56,
-"meta":3,
-"balance":489,
+"meta":2,
+"balance":496,
 "mechanic":94,
-"ui":137,
-"visual":67,
-"technical":390
+"ui":128,
+"visual":64,
+"technical":164
 },
 "loc":150,
 "convars":0,
@@ -1780,6 +1875,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -1798,6 +1894,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1,
 "mechanic":1,
@@ -1819,6 +1916,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1834,6 +1932,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1849,6 +1948,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -1866,6 +1966,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1882,6 +1983,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1899,6 +2001,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1915,6 +2018,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -1931,6 +2035,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":3,
 "ui":1,
@@ -1952,6 +2057,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -1969,6 +2075,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -1986,6 +2093,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -2007,6 +2115,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2022,6 +2131,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":5
 },
@@ -2041,6 +2151,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2058,17 +2169,18 @@
 "entities":252,
 "added":7,
 "removed":6,
+"returned":0,
 "fields":{
-"visual":263,
-"balance":619,
-"meta":6,
+"visual":240,
+"balance":628,
+"meta":5,
 "mechanic":151,
 "availability":1,
-"audio":66,
-"ui":163,
-"technical":507
+"audio":61,
+"ui":161,
+"technical":288
 },
-"loc":343,
+"loc":339,
 "convars":0,
 "assets":{
 "animation":7,
@@ -2091,6 +2203,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "technical":11
@@ -2110,6 +2223,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -2128,6 +2242,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":1
@@ -2147,6 +2262,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":8,
 "convars":0,
@@ -2163,6 +2279,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2,
 "mechanic":5
@@ -2183,6 +2300,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -2203,6 +2321,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -2220,6 +2339,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -2235,6 +2355,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2250,6 +2371,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":7,
 "mechanic":1
@@ -2268,6 +2390,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -2285,6 +2408,7 @@
 "entities":20,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":2,
 "balance":22
@@ -2304,8 +2428,10 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"visual":47,
+"visual":43,
+"technical":4,
 "mechanic":1
 },
 "loc":0,
@@ -2324,6 +2450,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":3
@@ -2343,6 +2470,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2358,17 +2486,18 @@
 "entities":193,
 "added":7,
 "removed":4,
+"returned":0,
 "fields":{
-"balance":322,
-"meta":6,
+"balance":328,
+"meta":3,
 "availability":9,
-"audio":24,
+"audio":19,
 "mechanic":151,
-"visual":104,
-"technical":524,
-"ui":139
+"visual":83,
+"technical":242,
+"ui":132
 },
-"loc":297,
+"loc":296,
 "convars":0,
 "assets":{
 "animation":38,
@@ -2391,6 +2520,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -2410,6 +2540,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -2427,6 +2558,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "visual":2,
@@ -2447,6 +2579,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":6,
 "mechanic":1
@@ -2466,6 +2599,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2481,6 +2615,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2496,8 +2631,9 @@
 "entities":4,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
-"technical":5,
+"technical":4,
 "ui":4,
 "visual":2,
 "mechanic":2
@@ -2517,6 +2653,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":2
 },
@@ -2538,6 +2675,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1,
 "ui":1
@@ -2557,6 +2695,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":4,
 "technical":1,
@@ -2576,6 +2715,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":2,
 "balance":2
@@ -2594,6 +2734,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4,
 "mechanic":2,
@@ -2613,6 +2754,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -2628,6 +2770,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":6,
 "mechanic":1
@@ -2647,6 +2790,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2662,6 +2806,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2677,6 +2822,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2,
 "technical":5
@@ -2695,15 +2841,16 @@
 "entities":192,
 "added":19,
 "removed":2,
+"returned":0,
 "fields":{
-"balance":505,
-"visual":96,
+"balance":514,
+"visual":69,
 "mechanic":209,
-"technical":760,
 "availability":5,
-"ui":158,
-"meta":4,
-"audio":28
+"ui":139,
+"technical":206,
+"meta":1,
+"audio":21
 },
 "loc":190,
 "convars":0,
@@ -2728,6 +2875,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":3,
 "balance":3
@@ -2746,6 +2894,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":2,
 "balance":1
@@ -2765,6 +2914,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -2778,9 +2928,9 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"technical":1,
-"visual":1
+"technical":2
 },
 "loc":0,
 "convars":0,
@@ -2797,6 +2947,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2,
 "mechanic":3,
@@ -2820,11 +2971,12 @@
 "entities":2,
 "added":0,
 "removed":1,
+"returned":0,
 "fields":{
-"technical":8,
-"visual":6,
-"audio":2,
-"ui":4
+"technical":13,
+"visual":3,
+"ui":3,
+"audio":1
 },
 "loc":0,
 "convars":0,
@@ -2840,6 +2992,7 @@
 "entities":8,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":9,
 "mechanic":2,
@@ -2862,6 +3015,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1
 },
@@ -2882,6 +3036,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1
 },
@@ -2900,6 +3055,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":39,
 "convars":0,
@@ -2915,6 +3071,7 @@
 "entities":8,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4,
 "visual":3,
@@ -2938,6 +3095,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -2953,6 +3111,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":4,
 "convars":0,
@@ -2968,6 +3127,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":8,
 "technical":2
@@ -2986,6 +3146,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":26,
 "convars":0,
@@ -3003,6 +3164,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -3018,6 +3180,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3033,6 +3196,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -3048,17 +3212,18 @@
 "entities":193,
 "added":33,
 "removed":3,
+"returned":0,
 "fields":{
-"mechanic":648,
-"visual":152,
-"balance":1351,
-"technical":2209,
-"meta":18,
+"mechanic":647,
+"visual":115,
+"balance":1378,
 "availability":24,
-"ui":150,
-"audio":36
+"ui":124,
+"technical":201,
+"meta":3,
+"audio":33
 },
-"loc":226,
+"loc":221,
 "convars":0,
 "assets":{
 "animation":20,
@@ -3080,6 +3245,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3098,6 +3264,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3116,6 +3283,7 @@
 "entities":8,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":22,
 "ui":1,
@@ -3138,6 +3306,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3153,6 +3322,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3168,6 +3338,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":5
 },
@@ -3186,6 +3357,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3201,6 +3373,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -3216,6 +3389,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "visual":2
@@ -3236,6 +3410,7 @@
 "entities":5,
 "added":0,
 "removed":3,
+"returned":0,
 "fields":{
 "mechanic":2,
 "ui":4,
@@ -3257,6 +3432,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3272,6 +3448,7 @@
 "entities":10,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":17,
 "mechanic":3,
@@ -3292,13 +3469,13 @@
 "entities":18,
 "added":1,
 "removed":2,
+"returned":0,
 "fields":{
 "mechanic":54,
-"balance":92,
-"visual":20,
-"ui":13,
-"technical":115,
-"meta":1,
+"balance":93,
+"visual":19,
+"ui":11,
+"technical":29,
 "audio":1
 },
 "loc":28,
@@ -3318,6 +3495,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -3333,9 +3511,9 @@
 "entities":9,
 "added":5,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":5,
-"technical":5,
 "mechanic":33,
 "balance":21
 },
@@ -3359,6 +3537,7 @@
 "entities":9,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":10,
 "technical":1
@@ -3377,6 +3556,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":10,
 "technical":2
@@ -3395,6 +3575,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -3412,6 +3593,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -3424,20 +3606,20 @@
 "commit":"aad54b4e7f3dbcd027f97ee5bc280aed8a675636",
 "date":"2024-11-07T23:10:03Z",
 "file":"5339_aad54b4e.json.gz",
-"entities":144,
+"entities":142,
 "added":12,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":590,
-"visual":37,
+"balance":598,
+"visual":29,
 "mechanic":236,
-"audio":42,
-"technical":902,
-"meta":5,
+"audio":41,
 "availability":6,
-"ui":126
+"ui":114,
+"technical":168
 },
-"loc":235,
+"loc":234,
 "convars":0,
 "assets":{
 "animation":69,
@@ -3460,6 +3642,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -3477,9 +3660,9 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":2,
-"technical":5
+"balance":4
 },
 "loc":0,
 "convars":0,
@@ -3495,6 +3678,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "balance":2
@@ -3515,6 +3699,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3530,6 +3715,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3545,6 +3731,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -3560,6 +3747,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -3578,6 +3766,7 @@
 "entities":3,
 "added":2,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":3
 },
@@ -3595,6 +3784,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":6,
 "mechanic":1
@@ -3613,6 +3803,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3628,6 +3819,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -3644,13 +3836,14 @@
 "entities":9,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":24,
-"balance":65,
-"technical":81,
-"ui":11,
-"visual":9,
-"meta":1
+"balance":66,
+"meta":1,
+"ui":10,
+"technical":19,
+"visual":7
 },
 "loc":17,
 "convars":0,
@@ -3671,6 +3864,7 @@
 "entities":17,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":17
 },
@@ -3688,6 +3882,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3705,17 +3900,18 @@
 "entities":208,
 "added":16,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":839,
-"visual":82,
+"balance":854,
+"visual":59,
 "mechanic":360,
-"audio":44,
-"technical":1333,
+"audio":43,
 "availability":8,
-"meta":18,
-"ui":199
+"meta":6,
+"ui":168,
+"technical":380
 },
-"loc":221,
+"loc":220,
 "convars":0,
 "assets":{
 "animation":45,
@@ -3738,6 +3934,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2,
 "technical":1
@@ -3758,6 +3955,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1,
 "technical":3,
@@ -3777,6 +3975,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3795,6 +3994,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "ui":1,
@@ -3816,6 +4016,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3835,6 +4036,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -3850,6 +4052,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -3867,6 +4070,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3885,6 +4089,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4,
 "visual":1
@@ -3903,6 +4108,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":17,
 "mechanic":8,
@@ -3926,6 +4132,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3941,10 +4148,10 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":6,
-"mechanic":1,
-"technical":3
+"balance":7,
+"mechanic":1
 },
 "loc":17,
 "convars":0,
@@ -3963,6 +4170,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -3981,6 +4189,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -3996,6 +4205,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -4013,8 +4223,9 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
-"loc":423,
+"loc":147,
 "convars":0,
 "assets":{
 "animation":45,
@@ -4037,6 +4248,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -4052,6 +4264,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4067,6 +4280,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4083,6 +4297,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -4098,6 +4313,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4113,6 +4329,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4128,6 +4345,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -4143,15 +4361,16 @@
 "entities":268,
 "added":6,
 "removed":2,
+"returned":0,
 "fields":{
-"audio":84,
-"visual":119,
-"balance":448,
+"audio":83,
+"visual":99,
+"balance":454,
 "mechanic":186,
-"meta":5,
+"meta":2,
 "availability":1,
-"ui":457,
-"technical":928
+"ui":446,
+"technical":564
 },
 "loc":0,
 "convars":0,
@@ -4165,12 +4384,12 @@
 "entities":14,
 "added":3,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":5,
 "meta":2,
 "mechanic":26,
 "audio":19,
-"technical":3,
 "balance":15
 },
 "loc":3,
@@ -4195,6 +4414,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -4214,6 +4434,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -4231,10 +4452,11 @@
 "entities":13,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":23,
-"ui":18,
-"technical":16,
+"ui":16,
+"technical":18,
 "visual":10,
 "mechanic":6,
 "audio":6,
@@ -4254,9 +4476,9 @@
 "entities":13,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":18,
-"technical":3
+"balance":19
 },
 "loc":0,
 "convars":0,
@@ -4272,6 +4494,7 @@
 "entities":6,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":9,
 "technical":1
@@ -4290,15 +4513,16 @@
 "entities":71,
 "added":6,
 "removed":0,
+"returned":0,
 "fields":{
-"meta":9,
-"visual":230,
+"meta":5,
+"visual":212,
 "mechanic":123,
 "availability":6,
-"balance":199,
-"ui":25,
-"audio":32,
-"technical":405
+"balance":205,
+"ui":18,
+"technical":53,
+"audio":32
 },
 "loc":69,
 "convars":0,
@@ -4322,11 +4546,12 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1,
 "visual":4
 },
-"loc":2,
+"loc":0,
 "convars":0,
 "assets":{
 "data":1,
@@ -4343,6 +4568,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -4358,6 +4584,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":3
 },
@@ -4376,6 +4603,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":8
 },
@@ -4393,6 +4621,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4408,9 +4637,10 @@
 "entities":85,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":104,
-"technical":8,
+"balance":105,
+"technical":5,
 "mechanic":2
 },
 "loc":4,
@@ -4427,6 +4657,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -4444,11 +4675,12 @@
 "entities":50,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":79,
+"balance":80,
 "audio":6,
 "mechanic":4,
-"technical":34,
+"technical":31,
 "ui":24,
 "visual":3
 },
@@ -4470,6 +4702,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4485,6 +4718,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -4502,6 +4736,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -4519,9 +4754,8 @@
 "entities":1,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
-"technical":1,
-"ui":1,
 "mechanic":2,
 "balance":1
 },
@@ -4539,14 +4773,14 @@
 "entities":19,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
-"visual":5,
+"visual":3,
 "ui":2,
 "audio":50,
 "mechanic":41,
-"balance":72,
-"technical":96,
-"meta":1
+"balance":74,
+"technical":2
 },
 "loc":7,
 "convars":0,
@@ -4567,15 +4801,16 @@
 "entities":230,
 "added":13,
 "removed":2,
+"returned":0,
 "fields":{
-"meta":36,
-"visual":236,
-"audio":167,
+"meta":29,
+"visual":218,
+"audio":157,
 "mechanic":154,
-"ui":143,
+"ui":133,
 "availability":8,
-"balance":343,
-"technical":649
+"balance":353,
+"technical":189
 },
 "loc":198,
 "convars":0,
@@ -4600,6 +4835,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4617,6 +4853,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4633,6 +4870,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":4
 },
@@ -4650,6 +4888,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4667,6 +4906,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4682,6 +4922,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -4695,6 +4936,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4711,6 +4953,7 @@
 "entities":29,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":40,
 "technical":30,
@@ -4734,6 +4977,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -4751,6 +4995,7 @@
 "entities":13,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2,
 "ui":4,
@@ -4770,6 +5015,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":5
 },
@@ -4787,6 +5033,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4802,6 +5049,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":8,
 "convars":0,
@@ -4815,13 +5063,14 @@
 "entities":21,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":38,
 "mechanic":2,
-"technical":30,
-"ui":3,
+"technical":35,
+"ui":2,
 "audio":2,
-"visual":5
+"visual":1
 },
 "loc":3,
 "convars":0,
@@ -4840,10 +5089,11 @@
 "entities":58,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":92,
+"balance":93,
 "mechanic":13,
-"technical":26,
+"technical":23,
 "ui":11,
 "visual":3,
 "meta":1
@@ -4866,6 +5116,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -4879,6 +5130,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -4896,17 +5148,18 @@
 "entities":514,
 "added":121,
 "removed":8,
+"returned":0,
 "fields":{
-"meta":176,
-"audio":410,
-"ui":1450,
-"balance":4812,
-"visual":773,
-"technical":8165,
+"meta":121,
+"audio":385,
+"ui":1361,
+"balance":4912,
+"visual":662,
 "availability":58,
-"mechanic":1832
+"mechanic":1832,
+"technical":1119
 },
-"loc":1063,
+"loc":963,
 "convars":0,
 "assets":{
 "animation":498,
@@ -4929,6 +5182,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -4944,6 +5198,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -4959,6 +5214,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4
 },
@@ -4978,8 +5234,9 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"audio":2
+"technical":2
 },
 "loc":0,
 "convars":0,
@@ -4997,6 +5254,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -5013,6 +5271,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -5031,6 +5290,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "technical":1
@@ -5051,6 +5311,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":4
 },
@@ -5071,6 +5332,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":5,
 "technical":2,
@@ -5090,6 +5352,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1,
 "ui":3,
@@ -5112,6 +5375,7 @@
 "entities":8,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":3,
 "audio":3,
@@ -5136,6 +5400,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -5153,6 +5418,7 @@
 "entities":205,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":312,
 "ui":2
@@ -5171,6 +5437,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":3,
 "visual":2,
@@ -5195,6 +5462,7 @@
 "entities":10,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":12,
 "technical":18,
@@ -5215,13 +5483,14 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"technical":20,
+"technical":22,
 "mechanic":1,
 "balance":2,
-"visual":2,
-"audio":2,
+"visual":1,
 "ui":4,
+"audio":1,
 "availability":1
 },
 "loc":2,
@@ -5239,6 +5508,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -5255,6 +5525,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5270,12 +5541,13 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":3,
 "ui":1,
 "balance":3
 },
-"loc":1,
+"loc":0,
 "convars":0,
 "assets":{
 "data":2
@@ -5289,6 +5561,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5304,6 +5577,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -5321,15 +5595,16 @@
 "entities":140,
 "added":2,
 "removed":1,
+"returned":0,
 "fields":{
-"balance":172,
-"meta":20,
+"balance":174,
+"meta":18,
 "mechanic":30,
-"technical":143,
-"ui":68,
+"technical":32,
+"ui":63,
 "visual":8
 },
-"loc":12,
+"loc":9,
 "convars":0,
 "assets":{
 "data":92,
@@ -5346,6 +5621,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "technical":4
@@ -5364,6 +5640,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -5382,6 +5659,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5399,6 +5677,7 @@
 "entities":14,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":25,
 "ui":6,
@@ -5420,6 +5699,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -5437,6 +5717,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "audio":1
@@ -5456,6 +5737,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":5
 },
@@ -5478,13 +5760,13 @@
 "entities":59,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":90,
 "mechanic":9,
-"technical":98,
-"ui":25,
-"visual":16,
-"audio":2,
+"technical":115,
+"ui":24,
+"visual":2,
 "meta":1
 },
 "loc":19,
@@ -5503,6 +5785,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3,
 "visual":2
@@ -5521,6 +5804,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":4
 },
@@ -5539,10 +5823,11 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
-"visual":11,
-"technical":2,
+"visual":8,
+"technical":5,
 "audio":3
 },
 "loc":0,
@@ -5560,6 +5845,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -5576,6 +5862,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -5595,10 +5882,12 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3,
-"visual":14,
-"ui":1
+"technical":6,
+"ui":1,
+"visual":8
 },
 "loc":9,
 "convars":0,
@@ -5615,6 +5904,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5631,6 +5921,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5647,6 +5938,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5663,6 +5955,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -5680,6 +5973,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -5698,13 +5992,14 @@
 "entities":96,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":256,
+"balance":258,
 "mechanic":50,
 "audio":19,
-"technical":201,
+"technical":60,
 "ui":6,
-"visual":70
+"visual":62
 },
 "loc":40,
 "convars":0,
@@ -5729,6 +6024,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5745,6 +6041,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -5763,10 +6060,11 @@
 "entities":3,
 "added":1,
 "removed":1,
+"returned":0,
 "fields":{
 "mechanic":4,
-"technical":62,
-"balance":5
+"technical":1,
+"balance":6
 },
 "loc":0,
 "convars":0,
@@ -5784,6 +6082,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":14,
 "convars":0,
@@ -5799,14 +6098,14 @@
 "entities":184,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
-"balance":340,
-"technical":135,
+"balance":342,
+"technical":83,
 "mechanic":24,
-"ui":96,
-"visual":32,
-"audio":4,
-"meta":1
+"ui":95,
+"visual":29,
+"audio":4
 },
 "loc":51,
 "convars":0,
@@ -5825,6 +6124,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -5842,6 +6142,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -5859,8 +6160,9 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
-"loc":3,
+"loc":2,
 "convars":0,
 "assets":{}
 },
@@ -5872,6 +6174,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5887,6 +6190,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -5905,6 +6209,7 @@
 "entities":104,
 "added":2,
 "removed":2,
+"returned":0,
 "fields":{
 "balance":187,
 "visual":30,
@@ -5931,6 +6236,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -5946,6 +6252,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -5963,6 +6270,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":5
 },
@@ -5980,6 +6288,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":7,
 "mechanic":1
@@ -5998,11 +6307,12 @@
 "entities":10,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":13,
-"technical":5,
+"technical":9,
 "ui":3,
-"visual":10,
+"visual":6,
 "mechanic":1
 },
 "loc":0,
@@ -6020,20 +6330,21 @@
 "commit":"04fc45ebd4ec67f38eacd0ec04d988fb4882c4b6",
 "date":"2025-08-18T20:46:41Z",
 "file":"5747_04fc45eb.json.gz",
-"entities":401,
+"entities":364,
 "added":72,
 "removed":37,
+"returned":0,
 "fields":{
-"ui":252,
-"audio":369,
-"meta":92,
-"visual":387,
-"mechanic":900,
-"balance":1846,
+"ui":202,
+"audio":366,
+"meta":72,
+"visual":335,
+"mechanic":899,
+"balance":1757,
 "availability":40,
-"technical":3008
+"technical":244
 },
-"loc":2139,
+"loc":1503,
 "convars":0,
 "assets":{
 "animation":917,
@@ -6056,6 +6367,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6072,6 +6384,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -6089,6 +6402,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2,
 "mechanic":1
@@ -6111,6 +6425,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6127,6 +6442,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1,
 "balance":1
@@ -6149,6 +6465,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":3,
 "convars":0,
@@ -6166,6 +6483,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1,
 "mechanic":2,
@@ -6194,6 +6512,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6214,17 +6533,16 @@
 "date":"2025-08-20T21:02:29Z",
 "file":"5789_a1084d7a.json.gz",
 "entities":14,
-"added":7,
+"added":4,
 "removed":0,
+"returned":3,
 "fields":{
 "audio":5,
 "availability":1,
-"mechanic":129,
-"balance":264,
-"technical":659,
-"ui":23,
-"visual":47,
-"meta":1
+"mechanic":98,
+"balance":221,
+"technical":26,
+"visual":2
 },
 "loc":88,
 "convars":0,
@@ -6248,6 +6566,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6264,6 +6583,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":3,
 "balance":3,
@@ -6288,6 +6608,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "visual":2
@@ -6312,6 +6633,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":7,
 "mechanic":3,
@@ -6338,6 +6660,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1,
 "visual":1
@@ -6360,16 +6683,17 @@
 "date":"2025-08-22T21:02:12Z",
 "file":"5818_76a48105.json.gz",
 "entities":13,
-"added":8,
+"added":5,
 "removed":0,
+"returned":3,
 "fields":{
-"balance":205,
-"visual":26,
-"meta":4,
+"balance":161,
+"visual":4,
+"meta":1,
 "availability":1,
-"ui":25,
-"technical":682,
-"mechanic":114
+"ui":3,
+"mechanic":83,
+"technical":12
 },
 "loc":56,
 "convars":0,
@@ -6393,6 +6717,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6409,6 +6734,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6425,6 +6751,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -6444,6 +6771,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":12,
 "ui":1,
@@ -6465,8 +6793,9 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
-"loc":820,
+"loc":498,
 "convars":0,
 "assets":{}
 },
@@ -6478,6 +6807,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6492,16 +6822,16 @@
 "date":"2025-08-25T21:01:21Z",
 "file":"5831_f7eb0844.json.gz",
 "entities":13,
-"added":7,
+"added":2,
 "removed":0,
+"returned":5,
 "fields":{
 "availability":1,
-"balance":245,
-"technical":546,
-"mechanic":130,
-"ui":15,
-"meta":3,
-"visual":20,
+"balance":187,
+"mechanic":84,
+"ui":2,
+"visual":1,
+"technical":5,
 "audio":4
 },
 "loc":42,
@@ -6525,6 +6855,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":9,
 "mechanic":2,
@@ -6548,6 +6879,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1,
 "mechanic":1,
@@ -6570,6 +6902,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -6588,6 +6921,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":8,
@@ -6595,7 +6929,7 @@
 "audio":1,
 "visual":6
 },
-"loc":4,
+"loc":5,
 "convars":0,
 "assets":{
 "animation":57,
@@ -6614,16 +6948,16 @@
 "date":"2025-08-27T21:02:35Z",
 "file":"5852_cb41f56c.json.gz",
 "entities":11,
-"added":8,
+"added":5,
 "removed":0,
+"returned":3,
 "fields":{
 "availability":1,
-"balance":195,
-"technical":531,
-"ui":22,
-"mechanic":124,
-"meta":3,
-"visual":21
+"balance":196,
+"mechanic":105,
+"visual":4,
+"technical":2,
+"ui":1
 },
 "loc":103,
 "convars":0,
@@ -6647,6 +6981,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6663,6 +6998,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1
 },
@@ -6681,6 +7017,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6698,6 +7035,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -6717,6 +7055,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -6737,6 +7076,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -6755,6 +7095,7 @@
 "entities":12,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":33,
 "technical":15,
@@ -6776,17 +7117,17 @@
 "date":"2025-08-29T21:02:30Z",
 "file":"5878_f274c4c6.json.gz",
 "entities":12,
-"added":8,
+"added":2,
 "removed":0,
+"returned":6,
 "fields":{
 "availability":1,
-"balance":245,
-"mechanic":125,
-"technical":633,
-"visual":19,
-"ui":16,
-"meta":4,
-"audio":1
+"balance":143,
+"mechanic":52,
+"visual":2,
+"audio":1,
+"technical":2,
+"ui":2
 },
 "loc":72,
 "convars":0,
@@ -6809,6 +7150,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -6825,6 +7167,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":14,
 "technical":2
@@ -6846,6 +7189,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "availability":1
 },
@@ -6863,6 +7207,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6878,6 +7223,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -6896,6 +7242,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "mechanic":1,
@@ -6919,13 +7266,14 @@
 "entities":98,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":142,
 "mechanic":19,
-"technical":39,
+"technical":42,
 "visual":1,
 "ui":48,
-"audio":6
+"audio":3
 },
 "loc":10,
 "convars":0,
@@ -6945,6 +7293,7 @@
 "entities":34,
 "added":0,
 "removed":1,
+"returned":0,
 "fields":{
 "visual":31,
 "mechanic":2,
@@ -6972,6 +7321,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":2,
 "technical":2
@@ -6990,6 +7340,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":5,
 "balance":3
@@ -7010,6 +7361,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7026,6 +7378,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7041,6 +7394,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1,
 "balance":2
@@ -7062,6 +7416,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7078,6 +7433,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "availability":2
 },
@@ -7096,16 +7452,17 @@
 "entities":135,
 "added":2,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":225,
 "mechanic":38,
 "ui":72,
-"audio":31,
-"technical":162,
-"visual":32,
+"audio":20,
+"technical":181,
+"visual":22,
 "availability":2
 },
-"loc":38,
+"loc":39,
 "convars":0,
 "assets":{
 "animation":887,
@@ -7126,6 +7483,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -7143,6 +7501,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -7160,6 +7519,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7175,6 +7535,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7190,6 +7551,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -7208,6 +7570,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7223,6 +7586,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":6,
 "mechanic":2
@@ -7241,6 +7605,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -7260,6 +7625,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -7275,6 +7641,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":5,
 "ui":1
@@ -7294,6 +7661,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7309,6 +7677,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -7324,11 +7693,11 @@
 "entities":45,
 "added":3,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":61,
-"technical":15,
-"mechanic":10,
-"ui":9
+"technical":6,
+"mechanic":10
 },
 "loc":3,
 "convars":0,
@@ -7347,6 +7716,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7362,6 +7732,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -7379,6 +7750,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7394,11 +7766,12 @@
 "entities":263,
 "added":4,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":482,
 "mechanic":65,
-"technical":291,
-"ui":74,
+"technical":106,
+"ui":71,
 "audio":5,
 "visual":29
 },
@@ -7422,6 +7795,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -7439,6 +7813,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":2
 },
@@ -7456,6 +7831,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7471,6 +7847,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -7486,6 +7863,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1,
 "balance":1,
@@ -7505,6 +7883,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -7518,6 +7897,7 @@
 "entities":49,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":44,
 "visual":1,
@@ -7537,6 +7917,7 @@
 "entities":25,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":26,
 "mechanic":1
@@ -7555,6 +7936,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7571,6 +7953,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":36,
 "technical":16,
@@ -7590,6 +7973,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -7607,6 +7991,7 @@
 "entities":21,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":46,
 "ui":2,
@@ -7627,6 +8012,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -7644,6 +8030,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7659,6 +8046,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7674,12 +8062,11 @@
 "entities":5,
 "added":2,
 "removed":0,
+"returned":0,
 "fields":{
-"visual":6,
-"technical":84,
+"visual":3,
 "mechanic":15,
 "balance":51,
-"ui":1,
 "audio":1
 },
 "loc":24,
@@ -7704,6 +8091,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7719,6 +8107,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -7736,6 +8125,7 @@
 "entities":103,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":129,
 "visual":11,
@@ -7743,7 +8133,7 @@
 "technical":7,
 "ui":10
 },
-"loc":9,
+"loc":6,
 "convars":0,
 "assets":{
 "data":6
@@ -7757,6 +8147,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -7774,6 +8165,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7790,6 +8182,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3,
 "technical":6
@@ -7810,6 +8203,7 @@
 "entities":23,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":41,
 "technical":19,
@@ -7830,6 +8224,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1,
 "ui":1
@@ -7848,6 +8243,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":17,
 "technical":4,
@@ -7867,6 +8263,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -7884,6 +8281,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -7899,14 +8297,12 @@
 "commit":"7b56e242ff58817053a0471ce9f6e05d1d28e4e5",
 "date":"2026-01-06T22:30:58Z",
 "file":"6079_7b56e242.json.gz",
-"entities":32,
-"added":32,
+"entities":0,
+"added":0,
 "removed":0,
-"fields":{
-"mechanic":103,
-"balance":31
-},
-"loc":66,
+"returned":0,
+"fields":{},
+"loc":4,
 "convars":0,
 "assets":{
 "data":1,
@@ -7922,6 +8318,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":3
 },
@@ -7939,6 +8336,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":3
 },
@@ -7956,6 +8354,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":2
 },
@@ -7973,6 +8372,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -7990,6 +8390,7 @@
 "entities":13,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":15,
 "visual":3,
@@ -8017,6 +8418,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -8034,6 +8436,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8049,6 +8452,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":1
@@ -8064,21 +8468,22 @@
 "commit":"f3ac323d5184ddb4b4ceae2abb3ed68d3a17f7f6",
 "date":"2026-01-22T22:57:36Z",
 "file":"6127_f3ac323d.json.gz",
-"entities":512,
-"added":96,
+"entities":494,
+"added":78,
 "removed":40,
+"returned":0,
 "fields":{
-"technical":3059,
-"balance":2989,
+"balance":2986,
 "availability":44,
-"mechanic":1392,
-"streetbrawl":1765,
-"meta":115,
-"ui":365,
-"audio":254,
-"visual":790
+"mechanic":1057,
+"meta":103,
+"ui":307,
+"audio":243,
+"visual":766,
+"streetbrawl":412,
+"technical":599
 },
-"loc":1500,
+"loc":1495,
 "convars":0,
 "assets":{
 "animation":1490,
@@ -8101,6 +8506,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8116,11 +8522,11 @@
 "entities":4,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":4,
 "audio":1,
-"technical":3,
-"ui":1,
+"technical":1,
 "balance":2,
 "visual":1
 },
@@ -8143,6 +8549,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "meta":2
 },
@@ -8161,6 +8568,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -8178,6 +8586,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1
 },
@@ -8195,11 +8604,12 @@
 "entities":20,
 "added":0,
 "removed":11,
+"returned":0,
 "fields":{
 "audio":5,
 "streetbrawl":20,
-"visual":3,
-"technical":8
+"visual":2,
+"technical":9
 },
 "loc":5,
 "convars":0,
@@ -8219,11 +8629,12 @@
 "entities":6,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "balance":2,
-"technical":1,
-"audio":5,
+"technical":4,
+"audio":2,
 "mechanic":1
 },
 "loc":1,
@@ -8244,6 +8655,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3
 },
@@ -8263,6 +8675,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8278,6 +8691,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -8294,6 +8708,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8310,6 +8725,7 @@
 "entities":1,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -8329,15 +8745,14 @@
 "entities":19,
 "added":12,
 "removed":0,
+"returned":0,
 "fields":{
 "availability":1,
 "streetbrawl":8,
 "balance":304,
-"ui":28,
+"ui":2,
 "mechanic":194,
-"technical":761,
-"visual":22,
-"meta":3
+"technical":11
 },
 "loc":108,
 "convars":0,
@@ -8362,6 +8777,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -8382,6 +8798,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1,
 "mechanic":2
@@ -8405,6 +8822,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":2,
 "balance":1
@@ -8427,6 +8845,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":9,
 "convars":0,
@@ -8443,6 +8862,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -8465,6 +8885,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8480,9 +8901,8 @@
 "entities":3,
 "added":1,
 "removed":1,
+"returned":0,
 "fields":{
-"technical":1,
-"ui":1,
 "mechanic":3
 },
 "loc":0,
@@ -8499,16 +8919,16 @@
 "entities":34,
 "added":14,
 "removed":0,
+"returned":0,
 "fields":{
 "availability":6,
 "streetbrawl":15,
-"ui":44,
+"ui":4,
 "audio":3,
 "balance":457,
-"mechanic":227,
-"technical":984,
-"meta":8,
-"visual":96
+"mechanic":222,
+"visual":66,
+"technical":6
 },
 "loc":143,
 "convars":0,
@@ -8533,6 +8953,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8549,6 +8970,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8568,6 +8990,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":6,
 "ui":1
@@ -8587,13 +9010,14 @@
 "entities":141,
 "added":1,
 "removed":4,
+"returned":0,
 "fields":{
 "balance":196,
 "streetbrawl":118,
 "visual":46,
-"ui":97,
+"ui":96,
 "mechanic":19,
-"technical":109,
+"technical":108,
 "audio":10
 },
 "loc":35,
@@ -8617,6 +9041,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -8634,6 +9059,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8649,6 +9075,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "technical":4
@@ -8667,17 +9094,17 @@
 "entities":51,
 "added":16,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":19,
 "balance":450,
 "availability":1,
-"ui":44,
-"mechanic":304,
-"visual":61,
-"technical":1164,
-"meta":6
+"ui":2,
+"mechanic":303,
+"visual":15,
+"technical":4
 },
-"loc":85,
+"loc":84,
 "convars":0,
 "assets":{
 "animation":211,
@@ -8700,6 +9127,7 @@
 "entities":8,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":3,
 "visual":13
@@ -8721,6 +9149,7 @@
 "entities":12,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":24,
 "mechanic":3,
@@ -8746,6 +9175,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "technical":6,
@@ -8770,6 +9200,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8786,13 +9217,14 @@
 "entities":32,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":42,
 "streetbrawl":3,
 "mechanic":6,
-"technical":33,
+"technical":34,
 "ui":5,
-"visual":4
+"visual":3
 },
 "loc":2,
 "convars":0,
@@ -8809,6 +9241,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -8824,18 +9257,17 @@
 "date":"2026-02-05T22:01:19Z",
 "file":"6245_c878d676.json.gz",
 "entities":37,
-"added":14,
+"added":2,
 "removed":1,
+"returned":12,
 "fields":{
-"ui":35,
+"ui":4,
 "availability":1,
 "streetbrawl":11,
-"balance":434,
-"technical":945,
-"mechanic":207,
-"meta":7,
-"visual":58,
-"audio":19
+"balance":151,
+"mechanic":57,
+"audio":19,
+"visual":25
 },
 "loc":71,
 "convars":0,
@@ -8859,6 +9291,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3
 },
@@ -8878,6 +9311,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8894,6 +9328,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8909,6 +9344,7 @@
 "entities":6,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":7,
 "visual":1
@@ -8929,14 +9365,12 @@
 "entities":8,
 "added":6,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":174,
-"ui":15,
+"ui":2,
 "mechanic":86,
-"availability":1,
-"technical":483,
-"meta":3,
-"visual":13
+"availability":1
 },
 "loc":46,
 "convars":0,
@@ -8960,6 +9394,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -8977,6 +9412,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":14,
 "audio":1
@@ -8999,6 +9435,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -9018,6 +9455,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -9034,11 +9472,12 @@
 "entities":32,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":3,
 "ui":31
 },
-"loc":86,
+"loc":55,
 "convars":0,
 "assets":{
 "animation":119,
@@ -9055,6 +9494,7 @@
 "entities":21,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "meta":3,
 "audio":76,
@@ -9083,16 +9523,16 @@
 "entities":19,
 "added":8,
 "removed":0,
+"returned":0,
 "fields":{
-"ui":28,
+"ui":4,
 "availability":1,
 "balance":237,
-"technical":569,
-"mechanic":144,
-"visual":17,
-"meta":3
+"technical":9,
+"mechanic":143,
+"visual":1
 },
-"loc":457,
+"loc":371,
 "convars":0,
 "assets":{
 "animation":300,
@@ -9114,6 +9554,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -9130,6 +9571,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1,
 "mechanic":1
@@ -9150,11 +9592,12 @@
 "entities":32,
 "added":2,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "balance":55,
 "mechanic":11,
-"technical":25,
+"technical":21,
 "audio":1,
 "streetbrawl":3,
 "ui":8
@@ -9179,6 +9622,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -9198,6 +9642,7 @@
 "entities":186,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":27,
 "balance":3,
@@ -9220,6 +9665,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -9236,6 +9682,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":15,
 "ui":2,
@@ -9258,6 +9705,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":1
@@ -9276,6 +9724,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1,
 "ui":1
@@ -9294,6 +9743,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -9311,6 +9761,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":5,
 "technical":4,
@@ -9333,6 +9784,7 @@
 "entities":8,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "meta":2,
 "balance":19,
@@ -9361,6 +9813,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -9376,6 +9829,7 @@
 "entities":54,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":453,
 "audio":3,
@@ -9400,6 +9854,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":2,
 "balance":1,
@@ -9422,6 +9877,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":17,
 "visual":9
@@ -9440,6 +9896,7 @@
 "entities":7,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":4,
 "mechanic":7,
@@ -9461,6 +9918,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":4
 },
@@ -9480,6 +9938,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4,
 "ui":4,
@@ -9499,6 +9958,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":4
 },
@@ -9516,6 +9976,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":8,
 "visual":2,
@@ -9537,6 +9998,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -9552,18 +10014,19 @@
 "entities":264,
 "added":2,
 "removed":11,
+"returned":0,
 "fields":{
 "balance":1231,
 "mechanic":262,
-"visual":249,
-"ui":446,
-"technical":1277,
-"audio":277,
+"visual":223,
+"ui":444,
+"technical":1275,
+"audio":260,
 "streetbrawl":5,
 "meta":3,
 "availability":2
 },
-"loc":579,
+"loc":557,
 "convars":0,
 "assets":{
 "animation":53,
@@ -9585,10 +10048,11 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":1
 },
-"loc":4,
+"loc":2,
 "convars":0,
 "assets":{
 "data":1,
@@ -9603,6 +10067,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2,
 "mechanic":3,
@@ -9624,6 +10089,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":2
 },
@@ -9646,6 +10112,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":5,
 "ui":5,
@@ -9665,6 +10132,7 @@
 "entities":12,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":22,
 "mechanic":2,
@@ -9686,6 +10154,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3,
 "technical":2,
@@ -9705,6 +10174,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":13,
 "audio":5,
@@ -9732,6 +10202,7 @@
 "entities":104,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":164,
 "audio":29,
@@ -9760,6 +10231,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":2,
 "audio":1,
@@ -9784,6 +10256,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2,
 "ui":3,
@@ -9810,10 +10283,12 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":6,
-"visual":16,
-"ui":1
+"technical":2,
+"ui":1,
+"visual":14
 },
 "loc":0,
 "convars":4,
@@ -9833,17 +10308,18 @@
 "entities":164,
 "added":1,
 "removed":2,
+"returned":0,
 "fields":{
 "balance":518,
 "visual":29,
-"technical":190,
 "availability":5,
 "mechanic":102,
-"ui":62,
+"ui":61,
+"technical":127,
 "streetbrawl":3,
-"audio":15
+"audio":13
 },
-"loc":28,
+"loc":29,
 "convars":1,
 "assets":{
 "animation":311,
@@ -9862,6 +10338,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -9875,6 +10352,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -9888,6 +10366,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "ui":2,
@@ -9913,6 +10392,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "ui":2,
@@ -9938,6 +10418,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":3,
 "ui":2,
@@ -9962,6 +10443,7 @@
 "entities":32,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":47,
 "visual":2,
@@ -9986,6 +10468,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -10003,6 +10486,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -10016,6 +10500,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -10031,6 +10516,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":3,
 "balance":1
@@ -10049,6 +10535,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":9,
 "technical":12
@@ -10067,6 +10554,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -10082,6 +10570,7 @@
 "entities":15,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":13,
 "mechanic":14,
@@ -10101,6 +10590,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":3,
 "mechanic":1
@@ -10122,11 +10612,11 @@
 "entities":4,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":2,
 "balance":2,
-"ui":3,
-"technical":1
+"ui":2
 },
 "loc":20,
 "convars":0,
@@ -10145,6 +10635,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1
 },
@@ -10162,12 +10653,13 @@
 "entities":106,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":108,
 "mechanic":68,
-"technical":28,
+"technical":29,
 "ui":11,
-"visual":2,
+"visual":1,
 "streetbrawl":1
 },
 "loc":5,
@@ -10187,6 +10679,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "visual":5,
@@ -10206,6 +10699,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -10223,6 +10717,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -10240,6 +10735,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":4,
 "technical":4
@@ -10259,11 +10755,12 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":2,
 "technical":3
 },
-"loc":26,
+"loc":10,
 "convars":0,
 "assets":{
 "data":2,
@@ -10278,6 +10775,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1,
 "mechanic":2,
@@ -10298,14 +10796,15 @@
 "entities":152,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":323,
 "streetbrawl":18,
-"technical":125,
+"technical":79,
 "visual":2,
 "mechanic":27,
-"ui":73,
-"meta":3
+"ui":72,
+"meta":2
 },
 "loc":21,
 "convars":7,
@@ -10326,6 +10825,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":4,
 "technical":4
@@ -10345,6 +10845,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -10362,6 +10863,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":1
 },
@@ -10380,6 +10882,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3,
 "technical":2,
@@ -10400,6 +10903,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":1
 },
@@ -10417,6 +10921,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -10432,6 +10937,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":8
 },
@@ -10450,6 +10956,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":1,
@@ -10466,17 +10973,17 @@
 "entities":235,
 "added":4,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":420,
 "mechanic":89,
-"technical":446,
-"visual":17,
-"ui":147,
-"audio":18,
-"streetbrawl":4,
-"meta":1
+"technical":358,
+"visual":8,
+"ui":138,
+"audio":14,
+"streetbrawl":4
 },
-"loc":57,
+"loc":55,
 "convars":5,
 "assets":{
 "animation":45,
@@ -10498,6 +11005,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -10515,6 +11023,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":4
 },
@@ -10532,6 +11041,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":9,
 "balance":14,
@@ -10553,6 +11063,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":2
 },
@@ -10570,10 +11081,11 @@
 "entities":10,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":9,
-"visual":6,
-"technical":6,
+"technical":10,
+"visual":2,
 "balance":3
 },
 "loc":0,
@@ -10592,6 +11104,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -10607,6 +11120,7 @@
 "entities":12,
 "added":0,
 "removed":1,
+"returned":0,
 "fields":{
 "technical":15,
 "ui":13,
@@ -10631,6 +11145,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -10648,6 +11163,7 @@
 "entities":18,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":25,
 "audio":4,
@@ -10671,6 +11187,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "streetbrawl":2,
 "balance":2
@@ -10689,11 +11206,12 @@
 "entities":97,
 "added":0,
 "removed":10,
+"returned":0,
 "fields":{
 "balance":7,
-"technical":150,
+"technical":151,
 "ui":4,
-"visual":2
+"visual":1
 },
 "loc":70,
 "convars":4,
@@ -10711,6 +11229,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -10728,6 +11247,7 @@
 "entities":3,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":12,
 "ui":7,
@@ -10755,6 +11275,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -10773,6 +11294,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -10788,6 +11310,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":2,
 "convars":0,
@@ -10801,9 +11324,8 @@
 "entities":1,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
-"technical":1,
-"ui":1,
 "mechanic":1
 },
 "loc":2,
@@ -10820,6 +11342,7 @@
 "entities":40,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":90,
 "ui":19,
@@ -10847,6 +11370,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":2
 },
@@ -10864,6 +11388,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "technical":5,
 "ui":3,
@@ -10884,6 +11409,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "visual":1
@@ -10903,6 +11429,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "technical":1
@@ -10921,6 +11448,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -10934,6 +11462,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -10950,6 +11479,7 @@
 "entities":40,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":40
 },
@@ -10970,6 +11500,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -10985,14 +11516,15 @@
 "entities":184,
 "added":11,
 "removed":9,
+"returned":0,
 "fields":{
 "balance":339,
-"technical":116,
+"technical":60,
 "mechanic":56,
 "streetbrawl":9,
-"visual":13,
+"visual":12,
 "audio":8,
-"ui":36,
+"ui":21,
 "meta":3
 },
 "loc":38,
@@ -11015,6 +11547,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -11030,6 +11563,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -11048,6 +11582,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":2
@@ -11066,6 +11601,7 @@
 "entities":4,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "ui":4,
 "technical":7,
@@ -11086,6 +11622,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11101,6 +11638,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11117,6 +11655,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1
 },
@@ -11134,6 +11673,7 @@
 "entities":30,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":49,
 "mechanic":7,
@@ -11155,6 +11695,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11171,6 +11712,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "audio":1
 },
@@ -11191,6 +11733,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11206,6 +11749,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11221,12 +11765,13 @@
 "entities":58,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":110,
 "mechanic":9,
-"technical":73,
-"ui":51,
-"visual":7,
+"technical":75,
+"ui":50,
+"visual":6,
 "streetbrawl":1
 },
 "loc":26,
@@ -11244,6 +11789,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":3
 },
@@ -11261,6 +11807,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11276,6 +11823,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":192,
 "convars":64,
@@ -11298,6 +11846,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":7,
 "convars":2,
@@ -11313,6 +11862,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":1,
 "convars":0,
@@ -11328,6 +11878,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -11343,6 +11894,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11358,6 +11910,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -11371,6 +11924,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11386,6 +11940,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11401,6 +11956,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11416,6 +11972,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":1,
@@ -11431,6 +11988,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":3
 },
@@ -11449,6 +12007,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -11468,6 +12027,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -11486,6 +12046,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":1
 },
@@ -11505,6 +12066,7 @@
 "entities":22,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":52,
 "mechanic":6,
@@ -11526,6 +12088,7 @@
 "entities":2,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "technical":4
@@ -11545,6 +12108,7 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":1,
 "balance":12,
@@ -11564,6 +12128,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":1
 },
@@ -11582,6 +12147,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":2,
@@ -11595,6 +12161,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":3,
@@ -11608,6 +12175,7 @@
 "entities":142,
 "added":1,
 "removed":0,
+"returned":0,
 "fields":{
 "balance":240,
 "mechanic":17,
@@ -11630,6 +12198,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":2,
@@ -11643,6 +12212,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":2,
@@ -11656,6 +12226,7 @@
 "entities":0,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{},
 "loc":0,
 "convars":0,
@@ -11669,20 +12240,21 @@
 "date":"2026-09-29T20:29:10Z",
 "file":"6711_58b3529c.json.gz",
 "entities":715,
-"added":149,
+"added":134,
 "removed":58,
+"returned":15,
 "fields":{
-"technical":4001,
-"balance":5387,
-"availability":39,
-"mechanic":1717,
-"visual":960,
-"ui":414,
-"audio":269,
-"meta":19,
+"balance":4955,
+"availability":41,
+"mechanic":1450,
+"ui":267,
+"audio":266,
+"visual":703,
+"meta":2,
+"technical":1044,
 "streetbrawl":138
 },
-"loc":2287,
+"loc":2115,
 "convars":482,
 "assets":{
 "animation":1731,
@@ -11705,6 +12277,7 @@
 "entities":1,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "mechanic":4
 },
@@ -11728,9 +12301,10 @@
 "entities":5,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
-"technical":3,
-"ui":2,
+"technical":4,
+"ui":1,
 "balance":2,
 "mechanic":4
 },
@@ -11753,6 +12327,7 @@
 "entities":15,
 "added":0,
 "removed":0,
+"returned":0,
 "fields":{
 "visual":7,
 "mechanic":7,

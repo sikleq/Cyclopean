@@ -116,13 +116,37 @@ name keys, trooper hit-react clips → visual/ui; collision hulls, soul-orb flig
 A field added then tuned within one patch window is NEW, tuned then removed is DEL (`match.merge_ops`);
 a renamed field (DEL + NEW, same label) is judged like any change, and dropped when only its unit changed.
 
+**An entity back after a removal** (build records: `status: returned`; Valve cut unrevealed heroes'
+kits out of the files until their reveal) is diffed against its last version before the removal
+(`history.entity_changes` keeps the removed entity's blob): the patch shows "Back in the game files"
+plus "was → now" for what changed meanwhile. Removed and back inside one patch window → field changes
+only. Old schema shapes are rewritten into today's when flattening (`flatten._legacy`: the flat
+`m_BulletSpeedCurve` of builds before 5747 is `m_flBulletSpeed`), so a format change is not a game
+change and old bullet-speed tuning reads as Bullet Speed, not an engine detail.
+
 **A newly added entity** (build records: `status: added`) is one NEW thing: its counters count 1,
 its card shows "Added to the game files · N fields", the stats a player compares and its own abilities
 (`cards.ADDED_KEY`, at most 12), and folds the rest (level tables, item-cost curves every hero shares)
 under "All fields".
 
 Polarity notes: an interval between an effect's ticks (`HealInterval`, `TickInterval`, `DamageInterval`…)
-is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
+is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF. A property the game marks as the holder's own
+downside (`m_bIsNegativeAttribute`, drawn red in the tooltip; `enrich.drawbacks`, the change carries
+`drawback`) grows as a NERF whatever its name says (Golden Goose Egg's damage penalty −10% → −15%).
+
+Audit of the patch pages (2026-10-01):
+- a field added or removed with a 0 / "no" value changes nothing (`cards.is_noop`; a field tuned to 0
+  inside a window kept its first category and showed "Explosion Radius 0 · NEW");
+- a field that appears with the value Valve says it was raised to takes the notes' old value
+  (`match._old_from_notes`: "Headshot stack count increased from +2 to +3" while the files only gained
+  `HeadshotStacks = 3` is a BUFF 2 → 3, not a NEW);
+- a tier's scaling bonus names what it scales with (`semantics.scaling_suffix`: "(weapon damage
+  scaling)" for `EBaseWeaponDamageIncrease`, spirit otherwise); numbers below 1 keep 4 significant
+  digits (0.0003 → 0.00035 read "0.0003 → 0.0003");
+- ability card texts fill `{s:X}` through the property's `m_strLocTokenOverride` too, `{s:X_scale}`
+  from the tier's scaling bonus and `{s:hero_name}` with the owner (`abilities._tokens`: "for
+  BuffDurations" in 40-odd upgrade lines);
+- `m_bWarnIfNoAffectedAbilities` (an editor check) is technical.
 
 ## Visual system (design review 2026-10-01, three designer agents, four rounds)
 
@@ -160,15 +184,18 @@ is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF.
 - Heroes index (`builders/heroes_grid.py`), like the game's hero grid: one grid of tall portraits in
   the order of the game's sort names (`m_strHeroSortName`: The Doorman under D; no "new players" row —
   owner's call), the name plate in the hero's colour from the game (`m_colorUI` as `--hero` in the
-  card's style — the one approved exception to ":root tokens only"), the role as text (`m_eHeroType`; the game has no role icons) and
-  complexity as marks (`m_nComplexity`), a PRE-RELEASE ribbon; under each card the newest patch that
-  touched the hero or its abilities (`trail.hero_last`) — its two biggest counters and the date.
-- Hero / item change matrices (`builders/dynamics_page.py`, Sloppy's "Dynamics"): heroes/changes.html
-  and items/changes.html, sub-tabs of the two indexes. A row per hero (its stats + every ability it owns)
-  or item, a column per patch (months above, gold day = named update), a cell = a square striped in the
+  card's style — the one approved exception to ":root tokens only") and a PRE-RELEASE ribbon; no role,
+  complexity or last-patch line (owner's call, 2026-10-01).
+- Units index: units that share a name (4 Walkers, 5 "Gutter Ghoul I") carry what tells them apart —
+  the words of their id the namesakes do not share (`entities_pages.unit_variants`: "alt weak",
+  "amber", "dock creature", "model 2"); removed units hide behind a "Removed" switch.
+- Hero / item / unit change matrices (`builders/dynamics_page.py`, Sloppy's "Dynamics"): heroes/changes.html,
+  items/changes.html and units/changes.html, sub-tabs of the three indexes. A row per hero (its stats + every
+  ability it owns), item or unit (in the Units index order), a column per patch (months above, gold day =
+  named update), a cell = a square striped in the
   tag colours, each stripe as tall as its share (same counting rule as every counter). Switches: older
   patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
-  colour), tag filters, pre-release heroes / removed items. Heroes index: pre-release heroes hide behind
+  colour), tag filters, pre-release heroes / removed items and units. Heroes index: pre-release heroes hide behind
   a switch, "Unreleased & hero labs" is folded.
 - Hero changes: one tile per cell holds everything a patch did to the hero (stats, weapon, abilities);
   a filter — All / Stats / Weapon / Abilities (`dynamics_page.PARTS`, `part_of`: weapon = gun + melee) —

@@ -230,17 +230,18 @@
         return '<span class="pip ' + t + '">' + (d.icons[t] || '') + counts[t] + '<em>' + txt(d.words[t] || t) + '</em></span>';
       }).join('') + '</div>';
       if (samples.length) {
-        // the biggest changes, grouped by part: base stats, weapon, abilities
-        var lastPart = null, rowsHtml = '';
+        // the biggest changes; a hero's are grouped by part (base stats, weapon, abilities) and name
+        // the ability — an item's or unit's are about the row itself
+        var hero = !!c[3], lastPart = null, rowsHtml = '';
         samples.forEach(function (s) {
-          if (s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
+          if (hero && s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
             lastPart = s[5];
             rowsHtml += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
           }
           var vals = s[2] && s[3] ? txt(s[2]) + '<i>→</i><b class="t-' + s[4] + '">' + txt(s[3]) + '</b>'
             : '<b class="t-' + s[4] + '">' + txt(s[3] || s[2]) + '</b>';
-          rowsHtml += '<tr><td class="dt-what">' + txt(s[0]) + '</td><td class="dt-field">' + txt(s[1]) + '</td>' +
-            '<td class="dt-vals">' + vals + '</td></tr>';
+          rowsHtml += '<tr>' + (hero ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
+            '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + vals + '</td></tr>';
         });
         html += '<table class="dt-rows">' + rowsHtml + '</table>';
       }
@@ -262,7 +263,6 @@
     window.addEventListener('scroll', function () { tip.classList.remove('on'); }, true);
   });
 
-  /* ---------- change matrices: ▸ opens a hero's rows for base stats, weapon and each ability ---------- */
   /* ---------- hero changes: a filter narrows every tile to one part (stats / weapon / abilities) ---------- */
   safe('dyn-parts', function () {
     var btns = document.querySelectorAll('[data-part]');

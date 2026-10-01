@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-01",
+    "title": "Unit changes, returning heroes, truer tags",
+    "items": [
+      "Units: a Unit changes matrix like Hero and Item changes; units that share a name show what tells them apart (alt, weak, amber, model 2); removed units hide behind a switch.",
+      "Heroes and abilities Valve cut from the files before a reveal and put back now show what changed meanwhile (639 values across 47 entities) instead of reading as all-new.",
+      "Bullet speeds before August 2025 appear in the patches too (42 changes that read as engine details).",
+      "Ability upgrade texts are filled like in the game: no more \"for BuffDurations\" or \"+DanceMoveSpeedm\".",
+      "Tags: a downside the game draws red (Golden Goose Egg's damage penalty) grows as a NERF; \"increased from +2 to +3\" on a newly written field is a BUFF, not NEW; fields added or removed at 0 are gone; small scaling numbers keep their digits (0.0003 → 0.00035).",
+      "Home: up to 20 recent patches; Biggest changes in even rows. A build Valve shipped twice is marked (#2)."
+    ]
+  },
+  {
+    "date": "2026-10-01",
     "title": "Hero changes filter, cleaner hero cards, no missed changes",
     "items": [
       "Hero changes: a filter — All, Stats, Weapon, Abilities — narrows every tile and the hover card to that part of the hero; the cell itself keeps everything a patch did.",

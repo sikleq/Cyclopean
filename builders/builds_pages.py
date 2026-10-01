@@ -30,9 +30,11 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
                 cosmetic[c['cat']] = cosmetic.get(c['cat'], 0) + 1
         for c in g:
             c.setdefault('status', 'raw')
-        if g or e['status'] in ('added', 'removed'):
+        if g or e['status'] in ('added', 'removed', 'returned'):
             if e['status'] == 'added' and not g:
                 g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Added to game data', 'new_s': '', 'status': 'raw'}]
+            if e['status'] == 'returned':
+                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Back in game data', 'new_s': '', 'status': 'raw'}] + g
             if e['status'] == 'removed':
                 g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': '', 'status': 'raw'}]
             ents.append({**e, 'changes': g})

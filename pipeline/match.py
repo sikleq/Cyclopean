@@ -90,6 +90,7 @@ class MChange:
     status: str = 'hidden'
     lines: list = field(default_factory=list)
     chain: list = field(default_factory=list)     # every value the field took inside the window
+    drawback: bool = False                        # the holder's own downside (enrich.drawbacks)
 
     @property
     def key(self) -> str:
@@ -229,20 +230,22 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
     diffed field by field (their whole data is "new"): they become one
     'entity added' change each."""
     merged: dict[str, MChange] = {}
-    extras = {'loc': [], 'convars': [], 'assets': [], 'entities_added': [], 'entities_removed': []}
+    extras = {'loc': [], 'convars': [], 'assets': [], 'entities_added': [], 'entities_removed': [],
+              'entities_returned': []}
     added_here: set[str] = set()
     for row in p.builds:
         rec = load_record(row['file'])
         for e in rec['entities']:
             targets_default = [e['id']]
             ekey = f"{e['file']}:{e['id']}"
-            if e['status'] in ('added', 'removed'):
+            if e['status'] in ('added', 'removed', 'returned'):
                 if e['status'] == 'added':
                     added_here.add(ekey)
-                bucket = 'entities_added' if e['status'] == 'added' else 'entities_removed'
-                extras[bucket].append({'file': e['file'], 'id': e['id'], 'build': rec['build'],
-                                       'name': e.get('name'), 'kind': e.get('kind'), 'owner': e.get('owner')})
-                continue
+                extras[f"entities_{e['status']}"].append({
+                    'file': e['file'], 'id': e['id'], 'build': rec['build'],
+                    'name': e.get('name'), 'kind': e.get('kind'), 'owner': e.get('owner')})
+                if e['status'] != 'returned':
+                    continue                  # a returned entity's fields differ from its last version: diffed below
             if ekey in added_here:
                 continue
             for c in e['changes']:
@@ -257,7 +260,8 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                         merged[key] = MChange(
                             e['file'], tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
                             ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
-                            [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')])
+                            [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
+                            drawback=bool(c.get('drawback')))
                     else:
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
@@ -275,11 +279,13 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
         label = cv['name'].replace('citadel_', '').replace('_', ' ')
         changes.append(MChange('convars', cv['name'], cv['name'], 'change', cv['old'], cv['new'], 'balance',
                                'global', None, label, False, [cv['build']]))
-    # an entity added and removed within one window never shipped
+    # an entity added and removed within one window never shipped; one removed and back within one
+    # window (or back and removed again) is where it started: only its field changes remain
     removed = {f"{x['file']}:{x['id']}" for x in extras['entities_removed']}
-    both = added_here & removed
-    extras['entities_added'] = [x for x in extras['entities_added'] if f"{x['file']}:{x['id']}" not in both]
-    extras['entities_removed'] = [x for x in extras['entities_removed'] if f"{x['file']}:{x['id']}" not in both]
+    returned = {f"{x['file']}:{x['id']}" for x in extras['entities_returned']}
+    both = (added_here | returned) & removed
+    for bucket in ('entities_added', 'entities_removed', 'entities_returned'):
+        extras[bucket] = [x for x in extras[bucket] if f"{x['file']}:{x['id']}" not in both]
     return changes, extras
 
 
@@ -483,6 +489,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             for c in hits:
                 c.status = 'documented'
                 c.lines.append(text)
+                _old_from_notes(c, pairs)
             rounded = pairs and not any(exact_pair(c, pairs) for c in hits)
             result['status'] = 'rounded' if rounded else 'documented'
             result['changes'] = [c.key for c in hits]
@@ -572,9 +579,21 @@ def _fix_or(result: dict, text: str) -> dict:
 
 # ---- output -----------------------------------------------------------------
 
+def _old_from_notes(c: MChange, pairs: list[tuple[float, float]]) -> None:
+    """A field that appeared with the value Valve says it was raised TO: before, the game used its
+    default, and the notes name it ("Headshot stack count increased from +2 to +3" while the files
+    only gained HeadshotStacks = 3). The line's old value makes it a change (BUFF/NERF), not a NEW."""
+    if c.op != 'add' or c.old is not None or c.meters or num(c.new) is None:
+        return
+    olds = {a for a, b in pairs if abs(b - num(c.new)) < 1e-9 and a != b}
+    if len(olds) == 1:
+        c.old = olds.pop()
+        c.op = 'change'
+
+
 def change_json(c: MChange) -> dict:
     kind = c.kind or ''
-    dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind)
+    dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback)
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.label,
@@ -591,15 +610,16 @@ ENTITY_EVENT_KINDS = {'hero', 'item', 'ability', 'weapon', 'trooper', 'building'
 def entity_events(extras: dict, notes_text: str, tok: dict[str, str]) -> list[dict]:
     """One change per entity added to / removed from the files in this window."""
     out = []
-    for bucket, op, label in (('entities_added', 'add', 'Added to the game files'),
-                              ('entities_removed', 'remove', 'Removed from the game files')):
+    for bucket, op, path, label in (('entities_added', 'add', '@add', 'Added to the game files'),
+                                    ('entities_returned', 'add', '@return', 'Back in the game files'),
+                                    ('entities_removed', 'remove', '@remove', 'Removed from the game files')):
         for x in extras.get(bucket, []):
             if x.get('kind') not in ENTITY_EVENT_KINDS or x['id'] == '@shared':
                 continue
             name = x.get('name') or x['id']
             status = 'described' if name and name != x['id'] and name.lower() in notes_text else 'hidden'
             out.append({**x, 'name': name, 'change': {
-                'key': f"{x['file']}:{x['id']}:@{op}", 'file': x['file'], 'id': x['id'], 'path': f'@{op}',
+                'key': f"{x['file']}:{x['id']}:{path}", 'file': x['file'], 'id': x['id'], 'path': path,
                 'op': op, 'cat': 'mechanic', 'label': label, 'old': None, 'new': None, 'old_s': '', 'new_s': '',
                 'dir': 'changed', 'pct': None, 'grad': 5, 'status': status, 'builds': [x['build']], 'shared': False}})
     return out
@@ -746,6 +766,8 @@ def sentence(name: str, c: dict) -> str:
     label = c.get('label') or ''
     if c.get('path') == '@add':
         return f'{name}: added to the game'
+    if c.get('path') == '@return':
+        return f'{name}: back in the game files'
     if c.get('path') == '@remove':
         return f'{name}: removed from the game'
     if c['op'] == 'add':

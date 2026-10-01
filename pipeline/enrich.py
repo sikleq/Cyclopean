@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 13
+ENRICH_VERSION = 15       # 15: drawbacks (m_bIsNegativeAttribute); 14: 4 significant digits, "(weapon damage scaling)"
 
 
 def _num(v):
@@ -34,6 +34,13 @@ def _num(v):
 def _display(v, meters):
     n = _num(v)
     return semantics.display_value(n if n is not None else v, meters)
+
+
+def drawbacks(data: dict | None) -> set[str]:
+    """Properties the game marks as the holder's downside (m_bIsNegativeAttribute: drawn red)."""
+    props = (data or {}).get('m_mapAbilityProperties') or {}
+    return {p for p, d in props.items()
+            if isinstance(d, dict) and str(d.get('m_bIsNegativeAttribute')).lower() in ('true', '1')}
 
 
 def enrich_record(rec: dict) -> dict:
@@ -68,6 +75,7 @@ def enrich_record(rec: dict) -> dict:
         if eid in owners:
             e['owner'] = owners[eid]
             e['owner_name'] = loc.plain(loc.hero_name(tok, owners[eid]))
+        downsides = drawbacks(data) if f == 'abilities.vdata' and eid != '@shared' else set()
         for c in e['changes']:
             # classification rules evolve: re-derive the category, but never move a
             # change whose values were dropped (cosmetic) into a category that shows values
@@ -80,7 +88,11 @@ def enrich_record(rec: dict) -> dict:
             if 'old' in c or 'new' in c:
                 c['old_s'] = _display(c.get('old'), d['meters'])
                 c['new_s'] = _display(c.get('new'), d['meters'])
-                dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), e['kind'])
+                # the property itself, not a T1-T3 bonus to it (a bigger bonus there shrinks the downside)
+                worse = c['path'].startswith('m_mapAbilityProperties.') and semantics.property_name(c['path']) in downsides
+                if worse:
+                    c['drawback'] = True        # match.change_json re-judges the window total with it
+                dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), e['kind'], worse)
                 c['dir'] = dirn
                 c['pct'] = None if pct is None else round(pct, 1)
                 c['grad'] = semantics.gradient(pct)

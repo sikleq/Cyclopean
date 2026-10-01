@@ -129,10 +129,37 @@ def flatten(obj, prefix: str = '', out: dict | None = None) -> dict:
     return result
 
 
+def _flat_curve_value(curve) -> object | None:
+    """The one value of a curve whose points all carry the same y, else None."""
+    if not isinstance(curve, dict):
+        return None
+    ys = [norm_scalar(p.get('y')) for p in curve.get('m_spline') or [] if isinstance(p, dict)]
+    if not ys or any(not isinstance(y, (int, float)) for y in ys) or max(ys) != min(ys):
+        return None
+    return ys[0]
+
+
+def _legacy(obj: dict) -> dict:
+    """Old schema rewritten into today's shape, so a format change is not a game change. Before
+    build 5747 a weapon's bullet speed was a curve whose points all held the same speed
+    (m_BulletSpeedCurve); since then it is m_flBulletSpeed. As a curve, Chrono's 18000 -> 16200 in
+    build 5017 read as an engine detail, and 5747 read as "curve removed, speed added" for 94 weapons."""
+    if 'm_flBulletSpeed' in obj:
+        return obj
+    speed = _flat_curve_value(obj.get('m_BulletSpeedCurve'))
+    if speed is None:
+        return obj
+    out = {k: v for k, v in obj.items() if k != 'm_BulletSpeedCurve'}
+    out['m_flBulletSpeed'] = speed
+    return out
+
+
 def _flatten(obj, prefix: str, out: dict) -> dict:
     if isinstance(obj, dict):
         if not obj and prefix:
             out[prefix] = '{}'
+        if 'm_BulletSpeedCurve' in obj:
+            obj = _legacy(obj)
         for k, v in obj.items():
             _flatten(v, f'{prefix}.{k}' if prefix else str(k), out)
     elif isinstance(obj, list):

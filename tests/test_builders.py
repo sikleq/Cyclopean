@@ -21,6 +21,28 @@ def test_tags():
     assert tag_of(ch(dir='changed', pct=None)) == ('changed', 'CHANGED')
 
 
+def test_units_sharing_a_name_get_their_variant():
+    from builders.entities_pages import unit_variants
+    walkers = [{'id': i, 'name': 'Walker', 'alive': True}
+               for i in ('alt_npc_boss_tier2', 'alt_npc_boss_tier2_weak', 'npc_boss_tier2', 'npc_boss_tier2_weak')]
+    barrels = [{'id': 'neutral_barrel_01_weak', 'name': 'Barrel Mimic I', 'alive': True},
+               {'id': 'neutral_barrel_02_weak', 'name': 'Barrel Mimic I', 'alive': True}]
+    v = unit_variants(walkers + barrels + [{'id': 'npc_trooper', 'name': 'Trooper', 'alive': True}])
+    assert [v[w['id']] for w in walkers] == ['alt', 'alt weak', '', 'weak']
+    assert [v[b['id']] for b in barrels] == ['model 1', 'model 2']
+    assert 'npc_trooper' not in v                    # a unique name needs nothing
+
+
+def test_zero_added_or_removed_is_no_change():
+    from builders.cards import is_noop
+    assert is_noop({'op': 'add', 'path': 'p', 'new_s': '0'})            # Sleep Dagger's Explosion Radius 0
+    assert is_noop({'op': 'remove', 'path': 'p', 'old_s': '0m'})
+    assert is_noop({'op': 'change', 'old_s': '1.5', 'new_s': '1.5'})
+    assert not is_noop({'op': 'add', 'path': 'p', 'new_s': '5'})
+    assert not is_noop({'op': 'change', 'old_s': '20', 'new_s': '0'})   # tuned TO zero is a change
+    assert not is_noop({'op': 'add', 'path': '@add', 'new_s': ''})       # an entity added to the game
+
+
 def test_availability_tags_follow_field_meaning():
     # 'Disabled: no -> yes' switches OFF, 'Player Selectable: no -> yes' switches ON
     assert tag_of(ch(cat='availability', label='Disabled', new_s='yes')) == ('off', 'OFF')

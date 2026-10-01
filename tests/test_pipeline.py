@@ -494,6 +494,67 @@ def test_old_builds_bullet_speed_and_dash():
     assert _dash('EGroundDashDuration', 'AbilityDuration')(hero, {}, abil) == 0.6   # before 5706: the shared dash
 
 
+def test_old_bullet_speed_curve_flattens_to_todays_field():
+    old = {'m_WeaponInfo': {'m_BulletSpeedCurve': {'m_spline': [{'x': 0, 'y': 18000}, {'x': 100, 'y': 18000}],
+                                                   'm_vDomainMaxs': [100, 18000]}}}
+    new = {'m_mapWeaponInfos': {'primary': {'m_flBulletSpeed': 16200}}}
+    assert flatten(old) == {'m_mapWeaponInfos.primary.m_flBulletSpeed': 18000}
+    assert flatten(new) == {'m_mapWeaponInfos.primary.m_flBulletSpeed': 16200}
+    # a real curve (speeds differ) is not a single speed: kept as it is
+    bent = {'m_BulletSpeedCurve': {'m_spline': [{'x': 0, 'y': 100}, {'x': 1, 'y': 200}]}}
+    assert 'm_BulletSpeedCurve.m_spline[1].y' in flatten(bent)
+
+
+def test_returned_entity_diffs_against_its_last_version(monkeypatch):
+    from pipeline import cache, history, tracker
+    path = tracker.VDATA_PATHS[0]
+    blobs = {'b1': {'x': {'dmg': 10, 'cd': 5}}, 'b2': {}, 'b3': {'x': {'dmg': 12, 'cd': 5}}}
+    monkeypatch.setattr(tracker, 'VDATA_PATHS', (path,))
+    monkeypatch.setattr(tracker, 'blob_id', lambda commit, p: commit if p == path else None)
+    monkeypatch.setattr(cache, 'vdata_blob', lambda blob: blobs[blob])
+    builds = [tracker.Build(c, '2025-01-0' + c[1], int(c[1]), (path,)) for c in ('b1', 'b2', 'b3')]
+    known: dict = {}
+    history.entity_changes(builds[0], builds[0], known)                     # baseline
+    gone = history.entity_changes(builds[0], builds[1], known)
+    back = history.entity_changes(builds[1], builds[2], known)
+    assert [e['status'] for e in gone] == ['removed']
+    # Valve cut it and put it back: "dmg 10 -> 12", not "everything added"
+    assert [(e['status'], [(c['path'], c['old'], c['new']) for c in e['changes']]) for e in back] == \
+        [('returned', [('dmg', 10, 12)])]
+
+
+def test_notes_give_the_old_value_of_a_field_that_appeared():
+    from pipeline.match import MChange, _old_from_notes, change_json
+    c = MChange('abilities.vdata', 'ability_stacking_damage', 'm_mapAbilityProperties.HeadshotStacks.m_strValue',
+                'add', None, 3, 'balance', 'ability', 'hero_haze', 'Headshot Stacks', False, [6600], False)
+    _old_from_notes(c, [(2.0, 3.0)])            # "Headshot stack count increased from +2 to +3"
+    j = change_json(c)
+    assert (j['op'], j['old_s'], j['new_s'], j['dir']) == ('change', '2', '3', 'buff')
+    other = MChange('f', 'e', 'p', 'add', None, 5, 'balance', '', None, 'X', False, [1], False)
+    _old_from_notes(other, [(2.0, 3.0)])        # the line's numbers are about something else
+    assert other.op == 'add' and other.old is None
+
+
+def test_the_holders_own_downside_grows_as_a_nerf():
+    from pipeline.enrich import drawbacks
+    egg = {'m_mapAbilityProperties': {'OutgoingDamagePenaltyPercent': {'m_strValue': '-15', 'm_bIsNegativeAttribute': True},
+                                      'BonusHealth': {'m_strValue': '100'}}}
+    assert drawbacks(egg) == {'OutgoingDamagePenaltyPercent'}
+    path = 'm_mapAbilityProperties.OutgoingDamagePenaltyPercent.m_strValue'
+    # Golden Goose Egg: "Damage Penalty increased from -10% to -15%" is worse for its owner
+    assert semantics.direction(path, -10, -15, 'item', drawback=True)[0] == 'nerf'
+    assert semantics.direction(path, -15, -10, 'item', drawback=True)[0] == 'buff'
+
+
+def test_small_coefficients_keep_their_digits():
+    assert semantics.display_value(0.00035) == '0.00035'
+    assert semantics.display_value(0.0003) == '0.0003'
+    assert semantics.display_value(1e-05) == '0.00001'
+    assert semantics.display_value(1.2345) == '1.23'
+    assert semantics.scaling_suffix(['EAddToScale', 'EBaseWeaponDamageIncrease']) == ' (weapon damage scaling)'
+    assert semantics.scaling_suffix(['EMultiplyScale', 'ETechPower']) == ' (spirit scaling ×)'
+
+
 def test_bare_entity_name_line_is_a_heading():
     from pipeline.match import heading
     idx = {'sinclair': ['heroes.vdata:hero_magician'], 'boundless spirit': ['abilities.vdata:upgrade_x']}

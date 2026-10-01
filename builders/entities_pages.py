@@ -87,8 +87,31 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) 
     return page(name, head + stats + history_heading() + f'<div id="history">{hist}</div>', rel, 'units')
 
 
+_VARIANT_STOP = {'npc', 'neutral', 'citadel'}
+
+
+def unit_variants(units: list[dict]) -> dict[str, str]:
+    """Units that share a name (4 Walkers, 5 "Gutter Ghoul I") get what tells them apart: the words
+    of their id the namesakes do not share ('alt weak', 'amber', 'dock creature', 'model 2')."""
+    by_name: dict[str, list[dict]] = defaultdict(list)
+    for u in units:
+        if u.get('alive'):
+            by_name[u.get('name') or u['id']].append(u)
+    out = {}
+    for group in by_name.values():
+        if len(group) < 2:
+            continue
+        toks = {u['id']: u['id'].split('_') for u in group}
+        common = set.intersection(*(set(t) for t in toks.values()))
+        for uid, t in toks.items():
+            rest = [w for w in t if w not in common and w not in _VARIANT_STOP]
+            out[uid] = ' '.join(f'model {int(w)}' if w.isdigit() else w for w in rest)
+    return out
+
+
 SUB_TABS = {'heroes': (('index', 'Heroes'), ('changes', 'Hero changes')),
-            'items': (('index', 'Items'), ('changes', 'Item changes'))}
+            'items': (('index', 'Items'), ('changes', 'Item changes')),
+            'units': (('index', 'Units'), ('changes', 'Unit changes'))}
 
 
 def sub_tabs(section: str, active: str) -> str:
@@ -165,13 +188,26 @@ def build_all() -> dict[str, int]:
         write(slug(u['file'], u['id']), unit_page(u, urow.get(u['id']), units_t['columns'], by_ent, by_subject))
         counts['units'] += 1
     groups = []
+    variants = unit_variants(units)
     for kind, title in UNIT_GROUPS:
         sel = sorted((u for u in units if u['kind'] == kind), key=lambda u: (not u.get('alive'), u.get('name') or ''))
         if sel:
             groups.append(f'<div class="grid-group-title">{esc(title)}</div><div class="grid units">'
-                          + ''.join(_card(u, entity_icon(u['file'], u['id'], kind, rel), '' if u.get('alive') else 'removed')
+                          + ''.join(_card(u, entity_icon(u['file'], u['id'], kind, rel),
+                                          variants.get(u['id'], '') if u.get('alive') else 'removed')
                                     for u in sel) + '</div>')
-    body = ('<h1>Units</h1><div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card"></div>'
-            + ''.join(groups))
+    n_gone = sum(1 for u in units if not u.get('alive'))
+    gone_switch = (f'<span class="sep"></span><label class="switch"><input type="checkbox" data-toggle-class="show-gone" '
+                   f'data-target="#units-grid"><span class="track"></span>Removed <span class="n">{n_gone}</span></label>'
+                   if n_gone else '')
+    body = ('<h1>Units</h1>' + sub_tabs('units', 'index')
+            + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'
+            + f'<div id="units-grid">{"".join(groups)}</div>')
     write('units/index.html', page('Units', body, rel, 'units'))
+    from .dynamics_page import unit_entries
+    entries = unit_entries(units, UNIT_GROUPS, rel)
+    n_gone = sum(1 for e in entries if e[4])
+    write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
+                                     + toolbar('unit', n_gone, 'Removed') + matrix_html(entries, 'unit'),
+                                     rel, 'units', wide=True))
     return counts

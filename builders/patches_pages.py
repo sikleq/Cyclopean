@@ -228,7 +228,14 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     named = ' named' if patch_name(p['title']) else ''
     parts = ['<div class="crumbs"><a href="index.html">Patches</a></div>',
              f'<div class="ptitle{named}"><h1>{patch_title_html(p)}</h1><span class="steps">{step}</span></div>']
-    builds = ', '.join(f'<a href="{build_href(b["file"], rel)}">{b["build"]}</a>' for b in p['builds'][:30])
+    # Valve sometimes ships one build number twice (two tracker commits): "6698, 6698 (#2)", not a repeat
+    seen: dict = {}
+    links = []
+    for b in p['builds'][:30]:
+        seen[b['build']] = seen.get(b['build'], 0) + 1
+        nth = f' (#{seen[b["build"]]})' if seen[b['build']] > 1 else ''
+        links.append(f'<a href="{build_href(b["file"], rel)}">{b["build"]}{nth}</a>')
+    builds = ', '.join(links)
     link_text = 'official notes' if p.get('source') != 'announcement' else 'official announcement'
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')

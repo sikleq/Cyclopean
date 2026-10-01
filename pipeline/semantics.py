@@ -59,17 +59,22 @@ def polarity(path: str) -> int:
     return 1 if _NEGATED.search(name[m.end():]) else -1
 
 
-def direction(path: str, old, new, kind: str = '') -> tuple[str, float | None]:
+def direction(path: str, old, new, kind: str = '', drawback: bool = False) -> tuple[str, float | None]:
     """('buff'|'nerf'|'changed', signed percent or None) for a numeric change.
 
     Magnitudes are compared (|x|): debuffs are stored as negative numbers
     ("-8% resist"), so going -8 -> -7 is a weaker effect.
     Units (troopers, buildings, neutrals) have no owner-side direction.
+    `drawback`: the game marks the property as the holder's own downside (m_bIsNegativeAttribute,
+    drawn red in the tooltip): a bigger one is a nerf, whatever the name says (Golden Goose Egg's
+    damage penalty -10% -> -15% read BUFF by the "penalty on the enemy" rule).
     """
     if not isinstance(old, (int, float)) or not isinstance(new, (int, float)) or isinstance(old, bool):
         return 'changed', None
     a, b = abs(float(old)), abs(float(new))
     pct = None if a == 0 else (b - a) / a * 100.0
+    if drawback and kind not in SHARED_KINDS:
+        return ('changed' if a == b else 'nerf' if b > a else 'buff'), pct
     if kind in SHARED_KINDS:
         # objects both teams have (troopers, guardians, camps, pickups, game rules): no owner side,
         # so the tag says which way the number went (UP / DOWN) — except what plainly helps the
@@ -267,6 +272,19 @@ def stat_unit(tok: dict[str, str], stat: str) -> str:
     return tok.get(key, '')
 
 
+# what a tier's scaling bonus scales with (m_eScaleStatFilter); almost always Spirit Power, but
+# Fixation's T3 scales with weapon damage and read "(spirit scaling)" until 2026-10-01
+SCALE_STAT_WORDS = {'EWeaponPower': 'weapon damage', 'EBaseWeaponDamageIncrease': 'weapon damage',
+                    'ETechRange': 'range'}
+
+
+def scaling_suffix(parts) -> str:
+    """' (spirit scaling)', ' (weapon damage scaling ×)'… for an upgrade keyed like
+    'Prop|EAddToScale|EBaseWeaponDamageIncrease' (or given its fields as a list)."""
+    what = next((SCALE_STAT_WORDS[p] for p in parts if p in SCALE_STAT_WORDS), 'spirit')
+    return f' ({what} scaling ×)' if 'EMultiplyScale' in parts else f' ({what} scaling)'
+
+
 _TIER_RE = re.compile(r'^m_vecAbilityUpgrades\[(\d+)\]\.m_vecPropertyUpgrades\{([^}]+)\}\.(\w+)$')
 _PROP_RE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.(.+)$')
 _CORRUPTED_RE = re.compile(r'^m_CorruptedItemInfo\.m_Upgrade\.m_vecPropertyUpgrades\{([^}]+)\}\.m_strBonus$')
@@ -299,7 +317,7 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '') -
         prop = parts[0]
         label = _loc_label(tok, prop, entity) or humanize(prop)
         if 'EAddToScale' in parts or 'EMultiplyScale' in parts:
-            label += ' (spirit scaling ×)' if 'EMultiplyScale' in parts else ' (spirit scaling)'
+            label += scaling_suffix(parts)
         if field == 'm_strStreetBrawlBonus':
             label += ' (Street Brawl)'
         elif field != 'm_strBonus':
@@ -432,9 +450,12 @@ def display_value(v, meters: bool = False) -> str:
         x = float(v) / UNITS_PER_METER if meters else float(v)
         if x.is_integer():
             s = str(int(x))
+        elif abs(x) < 1:
+            # small coefficients need their own digits: 4 significant ones (Fixation's T3 scaling
+            # 0.0003 -> 0.00035 read "0.0003 -> 0.0003" with 4 decimals), never "1e-05"
+            s = f'{float(f"{x:.4g}"):.8f}'.rstrip('0').rstrip('.')
         else:
-            # small coefficients (spirit scaling 0.005) need more decimals than stats
-            s = (f'{x:.4f}' if abs(x) < 1 else f'{x:.2f}').rstrip('0').rstrip('.')
+            s = f'{x:.2f}'.rstrip('0').rstrip('.')
         return s + ('m' if meters else '')
     if isinstance(v, list):
         return ', '.join(display_value(x) for x in v)
