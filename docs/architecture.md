@@ -262,6 +262,14 @@ entity's — its numbers need a word of the field, and failing a hit the whole p
 (`name_inline`); a misspelt hero prefix finds its hero (`_close_hero`, "Vindcita"); a line naming one
 of the hero's abilities links on-topic fields of that ability first ("Siphon Life range…" is not
 Seismic Impact's radius); Sinner's Sacrifice is an alias of the vault and its camp.
+A line with several number pairs links the best field of EACH pair (`pair_hits`: "Base HP 6725 → 12500
+and growth 470 → 200"); a line listing properties before one "by N%" links the best field of each
+(`list_hits`: "respawn times, hp, and bounty"), a property without growth words never taking a
+per-boon field ("Melee damage and growth"); "growth" is a label PHRASE (`rules.GROWTH_LABEL`: per boon /
+per minute / boon or spirit scaling — not "Level 21: gives a boon") and points a hero line at the
+hero's own stats; a numeric line that fell back to words links the fields sharing the most of its
+words outside parentheses; "light / heavy melee damage … by N%" covers every hero's starting melee
+damage (`DELTA_FAMILIES`, hero audit #11).
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

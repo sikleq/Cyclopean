@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-02",
+    "title": "Every number in a patch line finds its field",
+    "items": [
+      "A line with two changes links both: \"Base HP 6725 → 12500 and growth 470 → 200\", \"40 → 35 and scaling 1.2 → 1.1\", falloff \"20m→46m to 17m→42m\".",
+      "A line listing properties links each of them: \"Neutral respawn times, hp, and bounty reduced by 30%\", \"Siphon Life damage and spirit scaling\".",
+      "\"Bullet damage growth\" lines find the hero's per-boon value (12 more lines), and \"Light melee base damage reduced by 20%\" covers all 50 heroes it moved."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "title": "Cosmetics in the files",
     "items": [
       "Build pages show skin-system groundwork: the base bodies skins are put on (Paige, Victor, Deadman Danny since City Never Sleeps), cosmetic animations for 41 heroes, emotes, snowballs and posters.",

@@ -424,7 +424,8 @@ def ent_key(c: MChange) -> str:
 
 
 def label_words(c: MChange) -> set[str]:
-    return rules.expand_label_words(words(c.label))
+    out = rules.expand_label_words(words(c.label))
+    return out | {'growth'} if rules.GROWTH_LABEL.search(c.label or '') else out
 
 
 _MINUTES = re.compile(r'\b(minutes?|mins?)\b', re.I)
@@ -452,6 +453,75 @@ def pct_close(c: MChange, by_pct: float, sign: int = 0, rate_line: bool = False)
             continue
         return True
     return False
+
+
+_LIST_SPLIT = re.compile(r',\s*(?:and\s+)?|\s+and\s+|\s*&\s*|/')
+_PART_STOP = {'the', 'and', 'its', 'of', 'to', 'for', 'all', 'value', 'values', 'base', 'now', 'their'}
+_PART_WORD = re.compile(r'[a-z]{2,}')
+
+
+def _tokens(text: str) -> set[str]:
+    """Words of a listed property or a field label, 'damage' kept (words() drops it as too common):
+    "Siphon Life damage and spirit scaling" names two fields."""
+    low = text.lower()
+    out = {rules.stem(w) for w in _PART_WORD.findall(low) if w not in _PART_STOP}
+    if 'hp' in out:
+        out = (out - {'hp'}) | {'health'}
+    return out
+
+
+_GROWTH_WORDS = {'growth', 'boon', 'scaling', 'minute'}
+
+
+def _label_tokens(c: MChange) -> set[str]:
+    out = rules.expand_label_words(_tokens(c.label))
+    return out | {'growth'} if rules.GROWTH_LABEL.search(c.label or '') else out
+
+
+def list_parts(head: str) -> list[set[str]]:
+    """The properties a line lists before its verb, each as words; [] for one property."""
+    head = re.sub(r'\([^)]*\)', ' ', head)
+    parts = [expand_words(_tokens(p)) for p in _LIST_SPLIT.split(head) if p.strip()]
+    parts = [p for p in parts if p]
+    return parts if len(parts) >= 2 else []
+
+
+def list_hits(head: str, pool: list[MChange], by_pct: float, text: str, ability_hits: set[str]) -> list[MChange]:
+    """For each listed property, the fields that moved by the line's percent and share most of its
+    words (P13 2026-10-02: "Neutral respawn times, hp, and bounty reduced by 30%" linked the bounty
+    only; "Siphon Life damage and spirit scaling" the scaling only). Two properties at least must
+    find a field, or the line is one property after all."""
+    parts = list_parts(head)
+    if not parts:
+        return []
+    sign, rate = verb_sign(text), bool(re.search(r'rate|speed', text, re.I))
+    moved = [c for c in pool if pct_close(c, by_pct, sign, rate)]
+    named = [c for c in moved if ent_key(c) in ability_hits]
+    if named and len(ability_hits) < len({ent_key(c) for c in pool}):
+        moved = named                   # the ability the line names, when it is not the whole pool
+    out: list[MChange] = []
+    found = 0
+    for words_ in parts:
+        # "Melee damage and growth": the first property is the base stat, not its per-boon growth
+        grows = bool(words_ & _GROWTH_WORDS)
+        scored = [(len(_label_tokens(c) & words_), c) for c in moved
+                  if grows or not rules.GROWTH_LABEL.search(c.label or '')]
+        best = max((s for s, _ in scored), default=0)
+        if best:
+            found += 1
+            out += [c for s, c in scored if s == best and c not in out]
+    return out if found >= 2 else []
+
+
+def pair_hits(scored: list[tuple[int, MChange]], pairs, least: int) -> list[MChange]:
+    """The best-scoring fields of each number pair on its own (scored: [(score, change)])."""
+    out: list[MChange] = []
+    for a, b in pairs:
+        cands = [(s, c) for s, c in scored if s >= least
+                 and any(value_matches(o, a, c, APPROX) and value_matches(n, b, c, APPROX) for o, n in c.steps())]
+        top = max((s for s, _ in cands), default=None)
+        out += [c for s, c in cands if s == top and c not in out]
+    return out
 
 
 def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, ability_hits: set[str]) -> int:
@@ -557,6 +627,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         pairs = pairs + [(a * 60, b * 60) for a, b in pairs]
     m = _BY_RE.search(rest)
     by_pct = float(m.group('p')) if m else None
+    by_at = m.start() if m else None
     tm = _TIER_RE.search(rest)
     tier = int(tm.group(1)) if tm else None
     result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
@@ -598,6 +669,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             ability_hits |= {k for k in subject.ids if cat.get(k, {}).get('kind') == 'weapon'}
         if not ability_hits and lw & HERO_STAT_WORDS:
             ability_hits |= {k for k in subject.ids if k.startswith('heroes.vdata:')}
+        if lw & {'growth', 'boon'}:
+            # "Bullet damage growth 0.28 -> 0.32": per-boon stats live on the hero, not on the gun
+            ability_hits |= {k for k in subject.ids if k.startswith('heroes.vdata:')}
         # ability_hits only add score: "Bullet damage per boon" names the gun
         # but the value lives on the hero, so the pool is never narrowed.
     elif subject:
@@ -626,6 +700,13 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             scored, best = rank(pool, ability_hits)
         if enough(best):
             hits = [c for s, c in scored if s == best]
+            if len(pairs) > 1:
+                # one best field for EACH pair: "Base HP 6725 -> 12500 and growth 470 -> 200" is two fields,
+                # though "growth" scores the second one higher (P13 2026-10-02)
+                hits += [c for c in pair_hits(scored, pairs, 9 + need) if c not in hits]
+            if by_pct is not None and not pairs:
+                # "respawn times, hp, and bounty reduced by 30%": the best field of EACH property listed
+                hits += [c for c in list_hits(rest[:by_at], pool, by_pct, text, ability_hits) if c not in hits]
             for c in hits:
                 c.status = 'documented'
                 c.lines.append(text)
@@ -696,7 +777,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     # the ability the line names, when it has such a field: "Siphon Life range now scales…" is not
     # Seismic Impact's collide radius
     named = [c for c in linked if ent_key(c) in ability_hits]
-    linked = named or linked or fallback
+    linked = named or linked
+    if linked and (pairs or by_pct is not None):
+        # a line with numbers no field matched: the fields that share the MOST of its words ("Bullet
+        # damage growth reduced by 18%" is the bullet growth, not the health growth)
+        # (not the words in parentheses: "(affects base damage, AP and spirit scaling)" names no field)
+        core = expand_words(words(_PARENS.sub(' ', rest)))
+        most = max(len(label_words(c) & core) for c in linked)
+        linked = [c for c in linked if len(label_words(c) & core) == most]
+    linked = linked or fallback
     if linked:
         return _link(result, linked, text, 'described')
     return result

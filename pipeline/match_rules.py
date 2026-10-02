@@ -93,6 +93,11 @@ LABEL_SYNONYMS = {
 }
 
 
+# a stat's growth is how much it gains per boon / per minute / with spirit: "Bullet damage growth",
+# "Health growth". A phrase, not the word "boon" ("Level 21: gives a boon" grows nothing)
+GROWTH_LABEL = re.compile(r'per (boon|minute)|\((boon|spirit) scaling\)|growth', re.I)
+
+
 def stem(w: str) -> str:
     """The plural cut match.words applies ('radius' -> 'radiu', 'charges' -> 'charge')."""
     return w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w
@@ -210,6 +215,11 @@ DELTA_FAMILIES: tuple[tuple[re.Pattern, re.Pattern, object], ...] = (
     (re.compile(r'\bmove ?speed\b'), re.compile(r'm_mapStartingStats\.EMaxMoveSpeed'), lambda e: e.get('kind') == 'hero'),
     (re.compile(r'(?<!bonus )\b(base )?(hp|health)\b(?! (per|growth|regen))'),
      re.compile(r'm_mapStartingStats\.EMaxHealth$'), lambda e: e.get('kind') == 'hero'),
+    # "Light melee base damage reduced by 20% (except for Viscous, Calico and Bebop)": 50 heroes (hero audit #11)
+    (re.compile(r'\blight melee\b|\bmelee damage\b'), re.compile(r'm_mapStartingStats\.ELightMeleeDamage$'),
+     lambda e: e.get('kind') == 'hero'),
+    (re.compile(r'\bheavy melee\b|\bmelee damage\b'), re.compile(r'm_mapStartingStats\.EHeavyMeleeDamage$'),
+     lambda e: e.get('kind') == 'hero'),
     (re.compile(r'\b(bullet )?cycle time|\bfire interval'), re.compile(r'm_flCycleTime$'),
      lambda e: e.get('kind') == 'weapon'),
     (re.compile(r'\bspirit (power )?scaling'), re.compile(r'm_subclassScaleFunction\.m_flStatScale$'),

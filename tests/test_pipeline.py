@@ -845,3 +845,53 @@ def test_cosmetic_files_name_their_heroes():
     assert kind('models/heroes_wip/bookworm/materials/bookworm_basebody_color_png_1eb21a27.vtex_c') == 'base body'
     assert kind('animgraphs/animgraph2/hero/hero_cosmetic.vnmgraph+abrams.vnmgraph_c') == 'cosmetic animation'
     assert kind('models/heroes_wip/bookworm/materials/bookworm_head.vmat_c') is None
+
+
+def test_a_line_listing_properties_links_each_of_them():
+    """P13: "Neutral respawn times, hp, and bounty reduced by 30%" linked the bounty only."""
+    from pipeline.match import list_hits, list_parts
+    mk = lambda eid, path, a, b, label: MChange('npc_units.vdata', eid, path, 'change', a, b, 'balance', 'neutral',  # noqa: E731
+                                                None, label, False)
+    spawn = mk('camp', 'm_flSpawnInterval', 420, 290, 'Spawn Interval (s)')
+    hp = mk('n', 'm_nMaxHealth', 500, 350, 'Health')
+    bounty = mk('n', 'm_flGoldReward', 100, 70, 'Soul Bounty')
+    regen = mk('n', 'm_flOOCRegen', 10, 7, 'Out-of-combat Regen')         # moved by 30% too, but not listed
+    head = 'Neutral respawn times, hp, and bounty '
+    assert len(list_parts(head)) == 3 and list_parts('Walker HP ') == []
+    got = list_hits(head, [spawn, hp, bounty, regen], 30, head + 'reduced by 30%', set())
+    assert sorted(c.label for c in got) == ['Health', 'Soul Bounty', 'Spawn Interval (s)']
+    dmg = MChange('abilities.vdata', 'siphon', 'm_mapAbilityProperties.DPS.m_strValue', 'change', 40, 36, 'balance',
+                  'ability', 'hero_atlas', 'Damage Per Second', False)
+    sc = MChange('abilities.vdata', 'siphon', 'm_mapAbilityProperties.DPS.m_subclassScaleFunction.m_flStatScale',
+                 'change', 0.5, 0.45, 'balance', 'ability', 'hero_atlas', 'Damage Per Second (spirit scaling)', False)
+    got = list_hits('Siphon Life damage and spirit scaling ', [dmg, sc], 10, 'reduced by 10%', set())
+    assert len(got) == 2 and dmg in got and sc in got
+
+
+def test_light_melee_line_covers_every_hero():
+    """Hero audit #11: "Light melee base damage reduced by 20% (except for …)" took Parry's damage taken."""
+    from pipeline.match import num
+    from pipeline.match_rules import global_delta_line
+    mk = lambda eid, path, a, b: MChange('heroes.vdata', eid, path, 'change', a, b, 'balance', 'hero', None, 'x',  # noqa: E731
+                                         False, chain=[a, b])
+    cat = {f'heroes.vdata:h{i}': {'kind': 'hero'} for i in range(5)}
+    light = [mk(f'h{i}', 'm_mapStartingStats.ELightMeleeDamage', 63, 50) for i in range(4)]
+    heavy = [mk('h4', 'm_mapStartingStats.EHeavyMeleeDamage', 116, 93)]
+    hit = global_delta_line('Light melee base damage reduced by 20% (except for Viscous, Calico and Bebop)',
+                            light + heavy, cat, num)
+    assert sorted(c.eid for c in hit) == ['h0', 'h1', 'h2', 'h3']
+
+
+def test_each_number_pair_gets_its_best_field():
+    """P13: "Base HP increased from 6725 to 12500 and growth reduced from 470 to 200" is two fields."""
+    from pipeline.match import label_words, pair_hits
+    mk = lambda path, a, b, label: MChange('npc_units.vdata', 'mid', path, 'change', a, b, 'balance', 'neutral',  # noqa: E731
+                                           None, label, False)
+    start = mk('m_iStartingHealth', 6725, 12500, 'Starting Health')
+    grow = mk('m_iHealthGainPerMinute', 470, 200, 'Health per Minute')
+    other = mk('m_flX', 470, 200, 'Something Else')
+    got = pair_hits([(12, grow), (11, start), (7, other)], [(6725, 12500), (470, 200)], 9)
+    assert grow in got and start in got and other not in got
+    # growth is a phrase of the label, not the word "boon"
+    assert 'growth' in label_words(grow)
+    assert 'growth' not in label_words(mk('m_mapLevelInfo.21.m_bUseStandardUpgrade', 0, 1, 'Level 21: gives a boon'))
