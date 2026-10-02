@@ -299,6 +299,13 @@ reduced from 125% to 110%" = 125 → 120 in build 5983, 120 → 110 an hour late
 5984). A late landing counts "damage" as a word. A hero's "Base damage …" is its gun's bullet damage
 (`_BASE_DAMAGE`). `granted_pair` also reads "now (also) reduces / increases … by N", "now lasts N",
 "is now N", and counts neither a tier name ("T3") nor an aside in parentheses as a second number.
+Wordy lines (2026-10-03): a flag that came or went names a field by its words (`flag_words`: "No longer
+interrupts sliding" = DONT_INTERRUPT_SLIDE_ON_CAST, "Multiple instances stack" = a modifier's
+ATTRIBUTE_MULTIPLE; a hero line's flags only of the ability it names, filler words such as "can",
+"cast", "use" left out — and then the ability's other mechanics stay described too); a label named
+whole by common words links ("Bullet Resistance changed to Spirit Resistance": two words at least, or
+one of its own); "requires" / "upgrades from" are components; "Removed from the game" / "is disabled"
+is the subject's availability.
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

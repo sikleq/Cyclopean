@@ -5,7 +5,8 @@
     "items": [
       "\"T3 now also increases radius by 2m\", \"now reduces bullet armor by 6%\", \"Barriers now last for 16s\", \"T2 is now +50 Damage\" link the value they name: 36 lines that matched nothing and 142 that were only described.",
       "\"Now grants +5% Ability Range\" links both the range and the radius the game raises; a spirit line never takes a bullet field.",
-      "A change Valve hotfixed an hour later is one line across both builds (Lucky Shot 125% → 110% on 2025-11-21); a hero's \"Base damage\" is its gun's bullet damage."
+      "A change Valve hotfixed an hour later is one line across both builds (Lucky Shot 125% → 110% on 2025-11-21); a hero's \"Base damage\" is its gun's bullet damage.",
+      "Wordy lines find their field too: \"No longer interrupts sliding\" (the ability's behaviour flag), \"Bullet Resistance changed to Spirit Resistance\", \"Now requires Headshot Booster\", \"Removed from the game\" — about 40 more lines."
     ]
   },
   {

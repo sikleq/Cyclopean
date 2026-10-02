@@ -341,7 +341,8 @@ def boon_lines(text: str, changes: list, rescale: tuple[float, bool] | None, num
 
 
 # ---- 2. components: "Now builds from Sprint Boots" ----
-COMPONENT_RE = re.compile(r'builds? (from|into)|no longer builds|component', re.I)
+# "Headhunter: Now requires Headshot Booster", "Fortitude: Now upgrades from Extra Health" (2026-10-03)
+COMPONENT_RE = re.compile(r'builds? (from|into)|no longer builds|component|\brequires\b|\bupgrades? (from|into)\b', re.I)
 AFFECTS_UPGRADES_RE = re.compile(r'affects? (its )?upgrades', re.I)
 
 # ---- 8. lines the compared data cannot carry ----

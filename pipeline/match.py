@@ -863,8 +863,24 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     specific = lw - GENERIC_WORDS
 
     def on_topic(c: MChange) -> bool:
-        """The field shares a specific word with the line (not just 'bullet' or 'damage')."""
-        return bool(words(c.label) & specific) or bool(label_words(c) & specific - SYNONYM_ONLY)
+        """The field shares a specific word with the line (not just 'bullet' or 'damage'), or a flag that
+        came or went names it ("Decay: No longer interrupts sliding" = DONT_INTERRUPT_SLIDE_ON_CAST)."""
+        flags = flag_words(c) & specific
+        # a hero line's flags: of the ability it names ("Viscous: Can now use down dash during Goo Ball" is
+        # not The Cube's behaviour)
+        if flags and subject.kind == 'hero' and ability_hits and ent_key(c) not in ability_hits:
+            flags = set()
+        return bool(words(c.label) & specific) or bool(label_words(c) & specific - SYNONYM_ONLY) or bool(flags)
+
+    def named_whole(c: MChange) -> bool:
+        """Every word of the label is in the line, common ones too: "Fury Trance: Active Bullet Resistance
+        changed to Spirit Resistance" names Bullet Resist and Spirit Resist. The subject's own fields only
+        (a hero line: the ability it names)."""
+        core = words(c.label or '') - _LABEL_FILLER
+        # two words at least, or one of its own: "Bullet Damage" is just "bullet" (Afterburn "… each bullet")
+        enough = len(core) >= 2 or bool(core - GENERIC_WORDS)
+        return (enough and all(w in lw or rules.expand_label_words({w}) & lw for w in core)
+                and (subject.kind != 'hero' or ent_key(c) in ability_hits))
 
     if subject.kind in ('alias_inline', 'name_inline'):
         # a unit merely named inside a sentence: link only on the field's own words (not a synonym:
@@ -896,7 +912,13 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     fallback = []
     if ability_hits and subject.kind == 'hero' and not _PRESENTATION_LINE.search(text):
         fallback = [c for c in pool if ent_key(c) in ability_hits and c.cat == 'mechanic']
-    linked = [c for c in pool if on_topic(c)]
+    if _REMOVED_LINE.search(text):
+        # "Soul Rebirth: Removed from the game" is its Disabled false -> true
+        gone = [c for c in pool if c.cat == 'availability'
+                and (subject.kind != 'hero' or not ability_hits or ent_key(c) in ability_hits)]
+        if gone:
+            return _link(result, gone, text, 'described')
+    linked = [c for c in pool if on_topic(c) or named_whole(c)]
     # the ability the line names, when it has such a field: "Siphon Life range now scales…" is not
     # Seismic Impact's collide radius
     named = [c for c in linked if ent_key(c) in ability_hits]
@@ -908,10 +930,36 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         core = expand_words(words(_PARENS.sub(' ', rest)))
         most = max(len(label_words(c) & core) for c in linked)
         linked = [c for c in linked if len(label_words(c) & core) == most]
+    if linked and fallback and all(c.cat == 'mechanic' and ent_key(c) in ability_hits for c in linked):
+        # only the named ability's flags spoke: its other mechanics stay described as before
+        linked = linked + [c for c in fallback if c not in linked]
     linked = linked or fallback
     if linked:
         return _link(result, linked, text, 'described')
     return result
+
+
+_REMOVED_LINE = re.compile(r'\b(removed from the (game|shop)|(is|are|now) disabled|no longer (available|in the shop))\b',
+                           re.I)
+_FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|CITADEL_UNIT_TARGET_|CITADEL_|MODIFIER_STATE_|MODIFIER_)')
+
+
+def flag_words(c: MChange) -> set[str]:
+    """The words of the flags a flag field gained or lost (Behaviour, Can target, Interrupted by…)."""
+    leaf = c.path.rsplit('.', 1)[-1]
+    # a modifier's attributes too: "Multiple instances stack" = MODIFIER_ATTRIBUTE_MULTIPLE (Slice and Dice)
+    if leaf not in semantics.FLAG_FIELDS and leaf != 'm_nAttributes':
+        return set()
+    split = lambda v: {f.strip() for f in str(v or '').split('|') if f.strip()}      # noqa: E731
+    moved = split(c.old) ^ split(c.new)
+    out = set().union(*(words(_FLAG_PREFIX.sub('', f).replace('_', ' ')) for f in moved)) if moved else set()
+    return out - _FLAG_FILLER
+
+
+# flag words every behaviour list repeats: they name no behaviour of their own
+_FLAG_FILLER = {'can', 'use', 'cast', 'ability', 'target', 'unit', 'set', 'dont', 'allow', 'while', 'during',
+                'displays', 'damage', 'impact', 'friendly', 'enemy', 'all', 'hero', 'heroe', 'ui', 'instant',
+                'attribute'}
 
 
 _PRESENTATION_LINE = re.compile(r'\b(sounds?|audio|sfx|vfx|visuals?|effects?|particles?|animations?|anims?|models?|'

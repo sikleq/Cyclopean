@@ -1037,3 +1037,31 @@ def test_a_mismatch_needs_a_word_of_the_property_itself():
     res = annotate_line('Dynamo: Now gains 1% Bullet Resist per Boon (0->14%)', [resist], {k: [resist] for k in keys},
                         idx, cat, {})
     assert res['status'] == 'documented'
+
+
+def test_wordy_lines_link_flags_resist_swaps_components_and_removals():
+    """2026-10-03: textual lines whose subject changed but no word matched a label."""
+    from pipeline.match import annotate_line, flag_words
+    beh = MChange('abilities.vdata', 'decay', 'm_AbilityBehaviorsBits', 'change', 'CITADEL_ABILITY_BEHAVIOR_A',
+                  'CITADEL_ABILITY_BEHAVIOR_A | CITADEL_ABILITY_BEHAVIOR_DONT_INTERRUPT_SLIDE_ON_CAST', 'mechanic', 'item',
+                  None, 'Behaviour', False)
+    assert {'interrupt', 'slide'} <= flag_words(beh)
+    idx = {'decay': ['abilities.vdata:decay'], 'fury trance': ['abilities.vdata:fury'],
+           'headhunter': ['abilities.vdata:hh'], 'soul rebirth': ['abilities.vdata:sr']}
+    cat = {k: {'id': k.split(':')[1], 'kind': 'item'} for ks in idx.values() for k in ks}
+
+    def run(text, changes):
+        by_ent = {}
+        for c in changes:
+            by_ent.setdefault(f'{c.file}:{c.eid}', []).append(c)
+        return annotate_line(text, changes, by_ent, idx, cat, {})
+
+    assert run('Decay: No longer interrupts sliding, to match other similar actives', [beh])['changes'] == [beh.key]
+    mk = lambda eid, path, a, b, label, cat_='balance': MChange('abilities.vdata', eid, path, 'change', a, b, cat_,  # noqa: E731
+                                                                 'item', None, label, False)
+    bul, spi = mk('fury', 'p.BulletResist', '40', None, 'Bullet Resist'), mk('fury', 'p.SpiritResist', None, '40', 'Spirit Resist')
+    assert len(run('Fury Trance: Active Bullet Resistance changed to Spirit Resistance', [bul, spi])['changes']) == 2
+    comp = mk('hh', 'm_vecComponentItems', 'upgrade_a', 'upgrade_b', 'Component Items', 'mechanic')
+    assert run('Headhunter: Now requires Headshot Booster', [comp])['changes'] == [comp.key]
+    off = mk('sr', 'm_bDisabled', False, True, 'Disabled', 'availability')
+    assert run('Soul Rebirth: Removed from the game', [off])['changes'] == [off.key]
