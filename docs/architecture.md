@@ -293,6 +293,12 @@ own — not a common word nor a word the subject brings ("guardian" → "tier": 
 a label of common words only ("Bullet Damage"), by all of them; only the pairs outside parentheses and
 with two different numbers are judged ("(0->14%)" is a total; "changed from 0.2s cast delay to 0.2s
 post cast time" moves a value). "X instead of Y" is a pair; "movespeed" / "firerate" are two words.
+A change hotfixed across a window edge is one line (`late_landings` → `_chain_hit`): the field starts
+at the line's A in its window and the same field ends at B later, step by step ("Lucky Shot: Damage
+reduced from 125% to 110%" = 125 → 120 in build 5983, 120 → 110 an hour later in the follow-up's
+5984). A late landing counts "damage" as a word. A hero's "Base damage …" is its gun's bullet damage
+(`_BASE_DAMAGE`). `granted_pair` also reads "now (also) reduces / increases … by N", "now lasts N",
+"is now N", and counts neither a tier name ("T3") nor an aside in parentheses as a second number.
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

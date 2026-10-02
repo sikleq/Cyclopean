@@ -238,19 +238,29 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
 _INSTEAD_RE = re.compile(rf'(?P<b>{_NUM})\s*[a-z%]*\s+instead of\s+(?P<a>{_NUM})', re.I)
 
 
-_GRANT = re.compile(r'\b(?P<neg>no longer\s+)?(?:grants?|gives?|gains?|provides?|has|have|deals?|applies?|adds?)\s+'
+# "T2 is now +50 Damage" is a value; "Luggage Cart is now 20% larger" is a change: "is now" needs the "+"
+_GRANT = re.compile(r'\b(?P<neg>no longer\s+)?(?:grants?|gives?|gains?|provides?|has|have|deals?|applies?|adds?|'
+                    r'(?:is|are)\s+now(?=\s+\+))\s+'
                     rf'(?:an?\s+|bonus\s+|extra\s+)?(?P<v>[-+]?{_NUM})', re.I)
 
 
 def granted_pair(text: str) -> list[tuple[float, float]]:
-    """[(0, N)] for "now grants +N …", [(N, 0)] for "no longer grants +N …" (one number only)."""
-    if len(re.findall(_NUM, text)) != 1:
+    """[(0, N)] for "now grants +N …", [(N, 0)] for "no longer grants +N …" (one number only — a tier
+    name "T3" and an aside in parentheses are no numbers: "T3 no longer grants +100% Ammo")."""
+    bare = _TIER_NAME.sub(' ', _PARENS.sub(' ', text))
+    if len(re.findall(_NUM, bare)) != 1:
         return []
-    m = _GRANT.search(text)
+    m = _GRANT.search(bare) or _NOW_BY.search(bare)
     if not m:
         return []
     v = abs(float(m.group('v')))
-    return [(v, 0.0)] if m.group('neg') else [(0.0, v)]
+    return [(v, 0.0)] if m.groupdict().get('neg') else [(0.0, v)]
+
+
+_TIER_NAME = re.compile(r'\bT[1-4]\b')
+# "Crow Familiar now reduces bullet armor by 6%", "Barriers now last for 16s", "T2 is now +50 Damage"
+_NOW_BY = re.compile(rf'\bnow\s+(?:also\s+)?(?:(?:reduces?|increases?|slows?|amplifies?|lowers?|raises?)\b.*?\bby\s+'
+                     rf'|lasts?\s+(?:for\s+)?)~?(?P<v>[-+]?{_NUM})', re.I)
 
 
 def words(text: str) -> set[str]:
@@ -463,6 +473,7 @@ def label_words(c: MChange) -> set[str]:
 
 
 _MINUTES = re.compile(r'\b(minutes?|mins?)\b', re.I)
+_BASE_DAMAGE = re.compile(r'^\s*(base|gun)\s+damage\b', re.I)
 _SPAWN_TIMER = re.compile(r'\b(spawns?|respawns?|spawn time|interval)\b', re.I)
 _SECONDS = re.compile(r'\d\s*(s|sec|secs|seconds?)\b', re.I)
 _UP_VERB = re.compile(r'\b(increas\w*|rais\w*|more|higher|boost\w*)\b', re.I)
@@ -563,6 +574,13 @@ def names_whole_property(c: MChange, line_words: set[str]) -> bool:
     +1 Charge -> +2" is not the T3 Charge DELAY. Only for calling a line a mismatch — a claim that
     Valve's numbers are wrong needs the field to be the one the line means."""
     return all(w in line_words or rules.expand_label_words({w}) & line_words for w in _core(c))
+
+
+def _same_kind(c: MChange, line_words: set[str]) -> bool:
+    """A bullet field for a bullet line, a spirit one for a spirit line ("+185 Spirit Shield Health" is not
+    the Bullet Shield Health that also became 185, Veil Walker 2024-07-18)."""
+    label = words(c.label or '')
+    return all(w in line_words for w in ('bullet', 'spirit') if w in label)
 
 
 def mismatch_field(c: MChange, line_words: set[str], own: set[str], line_tokens: set[str]) -> bool:
@@ -747,6 +765,10 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
             nm = loc.plain(loc.entity_name(tok, e.get('id', ''), e.get('owner'))).lower()
             if nm and len(nm) > 2 and any(v in low for v in rules.name_variants(nm)):
                 ability_hits.add(k)
+        if _BASE_DAMAGE.search(rest) and not ability_hits:
+            # a hero's "base damage" is its gun's bullet damage ("Celeste: Base damage reduced from 29 to
+            # 25" is the gun's 28.75 -> 25; "damage" and "base" are no words of their own here)
+            lw = lw | {'bullet'}
         if lw & WEAPON_WORDS:
             ability_hits |= {k for k in subject.ids if cat.get(k, {}).get('kind') == 'weapon'}
         if not ability_hits and lw & HERO_STAT_WORDS:
@@ -786,6 +808,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
                 # one best field for EACH pair: "Base HP 6725 -> 12500 and growth 470 -> 200" is two fields,
                 # though "growth" scores the second one higher (P13 2026-10-02)
                 hits += [c for c in pair_hits(scored, pairs, 9 + need) if c not in hits]
+            if granted:
+                # every field that took the value and shares a word: "Now grants +5% Ability Range" is the
+                # range AND the radius multiplier (Echo Shard, 2025-11-21)
+                # — of the same ability, by a word of the label (not by "T3" alone: Heavy Barrage's "+2m
+                # explosion radius" took Spectral Wall's "Create Turrets 2")
+                same = {ent_key(h) for h in hits}
+                hits += [c for s, c in scored if s >= 9 + need and c not in hits
+                         and ent_key(c) in same and label_words(c) & lw
+                         and names_whole_property(c, lw) and _same_kind(c, lw)]
             if by_pct is not None and not pairs:
                 # "respawn times, hp, and bounty reduced by 30%": the best field of EACH property listed
                 hits += [c for c in list_hits(rest[:by_at], pool, by_pct, text, ability_hits) if c not in hits]
@@ -1280,7 +1311,9 @@ def _late_hit(later: list[tuple[Patch, dict]], p: Patch, subj: str, pairs, lw: s
                 # 'unannounced': the later build may be a notes-less window of its own (build-5433)
                 if c.get('status') not in ('hidden', 'unannounced') or c.get('shared') or c.get('cat') != 'balance':
                     continue
-                if not rules.expand_label_words(words(c['label'])) & lw:
+                # "damage" counts here ("Holliday: Base damage reduced from 22 to 18" is the gun's Bullet
+                # Damage two days later): the subject and the exact numbers already narrow it down
+                if not (rules.expand_label_words(words(c['label'])) | _tokens(c['label'])) & lw:
                     continue
                 o, n = num(c.get('old_s')), num(c.get('new_s'))
                 if o is not None and n is not None and \
@@ -1304,21 +1337,63 @@ def late_landings(results: list[tuple[Patch, dict]], cat: dict[str, dict]) -> in
                 pairs = parse_pairs(rest)
                 if not pairs:
                     continue
-                hit = _late_hit(results[i + 1:], p, ln['subject'].lower(), pairs, expand_words(words(rest)), hero_name)
-                if not hit:
+                subj = ln['subject'].lower()
+                lw = expand_words(words(rest)) | _tokens(rest)
+                hit = _late_hit(results[i + 1:], p, subj, pairs, lw, hero_name)
+                steps = [(p, data, None), hit] if hit else _chain_hit(data, results[i + 1:], p, subj, pairs, hero_name)
+                if not steps:
                     continue
-                q, qd, c = hit
+                q = steps[-1][0]
                 ln['status'] = 'documented'
-                ln['changes'] = [c['key']]
-                ln['late'] = {'patch': q.id, 'title': q.title, 'builds': c.get('builds', [])}
-                qd['counts'][c['status']] -= 1
-                qd['counts']['documented'] = qd['counts'].get('documented', 0) + 1
-                c['status'] = 'documented'
-                c['noted_in'] = {'patch': p.id, 'title': p.title}
+                ln['changes'] = list(dict.fromkeys(st[2]['key'] for st in steps if st[2]))
+                ln['late'] = {'patch': q.id, 'title': q.title, 'builds': steps[-1][2].get('builds', [])}
+                for _, qd, c in steps:
+                    if c is None:
+                        continue
+                    qd['counts'][c['status']] -= 1
+                    qd['counts']['documented'] = qd['counts'].get('documented', 0) + 1
+                    c['status'] = 'documented'
+                    if qd is not data:
+                        c['noted_in'] = {'patch': p.id, 'title': p.title}
                 data['line_counts']['unmatched'] -= 1
                 data['line_counts']['documented'] = data['line_counts'].get('documented', 0) + 1
                 linked += 1
     return linked
+
+
+def _subject_of(e: dict, subj: str, hero_name: dict[str, str]) -> bool:
+    return subj in {(e.get('name') or '').lower(), (hero_name.get(e.get('owner') or '') or '').lower()}
+
+
+def _chain_hit(data: dict, later: list[tuple[Patch, dict]], p: Patch, subj: str, pairs,
+               hero_name: dict[str, str]) -> list | None:
+    """The line's change shipped in two steps across a window edge: Valve hotfixed it an hour later
+    ("Lucky Shot: Damage reduced from 125% to 110%" = 125 -> 120 in build 5983, 120 -> 110 in 5984 of
+    the follow-up window, 2025-11-21). The field starts at A in the line's window and the same field
+    ends at B later (within LATE_DAYS), step by step: [(p, data, c0), (q, qd, c1)]."""
+    for e in data['entities']:
+        if not _subject_of(e, subj, hero_name):
+            continue
+        for c0 in e['changes']:
+            if c0.get('status') not in ('hidden', 'unannounced') or c0.get('cat') != 'balance' or c0.get('shared'):
+                continue
+            o0, n0 = num(c0.get('old_s')), num(c0.get('new_s'))
+            if o0 is None or n0 is None:
+                continue
+            for a, b in pairs:
+                if not value_matches(o0, a, False) or value_matches(n0, b, False):
+                    continue
+                for q, qd in later:
+                    if _days(p.date, q.date) > LATE_DAYS:
+                        break
+                    for e1 in qd['entities']:
+                        for c1 in e1['changes']:
+                            if c1.get('key') != c0.get('key') or c1.get('status') not in ('hidden', 'unannounced'):
+                                continue
+                            o1, n1 = num(c1.get('old_s')), num(c1.get('new_s'))
+                            if o1 is not None and n1 is not None and abs(o1 - n0) < 1e-9 and value_matches(n1, b, False):
+                                return [(p, data, c0), (q, qd, c1)]
+    return None
 
 
 # A notes-less window right after a changelog that carries this many of its numbered

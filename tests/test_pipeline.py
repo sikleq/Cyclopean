@@ -404,6 +404,28 @@ def test_note_that_landed_in_a_later_build_is_linked():
     assert change['status'] == 'documented' and later[1]['counts'] == {'hidden': 0, 'documented': 1}
 
 
+def test_a_change_hotfixed_across_a_window_edge_is_one_line():
+    """2025-11-21 "Lucky Shot: Damage reduced from 125% to 110%": 125 -> 120 in build 5983 (the notes'
+    window), 120 -> 110 an hour later in 5984 (the follow-up's window). Both steps are the line."""
+    from types import SimpleNamespace
+    from pipeline.match import late_landings
+    line = {'text': 'Lucky Shot: Damage reduced from 125% to 110%', 'subject': 'Lucky Shot',
+            'status': 'unmatched', 'changes': []}
+    first = {'key': 'k', 'label': 'Bonus Weapon Damage', 'old_s': '125%', 'new_s': '120%', 'cat': 'balance',
+             'status': 'hidden', 'builds': [5983]}
+    second = {**first, 'old_s': '120%', 'new_s': '110%', 'builds': [5984]}
+    own = (SimpleNamespace(id='a', date='2025-11-21', title='A'),
+           {'sections': [{'lines': [line]}], 'entities': [{'name': 'Lucky Shot', 'owner': None, 'changes': [first]}],
+            'counts': {'hidden': 1, 'documented': 0}, 'line_counts': {'unmatched': 1}})
+    later = (SimpleNamespace(id='b', date='2025-11-22', title='B'),
+             {'sections': [], 'entities': [{'name': 'Lucky Shot', 'owner': None, 'changes': [second]}],
+              'counts': {'hidden': 1, 'documented': 0}, 'line_counts': {}})
+    assert late_landings([own, later], {}) == 1
+    assert line['status'] == 'documented' and line['changes'] == ['k'] and line['late']['patch'] == 'b'
+    assert first['status'] == second['status'] == 'documented'
+    assert own[1]['counts'] == {'hidden': 0, 'documented': 1} and later[1]['counts'] == {'hidden': 0, 'documented': 1}
+
+
 def test_notes_less_window_implementing_a_changelog_is_merged(monkeypatch):
     from pipeline import match
     from pipeline.patches import Patch
@@ -922,6 +944,17 @@ def test_now_grants_and_no_longer_grants_are_values():
     assert granted_pair('Withering Whip: No longer grants +50 Health') == [(50.0, 0.0)]
     assert granted_pair('Now has 3 charges and 10s cooldown') == []          # two numbers: not one value
     assert granted_pair('Reduced spread') == []
+    # a tier name or an aside is no second number; "now reduces X by N" / "now lasts N" / "is now N" too
+    assert granted_pair('Exploding Uppercut T3 no longer grants +100% Ammo') == [(100.0, 0.0)]
+    assert granted_pair('Rapid Recharge: Now gains +12% Weapon Damage (T1 Extra Charge gives +6%)') == [(0.0, 12.0)]
+    assert granted_pair('Crow Familiar now reduces bullet armor by 6%') == [(0.0, 6.0)]
+    assert granted_pair('Barriers now last for 16s') == [(0.0, 16.0)]
+    assert granted_pair('Alchemical Flask T2 is now +50 Damage') == [(0.0, 50.0)]
+    assert granted_pair('Luggage Cart is now 20% larger (20% wider hitbox as well)') == []     # a change, not a value
+    from pipeline.match import _same_kind
+    shield = lambda label: MChange('abilities.vdata', 'v', 'p', 'add', None, 185, 'balance', 'item', None, label, False)  # noqa: E731
+    lw = words('Veil Walker: Now gives +185 Spirit Shield Health')
+    assert _same_kind(shield('Spirit Shield Health'), lw) and not _same_kind(shield('Bullet Shield Health'), lw)
     # "Now has a 8s cooldown" while it was 3s: the stated new value counts; the invented 0 does not
     cd = MChange('abilities.vdata', 'x', 'm_mapAbilityProperties.AbilityCooldown.m_strValue', 'change', 3, 8, 'balance',
                  'item', None, 'Cooldown', False)
