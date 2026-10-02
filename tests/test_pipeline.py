@@ -1065,3 +1065,55 @@ def test_wordy_lines_link_flags_resist_swaps_components_and_removals():
     assert run('Headhunter: Now requires Headshot Booster', [comp])['changes'] == [comp.key]
     off = mk('sr', 'm_bDisabled', False, True, 'Disabled', 'availability')
     assert run('Soul Rebirth: Removed from the game', [off])['changes'] == [off.key]
+
+
+def test_a_line_about_unmoved_files_is_in_the_code():
+    """2026-10-03: "Vyper: Sliding uphill now allows for lateral movement" — nothing of Vyper's files moved:
+    the change is in the game's code ('code'), not a matcher miss — unless the files move a little later."""
+    from types import SimpleNamespace
+    from pipeline.match import code_lines
+    ln = {'text': 'Vyper: Sliding uphill now allows for lateral movement', 'subject': 'Vyper', 'status': 'unmatched',
+          'changes': [], '_quiet': ['heroes.vdata:hero_viper']}
+    own = (SimpleNamespace(id='a', date='2026-04-10', title='A'),
+           {'sections': [{'lines': [ln]}], 'entities': [], 'line_counts': {'unmatched': 1}})
+    moved = {'file': 'heroes.vdata', 'id': 'hero_viper', 'changes': [{'cat': 'balance'}]}
+    later = (SimpleNamespace(id='b', date='2026-04-12', title='B'), {'sections': [], 'entities': [moved]})
+    assert code_lines([own, later]) == 0 and ln['status'] == 'unmatched' and '_quiet' not in ln
+    ln['_quiet'] = ['heroes.vdata:hero_viper']
+    assert code_lines([own]) == 1 and ln['status'] == 'code' and own[1]['line_counts'] == {'unmatched': 0, 'code': 1}
+
+
+def test_a_quiet_line_about_sounds_or_looks_is_untracked_and_numbers_stay_unmatched():
+    """Review of the first 'code' round: "Revision to buff and cast to look less modern" is a look, not code;
+    "Fire Rate: +1.5% to +2%" left unmatched is our miss more likely than code."""
+    from types import SimpleNamespace
+    from pipeline.match import code_lines
+
+    def one(text):
+        ln = {'text': text, 'status': 'unmatched', 'changes': [], '_quiet': ['abilities.vdata:x']}
+        data = {'sections': [{'lines': [ln]}], 'entities': [], 'line_counts': {'unmatched': 1}}
+        code_lines([(SimpleNamespace(id='a', date='2026-04-10', title='A'), data)])
+        return ln, data['line_counts']
+
+    ln, lc = one('Petrifying Bola: Added cast and buff sounds')
+    assert ln['status'] == 'untracked' and ln['topic'] == 'sound' and lc == {'unmatched': 0, 'untracked': 1}
+    ln, _ = one('Petrifying Bola: Revision to buff and cast to look less modern')
+    assert ln['status'] == 'untracked' and ln['topic'] == 'visual'
+    ln, _ = one('Fire Rate: +1.5% to +2%')
+    assert ln['status'] == 'unmatched' and '_quiet' not in ln
+    ln, _ = one('Shiv: T3 now also slows')           # a tier name is not a number
+    assert ln['status'] == 'code'
+
+
+def test_builds_into_links_the_other_items_component_list():
+    """"Berserker: Now builds into Frenzy": Berserker's files did not move, Frenzy's ComponentItems did."""
+    from pipeline.match import annotate_line, MChange
+    berserker = 'abilities.vdata:upgrade_berserker'
+    frenzy = 'abilities.vdata:upgrade_frenzy'
+    cat = {berserker: {'id': 'upgrade_berserker', 'kind': 'item'}, frenzy: {'id': 'upgrade_frenzy', 'kind': 'item'}}
+    idx = {'berserker': [berserker], 'frenzy': [frenzy]}
+    comp = MChange('abilities.vdata', 'upgrade_frenzy', 'm_vecComponentItems', 'change', ['a'],
+                   ['a', 'upgrade_berserker'], 'balance', 'item', None, 'Components', False)
+    by_ent = {frenzy: [comp]}
+    out = annotate_line('Berserker: Now builds into Frenzy', [comp], by_ent, idx, cat, {})
+    assert out['status'] == 'described' and out['changes'] == [comp.key]

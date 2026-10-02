@@ -11,7 +11,7 @@ from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, m
 from .pixel_icons import tag_svg
 from .render import shown_value, tag_html, tag_of, tag_summary
 
-LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated')
+LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated', 'code')
 TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
                'map': 'map', 'bots': 'bots', 'performance': 'performance'}
 _FILE_ORDER = {'heroes.vdata': 0, 'abilities.vdata': 1, 'npc_units.vdata': 2}

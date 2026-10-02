@@ -18,7 +18,7 @@ from pipeline import jsonio  # noqa: E402
 DATA = ROOT / 'data'
 TRACKER_START = '2024-08-10'
 MISMATCH_WARN = 0.25            # share of note lines that disagree with the files
-NOT_MATCHABLE = ('heading', 'untracked', 'nodata', 'repeated')
+NOT_MATCHABLE = ('heading', 'untracked', 'nodata', 'repeated', 'code')
 
 
 def main() -> int:

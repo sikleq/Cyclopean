@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Changes that live in the game's code",
+    "items": [
+      "94 patch lines about a hero, ability or item whose game files did not change at all (\"Yamato: Can now cancel Flying Strike\", \"Ricochet: No longer targets zipline targets\") are marked \"in the game's code\" instead of \"not found\": the change is real, it is just in the code, which is not compared here.",
+      "Quiet lines about sounds and looks (\"Adjusted the volume of direct hits\") count as sound / visual; \"Now upgrades into Fortitude\" links Fortitude's new component list."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "More patch lines find their field",
     "items": [
       "\"T3 now also increases radius by 2m\", \"now reduces bullet armor by 6%\", \"Barriers now last for 16s\", \"T2 is now +50 Damage\" link the value they name: 36 lines that matched nothing and 142 that were only described.",

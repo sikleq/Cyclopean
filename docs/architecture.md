@@ -66,6 +66,7 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 | untracked (line) | sound / visuals / interface / map / bots / performance / forum links: not in the diffed vdata, so not a matcher failure (`match_rules.untracked_topic`; a line with numbers is never untracked) |
 | nodata (line) | the patch predates every tracker (May 2024): nothing to compare with |
 | repeated (line) | an edited Steam post carries a line that a later patch's notes have and match (the 2026-03-06 post holds 03-21 lines): points to that patch |
+| code (line) | the line is about a hero / ability / item whose gameplay files did not move in the window nor within `LATE_DAYS` after it ("Vyper: Sliding uphill now allows for lateral movement"): the change lives in the game's code, which is not compared (`match.code_lines`, last pass). Not for lines with numbers (more likely our miss) — those stay unmatched; a quiet line about sounds or looks becomes untracked instead |
 | unmatched (line) | should be in the data but no change was found — a real matcher gap |
 
 ## Tags (badges)

@@ -54,6 +54,7 @@ def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> st
                  ('described', c.get('described', 0), 'covered by a general line'),
                  ('hidden', c.get('hidden', 0), 'not in the notes'),
                  ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
+                 ('code', lc.get('code', 0), "in the game's code"),
                  ('fix', lc.get('fix', 0), 'bug fixes')]
         if c.get('unreleased'):
             audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))

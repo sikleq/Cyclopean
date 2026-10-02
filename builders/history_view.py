@@ -9,7 +9,8 @@ import re
 from .common import esc, glyph_for, mark, patch_name, patch_title_html
 from .notes_view import _highlight, _line_tag
 
-LINE_STATUSES = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked')
+# 'code': a change the notes tell of that lives in the game's code — still the hero's history
+LINE_STATUSES = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'code')
 # a line that spells the change out exactly makes the change row redundant
 EXACT = ('documented', 'rounded')
 

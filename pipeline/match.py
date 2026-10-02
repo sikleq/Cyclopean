@@ -780,6 +780,14 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         # but the value lives on the hero, so the pool is never narrowed.
     elif subject:
         ability_hits = set(subject.ids)     # an item / unit line is about that entity
+    if subject and subject.kind not in ('alias_inline', 'name_inline'):
+        # what the line is about, to tell later whether its files moved at all: the abilities it names,
+        # else the whole subject (run() turns a still-unmatched line about unmoved files into "code")
+        named = {k for k in ability_hits if not k.startswith('heroes.vdata:')
+                 and cat.get(k, {}).get('kind') != 'weapon'} if subject.kind == 'hero' else set()
+        about = named or set(subject.ids)
+        if not any(c.cat in GAMEPLAY_CATS for k in about for c in by_ent.get(k, [])):
+            result['_quiet'] = sorted(about)
     pool = [c for c in pool if c.cat in GAMEPLAY_CATS]
 
     if (pairs or by_pct is not None) and pool:
@@ -905,6 +913,11 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         if comp:
             linked = comp + [c for c in pool if c not in comp and on_topic(c)]
             return _link(result, linked, text, 'described')
+        # "Berserker: Now builds into Frenzy": the list that moved is Frenzy's
+        into = [c for k in inline_names(rest, idx, cat, by_ent) - set(subject.ids)
+                for c in by_ent.get(k, ()) if 'ComponentItems' in c.path]
+        if into:
+            return _link(result, into, text, 'described')
     # textual line: link changes of the subject that share a specific word with the line; failing
     # that, a line naming an ability describes that ability's MECHANICS (flags, targets, behaviour) —
     # never its numbers, and never from a line about how it looks or sounds ("Storm Cloud audio is
@@ -1506,6 +1519,51 @@ def repeated_lines(results: list[tuple[Patch, dict]]) -> int:
     return moved
 
 
+# stricter than _PRESENTATION_LINE: "slow effect now persists" is the game's code, not a visual
+_LOOK_LINE = re.compile(r'\b(sounds?|audio|sfx|vfx|visuals?|particles?|animations?|anims?|models?|icons?|'
+                        r'ui|hud|tooltips?|music|voice|looks?|looking)\b', re.I)
+_SOUND_WORD = re.compile(r'\b(sounds?|audio|sfx|music|voice)\b', re.I)
+_DIGIT = re.compile(r'\d')
+
+
+def code_lines(results: list[tuple[Patch, dict]]) -> int:
+    """A line about a hero, an ability or an item whose game files did not move in its window, nor in a
+    later one within LATE_DAYS, is a change in the game's code ("Vyper: Sliding uphill now allows for
+    lateral movement"): status 'code', not a matcher miss ('unmatched'). The `_quiet` marks go away."""
+    n = 0
+    for i, (p, data) in enumerate(results):
+        for s in data['sections']:
+            for ln in s['lines']:
+                about = ln.pop('_quiet', None)
+                if not about or ln['status'] != 'unmatched':
+                    continue
+                if _LOOK_LINE.search(ln['text']):
+                    # "Added cast and buff sounds", "Revision to buff and cast to look less modern"
+                    ln['status'] = 'untracked'
+                    ln['topic'] = 'sound' if _SOUND_WORD.search(ln['text']) else 'visual'
+                    data['line_counts']['unmatched'] -= 1
+                    data['line_counts']['untracked'] = data['line_counts'].get('untracked', 0) + 1
+                    continue
+                if _DIGIT.search(_TIER_NAME.sub('', ln['text'])):
+                    continue        # a line with numbers left unmatched is more likely a miss of ours
+                ids = set(about)
+                later = False
+                for q, qd in results[i + 1:]:
+                    if _days(p.date, q.date) > LATE_DAYS:
+                        break
+                    if any(f"{e['file']}:{e['id']}" in ids and any(c.get('cat') in GAMEPLAY_CATS for c in e['changes'])
+                           for e in qd.get('entities', [])):
+                        later = True
+                        break
+                if later:
+                    continue
+                ln['status'] = 'code'
+                data['line_counts']['unmatched'] -= 1
+                data['line_counts']['code'] = data['line_counts'].get('code', 0) + 1
+                n += 1
+    return n
+
+
 def run() -> None:
     cat = catalog.load()
     OUT.mkdir(parents=True, exist_ok=True)
@@ -1519,6 +1577,7 @@ def run() -> None:
     print('notes-less windows merged into the changelog they implement:', absorbed)
     print('notes that landed in a later build:', late_landings(results, cat))
     print('lines repeated from a later patch (edited posts):', repeated_lines(results))
+    print('lines about unmoved files (in the code):', code_lines(results))
     for p, data in results:
         jsonio.dump(OUT / f'{p.id}.json.gz', data)
         index.append({'id': p.id, 'title': p.title, 'date': p.date[:10], 'builds': len(p.builds),

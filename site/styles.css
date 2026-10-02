@@ -385,6 +385,7 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .mark.rounded { color: var(--patina-dim); }
 .mark.unreleased { color: var(--dev); }
 .mark.unannounced { color: var(--text-dim); }
+.mark.code { color: var(--patina-dim); }   /* a real change, in the game's code rather than its data files */
 .chip.dev { color: var(--dev); background: var(--dev-10); }
 .chip .mark { width: 16px; height: 16px; margin-right: 3px; }
 .chip .mark svg { width: 12px; height: 12px; }

@@ -54,7 +54,15 @@ NA_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="tr
           'M12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7z'
           'M6 9h1v1H6zM5 10h1v1H5z"/></svg>')
 
+# "</>": the change lives in the game's code, not in the data files compared here
+CODE_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
+            'd="M4 4h2v1H4zM3 5h2v1H3zM2 6h2v1H2zM1 7h2v2H1zM2 9h2v1H2zM3 10h2v1H3zM4 11h2v1H4z'
+            'M10 4h2v1h-2zM11 5h2v1h-2zM12 6h2v1h-2zM13 7h2v2h-2zM12 9h2v1h-2zM11 10h2v1h-2zM10 11h2v1h-2z'
+            'M9 2h1v3H9zM8 5h1v3H8zM7 8h1v3H7zM6 11h1v3H6z"/></svg>')
+
 STATUS_MARK = {
+    'code': ('code', CODE_SVG, "No game file of this changed in the update: the change is in the game's code, "
+                               'which is not compared here'),
     'untracked': ('untracked', NA_SVG, 'Sound, effects, interface or map: not part of the game data compared here'),
     'nodata': ('nodata', NA_SVG, 'No game files survive for this date — nothing to compare with'),
     'repeated': ('repeated', TILDE_SVG, 'The post was edited later: this line belongs to a later update'),
