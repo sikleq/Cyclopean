@@ -895,3 +895,18 @@ def test_each_number_pair_gets_its_best_field():
     # growth is a phrase of the label, not the word "boon"
     assert 'growth' in label_words(grow)
     assert 'growth' not in label_words(mk('m_mapLevelInfo.21.m_bUseStandardUpgrade', 0, 1, 'Level 21: gives a boon'))
+
+
+def test_now_grants_and_no_longer_grants_are_values():
+    """769 numeric lines were unmatched; the largest group: an item stat that appeared or went away."""
+    from pipeline.match import granted_pair
+    assert granted_pair('Superior Stamina: Now grants +75 Health') == [(0.0, 75.0)]
+    assert granted_pair('Withering Whip: No longer grants +50 Health') == [(50.0, 0.0)]
+    assert granted_pair('Now has 3 charges and 10s cooldown') == []          # two numbers: not one value
+    assert granted_pair('Reduced spread') == []
+    # "Now has a 8s cooldown" while it was 3s: the stated new value counts; the invented 0 does not
+    cd = MChange('abilities.vdata', 'x', 'm_mapAbilityProperties.AbilityCooldown.m_strValue', 'change', 3, 8, 'balance',
+                 'item', None, 'Cooldown', False)
+    pairs = granted_pair('Now has a 8s cooldown')
+    assert score(cd, 'Now has a 8s cooldown', pairs, None, {'cooldown'}, None, set(), granted=True) >= 9
+    assert score(cd, 'Now has a 8s cooldown', pairs, None, {'cooldown'}, None, set()) < 9

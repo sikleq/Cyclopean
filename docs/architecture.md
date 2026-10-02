@@ -269,7 +269,12 @@ per-boon field ("Melee damage and growth"); "growth" is a label PHRASE (`rules.G
 per minute / boon or spirit scaling — not "Level 21: gives a boon") and points a hero line at the
 hero's own stats; a numeric line that fell back to words links the fields sharing the most of its
 words outside parentheses; "light / heavy melee damage … by N%" covers every hero's starting melee
-damage (`DELTA_FAMILIES`, hero audit #11).
+damage (`DELTA_FAMILIES`, hero audit #11). A line with ONE number after "now grants / gives / has /
+provides …" is a value that appeared (0 → N), after "no longer grants" one that went away (N → 0)
+(`granted_pair`; the largest group of the 769 unmatched numeric lines: "Superior Stamina: Now grants
++75 Health"); a change to N counts too ("Now has a 8s cooldown" while it was 3s), the invented 0 is
+never a rounding nor a mismatch (Valve reuses the property: "No longer grants +15% Spirit Lifesteal as
+base stat" while the field went 15 → 16). Up to six words may sit between "from A" and "to B".
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

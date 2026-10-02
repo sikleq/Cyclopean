@@ -38,7 +38,8 @@ _NUM = r'[-+]?\d*\.?\d+'
 # "from 100+1.5 to 120+1.75" (base + spirit scaling)
 _COMPOUND = rf'{_NUM}(?:\s*[a-z%]*\s*(?:->|→|\+|/)\s*{_NUM})*'     # "6800/9350/11900" = per-phase values
 _PAIR_RE = re.compile(
-    rf'from\s+(?P<a>{_COMPOUND})(?:\s*[a-z%°.\'/]+){{0,4}}?\s*(?:to|->|→)\s*(?P<b>{_COMPOUND})',
+    # up to 6 words between: "from 6% Max Health as spirit damage to 6.5%"
+    rf'from\s+(?P<a>{_COMPOUND})(?:\s*[a-z%°.\'/]+){{0,6}}?\s*(?:to|->|→)\s*(?P<b>{_COMPOUND})',
     re.I)
 # "Fixed …" / "Hero: Fixed …" — not "a fixed amount of souls"
 _FIX_RE = re.compile(r'^(fixed|fix(es)?)\b|:\s*(fixed|fix(es)?)\b', re.I)
@@ -223,6 +224,21 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
         for m in _ARROW_RE.finditer(text):
             pairs.append((float(m.group('a')), float(m.group('b'))))
     return pairs
+
+
+_GRANT = re.compile(r'\b(?P<neg>no longer\s+)?(?:grants?|gives?|provides?|has|have|deals?|applies?|adds?)\s+'
+                    rf'(?:an?\s+|bonus\s+|extra\s+)?(?P<v>[-+]?{_NUM})', re.I)
+
+
+def granted_pair(text: str) -> list[tuple[float, float]]:
+    """[(0, N)] for "now grants +N …", [(N, 0)] for "no longer grants +N …" (one number only)."""
+    if len(re.findall(_NUM, text)) != 1:
+        return []
+    m = _GRANT.search(text)
+    if not m:
+        return []
+    v = abs(float(m.group('v')))
+    return [(v, 0.0)] if m.group('neg') else [(0.0, v)]
 
 
 def words(text: str) -> set[str]:
@@ -524,7 +540,9 @@ def pair_hits(scored: list[tuple[int, MChange]], pairs, least: int) -> list[MCha
     return out
 
 
-def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, ability_hits: set[str]) -> int:
+def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, ability_hits: set[str],
+          granted: bool = False) -> int:
+    """`granted`: the pairs come from "now grants +N" (0 -> N) / "no longer grants +N" (N -> 0)."""
     s = 0
     steps = c.steps()
     for a, b in pairs:
@@ -536,6 +554,8 @@ def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, 
             s += 8          # value made explicit: "stacks from +2 to +3" where 2 was the default
         elif c.op == 'remove' and value_matches(c.old, a, c):
             s += 8
+        elif granted and not a and c.op == 'change' and value_matches(c.new, b, c):
+            s += 8          # "Now has a 8s cooldown" while it was 3s: the line states the new value
     if by_pct is not None and pct_close(c, by_pct, verb_sign(text), bool(re.search(r'rate|speed', text, re.I))):
         s += 6
     overlap = len(label_words(c) & lw)
@@ -625,6 +645,12 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     if _MINUTES.search(rest):
         # "Rejuv duration 4 -> 3 minutes" while the files count seconds (240 -> 180): 8 lines unmatched
         pairs = pairs + [(a * 60, b * 60) for a, b in pairs]
+    granted = False
+    if not pairs:
+        # "Now grants +75 Health" / "No longer grants +16% Spirit Resist": one number is a value that
+        # appeared (0 -> N) or went away (N -> 0) — 769 numeric lines were unmatched, these the most
+        pairs = granted_pair(rest)
+        granted = bool(pairs)
     m = _BY_RE.search(rest)
     by_pct = float(m.group('p')) if m else None
     by_at = m.start() if m else None
@@ -686,7 +712,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         need = 1 if need_word else 0
 
         def rank(cands, hits_):
-            out = sorted(((score(c, rest, pairs, by_pct, lw, tier, hits_), c) for c in cands
+            out = sorted(((score(c, rest, pairs, by_pct, lw, tier, hits_, granted), c) for c in cands
                           if not need_word or label_words(c) & lw), key=lambda x: -x[0])
             return out, (out[0][0] if out else 0)
 
@@ -710,8 +736,10 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             for c in hits:
                 c.status = 'documented'
                 c.lines.append(text)
-                _old_from_notes(c, pairs, text, pool)
-            rounded = pairs and not any(exact_pair(c, pairs) for c in hits)
+                if not granted:          # "now grants +75" keeps the NEW value, not an invented 0 -> 75
+                    _old_from_notes(c, pairs, text, pool)
+            # a "now grants +N" value is stated exactly; its invented 0 is not a rounding
+            rounded = pairs and not granted and not any(exact_pair(c, pairs) for c in hits)
             result['status'] = 'rounded' if rounded else 'documented'
             result['changes'] = [c.key for c in hits]
             if rounded:
@@ -724,7 +752,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
                and (not ability_hits or ent_key(c) in ability_hits)
                and half_match(c, pairs)]
         # not for a name found inside the line: by now its pool may be the whole patch
-        if subject and subject.kind != 'name_inline' and top:
+        # nor for "now / no longer grants +N": its other side (0) is ours, not Valve's — the property is
+        # often reused ("No longer grants +15% Spirit Lifesteal as base stat" while the field went 15 -> 16)
+        if subject and subject.kind != 'name_inline' and top and not granted:
             c = top[0]
             if c.status == 'hidden':
                 c.status = 'described'
