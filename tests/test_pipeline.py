@@ -951,3 +951,38 @@ def test_boon_rescale_is_nobodys_mistake():
     other = MChange('heroes.vdata', 'hero_haze', path, 'change', 0.7, 0.55, 'balance', 'hero', None, 'x', False, scale=f)
     assert rules.boon_lines('Boon count increased from 11 to 14', [lvl, other], (f, True), num) == [lvl]
     assert rules.boon_lines('Non-Health boon bonuses rescaled over the 14 levels', [lvl, other], (f, True), num) == [other]
+
+
+def test_a_mismatch_needs_a_word_of_the_property_itself():
+    """2025-07-04 "Guardian base resistance increased from 40% to 60% (decays 10 minutes…)" was a
+    "mismatch" with Tier2 Gold Kill 4500 -> 3500: "guardian" brings "tier", minutes x60 made 3600."""
+    from pipeline.match import annotate_line
+    gold = MChange('generic_data.vdata', 'm_ObjectiveParams', 'm_iTier2GoldKill', 'change', 4500, 3500, 'balance',
+                   'global', None, 'Tier2 Gold Kill', False)
+    keys = {'generic_data.vdata:m_ObjectiveParams'}
+    res = annotate_line('Guardian base resistance increased from 40% to 60% (decays 10 minutes still)', [gold],
+                        {k: [gold] for k in keys}, {}, {}, {})
+    assert res['status'] != 'mismatch'
+    from pipeline.match import names_whole_property
+    mk = lambda label: MChange('abilities.vdata', 'x', 'p', 'change', 4, 2, 'balance', 'ability', None, label, False)  # noqa: E731
+    assert not names_whole_property(mk('T3: Charge Delay'), words('Time Wall T3 increased from +1 Charge to +2'))
+    assert names_whole_property(mk('Cast Delay'), words('Echo Shard: Cast delay reduced from 0.3s to 0.25s'))
+    assert names_whole_property(mk('Bullet Damage'), words('Calico: Bullet Damage increased from 2 to 2.2'))
+    from pipeline.match import _tokens, mismatch_field
+    urn = 'Time Urn will Autorun back to Home regardless of nearby players reduced from 75s to 45s'
+    assert not mismatch_field(mk('Time To Damage'), words(urn), set(), _tokens(urn))
+    haze = 'Bullet Dance Bonus Bullet Damage reduced from 10 to 7'
+    assert mismatch_field(mk('Bullet Damage'), words(haze), set(), _tokens(haze))
+    assert parse_pairs('Golden Statues level 2 drops now happen at 15 minutes instead of 20') == [(20.0, 15.0)]
+    assert parse_pairs('Active now grants +20% Fire Rate instead of Bullet Lifesteal') == []
+    assert {'move', 'speed'} <= words('Movespeed scaling with Spirit Power reduced from 0.028 to 0.02')
+    # "Now gains 1% Bullet Resist per Boon (0->14%)": 0 -> 1, the parenthesis is the total
+    resist = MChange('heroes.vdata', 'hero_dynamo', 'm_mapStandardLevelUpUpgrades.MODIFIER_VALUE_BULLET_ARMOR', 'change',
+                     0, 1, 'balance', 'hero', None, 'Bullet resist per boon', False)
+    keys = {'heroes.vdata:hero_dynamo'}
+    from pipeline.match import Subject  # noqa: F401
+    idx = {'dynamo': ['heroes.vdata:hero_dynamo']}
+    cat = {'heroes.vdata:hero_dynamo': {'id': 'hero_dynamo', 'kind': 'hero'}}
+    res = annotate_line('Dynamo: Now gains 1% Bullet Resist per Boon (0->14%)', [resist], {k: [resist] for k in keys},
+                        idx, cat, {})
+    assert res['status'] == 'documented'

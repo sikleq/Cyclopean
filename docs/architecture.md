@@ -286,6 +286,13 @@ minutes without the word ("Vaults spawn time/interval 10/5 → 8/4" is 600/300 �
 numbers on a spawn / interval line with no seconds unit also try ×60. The golden statue alias holds
 the containers that carry its timers; "vault(s)" is Sinner's Sacrifice. A typed field without "m_"
 (`flCooldownOnBreak` of the shield trackers) is humanized like any field (`_TYPED_FIELD`, enrich 26).
+A "mismatch" claims Valve's numbers disagree with the files, so the field must be the one the line
+means (`mismatch_field`, review 2026-10-02: 24 of 41 were our wrong links): the line names every word of
+the property (`names_whole_property`: "T3 +1 Charge → +2" is not the T3 Charge Delay) by a word of its
+own — not a common word nor a word the subject brings ("guardian" → "tier": Tier2 Gold Kill) — or, for
+a label of common words only ("Bullet Damage"), by all of them; only the pairs outside parentheses and
+with two different numbers are judged ("(0->14%)" is a total; "changed from 0.2s cast delay to 0.2s
+post cast time" moves a value). "X instead of Y" is a pair; "movespeed" / "firerate" are two words.
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

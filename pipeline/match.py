@@ -228,10 +228,17 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
     if not pairs:
         for m in _ARROW_RE.finditer(text):
             pairs.append((float(m.group('a')), float(m.group('b'))))
+    if not pairs:
+        # "level 2 drops now happen at 15 minutes instead of 20": the new value first
+        for m in _INSTEAD_RE.finditer(text):
+            pairs.append((float(m.group('a')), float(m.group('b'))))
     return pairs
 
 
-_GRANT = re.compile(r'\b(?P<neg>no longer\s+)?(?:grants?|gives?|provides?|has|have|deals?|applies?|adds?)\s+'
+_INSTEAD_RE = re.compile(rf'(?P<b>{_NUM})\s*[a-z%]*\s+instead of\s+(?P<a>{_NUM})', re.I)
+
+
+_GRANT = re.compile(r'\b(?P<neg>no longer\s+)?(?:grants?|gives?|gains?|provides?|has|have|deals?|applies?|adds?)\s+'
                     rf'(?:an?\s+|bonus\s+|extra\s+)?(?P<v>[-+]?{_NUM})', re.I)
 
 
@@ -255,7 +262,13 @@ def words(text: str) -> set[str]:
         out.add(w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w)
     if _HP.search(text):
         out.add('health')            # "Walker HP" — two letters the word pattern skips
+    for joined, parts in _COMPOUNDS:
+        if joined in out:
+            out |= parts             # "Movespeed scaling" names Move Speed per Spirit
     return out
+
+
+_COMPOUNDS = (('movespeed', {'move', 'speed'}), ('firerate', {'fire', 'rate'}))
 
 
 _HP = re.compile(r'\bhp\b', re.I)
@@ -536,6 +549,31 @@ def list_hits(head: str, pool: list[MChange], by_pct: float, text: str, ability_
     return out if found >= 2 else []
 
 
+# label words that name no property of their own: containers, units, shapes of a value
+_LABEL_FILLER = {'scale', 'percentage', 'percent', 'pct', 'multiplier', 'mult', 'modifier', 'provided', 'aura',
+                 'ally', 'effect', 'intrinsic', 'stat', 'level', 'value'}
+
+
+def _core(c: MChange) -> set[str]:
+    return words(re.sub(r'^T[1-3]:\s*', '', c.label or '')) - GENERIC_WORDS - _LABEL_FILLER
+
+
+def names_whole_property(c: MChange, line_words: set[str]) -> bool:
+    """Every word that names the field's property is in the line (or a synonym of it is): "Time Wall T3
+    +1 Charge -> +2" is not the T3 Charge DELAY. Only for calling a line a mismatch — a claim that
+    Valve's numbers are wrong needs the field to be the one the line means."""
+    return all(w in line_words or rules.expand_label_words({w}) & line_words for w in _core(c))
+
+
+def mismatch_field(c: MChange, line_words: set[str], own: set[str], line_tokens: set[str]) -> bool:
+    """The line means this field: it names the whole property, by a word of its own — or, for a label of
+    common words only ("Bullet Damage"), by all of them, "damage" too (Haze's Bullet Dance "10 -> 7" vs
+    6 -> 7; not "Time To Damage" for an Urn line about time)."""
+    if not names_whole_property(c, line_words):
+        return False
+    return bool(label_words(c) & own) or (not _core(c) and _tokens(c.label or '') <= line_tokens)
+
+
 def pair_hits(scored: list[tuple[int, MChange]], pairs, least: int) -> list[MChange]:
     """The best-scoring fields of each number pair on its own (scored: [(score, change)])."""
     out: list[MChange] = []
@@ -659,11 +697,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         # a spawn timer says minutes without the word ("Vaults spawn time/interval 10/5 -> 8/4")
         pairs = pairs + [(a * 60, b * 60) for a, b in pairs]
     granted = False
-    if not pairs:
+    # the numbers outside parentheses are the change; inside, a total or an aside ("(0->14%)")
+    outer = rest if not pairs else _PARENS.sub(' ', rest)
+    if not pairs or not parse_pairs(outer):
         # "Now grants +75 Health" / "No longer grants +16% Spirit Resist": one number is a value that
-        # appeared (0 -> N) or went away (N -> 0) — 769 numeric lines were unmatched, these the most
-        pairs = granted_pair(rest)
-        granted = bool(pairs)
+        # appeared (0 -> N) or went away (N -> 0) — 769 numeric lines were unmatched, these the most;
+        # "Now gains 1% Bullet Resist per Boon (0->14%)" is 0 -> 1, the 14% its total
+        g = granted_pair(outer)
+        if g:
+            pairs, granted = g, True
     m = _BY_RE.search(rest)
     by_pct = float(m.group('p')) if m else None
     by_at = m.start() if m else None
@@ -760,11 +802,17 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
                 result['data'] = data_values(hits[0], pairs)
             return result
         # names a property of this entity and one side of the numbers agrees,
-        # the other does not: the notes and the files disagree
+        # the other does not: the notes and the files disagree. "Names" by a word of its own — not a
+        # common one ("time", "resistance") nor one the subject brings ("guardian" -> "tier"): 2025-07-04
+        # "Guardian base resistance 40% -> 60%" was a "mismatch" with Tier2 Gold Kill (review 10-02)
+        own = words(rest) - GENERIC_WORDS - rules.ALIAS_WORDS
+        # the pairs a disagreement is judged on: outside parentheses, and a real change — "changed from
+        # 0.2s cast delay to 0.2s post cast time" moves a value to another property, 0.2 = 0.2
+        said = [(a, b) for a, b in parse_pairs(_PARENS.sub(' ', rest)) if a != b] if not granted else []
         top = [c for s, c in scored
-               if num(c.old) is not None and label_words(c) & lw
+               if num(c.old) is not None and mismatch_field(c, lw, own, _tokens(rest))
                and (not ability_hits or ent_key(c) in ability_hits)
-               and half_match(c, pairs)]
+               and half_match(c, said)]
         # not for a name found inside the line: by now its pool may be the whole patch
         # nor for "now / no longer grants +N": its other side (0) is ours, not Valve's — the property is
         # often reused ("No longer grants +15% Spirit Lifesteal as base stat" while the field went 15 -> 16)

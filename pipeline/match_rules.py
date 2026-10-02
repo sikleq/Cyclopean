@@ -106,6 +106,11 @@ def stem(w: str) -> str:
     return w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w
 
 
+# the words of the aliases ("guardian", "urn", "neutral"…): a line's subject, never the property it names
+ALIAS_WORDS = {stem(w) for phrase in ALIASES for w in re.findall(r'[a-z]{3,}', phrase)} - {
+    'dash', 'dashe', 'jump', 'slide', 'sliding', 'melee', 'parry', 'base'}     # these name a property too
+
+
 def stemmed_synonyms(table: dict[str, set[str]]) -> dict[str, set[str]]:
     """Keys and words as match.words writes them: 'radius' and 'souls' never fired until 2026-10-02."""
     out: dict[str, set[str]] = {}
