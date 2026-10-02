@@ -18,6 +18,7 @@ each note line to changes:
 """
 from __future__ import annotations
 
+import difflib
 import json
 import re
 from dataclasses import dataclass, field
@@ -50,6 +51,7 @@ SYNONYMS = {
     'urn': {'idol', 'urn'},
     'rejuvenator': {'rejuv', 'rejuvenator'},
 }
+_SYNONYMS = rules.stemmed_synonyms(SYNONYMS)       # as words() writes them ('breakables' -> 'breakable')
 _ARROW_RE = re.compile(rf'(?P<a>{_NUM})\s*[a-z%]*\s*(?:->|→)\s*(?P<b>{_NUM})', re.I)
 _BY_RE = re.compile(rf'(increased|reduced|decreased|lowered|raised)\s+by\s+~?(?P<p>{_NUM})\s*%', re.I)
 _WORD_RE = re.compile(r'[a-z]{3,}')
@@ -198,7 +200,7 @@ def half_match(c: MChange, pairs) -> bool:
 def expand_words(ws: set[str]) -> set[str]:
     out = set(ws)
     for w in ws:
-        out |= SYNONYMS.get(w, set())
+        out |= _SYNONYMS.get(w, set())
     return out
 
 
@@ -230,7 +232,12 @@ def words(text: str) -> set[str]:
         if w in _STOP:
             continue
         out.add(w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w)
+    if _HP.search(text):
+        out.add('health')            # "Walker HP" — two letters the word pattern skips
     return out
+
+
+_HP = re.compile(r'\bhp\b', re.I)
 
 
 # ---- window merge ---------------------------------------------------------
@@ -355,11 +362,55 @@ def inline_alias(text: str, idx: dict[str, list[str]]) -> set[str]:
     return rules.alias_keys(text, tuple(n for n in idx if ' ' in n and len(n) > 5 and n in low))
 
 
+_PARENS = re.compile(r'\([^)]*\)')
+INLINE_NAME_MIN = 5          # "Stomp" yes, "Bash" no
+INLINE_NAME_MAX_KEYS = 6     # a name shared by dozens of entities ("Melee") names none of them
+
+
+def inline_names(text: str, idx: dict[str, list[str]], cat: dict[str, dict],
+                 by_ent: dict[str, list] | None = None) -> set[str]:
+    """Entities a subject-less line names by their own name: its numbers belong to them, not to any
+    field of the patch that moved the same way ("Base Guardian Health +20%" took Bebop's regen and two
+    items, P12/P13 2026-10-02). Names in parentheses are exceptions ("except for Viscous"); a name
+    inside a longer one the line uses is not named; a hero brings its abilities. With `by_ent`, only
+    entities changed in the window count: "Fire Rate powerup" is not about the old item "Fire Rate"."""
+    low = _PARENS.sub(' ', text.lower())
+    found = [n for n, ks in idx.items()
+             if len(n) >= INLINE_NAME_MIN and len(ks) <= INLINE_NAME_MAX_KEYS and n not in GENERIC_WORDS
+             and n in low and re.search(rf'\b{re.escape(n)}\b', low)]
+    found = [n for n in found if not any(n != m and n in m for m in found)]
+    keys: set[str] = set()
+    for n in found:
+        s = resolve_subject(n, idx, cat)
+        keys |= s.ids if s else set(idx[n])
+    # a unit brings the abilities it binds ("Medic Trooper heal cooldown" is its heal ability's)
+    units = {k.split(':', 1)[1] for k in keys if k.startswith('npc_units.vdata:')}
+    if units:
+        keys |= {k for k, e in cat.items() if units & set(e.get('units') or ())}
+    if by_ent is None:
+        return keys
+    return {k for k in keys if any(c.cat in GAMEPLAY_CATS for c in by_ent.get(k, ()))}
+
+
+def _close_hero(prefix: str, idx: dict[str, list[str]]) -> list[str] | None:
+    """A hero name Valve misspelled ("Vindcita: Crow Familiar cooldown…", 2026-03-06)."""
+    p = prefix.strip().lower()
+    if len(p) < 5 or ' ' in p:
+        return None
+    heroes = [n for n, ks in idx.items() if any(k.startswith('heroes.vdata:') for k in ks) and n[:1] == p[:1]]
+    hit = difflib.get_close_matches(p, heroes, n=1, cutoff=0.85)
+    return idx[hit[0]] if hit else None
+
+
 def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]) -> Subject | None:
     keys = idx.get(prefix.strip().lower())
     if not keys:
         aliased = rules.alias_keys(prefix)
-        return Subject(aliased, prefix, 'alias') if aliased else None
+        if aliased:
+            return Subject(aliased, prefix, 'alias')
+        keys = _close_hero(prefix, idx)
+        if not keys:
+            return None
     heroes = [k for k in keys if k.startswith('heroes.vdata:')]
     if heroes:
         hid = heroes[0].split(':', 1)[1]
@@ -511,12 +562,24 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
 
     if not subject:
+        if not pairs and by_pct is None and rules.untracked_topic(text) not in (None, 'visual'):
+            # sound / interface / map words first: "Lowered volumes for UI death notification sounds
+            # and respawn music" is not about respawn (annotate() tags it untracked) — P12; a bug fix
+            # stays a fix ("…caused audio bugs as well"); not "visual": "Guardian melee no longer has a
+            # splash range much larger than its visuals" is gameplay
+            return _fix_or(result, text)
         covered = rules.global_line(text, changes, cat, num) or rules.global_delta_line(text, changes, cat, num)
         if covered:
             return _link(result, covered, text, 'described')
+        # "Walker bounty increased by 5%": the unit is named inside the line; failing a common word,
+        # an entity's own name ("Medic Pack ally search radius from 30 to 35")
         aliased = inline_alias(text, idx)
-        if aliased:            # "Walker bounty increased by 5%": the unit is named inside the line
+        if aliased:
             subject = Subject(aliased, None, 'alias_inline')
+        else:
+            named = inline_names(text, idx, cat, by_ent)
+            if named:
+                subject = Subject(named, None, 'name_inline')
 
     if subject:
         # sorted: set order changes between runs (hash randomisation) -> unstable output
@@ -542,12 +605,26 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     pool = [c for c in pool if c.cat in GAMEPLAY_CATS]
 
     if (pairs or by_pct is not None) and pool:
-        scored = sorted(((score(c, rest, pairs, by_pct, lw, tier, ability_hits), c) for c in pool),
-                        key=lambda x: -x[0])
-        best = scored[0][0]
-        # a line without a subject must also share a word with the field label
-        need = 0 if subject else 1
-        if best >= 10 + need or (by_pct is not None and best >= 6 + need):
+        # a line without a subject must also share a word with the field label; so must one whose
+        # subject is only named inside it ("Medic Trooper … heal 14% → 12%" is not its range 14 → 12 m).
+        # Not an alias's: "Walker HP increased by 40%" shares no word ("HP", "damage" are not words here)
+        need_word = not subject or subject.kind == 'name_inline'
+        need = 1 if need_word else 0
+
+        def rank(cands, hits_):
+            out = sorted(((score(c, rest, pairs, by_pct, lw, tier, hits_), c) for c in cands
+                          if not need_word or label_words(c) & lw), key=lambda x: -x[0])
+            return out, (out[0][0] if out else 0)
+
+        def enough(b) -> bool:
+            return b >= 10 + need or (by_pct is not None and b >= 6 + need)
+        scored, best = rank(pool, ability_hits)
+        if not enough(best) and subject and subject.kind == 'name_inline':
+            # the name was a coincidence ("Gun Powerup … Fire Rate" names the old item "Fire Rate"):
+            # the whole patch, as for a line without a subject
+            pool, ability_hits = [c for c in changes if c.cat in GAMEPLAY_CATS], set()
+            scored, best = rank(pool, ability_hits)
+        if enough(best):
             hits = [c for s, c in scored if s == best]
             for c in hits:
                 c.status = 'documented'
@@ -565,7 +642,8 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
                if num(c.old) is not None and label_words(c) & lw
                and (not ability_hits or ent_key(c) in ability_hits)
                and half_match(c, pairs)]
-        if subject and top:
+        # not for a name found inside the line: by now its pool may be the whole patch
+        if subject and subject.kind != 'name_inline' and top:
             c = top[0]
             if c.status == 'hidden':
                 c.status = 'described'
@@ -584,10 +662,14 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         """The field shares a specific word with the line (not just 'bullet' or 'damage')."""
         return bool(words(c.label) & specific) or bool(label_words(c) & specific - SYNONYM_ONLY)
 
-    if subject.kind == 'alias_inline':
-        # a unit merely named inside a sentence: link only on specific property words
-        linked = [c for c in pool if on_topic(c)]
-        return _link(result, linked, text, 'described') if linked and not pairs else result
+    if subject.kind in ('alias_inline', 'name_inline'):
+        # a unit merely named inside a sentence: link only on the field's own words (not a synonym:
+        # "Continuous interior from jungle area to the walker" is not the aura radius) and never from
+        # a line about sounds or looks ("Updated Mo & Krill Burrow … end sounds" is not falloff end)
+        if pairs or _PRESENTATION_LINE.search(text):
+            return result
+        linked = [c for c in pool if words(c.label) & specific]
+        return _link(result, linked, text, 'described') if linked else result
     # 3: "T2 changed from 'A' to 'B'" / "T3 also increases radius": that tier's fields of the ability
     if tier is not None:
         scope = [c for c in pool if (not ability_hits or ent_key(c) in ability_hits)
@@ -610,7 +692,11 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
     fallback = []
     if ability_hits and subject.kind == 'hero' and not _PRESENTATION_LINE.search(text):
         fallback = [c for c in pool if ent_key(c) in ability_hits and c.cat == 'mechanic']
-    linked = [c for c in pool if on_topic(c)] or fallback
+    linked = [c for c in pool if on_topic(c)]
+    # the ability the line names, when it has such a field: "Siphon Life range now scales…" is not
+    # Seismic Impact's collide radius
+    named = [c for c in linked if ent_key(c) in ability_hits]
+    linked = named or linked or fallback
     if linked:
         return _link(result, linked, text, 'described')
     return result

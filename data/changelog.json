@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-02",
+    "title": "Sharper links between patch notes and files",
+    "items": [
+      "A line that names a unit or item inside it (\"Base Guardian Health +20%\", \"Medic Trooper HP 260 → 350\", golden statue levels, breakables) links to that entity, not to every field of the patch that moved by the same amount.",
+      "Lines about sounds, the interface or the map (\"respawn music\", \"Falloff Guides\", removed jump pads) no longer claim gameplay fields; a misspelt hero (\"Vindcita\") is still found.",
+      "A line that names one ability links that ability's fields first; \"collision size\" is read as a radius."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "title": "Boss abilities on their pages, percents, speeds, removed abilities",
     "items": [
       "Walker's and Patron's abilities and gun are listed on their unit pages and in the unit changes matrix, and move UP / DOWN like the boss, not BUFF / NERF from the boss's side; the same for the Mid-Boss, medic troopers and escorts.",

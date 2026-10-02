@@ -32,6 +32,10 @@ _alias(('base guardian', 'base guardians'), [('npc_units.vdata', 'npc_barrack_bo
                                               ('npc_units.vdata', 'npc_barrack_boss_sapphire')])
 _alias(('shrine', 'shrines'), [('npc_units.vdata', 'destroyable_building'), ('generic_data.vdata', 'm_ObjectiveParams')])
 _alias(('mid boss', 'midboss', 'mid-boss'), [('npc_units.vdata', 'npc_super_neutral')])
+# the vault is a unit, its spawn timers live on the camp ("Sinner's Sacrifice spawn/respawn time 8/4 -> 10/5")
+_alias(("sinner's sacrifice", 'sinners sacrifice', 'sinner sacrifice'),
+       [('npc_units.vdata', 'neutral_sinners_sacrifice'), ('npc_units.vdata', 'neutral_vault'),
+        ('misc.vdata', 'neutral_camp_vaults')])
 _alias(('trooper', 'troopers'), [('npc_units.vdata', 'trooper_normal'), ('npc_units.vdata', 'trooper_medic'),
                                   ('npc_units.vdata', 'trooper_melee')])
 _alias(('rejuvenator', 'rejuv'), [('generic_data.vdata', 'm_RejuvParams'), ('misc.vdata', 'citadel_item_pickup_rejuv'),
@@ -61,7 +65,9 @@ def alias_keys(text: str, longer: tuple[str, ...] = ()) -> set[str]:
     low = text.lower()
     out = set()
     for word, keys in ALIASES.items():
-        if re.search(rf'\b{re.escape(word)}\b', low) and not any(word in n for n in longer):
+        # a word INSIDE a longer name is not the alias; the alias that IS the name stays ("Base Guardian
+        # Health increased by 20%" lost both and matched every +20% field of the patch, 2026-10-02)
+        if re.search(rf'\b{re.escape(word)}\b', low) and not any(word in n and word != n for n in longer):
             out |= {f'{f}:{i}' for f, i in keys} | {f'{f}:{i}_herotest' for f, i in keys}
     return out
 
@@ -77,7 +83,9 @@ def name_variants(name: str) -> set[str]:
 
 # ---- 5. label synonyms: words the notes use for a property ----
 LABEL_SYNONYMS = {
-    'resist': {'armor', 'resistance'}, 'armor': {'resist'}, 'radius': {'range', 'aoe', 'area'},
+    # a projectile's "collision size" / "hitbox" is its radius (Serrated Knives -10% tied with its velocity)
+    'resist': {'armor', 'resistance'}, 'armor': {'resist'},
+    'radius': {'range', 'aoe', 'area', 'size', 'collision', 'hitbox'}, 'health': {'hp'},
     'range': {'radius'}, 'multiplier': {'range'}, 'chargeup': {'cooldown'}, 'cooldown': {'cd'},
     'shock': {'chain'}, 'lifesteal': {'heal', 'healing'}, 'heal': {'healing', 'lifesteal'},
     'duration': {'time'}, 'charges': {'charge'}, 'barrier': {'shield'}, 'speed': {'velocity'},
@@ -85,10 +93,26 @@ LABEL_SYNONYMS = {
 }
 
 
+def stem(w: str) -> str:
+    """The plural cut match.words applies ('radius' -> 'radiu', 'charges' -> 'charge')."""
+    return w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w
+
+
+def stemmed_synonyms(table: dict[str, set[str]]) -> dict[str, set[str]]:
+    """Keys and words as match.words writes them: 'radius' and 'souls' never fired until 2026-10-02."""
+    out: dict[str, set[str]] = {}
+    for k, vs in table.items():
+        out.setdefault(stem(k), set()).update(stem(v) for v in vs)
+    return out
+
+
+_LABEL_SYNONYMS = stemmed_synonyms(LABEL_SYNONYMS)
+
+
 def expand_label_words(ws: set[str]) -> set[str]:
     out = set(ws)
     for w in ws:
-        out |= LABEL_SYNONYMS.get(w, set())
+        out |= _LABEL_SYNONYMS.get(w, set())
     return out
 
 
@@ -109,6 +133,8 @@ PROP_FAMILIES: tuple[tuple[re.Pattern, re.Pattern, bool], ...] = (
     (re.compile(r'\bbount(y|ies)\b'), re.compile(r'Gold|Bounty|Reward|Souls', re.I), True),
     (re.compile(r'respawn'), re.compile(r'spawn_time|Respawn', re.I), False),
 )
+# families whose words turn up in lines about something else: they cover a line with a number only
+NUMBER_FAMILIES = {f[0] for f in PROP_FAMILIES if f[0].pattern in (r'\b(gun|weapon|bullet) damage\b', 'respawn')}
 SCOPES: tuple[tuple[re.Pattern, object], ...] = (
     # scope(entity, change) -> bool; the first matching pattern wins.
     # "AP upgrades" are the ability-point tier upgrades (T1-T3), not shop items.
@@ -145,6 +171,10 @@ def global_line(text: str, changes: list, cat: dict, num) -> list | None:
             continue
         if needs_global and not _GLOBAL.search(low):
             return None
+        if line_re in NUMBER_FAMILIES and not _DIGIT.search(low):
+            # respawn / gun damage words are everywhere: such a line needs a number ("Lowered volumes for
+            # UI death notification sounds and respawn music" claimed every respawn field, P12 2026-10-02)
+            continue
         scope = next((f for rx, f in SCOPES if rx.search(low)), None)
         m = _PCT.search(low)
         pct = float(m.group(2)) if m else None

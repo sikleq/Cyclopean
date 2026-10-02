@@ -250,6 +250,19 @@ Audit follow-up (2026-10-02, enrich 25):
   never merging or rebasing generated files (run 36896244450 went red so); any other push failure
   fails at once.
 
+Matching, third pass (2026-10-02, P12/P13): synonyms are looked up the way `words()` writes words
+(`rules.stem`: "radius" is "radiu" — `radius`, `souls`, `charges` synonyms never fired; "collision size"
+/ "hitbox" now name a radius, "HP" is health); a subject-less line without numbers is checked for a
+sound / interface / map topic before any rule (a fix stays a fix; "visuals" is no topic here: "splash
+range much larger than its visuals" is gameplay); the respawn and gun-damage families take a line with a
+number only (`NUMBER_FAMILIES`); an alias that IS a name the line uses stays an alias ("Base Guardian");
+a subject-less line that names an entity changed in the window (`match.inline_names`: not inside
+parentheses, not a name shared by more than 6 entities, a unit with its bound abilities) is that
+entity's — its numbers need a word of the field, and failing a hit the whole patch is searched again
+(`name_inline`); a misspelt hero prefix finds its hero (`_close_hero`, "Vindcita"); a line naming one
+of the hero's abilities links on-topic fields of that ability first ("Siphon Life range…" is not
+Seismic Impact's radius); Sinner's Sacrifice is an alias of the vault and its camp.
+
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to
 the patch's own post; short dated changelogs are notes (`patches.is_patch_notes`); a build of 1,000+

@@ -780,3 +780,50 @@ def test_update_page_keeps_changes_drops_lore():
                      '[ Gameplay ]', '- Tough Crates: Require a Heavy Melee to break.',
                      '[ Additional Update Notes ]', '- Improved anti-cheat']
     assert not any('first stop' in ln for ln in lines)          # lore is never republished
+
+
+def test_subject_less_lines_find_their_subject_or_stay_untracked():
+    """P12/P13 (2026-10-02): a line without "Hero:" took every field of the patch that moved the
+    same way ("Base Guardian Health +20%" -> Bebop's regen and two items)."""
+    from pipeline import match_rules as rules
+    from pipeline.match import _close_hero, annotate_line, inline_names
+    # an alias that IS a name the line uses stays an alias (it is not inside a longer name)
+    keys = rules.alias_keys('Base Guardian Health increased by 20%', ('base guardian',))
+    assert 'npc_units.vdata:npc_barrack_boss' in keys and 'npc_units.vdata:npc_boss_tier1' not in keys
+    # synonyms fire on stemmed words: "collision size" is a radius
+    assert {'collision', 'size'} <= rules.expand_label_words(words('Bullet Radius'))
+    # a family without "all" needs a number: a line about respawn MUSIC claims no respawn field
+    mk = lambda eid, path, a, b: MChange('abilities.vdata', eid, path, 'change', a, b, 'balance', 'item', None, 'x', False)
+    respawn = [mk('a', 'm_flRespawnTime', 10, 12)]
+    assert rules.global_line('Lowered volumes for death sounds and respawn music', respawn, {}, float) is None
+    # other families keep their wordy lines ("Vitality investment tree bonus reverted back to % base hp")
+    invest = [mk('h', 'm_MapModCostBonuses.EItemSlotType_Armor{16000}.flBonus', 1120, 48)]
+    assert rules.global_line('Vitality investment tree bonus reverted back to % base hp', invest, {}, float)
+    # an entity named inside the line (not in parentheses) is its subject
+    idx = {'medic pack': ['misc.vdata:medic_pack'], 'bebop': ['heroes.vdata:hero_bebop'],
+           'vindicta': ['heroes.vdata:hero_hornet']}
+    cat = {'misc.vdata:medic_pack': {'id': 'medic_pack', 'kind': 'global'},
+           'heroes.vdata:hero_bebop': {'id': 'hero_bebop', 'kind': 'hero'},
+           'heroes.vdata:hero_hornet': {'id': 'hero_hornet', 'kind': 'hero'}}
+    assert inline_names('Medic Pack ally search radius from 30 to 35', idx, cat) == {'misc.vdata:medic_pack'}
+    assert inline_names('Light melee damage reduced by 20% (except for Bebop)', idx, cat) == set()
+    # Valve's typo of a hero name still names the hero
+    assert _close_hero('Vindcita', idx) == ['heroes.vdata:hero_hornet']
+    assert _close_hero('Fixed', idx) is None
+    # the numbers of a subject-less line go to the named entity only
+    pack = MChange('misc.vdata', 'medic_pack', 'm_flRadius', 'change', 30, 35, 'balance', 'global', None, 'AOE Radius', False)
+    other = MChange('abilities.vdata', 'x', 'm_mapAbilityProperties.Radius.m_strValue', 'change', 30, 35, 'balance',
+                    'item', None, 'Radius', False)
+    by_ent = {'misc.vdata:medic_pack': [pack], 'abilities.vdata:x': [other]}
+    res = annotate_line('Medic Pack ally search radius from 30 to 35', [pack, other], by_ent, idx, cat, {})
+    assert res['changes'] == [pack.key]
+    # a named entity with no change in the window is not the subject ("Fire Rate powerup" vs the item)
+    assert inline_names('Medic Pack ally search radius from 30 to 35', idx, cat, {'abilities.vdata:x': [other]}) == set()
+    # named inside the line, the numbers still need a word of the field: heal 14% -> 12% is not a range
+    rng = MChange('misc.vdata', 'medic_pack', 'm_flMaxRange', 'change', 14, 12, 'balance', 'global', None, 'Max Range', False)
+    res = annotate_line('Medic Pack heal reduced from 14% to 12%', [rng], {'misc.vdata:medic_pack': [rng]}, idx, cat, {})
+    assert res['status'] != 'documented'
+    assert 'health' in words('Walker HP increased by 40%')
+    # nor does a line about its sounds describe it
+    res = annotate_line('Updated Medic Pack start and end sounds', [rng], {'misc.vdata:medic_pack': [rng]}, idx, cat, {})
+    assert res['changes'] == []
