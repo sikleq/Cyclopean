@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Rat King's final art; hero pages show current abilities",
+    "items": [
+      "Rat King has his release portrait, card art and ability icons instead of the pre-release stand-ins.",
+      "A hero page shows cards only for the gun and the abilities the hero has now: Calico no longer lists Catform pounce, Nekomata Ward and five other abilities she lost; their old changes are still in the history."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Changes that live in the game's code",
     "items": [
       "94 patch lines about a hero, ability or item whose game files did not change at all (\"Yamato: Can now cancel Flying Strike\", \"Ricochet: No longer targets zipline targets\") are marked \"in the game's code\" instead of \"not found\": the change is real, it is just in the code, which is not compared here.",

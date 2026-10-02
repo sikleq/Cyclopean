@@ -71,6 +71,10 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 - `-f` is a case-sensitive prefix; `heroes/` root is passed as a file list (the folder also has 1.7 GB of backgrounds).
 - **Never** pass `--vpk_cache`: it writes a manifest into the game folder.
 - Missing icons must be allow-listed with a reason in `data/overrides/missing_icons.json`, otherwise the tool exits 1.
+- The tool is run by hand (CI has no VPK): after a hero's release re-run it — the final art replaces the
+  pre-release stand-in (Rat King kept his placeholder crop for two days, 2026-10-03). `validate_data.py`
+  warns when a released hero still has its card art allow-listed as missing. Re-encoding gives new bytes
+  for unchanged pictures: commit only the files whose pixels changed.
 - Removed entities: the image path from the last build they existed in is used if the file is still packed
   (`historical_icons`). Placeholders are skipped: an ability borrowing art that belongs to another entity today
   (heroes in development used Nano's icons) or generic art (`weapon_damage`); art in `hud/abilities/<hero>/`

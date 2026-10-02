@@ -254,6 +254,17 @@ def test_weapon_panel_six_tiles_and_units_on_the_number():
     assert '<span class="u">m/s</span>' in html and '>Bullet Speed<' in html
 
 
+def test_hero_page_cards_only_what_the_hero_binds_now():
+    """2026-10-03: Calico's page showed Catform pounce, Nekomata Ward and five more abilities she no
+    longer binds; Infernus's showed the shared Jump / Mantle / Zipline."""
+    from builders.hero_page import current_cards
+    cards = {i: {'id': i, 'owner': o, 'slot': s} for i, o, s in [
+        ('ult', 'hero_nano', 'Signature_4'), ('gun', 'hero_nano', 'Weapon_Primary'),
+        ('a1', 'hero_nano', 'Signature_1'), ('catform_pounce', 'hero_nano', ''),
+        ('ritual', 'hero_nano', None), ('jump', 'hero_nano', 'Ability_Jump'), ('x', 'hero_atlas', 'Signature_1')]}
+    assert [c['id'] for c in current_cards(cards, 'hero_nano')] == ['gun', 'a1', 'ult']
+
+
 def test_hero_chip_shows_two_counters_tooltip_has_all():
     from builders.patches_pages import _hero_chip
     html = _hero_chip('hero_atlas', 'Abrams', {'new': 9, 'buff': 8, 'nerf': 9, 'del': 8}, '../', '')

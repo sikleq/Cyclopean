@@ -255,14 +255,21 @@ def _owned_keys(hid: str, name: str, mine: list[dict], ents_by_id: dict, rel: st
     return keys
 
 
+def current_cards(cards: dict, hid: str) -> list[dict]:
+    """The hero's cards as the game shows them: the guns and the four abilities its build binds now.
+    Abilities it no longer binds stay in the files (Calico's Nekomata Ward, Catform pounce) and keep
+    their history below, but get no card (user, 2026-10-03); so do the shared movement abilities."""
+    mine = [c for c in cards.values() if c.get('owner') == hid and c.get('slot') in SLOT_ORDER]
+    return sorted(mine, key=lambda c: SLOT_ORDER.index(c['slot']))
+
+
 def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], ents_by_id: dict,
               by_ent, by_subject) -> str:
     rel = '../'
     hid = h['id']
     name = display_name(h)
     portrait = icon(f'heroes/card:{hid}', rel) or icon(f'heroes/vertical:{hid}', rel) or hero_icon(hid, rel)
-    mine = [c for c in cards.values() if c.get('owner') == hid]
-    mine.sort(key=lambda c: SLOT_ORDER.index(c['slot']) if c.get('slot') in SLOT_ORDER else 99)
+    mine = current_cards(cards, hid)
     chips = []
     state = h.get('state')
     if not h.get('alive'):

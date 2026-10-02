@@ -61,6 +61,14 @@ def main() -> int:
         key = f'heroes:{h["id"]}'
         if key not in manifest and key not in allowed:
             issues.append(('MEDIUM', f'hero {h["name"]} has no icon (run tools/extract_icons.py)'))
+    # a hero released with its final art while the site still holds the pre-release stand-in:
+    # Rat King kept the crop of his placeholder portrait for two days after release (2026-10-03)
+    released = {e['id']: e.get('name') for e in json.loads((DATA / 'entities.json').read_text(encoding='utf-8'))['entities']
+                if e.get('kind') == 'hero' and e.get('state') == 'EHeroDevState_Release' and e.get('alive')}
+    for hid, nm in released.items():
+        if f'heroes/card:{hid}' not in manifest and f'heroes/card:{hid}' in allowed:
+            issues.append(('MEDIUM', f'hero {nm} is released but the site has only its pre-release art '
+                                     f'(run tools/extract_icons.py, drop it from missing_icons.json)'))
 
     # the shop must not empty out: on 2026-10-01 a build that left abilities.vdata alone marked
     # every item removed (catalog 'alive') and the live Items page showed none

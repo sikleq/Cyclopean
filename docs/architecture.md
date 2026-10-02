@@ -157,6 +157,9 @@ Audit of the patch pages (2026-10-01):
   474 NEW rows → 97); a later tweak of a few bonuses stays row by row;
 - ability cards leave out zero values with a unit ("+0m") and print a unit once ("+3m", "4m/s" —
   the postfix " m" doubled it on 47 rows).
+- a hero page's cards are what the hero binds now (`hero_page.current_cards`: the guns and the four
+  ability slots); abilities still in the files but no longer bound (Calico's Nekomata Ward, Catform
+  pounce) and the shared movement abilities get no card — their changes stay in the history below.
 
 Five-auditor review of every build and page (2026-10-01, record format 5, enrich 17):
 - classification by the value's shape as well as the field's name (`classify._value_kind`): sound events
