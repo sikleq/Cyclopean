@@ -215,6 +215,41 @@ Hero mechanics audit (2026-10-02, record format 6, enrich 22):
   powerup labels no longer cut "_PERCENTAGE" ("Cooldown Reductionage"); a heavy melee's turn rate is
   gameplay; a rule for "All heroes" is unreleased only if every hero it touches is.
 
+Audit follow-up (2026-10-02, enrich 25):
+- shares the game writes 0..1 and the notes as percents are shown ×100 with "%"
+  (`semantics.FRACTION`, `_FRACTION_FIELD`: move speed while shooting / zoomed, damage at falloff
+  end, boss / NPC damage scale, instant gold share) — "0.55 → 0.7" reads 55% → 70%;
+- an ability property that is a travel speed and carries no unit is engine units per second
+  (`semantics.prop_speed`: Zip Speed 693 = 17.6 m/s, toss / leap / reel / return / projectile
+  speeds) and so is a flat T1-T3 bonus to one; move speeds, attack speeds, slows, turn / tracking /
+  sweep rates, cameras and distances named after a speed are not; a value written "20%" keeps its
+  percent whatever the field (`display_raw`);
+- a curve's `m_vDomainMins` / `m_vDomainMaxs` read "Domain (min)" / "Domain (max)";
+- NPCs bind abilities like heroes (`classify.unit_bound_abilities`): Walker's Stomp / Laser Beam /
+  Rocket Barrage, Patron's gun. The catalog keeps `units` on such an ability; it moves UP / DOWN
+  like its unit (enrich and `match.change_json` judge it as 'unit') and its history sits on the
+  unit's page (`history_table(line_names=False)`: "Rocket Barrage" is also a hero's ability);
+- an entity added or removed counts on the patch page when it matters (`match.event_worthy`): the
+  player-facing kinds always; another ability when it has a name or an NPC binds it (Splatapult's
+  removal; the name a removed ability had comes from the catalog, `match.event_name` — its text
+  leaves with it); a rules / pickup entry when its fields are gameplay (the permanent ammo pickup,
+  `m_RejuvParams`) — a removed one by its id's category; a hero's melee never (the hero's event);
+- an NPC's abilities also count on its row of the unit changes matrix (`dynamics_page._collect`);
+- values in a line's proof and in a matrix tile's card go through `render.shown_value` (ids as
+  names); a hero in development with no name in any build is `pretty_id` ("Airheart"), never its id;
+  `common.ids_to_names` also replaces any snake_case word the catalog knows (a dev hero's
+  `fathom_reefdweller_harpoon`); `readable_value` reads a flag list word by word;
+- 9999 / 99999 (the game's "no limit") print as ∞ (`render.shown_value`), so 9999 → 99999 is no
+  change;
+- a list of numbers is a value, never a flag set (`render._flags`: a recoil range "-0.1, 0.1" read
+  "+-0.1 +0.1"); a script / modifier value is named by what it changes, its value leaf dropped;
+- tooltip texts: a value's own unit yields to the text's ("{s:X} m/s" with "1.2m"), entities are
+  unescaped once (`abilities.fill`); a key binding with a form word reads as [Key] (`_KEY_HINT`);
+- update-data commits only on top of the main it started from; when main moved meanwhile (or the
+  push loses that race) it resets to the new main and regenerates data/ there (up to 3 times),
+  never merging or rebasing generated files (run 36896244450 went red so); any other push failure
+  fails at once.
+
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to
 the patch's own post; short dated changelogs are notes (`patches.is_patch_notes`); a build of 1,000+

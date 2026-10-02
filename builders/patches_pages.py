@@ -111,7 +111,9 @@ def _display_name(e: dict) -> str:
     name = e.get('name') or e['id']
     if name != e['id']:
         return name + (f' · {len(e["variants"])} variants' if e.get('variants') else '')
-    return catalog_names().get(f"{e['file']}:{e['id']}") or pretty_id(e['id'], e.get('owner'))
+    known = catalog_names().get(f"{e['file']}:{e['id']}")
+    # a hero in development has no name in any build: the catalog keeps its id ('hero_airheart')
+    return known if known and known != e['id'] else pretty_id(e['id'], e.get('owner'))
 
 
 def _counted(e: dict) -> list[dict]:
@@ -150,8 +152,8 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     def hero_label(hid: str) -> str:
         if hid == 'hero_base':
             return 'Common abilities (all heroes)'
-        return (heroes.get(hid, {}).get('name') or names.get(hid)
-                or next((x.get('owner_name') for x in by_owner[hid] if x.get('owner_name')), hid))
+        found = (heroes.get(hid, {}).get('name'), names.get(hid), *(x.get('owner_name') for x in by_owner[hid]))
+        return next((n for n in found if n and n != hid), None) or pretty_id(hid)
 
     out = []
     for hid in sorted(by_owner, key=lambda h: hero_label(h).lower()):
@@ -332,7 +334,8 @@ def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
     return out
 
 
-_KEY_HINT = re.compile(r"\{g:citadel_(?:binding|keybind):'([^']*)'\}")
+# "{g:citadel_binding:'Attack'}", also with a form word: "{g:citadel_binding:1st:'Spectator.SpecNext'}"
+_KEY_HINT = re.compile(r"\{g:citadel_(?:binding|keybind):(?:\w+:)?'([^']*)'\}")
 _VALUE_TOKEN = re.compile(r'\{[sf]:(?:\d+:)?(\w+)\}')
 _GLOSSARY = re.compile(r"\{g:[\w]+:'?([^}']*)'?\}")
 _PRINTF = re.compile(r'%s\d')
@@ -345,7 +348,7 @@ def _plain(s) -> str:
     from pipeline.semantics import humanize
     t = re.sub(r'<br\s*/?>', ' · ', str(s or ''), flags=re.I)        # a line break is a separator, not glue
     t = html.unescape(re.sub(r'<[^>]+>', '', t))
-    t = _KEY_HINT.sub(lambda m: f' [{humanize(m.group(1))}] ', t)
+    t = _KEY_HINT.sub(lambda m: f' [{humanize(m.group(1).rsplit(".", 1)[-1])}] ', t)
     t = _VALUE_TOKEN.sub(lambda m: f'[{humanize(m.group(1))}]', t)
     t = _GLOSSARY.sub(lambda m: humanize(m.group(1)).lower(), t)
     t = _PRINTF.sub('…', t)

@@ -1,6 +1,19 @@
 [
   {
     "date": "2026-10-02",
+    "title": "Boss abilities on their pages, percents, speeds, removed abilities",
+    "items": [
+      "Walker's and Patron's abilities and gun are listed on their unit pages and in the unit changes matrix, and move UP / DOWN like the boss, not BUFF / NERF from the boss's side; the same for the Mid-Boss, medic troopers and escorts.",
+      "Shares read as percents: move speed while shooting 55% → 70%, damage at falloff end, boss damage scale.",
+      "Travel speeds of abilities are in m/s: Zip Speed 16.8 → 17.6 m/s, throws, leaps, hooks and projectiles.",
+      "Patch pages now show removed abilities under the name they had in game (Splatapult, Witching Hour, Pulse Cannon…), new pickups and new game-rule blocks that were silently skipped.",
+      "No more internal ids or engine words in values: \"upgrade_grit\" is Grit, \"fathom_reefdweller_harpoon\" is Reefdweller Harpoon, \"hero_airheart\" is Airheart, behaviour flags read as words.",
+      "The game's \"no limit\" (9999 / 99999) reads ∞: Channel Move Speed 50 → ∞.",
+      "Recoil ranges and other number pairs no longer show as \"+-0.1 +0.1\"; tooltip texts no longer print \"1.2m m/s\" or \"&amp;\" instead of \"&\"; key bindings in game texts read as [keys]."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "title": "Hero mechanics: dashes, slows, investments, bullet speeds",
     "items": [
       "Dashes cover a fixed distance, so a longer dash is a nerf (22 rows were tagged the other way); slows on yourself when hit on a ledge or rope, and parry's bonus damage, now read the right way.",

@@ -14,7 +14,7 @@ from functools import lru_cache
 
 from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
 from .pixel_icons import tag_svg
-from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, counts_text, tag_of
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, counts_text, shown_value, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
@@ -53,6 +53,8 @@ def _collect() -> dict:
     samples    {row key: {pid: [[what, field, old, new, tag, part], ...]}}"""
     from .cards import gameplay_entities, player_facing
     rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
+    # an NPC's own abilities count on its row (Walker's Stomp), as they do on its page
+    npc = {e['id']: e['units'] for e in load_json('entities.json')['entities'] if e.get('units')}
     cells: dict = {}
     parts: dict = {}
     raw: dict = {}
@@ -62,25 +64,28 @@ def _collect() -> dict:
             if e.get('id') == '@shared':
                 continue
             if e['file'] == 'heroes.vdata':
-                key = f'hero:{e["id"]}'
+                keys = [f'hero:{e["id"]}']
             elif e.get('owner'):
-                key = f'hero:{e["owner"]}'
+                keys = [f'hero:{e["owner"]}']
             elif e.get('kind') == 'item':
-                key = f'item:{e["id"]}'
+                keys = [f'item:{e["id"]}']
             elif e['file'] == 'npc_units.vdata':
-                key = f'unit:{e["id"]}'
+                keys = [f'unit:{e["id"]}']
+            elif e['file'] == 'abilities.vdata' and e['id'] in npc:
+                keys = [f'unit:{u}' for u in npc[e['id']]]
             else:
                 continue
             part = part_of(e)
-            cell = cells.setdefault(key, {}).setdefault(r['id'], {})
-            pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
-            for c in player_facing(e['changes']):
-                t = tag_of(c)[0]
-                for d in (cell, pcell):
-                    d[t] = d.get(t, 0) + 1
-                s = (_display(e), c.get('label') or '', str(c.get('old_s') or ''), str(c.get('new_s') or ''), t, part,
-                     abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0)
-                raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
+            for key in keys:
+                cell = cells.setdefault(key, {}).setdefault(r['id'], {})
+                pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
+                for c in player_facing(e['changes']):
+                    t = tag_of(c)[0]
+                    for d in (cell, pcell):
+                        d[t] = d.get(t, 0) + 1
+                    s = (_display(e), c.get('label') or '', shown_value(c.get('old_s')), shown_value(c.get('new_s')),
+                         t, part, abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0)
+                    raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
     samples: dict = {}
     for k, per in raw.items():
         for pid, lst in per.items():

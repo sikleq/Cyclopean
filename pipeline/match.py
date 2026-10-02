@@ -25,6 +25,7 @@ from dataclasses import dataclass, field
 from . import cache, catalog, jsonio, loc, semantics, tracker
 from . import match_rules as rules
 from . import patches as patches_mod
+from .classify import category
 from .patches import Patch, group
 
 OUT = tracker.ROOT / 'data' / 'patches'
@@ -144,7 +145,10 @@ def value_matches(v, x: float, meters=False, rel: float = EXACT) -> bool:
         return False
     if isinstance(meters, MChange):            # the change itself: its field decides the transforms
         name = meters.label or meters.path
-        units = bool(meters.meters) or bool(_LENGTHY.search(name))
+        # engine units only for a field that is engine units: not a share, not one already in metres
+        not_engine = (semantics.FRACTION, semantics.METRES, semantics.MPS)
+        units = (bool(meters.meters) and meters.meters not in not_engine
+                 or not meters.meters and bool(_LENGTHY.search(name)))
         inverse = bool(_RATE_LIKE.search(name))
     else:
         units, inverse = bool(meters), True
@@ -262,9 +266,11 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
             if e['status'] in ('added', 'removed', 'returned'):
                 if e['status'] == 'added':
                     added_here.add(ekey)
+                ce = cat.get(ekey, {})
                 extras[f"entities_{e['status']}"].append({
                     'file': e['file'], 'id': e['id'], 'build': rec['build'],
-                    'name': e.get('name'), 'kind': e.get('kind'), 'owner': e.get('owner')})
+                    'name': event_name(e, ce), 'kind': e.get('kind'), 'owner': e.get('owner'),
+                    'units': ce.get('units'), 'gameplay': _gameplay_entity(e)})
                 if e['status'] != 'returned':
                     continue                  # a returned entity's fields differ from its last version: diffed below
             if ekey in added_here:
@@ -281,7 +287,8 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                                                c.get('loc_token'))
                         merged[key] = MChange(
                             e['file'], tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
-                            ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
+                            # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
+                            'unit' if ce.get('units') else ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
                             [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
                             drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
                             unit=d.get('unit', ''), invert=bool(d.get('invert')))
@@ -679,6 +686,34 @@ def change_json(c: MChange) -> dict:
 
 
 ENTITY_EVENT_KINDS = {'hero', 'item', 'ability', 'weapon', 'trooper', 'building', 'neutral', 'unit'}
+# kinds that count only with proof they matter (audit B12, 2026-10-02: 102 removed abilities such
+# as Splatapult, 85 new pickups such as the permanent ammo powerup and game-rule blocks such as
+# m_RejuvParams were on no patch page): an ability with a name or an NPC that binds it; a rules
+# entry with gameplay fields (removed: a gameplay-like id). Not a hero's melee: its name is the shared
+# "Melee" string, and the hero and its gun already make the event
+EVENT_IF_NAMED = {'ability_other'}
+
+
+def event_name(e: dict, ce: dict) -> str | None:
+    """A removed ability loses its text in the build that removes it: the catalog keeps the name it
+    had in game (Witching Hour, Pulse Cannon — 29 events lost until review 2026-10-02)."""
+    name = e.get('name')
+    return ce.get('name') or name if not name or name == e['id'] else name
+
+
+def _gameplay_entity(e: dict) -> bool:
+    if e['status'] == 'removed':        # a removed entity carries no fields: judge its id
+        return e['file'] != 'generic_data.vdata' or category(e['id'], None, None) in GAMEPLAY_CATS
+    return any(c.get('cat') in GAMEPLAY_CATS for c in e['changes'])
+
+
+def event_worthy(x: dict) -> bool:
+    kind = x.get('kind')
+    if kind in ENTITY_EVENT_KINDS:
+        return True
+    if kind in EVENT_IF_NAMED:
+        return bool(x.get('units')) or bool(x.get('name')) and x['name'] != x['id']
+    return kind == 'global' and bool(x.get('gameplay'))
 
 
 def entity_events(extras: dict, notes_text: str, tok: dict[str, str]) -> list[dict]:
@@ -688,7 +723,7 @@ def entity_events(extras: dict, notes_text: str, tok: dict[str, str]) -> list[di
                                     ('entities_returned', 'add', '@return', 'Back in the game files'),
                                     ('entities_removed', 'remove', '@remove', 'Removed from the game files')):
         for x in extras.get(bucket, []):
-            if x.get('kind') not in ENTITY_EVENT_KINDS or x['id'] == '@shared':
+            if not event_worthy(x) or x['id'] == '@shared':
                 continue
             name = x.get('name') or x['id']
             status = 'described' if name and name != x['id'] and name.lower() in notes_text else 'hidden'

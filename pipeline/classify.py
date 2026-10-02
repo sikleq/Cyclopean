@@ -190,6 +190,21 @@ def hero_bound_abilities(heroes: dict, abilities: dict | None = None) -> dict[st
     return owner
 
 
+def unit_bound_abilities(units: dict, owners: dict[str, str] | None = None) -> dict[str, list[str]]:
+    """{ability_id: [unit ids]} from the NPCs' m_mapBoundAbilities: Walker's Stomp / Laser Beam /
+    Rocket Barrage, Patron's gun. They are the unit's, not a player's: UP/DOWN like the unit, shown on
+    its page (audit B10: 120 rows tagged BUFF/NERF from the boss's side, on no unit page). An ability a
+    hero binds too (the zipline a container lends) stays the hero's."""
+    out: dict[str, set[str]] = {}
+    for uid, unit in units.items():
+        if not isinstance(unit, dict):
+            continue
+        for ab in (unit.get('m_mapBoundAbilities') or {}).values():
+            if isinstance(ab, str) and ab and ab not in (owners or {}):
+                out.setdefault(ab, set()).add(uid)
+    return {ab: sorted(us) for ab, us in out.items()}
+
+
 def ability_kind(aid: str, data: dict, owners: dict[str, str]) -> str:
     cls = str(data.get('_class', '')) if isinstance(data, dict) else ''
     if aid.startswith('upgrade_') or cls == 'citadel_item' or 'm_iItemTier' in (data or {}):

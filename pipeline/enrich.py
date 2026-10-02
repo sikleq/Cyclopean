@@ -14,12 +14,12 @@ import argparse
 import re
 
 from . import cache, jsonio, loc, semantics, tracker
-from .classify import ability_kind, category, hero_bound_abilities, unit_kind
+from .classify import ability_kind, category, hero_bound_abilities, unit_bound_abilities, unit_kind
 from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 22       # 22: mechanics audit (dash, self-slows, parry, metres as is); 21: stat units; 20: labels
+ENRICH_VERSION = 25       # 25: tier speed bonuses m/s, "20%" kept; 24: modifier values; 23: shares %, NPC UP/DOWN
 
 
 def _num(v):
@@ -68,6 +68,7 @@ def enrich_record(rec: dict) -> dict:
     units = cache.vdata(commit, tracker.SCRIPTS + 'npc_units.vdata')
     prev_abilities = None
     owners = hero_bound_abilities(heroes, abilities)
+    npc_bound = unit_bound_abilities(units, owners)
     for e in rec['entities']:
         f, eid = e['file'], e['id']
         if f == 'heroes.vdata':
@@ -95,6 +96,8 @@ def enrich_record(rec: dict) -> dict:
         downsides = drawbacks(data) if f == 'abilities.vdata' and eid != '@shared' else set()
         below_zero = negative_props(data) if f == 'abilities.vdata' and eid != '@shared' else set()
         tokens = loc_tokens_of(data) if f == 'abilities.vdata' and eid != '@shared' else {}
+        # an NPC's ability (Walker's Stomp) moves like its unit: UP / DOWN, not a player's BUFF / NERF
+        side = 'unit' if f == 'abilities.vdata' and eid in npc_bound else e['kind']
         for c in e['changes']:
             # classification rules evolve: re-derive the category, but never move a
             # change whose values were dropped (cosmetic) into a category that shows values
@@ -126,7 +129,7 @@ def enrich_record(rec: dict) -> dict:
                 neg = '.m_vecPropertyUpgrades' in c['path'] and semantics.property_name(c['path']) in below_zero
                 if neg:
                     c['neg_base'] = True
-                dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), e['kind'], worse, neg)
+                dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), side, worse, neg)
                 c['dir'] = dirn
                 c['pct'] = None if pct is None else round(pct, 1)
                 c['grad'] = semantics.gradient(pct)

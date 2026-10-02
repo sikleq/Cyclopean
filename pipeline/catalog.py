@@ -1,6 +1,7 @@
 """Catalog of every entity that ever existed in the tracked vdata files.
 
-For each entity: file, kind, owner hero (for abilities/weapons), first and
+For each entity: file, kind, owner hero (for abilities/weapons) or the NPCs
+that bind it (`units`: Walker's Stomp, Patron's gun), first and
 last build seen, whether it still exists, and its display name taken from the
 localization of the last build it existed in (so removed items keep the name
 they had in game).
@@ -13,7 +14,7 @@ import json
 import time
 
 from . import cache, loc, tracker
-from .classify import ability_kind, hero_bound_abilities, unit_is_helper, unit_kind
+from .classify import ability_kind, hero_bound_abilities, unit_bound_abilities, unit_is_helper, unit_kind
 
 OUT = tracker.ROOT / 'data' / 'entities.json'
 FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata', 'misc.vdata', 'modifiers.vdata', 'generic_data.vdata')
@@ -40,6 +41,8 @@ def build() -> dict:
     current: dict[str, set[str]] = {}         # ids in the latest version of each file
     heroes: dict = {}
     abilities_now: dict = {}
+    units_now: dict = {}
+    by_units: dict[str, set[str]] = {}       # ability -> every NPC that ever bound it (Walker's Stomp)
     head = tracker.builds()[-1]
     for b in tracker.builds():
         touched = [f for f in FILES if tracker.SCRIPTS + f in b.files]
@@ -55,7 +58,11 @@ def build() -> dict:
             heroes = snap['heroes.vdata'][1]
         if 'abilities.vdata' in snap:
             abilities_now = snap['abilities.vdata'][1]
+        if 'npc_units.vdata' in snap:
+            units_now = snap['npc_units.vdata'][1]
         owners = hero_bound_abilities(heroes, abilities_now)
+        for aid, uids in unit_bound_abilities(units_now, owners).items():
+            by_units.setdefault(aid, set()).update(uids)
         ability_slots = {}
         for h in heroes.values():
             if isinstance(h, dict):
@@ -93,6 +100,8 @@ def build() -> dict:
         # alive = still in the latest version of its file. Not "seen in the head build": a build
         # that leaves abilities.vdata alone (6728) killed every item on the site (2026-10-01)
         e['alive'] = e['id'] in current.get(e['file'], set())
+        if e['file'] == 'abilities.vdata' and e['id'] in by_units and not e.get('owner'):
+            e['units'] = sorted(by_units[e['id']])
         by_commit.setdefault(e['last'][2], []).append(e)
     for commit, group in by_commit.items():
         tok = loc.tokens(commit)

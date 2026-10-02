@@ -468,3 +468,34 @@ def test_hero_stats_boons_and_roles():
     # DPS grows with the bullet: 51.4 * 0.1 / 3.6 per boon
     assert boon_attrs(r, {'key': 'dps'}) == ' data-per="1.42778"'
     assert boon_attrs(r, {'key': 'reload'}) == ''
+
+
+def test_number_lists_are_values_not_flags():
+    from builders.render import flags_html
+    # a recoil range or prices by tier keep their order: no "+-0.1 +0.1" chips (314 rows, 2026-10-02)
+    assert flags_html('', '-0.1, 0.1') is None
+    assert flags_html('0, 500, 1200', '0, 500, 1250') is None
+    assert 'flag add' in flags_html('A | B', 'A | B | C')
+
+
+def test_key_bindings_in_text_read_as_keys():
+    from builders.patches_pages import _plain
+    assert _plain("Press {g:citadel_binding:'Attack'} to fire") == 'Press [Attack] to fire'
+    # a binding with a form word ("1st") was printed raw on 12 build pages
+    assert _plain("{g:citadel_binding:1st:'Spectator.SpecNext'}Target") == '[Spec Next] Target'
+
+
+def test_no_limit_reads_as_infinity():
+    from builders.cards import is_noop
+    from builders.render import shown_value
+    assert shown_value('9999') == '∞' and shown_value('99999') == '∞' and shown_value('9999m') == '∞'
+    assert shown_value('999') == '999'
+    # the two spellings of "no limit" are one value
+    assert is_noop({'op': 'change', 'old_s': '9999', 'new_s': '99999'})
+
+
+def test_flags_written_without_spaces_read_as_words():
+    from builders.render import flags_html, readable_value
+    v = 'CITADEL_ABILITY_BEHAVIOR_CHANNELLED|CITADEL_ABILITY_BEHAVIOR_NO_TARGET'
+    assert readable_value(v) == 'Channelled | No Target'
+    assert '+channelled' in flags_html('', v)

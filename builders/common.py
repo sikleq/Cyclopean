@@ -111,12 +111,29 @@ def names_by_id() -> dict[str, str]:
 
 # lower-case only: 'CITADEL_ABILITY_BEHAVIOR_*' flags are not entity ids
 _ID_IN_TEXT = re.compile(r'\b(?:citadel_(?:ability|weapon)_|ability_|upgrade_|hero_)[a-z0-9_]+\b')
+# any other snake_case word is an id only if the catalog knows it: a hero in development names its
+# abilities after itself ("Kit: Ultimate slork_ability_invis → fathom_reefdweller_harpoon", 2026-10-02)
+_SNAKE_WORD = re.compile(r'\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b')
+
+
+@lru_cache(maxsize=1)
+def _catalog_owners() -> dict[str, str | None]:
+    """lower-case id of every ability / hero / unit -> its owner hero (for a readable stand-in).
+    Not a template: '_base: invis_base' names an engine class, not a thing a player sees."""
+    return {e['id'].lower(): e.get('owner') for e in load_json('entities.json')['entities']
+            if e['file'] in ('abilities.vdata', 'heroes.vdata', 'npc_units.vdata') and not e.get('template')}
 
 
 def ids_to_names(s: str) -> str:
     """'ability_blood_bomb, ability_blood_shards' -> 'Blood Bomb, Blood Shards' in shown values."""
     names = names_by_id()
-    return _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
+    s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
+    known = _catalog_owners()
+
+    def other(m: re.Match) -> str:
+        w = m.group(0)
+        return names.get(w) or pretty_id(w, known[w]) if w in known else w
+    return _SNAKE_WORD.sub(other, s)
 
 
 _ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_|npc_)')
@@ -142,7 +159,8 @@ def pretty_id(eid: str, owner: str | None = None) -> str:
     s = _ID_PREFIX.sub('', eid)
     code = (owner or '').removeprefix('hero_')
     if code and s.startswith(code + '_'):
-        s = s[len(code) + 1:]
+        s = _ID_PREFIX.sub('', s[len(code) + 1:])         # 'slork_ability_invis' -> 'invis'
+    s = re.sub(r'^tier\dboss_', '', s)                    # a boss's own: 'tier2boss_aoe_wave' -> 'Aoe wave'
     s = re.sub(r'^ult(imate)?$', 'ultimate', s)
     s = re.sub(r'ability0?(\d)', r'ability \1', s).replace('_', ' ').strip()
     return s[:1].upper() + s[1:] if s else eid

@@ -23,6 +23,11 @@ def test_inline_attributes_read_like_the_game_and_units_do_not_double():
     # a value that already carries the template's unit: "+{s:Radius}m" with "2m" is "+2m", not "+2mm"
     assert fill('<span>+{s:Radius}m</span> Radius', {'Radius': '2m'}) == '+2m Radius'
     assert fill('for {s:D}s', {'D': '5'}) == 'for 5s'
+    # the text's own unit after a space: "1.2m m/s" -> "1.2 m/s"; a word starting with m is no unit
+    assert fill('Gain {s:S} m/s Move Speed', {'S': '1.2m'}) == 'Gain 1.2 m/s Move Speed'
+    assert fill('{s:R} more', {'R': '3m'}) == '3m more'
+    # entities in the loc text become characters: the page escapes once ("&amp;amp;")
+    assert fill('Bullet, Spirit &amp; Melee Lifesteal', {}) == 'Bullet, Spirit & Melee Lifesteal'
 
 
 def test_tier_text_uses_the_tooltip_token_names():

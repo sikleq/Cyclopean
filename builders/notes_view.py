@@ -9,7 +9,7 @@ from functools import lru_cache
 
 from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark, visual
 from .pixel_icons import tag_svg
-from .render import tag_html, tag_of, tag_summary
+from .render import shown_value, tag_html, tag_of, tag_summary
 
 LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated')
 TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
@@ -161,11 +161,13 @@ def _files_cell(ln: dict, changes: list[dict], subject_ent: dict | None) -> str:
         return ''        # the line's own numbers are the files' numbers: saying them twice is noise
     short = all(len(str(c.get('old_s') or '')) <= 16 and len(str(c.get('new_s') or '')) <= 16 for c in changes)
     if st == 'described' and 0 < len(changes) <= INLINE_VALUES and short:
-        return '<br>'.join(f'<span class="proof">{esc(c["label"])} <span class="v">{esc(c["old_s"])}</span>'
-                           f'<span class="arrow">→</span><span class="v">{esc(c["new_s"])}</span></span>'
+        # values as every other list prints them: 'upgrade_grit' is Extra Regen (shown_value)
+        return '<br>'.join(f'<span class="proof">{esc(c["label"])} <span class="v">{esc(shown_value(c["old_s"]))}</span>'
+                           f'<span class="arrow">→</span><span class="v">{esc(shown_value(c["new_s"]))}</span></span>'
                            for c in changes)
     if st == 'described' and changes:
-        lis = ''.join(f'<li>{esc(c.get("ent_name", ""))} · {esc(c["label"])}: {esc(c["old_s"])} → {esc(c["new_s"])}</li>'
+        lis = ''.join(f'<li>{esc(c.get("ent_name", ""))} · {esc(c["label"])}: {esc(shown_value(c["old_s"]))} → '
+                      f'{esc(shown_value(c["new_s"]))}</li>'
                       for c in changes[:60])
         more = len(ln['changes']) - 60
         return (f'<details><summary>{plural(len(ln["changes"]), "exact value")}</summary><ul>{lis}</ul>'

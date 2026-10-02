@@ -219,9 +219,28 @@ _NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|De
 
 METRES = 'metres'          # already metres: shown as is with "m"
 MPS = 'mps'                # already metres per second: shown as is with "m/s"
+FRACTION = 'fraction'      # a share written 0..1: shown ×100 with "%"
+# shares the game writes as fractions and the notes as percents: "Move speed while shooting 55% -> 70%"
+# read "0.55 -> 0.7", Boss Damage Scale "0.5 -> 0.2" (audit 2026-10-02, AB14)
+_FRACTION_FIELD = re.compile(r'^m_fl(ShootMoveSpeedPercent|ZoomMoveSpeedPercent|DamageFalloffEndScale|'
+                             r'BossDamageScale|NPCDamageScale|InstantGoldPercentage)$')
 # engine floats Valve writes in metres / m/s already (the rope's climb speed 13 -> 14 in the 2024-09-12
 # notes; the dash's drag thresholds 12 / 14 m/s against a 10 m dash in 0.68 s)
 _ALREADY_MPS = re.compile(r'(ClimbSpeed|AirSpeedFor\w*Drag)')
+
+
+# an ability property that is a travel speed and carries no unit is engine units per second: Zip
+# Speed "660 -> 693" is 16.8 -> 17.6 m/s, Toss Speed 450 is 11.4 m/s (audit 2026-10-02, #14). Not
+# a move speed / attack speed / slow (percents), a turn, tracking or sweep rate, recoil or fall.
+_PROP_SPEED = re.compile(r'(Speed|Velocity)(Inner|Outer|UpWall|Wall|NonPlayer|Start)?$')
+_PROP_NOT_TRAVEL = re.compile(r'(Move|AttackSpeed|Turn|Tracking|Sweep|Recoil|Fall|AirSpeed|Reload|Bullet|Spin|'
+                              r'Channel|Hit|Limit|Penalty|Slow|Bonus|Percent|Pct|Mult|Ratio|Scale|Check|Pitch|Vol|'
+                              r'Duration|Time|Build|Lost|Boost|Change|PostGroundDash|Summon|'
+                              r'Distance|Camera|Rotat|Anim|Preview)')       # DistanceForMaxProjSpeed is a length
+
+
+def prop_speed(prop: str, unit: str = '') -> bool:
+    return not unit and bool(_PROP_SPEED.search(prop)) and not _PROP_NOT_TRAVEL.search(prop)
 
 
 def engine_unit(leaf: str) -> bool | str:
@@ -229,6 +248,8 @@ def engine_unit(leaf: str) -> bool | str:
     1338.58 → 866.14' is 34 → 22 m, a projectile 'Speed 1050 → 400' is 26.7 → 10.2 m/s (audit
     2026-10-01: 302 rows of abilities, 225 of units in raw units) — unless its name says metres
     ("Dash Jump Distance In Meters 18 → 19" was divided into 0.46 m)."""
+    if _FRACTION_FIELD.match(leaf):
+        return FRACTION
     if 'Meters' in leaf:
         return MPS if re.search(r'(PerSecond|Speed)', leaf) else METRES
     if _ALREADY_MPS.search(leaf):
@@ -253,7 +274,7 @@ WEAPON_FIELDS = {
     'm_flBulletSpeed': ('Bullet Velocity', SPEED),
     'm_flDamageFalloffStartRange': ('Falloff Start', True),
     'm_flDamageFalloffEndRange': ('Falloff End', True),
-    'm_flDamageFalloffEndScale': ('Damage at Falloff End', False),
+    'm_flDamageFalloffEndScale': ('Damage at Falloff End', FRACTION),
     'm_flRange': ('Max Range', True),
     'm_flCritBonusStart': ('Headshot Multiplier', False),
     'm_flCritBonusEnd': ('Headshot Multiplier (far)', False),
@@ -263,7 +284,8 @@ WEAPON_FIELDS = {
     'm_Spread': ('Spread', False),
     'm_StandingSpread': ('Standing Spread', False),
     'm_flShootSpreadPenaltyPerShot': ('Spread per Shot', False),
-    'm_flShootMoveSpeedPercent': ('Move Speed while Shooting', False),
+    'm_flShootMoveSpeedPercent': ('Move Speed while Shooting', FRACTION),
+    'm_flZoomMoveSpeedPercent': ('Move Speed while Zoomed', FRACTION),
     'm_flBulletLifetime': ('Bullet Lifetime', False),
     'm_flPelletScatterSpreadFactor': ('Pellet Spread', False),
     'm_flMaxSpinCycleTime': ('Spun-up Fire Interval', False),
@@ -309,7 +331,9 @@ UNIT_FIELDS = {
 _PREFIX_RE = re.compile(r'^(?:m_)?(?:(?:fl|n|i|b|str|e|vec|map|un|s|v|h|ar|bits|sz)(?=[A-Z]))?')
 # split camelCase; keep plural acronyms whole ('NPCs' read 'NP Cs')
 _CAMEL_RE = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z](?!s(?:[A-Z\d_]|$))[a-z])')
-_UNIT_WORDS = ((' In Seconds', ' (s)'), (' In Meters', ' (m)'), (' Mins', ' (min)'))
+# a curve's m_vDomainMins / m_vDomainMaxs are its lower / upper corners ("Domain (min)" sat next to
+# "Domain Maxs"); elsewhere "Mins" is minutes ("Match Time Mins For Level2 Pickups")
+_UNIT_WORDS = ((' In Seconds', ' (s)'), (' In Meters', ' (m)'), ('Domain Maxs', 'Domain (max)'), (' Mins', ' (min)'))
 
 
 def humanize(key: str) -> str:
@@ -434,8 +458,9 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         prop, rest = m.group(1), m.group(2)
         label = override_label(tok, token, entity) or _loc_label(tok, prop, entity) or humanize(prop)
         if rest == 'm_strValue':
-            return {'label': label, 'meters': False, 'group': 'property', 'prop': prop,
-                    'unit': prop_unit(tok, prop, token)}
+            unit = prop_unit(tok, prop, token)
+            return {'label': label, 'meters': SPEED if prop_speed(prop, unit) else False, 'group': 'property',
+                    'prop': prop, 'unit': unit}
         if rest == 'm_strStreetBrawlValue':
             return {'label': f'{label} (Street Brawl)', 'meters': False, 'group': 'streetbrawl', 'prop': prop}
         if rest.endswith('m_flStatScale'):
@@ -461,7 +486,10 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         prefix = (f'T{tier}' if kind in ('ability', 'ability_other', '')
                   else 'Enhanced' if kind == 'item' else 'Upgrade')
         unit = '%' if 'EMultiplyBase' in parts else '' if scaling or field != 'm_strBonus' else prop_unit(tok, prop, token)
-        return {'label': f'{prefix}: {label}', 'meters': False, 'group': 'tier', 'prop': prop, 'tier': tier, 'unit': unit}
+        # a flat bonus to a travel speed is engine units/s like the speed (Lunge's T3 Dash Speed +550)
+        speed = field == 'm_strBonus' and not scaling and 'EMultiplyBase' not in parts and prop_speed(prop, unit)
+        return {'label': f'{prefix}: {label}', 'meters': SPEED if speed else False, 'group': 'tier', 'prop': prop,
+                'tier': tier, 'unit': unit}
     if path.startswith('m_mapStartingStats.'):
         stat = path.split('.')[1]
         if stat == 'EStaminaRegenPerSecond':
@@ -604,7 +632,10 @@ FLAG_FIELDS = {'m_AbilityBehaviorsBits': 'Behaviour', 'm_nAbilityBehaviors': 'Be
                'm_nAbilityTargetTypes': 'Can target', 'm_nAbilityTargetFlags': 'Targeting rules',
                'm_bitsInterruptingStates': 'Interrupted by', 'm_nBehaviors': 'Behaviour',
                'm_eAbilityTargetingLocation': 'Targeting', 'm_eAbilityTargetingShape': 'Targeting shape'}
-_SCRIPT_VALUE = re.compile(r'^m_vecScriptValues\{(?:MODIFIER_VALUE_)?([A-Z0-9_]+)[^}]*\}$')
+_SCRIPT_VALUE = re.compile(r'^m_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_)?([A-Z0-9_]+)[^}]*\}$')
+# the value leaf under a script / modifier value ("Effect › Modifier Values MODIFIER_VALUE_STAMINA ›
+# Modifier Value" on powerups until 2026-10-02)
+_VALUE_LEAF = re.compile(r'^m_(?:fl)?(?:[mM]odifier)?[vV]alue$')
 
 
 def _context_segment(seg: str) -> str:
@@ -625,7 +656,7 @@ def context_label(path: str, depth: int = 3) -> str:
     'm_projectileInfo.m_flSpeed' -> 'Projectile › Speed'; a modifier's script value is named by what
     it changes, its trailing '.m_value' dropped; a word repeated by the path once."""
     parts = [p for p in path.split('.') if p]
-    if len(parts) > 1 and parts[-1] == 'm_value' and _SCRIPT_VALUE.match(parts[-2]):
+    if len(parts) > 1 and _VALUE_LEAF.match(parts[-1]) and _SCRIPT_VALUE.match(parts[-2]):
         parts = parts[:-1]
     shown = []
     for p in parts[-depth:]:
@@ -672,6 +703,8 @@ def display_raw(v, meters: bool | str = False) -> str:
             x = float(m.group(1))
             if m.group(2) == 'm':
                 return display_value(x) + ('m/s' if meters in (SPEED, MPS) else 'm')
+            if m.group(2) == '%':
+                return display_value(x) + '%'          # already a percent, whatever the field
             return display_value(x, meters)
     return display_value(v, meters)
 
@@ -692,6 +725,8 @@ def display_value(v, meters: bool | str = False) -> str:
     if isinstance(v, bool):
         return 'yes' if v else 'no'
     if isinstance(v, (int, float)):
+        if meters == FRACTION:
+            return display_value(round(float(v) * 100, 6)) + '%'
         x = float(v) / UNITS_PER_METER if meters and meters not in (METRES, MPS) else float(v)
         if x.is_integer():
             s = str(int(x))

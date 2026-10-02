@@ -45,15 +45,18 @@ def _entity_of_line(ln: dict, key_set: set[str], names_by_key: dict[str, str], f
     return fallback
 
 
-def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_ent, by_subject, rel: str) -> str:
+def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_ent, by_subject, rel: str,
+                  line_names: bool = True) -> str:
     """keys: [(entity key, display name, icon url)] in display order, the page's own entity
-    first; names: subjects whose note lines belong here (the hero / item / unit name)."""
+    first; names: subjects whose note lines belong here (the hero / item / unit name).
+    `line_names`: the other keys' names pull note lines in too (a hero's abilities do; a boss's
+    "Rocket Barrage" would drag in the hero ability of that name)."""
     order = {k: i for i, (k, _, _) in enumerate(keys)}
     meta = {k: (nm, ic) for k, nm, ic in keys}
     names_by_key = {k: nm for k, nm, _ in keys}
     key_set = set(order)
     own = keys[0][0]
-    subjects = [n for n in names if n] + [nm for k, nm, _ in keys[1:]]
+    subjects = [n for n in names if n] + ([nm for k, nm, _ in keys[1:]] if line_names else [])
     per_patch: dict[str, dict] = {}
     for key, _, _ in keys:
         for row, ch in by_ent.get(key, []):

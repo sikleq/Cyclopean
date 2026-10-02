@@ -13,6 +13,7 @@ For every hero ability, weapon and shop item of the newest build:
 """
 from __future__ import annotations
 
+import html
 import json
 import re
 
@@ -48,6 +49,7 @@ KEY_BINDING = 'citadel_binding'
 _SPACES_RE = re.compile(r'[ \t]{2,}')
 _TAG_RE = re.compile(r'<br\s*/?>', re.I)
 _HTML_RE = re.compile(r'<[^>]+>')
+_UNIT_AFTER = re.compile(r' ?(m/s|m|s|%|meters?|seconds?)(?![a-z])')
 
 
 def _empty(v) -> bool:
@@ -80,7 +82,7 @@ def _label(tok, prop, aid, alias: str | None = None):
     for key in keys:
         v = tok.get(key.lower())
         if v and '{' not in v:
-            return _HTML_RE.sub('', v).strip()
+            return html.unescape(_HTML_RE.sub('', v)).strip()      # "Bullet &amp; Spirit Lifesteal"
     return humanize(prop)
 
 
@@ -117,7 +119,13 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
         v = values.get(m.group(1), m.group(1))
         # "+{s:Radius}m" with a value that already ends in m: the unit once ("+2m", not "+2mm")
         nxt = m.string[m.end():m.end() + 1]
-        return v[:-1] if nxt and not nxt.isdigit() and v.endswith(nxt) else v
+        if nxt and not nxt.isdigit() and v.endswith(nxt):
+            return v[:-1]
+        # "{s:BonusMoveSpeed} m/s" with "1.2m": the text's unit wins ("1.2m m/s" in a T1, 2026-10-02)
+        unit = _UNIT_AFTER.match(m.string, m.end())
+        if unit and v[-1:].isalpha() and unit.group(1).startswith(v[-1]):
+            return v[:-1]
+        return v
 
     def glossary(m: re.Match) -> str:
         kind, name = (m.group(1), m.group(2)) if m.group(2) is not None else (m.group(3), m.group(4))
@@ -130,7 +138,8 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
     t = _SUB_RE.sub(value, text)
     t = _SPACES_RE.sub(' ', _G_RE.sub(glossary, t))
     t = _TAG_RE.sub('\n', t)
-    t = _HTML_RE.sub('', t)
+    # the text's entities as characters: the page escapes once ("Bullet, Spirit &amp;amp; Melee")
+    t = html.unescape(_HTML_RE.sub('', t))
     return '\n'.join(ln.strip() for ln in t.splitlines() if ln.strip())
 
 

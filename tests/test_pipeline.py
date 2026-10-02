@@ -600,7 +600,8 @@ def test_values_carry_the_tooltip_unit_and_label():
 def test_units_and_reencodings():
     assert semantics.engine_unit('m_flRunSpeed') == semantics.SPEED
     assert semantics.engine_unit('m_flSightRangePlayers') is True
-    assert semantics.engine_unit('m_flBossDamageScale') is False
+    assert semantics.engine_unit('m_flBossDamageScale') == semantics.FRACTION     # a share: 0.5 is 50%
+    assert semantics.engine_unit('m_flAbilityDamageScale') is False
     assert semantics.display_raw(18000, semantics.SPEED) == '457.2m/s'
     assert semantics.display_raw('12.19m', True) == '12.19m'               # already metres: not divided again
     p = 'm_mapAbilityProperties.ChannelMoveSpeed.m_strValue'
@@ -608,6 +609,68 @@ def test_units_and_reencodings():
     assert semantics.reencoded(1, 100, 'm_mapAbilityProperties.ImbuedCooldownMultiplier.m_strValue')
     assert not semantics.reencoded(1, 100, 'm_mapAbilityProperties.Damage.m_strValue')
     assert semantics.direction(p, 50, -1, 'ability') == ('changed', None)   # -1 = no cap
+
+
+def test_shares_speeds_and_curve_corners():
+    """Audit 2026-10-02: shares as percents, travel speeds in m/s, a curve's corners named min/max."""
+    w = semantics.describe('m_mapWeaponInfos.primary.m_flShootMoveSpeedPercent', {}, 'citadel_weapon_bebop_set', 'weapon')
+    assert semantics.show(0.55, w['meters']) == '55%' and semantics.show('0.7', w['meters']) == '70%'
+    assert semantics.show(0.1, semantics.FRACTION) == '10%'
+    zip_ = semantics.describe('m_mapAbilityProperties.ZipSpeed.m_strValue', {}, 'citadel_ability_zip_line', 'ability')
+    assert semantics.show('693', zip_['meters']) == '17.6m/s'
+    for prop in ('TossSpeedUpWall', 'ReturnSpeedNonPlayer', 'AttackingDashSpeed', 'InitialProjectileVelocity'):
+        assert semantics.prop_speed(prop), prop
+    for prop in ('ChannelMoveSpeed', 'MoveSpeedBonusPct', 'TrackingSpeed', 'ZipMasteryExtraSpeedBonus',
+                 'BonusBulletSpeedPercent', 'FallSpeedMax', 'PostGroundDashSpeed', 'SummonTurnSpeed'):
+        assert not semantics.prop_speed(prop), prop
+    assert not semantics.prop_speed('ZipSpeed', 'm/s')            # the tooltip's own unit: already m/s
+    assert semantics.humanize('m_vDomainMaxs') == 'Domain (max)'
+    assert semantics.humanize('m_vDomainMins') == 'Domain (min)'
+    assert semantics.humanize('m_iMatchTimeMinsForLevel2Pickups') == 'Match Time (min) For Level2 Pickups'
+    # a powerup's modifier value is named by what it changes, not "Modifier Values MODIFIER_VALUE_X › Modifier Value"
+    assert semantics.context_label('m_sModifer.m_vecModifierValues{MODIFIER_VALUE_STAMINA}.m_flModifierValue') == \
+        'Effect › Stamina'
+
+
+def test_npc_abilities_belong_to_their_unit():
+    from pipeline.classify import unit_bound_abilities
+    units = {'npc_boss_tier2': {'m_mapBoundAbilities': {'ESlot_Signature_1': 'citadel_ability_tier2boss_stomp'}},
+             'alt_npc_boss_tier2': {'m_mapBoundAbilities': {'ESlot_Signature_1': 'citadel_ability_tier2boss_stomp'}},
+             'trooper_zipline_container': {'m_mapBoundAbilities': {'ESlot_Ability_ZipLine': 'citadel_ability_zip_line'}}}
+    bound = unit_bound_abilities(units, {'citadel_ability_zip_line': 'hero_base'})
+    assert bound == {'citadel_ability_tier2boss_stomp': ['alt_npc_boss_tier2', 'npc_boss_tier2']}
+    # judged as the unit: Walker's laser 150 -> 125 DPS is DOWN, not a player's NERF
+    assert semantics.direction('m_mapAbilityProperties.DPS.m_strValue', 150, 125, 'unit')[0] == 'down'
+
+
+def test_added_and_removed_entities_that_matter():
+    from pipeline.match import event_worthy
+    assert event_worthy({'kind': 'ability_other', 'id': 'viscous_gootapult', 'name': 'Splatapult'})
+    assert not event_worthy({'kind': 'ability_other', 'id': 'synth_dematerialize', 'name': 'synth_dematerialize'})
+    assert event_worthy({'kind': 'ability_other', 'id': 'citadel_ability_tier3boss_damage_pulse',
+                         'name': 'citadel_ability_tier3boss_damage_pulse', 'units': ['npc_boss_tier3']})
+    assert event_worthy({'kind': 'global', 'id': 'ammo_permanent_pickup', 'gameplay': True})
+    assert not event_worthy({'kind': 'global', 'id': 'm_KillStreakFireParticle', 'gameplay': False})
+    assert not event_worthy({'kind': 'modifier', 'id': 'modifier_speed_boost', 'name': 'x'})
+    assert not event_worthy({'kind': 'melee', 'id': 'ability_melee_mirage', 'name': 'Melee'})   # the hero's event
+    # the name a removed ability had in game comes from the catalog (its text left with it)
+    from pipeline.match import event_name
+    gone = {'id': 'ability_priest_barrage', 'name': 'ability_priest_barrage', 'status': 'removed'}
+    assert event_name(gone, {'name': 'Witching Hour'}) == 'Witching Hour'
+    assert event_worthy({'kind': 'ability_other', 'id': gone['id'], 'name': event_name(gone, {'name': 'Witching Hour'})})
+    assert event_name({'id': 'x_y', 'name': 'Shown'}, {'name': 'Catalog'}) == 'Shown'
+
+
+def test_readable_names_for_ids_and_stand_ins():
+    from builders.common import pretty_id
+    assert pretty_id('slork_ability_invis', 'hero_slork') == 'Invis'
+    assert pretty_id('citadel_ability_tier2boss_aoe_wave') == 'Aoe wave'
+    assert pretty_id('hero_airheart') == 'Airheart'
+    assert semantics.show('20%', semantics.FRACTION) == '20%'            # already a percent: not ×100
+    fencer = semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{DashSpeed}.m_strBonus', {},
+                                'ability_fencer_lunge', 'ability')
+    assert semantics.show('550', fencer['meters']) == '13.97m/s'
+    assert not semantics.prop_speed('DistanceForMaxProjSpeed') and not semantics.prop_speed('CameraPreviewSpeed')
 
 
 def test_polarity_audit_cases():

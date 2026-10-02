@@ -235,14 +235,21 @@ _FLAG_PREFIX = re.compile(r'^(CITADEL_UNIT_TARGET_|CITADEL_ABILITY_BEHAVIOR_|CIT
 LONG_VALUE = 60
 
 
+_NUMBERISH = re.compile(r'^[-+]?(\d+\.?\d*|\.\d+)[a-z%/]*$')
+# flags Valve also writes without spaces: "CITADEL_ABILITY_BEHAVIOR_CHANNELLED|CITADEL_…" (2026-10-02)
+_PIPED = re.compile(r'^[A-Z][A-Z0-9_]+(?:\s*\|\s*[A-Z][A-Z0-9_]+)+$')
+
+
 def _flags(s) -> list[str] | None:
-    """'A | B' bit flags or 'a, b, c' id lists -> items; None for plain values."""
+    """'A | B' bit flags or 'a, b, c' id lists -> items; None for plain values. Numbers are
+    never flags: a recoil range "-0.1, 0.1" read "+-0.1 +0.1" on 314 rows (audit 2026-10-02) —
+    a pair, a vector or prices by tier keep their order and repeats."""
     if not isinstance(s, str):
         return None
-    if ' | ' in s:
+    if ' | ' in s or _PIPED.match(s):
         return [f.strip() for f in s.split('|') if f.strip()]
     parts = [f.strip() for f in s.split(', ')]
-    if len(parts) > 1 and all(p and ' ' not in p for p in parts):
+    if len(parts) > 1 and all(p and ' ' not in p for p in parts) and not any(_NUMBERISH.match(p) for p in parts):
         return parts
     return None
 
@@ -277,7 +284,10 @@ _CAMEL = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|_')
 def readable_value(s: str) -> str:
     """Engine spellings a player cannot read, as words: 'EHeroDevState_PreRelease' -> 'Pre Release',
     'CITADEL_UNIT_TARGET_NEUTRAL' -> 'Neutral', 'file://{images}/…/sticker_baba.psd' -> 'sticker_baba'.
-    Numbers and ordinary text pass through."""
+    Numbers and ordinary text pass through; a 'A | B' flag list word by word (171 raw
+    CITADEL_ABILITY_BEHAVIOR_* in the notes' "described" lists, 2026-10-02)."""
+    if ' | ' in s or _PIPED.match(s):
+        return ' | '.join(readable_value(p.strip()) for p in s.split('|') if p.strip())
     m = _ENUM_VALUE.match(s)
     if m:
         return ' '.join(w for w in _CAMEL.split(m.group(1)) if w)
@@ -289,9 +299,16 @@ def readable_value(s: str) -> str:
     return s
 
 
+# 9999 / 99999 is how the game writes "no limit" (Channel Move Speed 50 -> 9999, Max Stacks 99 -> 9999)
+_NO_LIMIT = re.compile(r'^(?:9999|99999)(?:\.0+)?[a-z%/]*$')
+
+
 def shown_value(s) -> str:
-    """A value as the page prints it: ids as names, engine enums as words."""
-    return '' if s is None else readable_value(ids_to_names(str(s)))
+    """A value as the page prints it: ids as names, engine enums as words, "no limit" as ∞."""
+    if s is None:
+        return ''
+    s = str(s)
+    return '∞' if _NO_LIMIT.match(s.strip()) else readable_value(ids_to_names(s))
 
 
 def _clip(s) -> str:

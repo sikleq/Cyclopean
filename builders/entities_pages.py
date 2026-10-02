@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
+from .common import display_name, entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
 from .hero_page import hero_page, history_heading, history_table, prop_icon, prop_rows, stat_tables
 from .render import KIND_LABEL
 
@@ -74,7 +74,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     return page(name, body, rel, 'items')
 
 
-def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) -> str:
+def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject, abilities: list[dict] = ()) -> str:
     rel = '../'
     name = u['name'] if u.get('name') and u['name'] != u['id'] else pretty_id(u['id'])
     ic = entity_icon(u['file'], u['id'], u['kind'], rel)
@@ -86,7 +86,12 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject) 
     stats = ''
     if trow:
         stats = '<h2>Stats</h2>' + stat_tables(trow, cols, name, rel)
-    hist = history_table([(f'npc_units.vdata:{u["id"]}', name, ic)], [name], by_ent, by_subject, rel)
+    # the unit's own abilities and gun under it (B10: Walker's 120 ability rows were on no unit page);
+    # their names don't pull note lines in — "Rocket Barrage" is also a hero's
+    own = [(f'abilities.vdata:{a["id"]}', display_name(a), entity_icon(a['file'], a['id'], a['kind'], rel))
+           for a in sorted(abilities, key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
+    hist = history_table([(f'npc_units.vdata:{u["id"]}', name, ic)] + own, [name], by_ent, by_subject, rel,
+                         line_names=False)
     return page(name, head + stats + history_heading() + f'<div id="history">{hist}</div>', rel, 'units')
 
 
@@ -187,8 +192,13 @@ def build_all() -> dict[str, int]:
     write('items/index.html', page('Items', body, rel, 'items'))
 
     units = [e for e in ents.values() if e['file'] == 'npc_units.vdata' and not e.get('template')]
+    bound = defaultdict(list)                  # unit id -> the abilities it binds (Walker's Stomp…)
+    for e in by_id.values():
+        for uid in e.get('units') or ():
+            bound[uid].append(e)
     for u in units:
-        write(slug(u['file'], u['id']), unit_page(u, urow.get(u['id']), units_t['columns'], by_ent, by_subject))
+        write(slug(u['file'], u['id']), unit_page(u, urow.get(u['id']), units_t['columns'], by_ent, by_subject,
+                                                  bound.get(u['id'], [])))
         counts['units'] += 1
     groups = []
     variants = unit_variants(units)
