@@ -2510,5 +2510,20 @@
    "documented": 1
   },
   "has_notes": true
+ },
+ {
+  "id": "build-6736",
+  "title": "Unannounced update (build 6736)",
+  "date": "2026-10-02",
+  "builds": 1,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0,
+   "unannounced": 40,
+   "unreleased": 0
+  },
+  "line_counts": {},
+  "has_notes": false
  }
 ]

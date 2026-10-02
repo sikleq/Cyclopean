@@ -97,6 +97,17 @@
     "Emote"
    ],
    "files": 1
+  },
+  {
+   "build": 6736,
+   "date": "2026-10-02",
+   "commit": "2a292817",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_ratking"
+   ],
+   "files": 1
   }
  ],
  "heroes": {
@@ -193,6 +204,9 @@
    "cosmetic animation"
   ],
   "hero_punkgoat": [
+   "cosmetic animation"
+  ],
+  "hero_ratking": [
    "cosmetic animation"
   ],
   "hero_shiv": [
