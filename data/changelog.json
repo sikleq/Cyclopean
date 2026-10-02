@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-02",
+    "title": "Notes vs files; Rat King's release named",
+    "items": [
+      "Patches / Notes vs files: the 23 patch-note lines whose numbers the game files contradict, in one table — what Valve wrote and what the files say (e.g. Surge of Power and Spirit Snatch values swapped on 2026-05-22).",
+      "Rat King's release build (6736) is named after its announcement, \"Listen up, Crumbums! Your King is here.\", and Rem's (6169) after his; Steam posts without text no longer vanish."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "title": "Boon rescales understood",
     "items": [
       "When a patch changes how many boons there are, Valve quotes hero growth in the old scale: \"Kelvin: Bullet damage growth 1.2 → 0.9\" is 0.707 after the 11 → 14 boon rescale of 2024-09-26. Such lines no longer show as disagreeing with the files; the same for the 20 → 32 rescale of 2025-06-17.",

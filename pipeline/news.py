@@ -70,7 +70,7 @@ class Notes:
     title: str
     date: str          # YYYY-MM-DD (publication, UTC)
     url: str
-    source: str        # steam | forum
+    source: str        # steam | forum | steam-title (a post that came without text)
     sections: list[Section]
 
     def all_lines(self):
@@ -148,11 +148,20 @@ def dated_chunks(lines: list[str], first: str) -> list[tuple[str, list[str]]]:
     return list(chunks.items())
 
 
+TITLE_ONLY = 'steam-title'
+
+
 def steam_notes() -> list[Notes]:
     items = json.loads(OUT.read_text(encoding='utf-8')) if OUT.exists() else []
     out = []
     for it in items:
         date = title_date(it['title']) or datetime.fromtimestamp(it['date'], timezone.utc).strftime('%Y-%m-%d')
+        if not (it.get('contents') or '').strip():
+            # an external post comes without text ("Listen up, Crumbums! Your King is here.", Rat King's
+            # release, 2026-10-02): a title only — it names an unannounced build of its day, nothing more
+            # (it opens no window, and it is no "own post" that would drop a follow-up of that date)
+            out.append(Notes(it['title'], date, it['url'], TITLE_ONLY, parse_lines([])))
+            continue
         for i, (d, chunk) in enumerate(dated_chunks(bbcode_lines(it['contents']), date)):
             if not chunk:
                 continue
@@ -196,7 +205,7 @@ _FOLLOW_UP = re.compile(r'^\[\s*Follow-up\s+(\d{4}-\d{2}-\d{2})\s*\]$', re.I)
 def all_notes() -> list[Notes]:
     notes = sorted(forum_notes() + steam_notes(), key=lambda n: n.date)
     # a patch Valve also posted on its own (03-21-2026) is that post, not the copy appended to an old one
-    own_posts = {n.date for n in notes if ' · follow-up ' not in n.title}
+    own_posts = {n.date for n in notes if ' · follow-up ' not in n.title and n.source != TITLE_ONLY}
     seen = set()
     result = []
     for n in notes:

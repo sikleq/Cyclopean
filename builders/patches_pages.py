@@ -472,7 +472,7 @@ def patch_tabs(active: str) -> str:
     """The patch list and its calendar (Sloppy's Patches / Calendar pair)."""
     return '<div class="flex table-tabs">' + ''.join(
         f'<a class="px-btn{" on" if k == active else ""}" href="{k}.html">{lbl}</a>'
-        for k, lbl in (('index', 'List'), ('calendar', 'Calendar'))) + '</div>'
+        for k, lbl in (('index', 'List'), ('calendar', 'Calendar'), ('errata', 'Notes vs files'))) + '</div>'
 
 
 def index_page(index: list[dict]) -> str:
@@ -519,4 +519,6 @@ def build_all() -> int:
     write('patches/index.html', index_page(index))
     from .calendar_page import calendar_page
     write('patches/calendar.html', calendar_page(patch_tabs('calendar')))
+    from .errata_page import errata_page
+    write('patches/errata.html', errata_page(patch_tabs('errata')))
     return len(index)

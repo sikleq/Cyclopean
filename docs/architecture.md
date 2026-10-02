@@ -420,6 +420,18 @@ matched (or names); each line gets the tag of the change it matched (counters wh
 kinds); "from A to B" / "by N" numbers are highlighted in the direction's colour; the right column keeps
 what the files say.
 
+## Notes vs files (`builders/errata_page.py` → `patches/errata.html`)
+
+Every patch-note line still called "mismatch" after the 2026-10-02 review is Valve's own slip — a wrong
+old value, a retune after the notes, two items' numbers swapped (Surge of Power / Spirit Snatch,
+2026-05-22). One table, newest first: patch, field (icon, name, label), Valve's line, the numbers it
+gives, the numbers in the files (with the tooltip's unit). A third tab of Patches.
+
+A Steam post without text (most hero reveals, Rat King's "Listen up, Crumbums! Your King is here.") is
+`news.TITLE_ONLY`: it names an unannounced build of its days but opens no window and is no "own post"
+that would drop a forum follow-up of that date (`patches.group`; treating it as a full announcement
+moved four hero-release builds out of the follow-up windows whose notes describe them).
+
 ## Cosmetics groundwork (`pipeline/cosmetics.py` → `data/cosmetics.json`)
 
 Skin-system work ships in the files long before an announcement (2026-10-02: news of "underwear

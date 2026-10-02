@@ -21,7 +21,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 
 from . import tracker
-from .news import _CHANGE_LINE, Notes, all_notes, is_changelog_text
+from .news import _CHANGE_LINE, TITLE_ONLY, Notes, all_notes, is_changelog_text
 
 LEAD = timedelta(hours=3)
 FUZZ_BEFORE = timedelta(hours=12)     # boundary zone: [start - 12h, start + 30h]
@@ -152,7 +152,8 @@ def _titled(n: Notes, anns: list[Notes]) -> str:
 
 def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) -> list[Patch]:
     all_ = notes if notes is not None else all_notes()
-    anns = announcements(all_)
+    named_only = [a for a in announcements(all_) if a.source == TITLE_ONLY]
+    anns = [a for a in announcements(all_) if a.source != TITLE_ONLY]
     notes = merge_same_day(drop_near_duplicates([n for n in all_ if is_patch_notes(n)]))
     builds = builds if builds is not None else build_index()
     patches = [Patch(n.date, _titled(n, anns), n.date, n) for n in sorted(notes, key=lambda n: n.date)]
@@ -173,6 +174,8 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
         if (not near and gameplay_fields(b) < HUGE_BUILD_FIELDS
                 and any(abs(t - _dt(p.date)) <= UNANNOUNCED_GAP for p in patches if p.notes)):
             continue                         # unnamed, beside a follow-up: stays in that window
+        # a post without text (most hero reveals) only names a window that opened anyway
+        near = near or [a for a in named_only if abs(t - _dt(a.date)) <= ANNOUNCEMENT_GAP]
         if near:
             a = min(near, key=lambda a: abs(t - _dt(a.date)))
             patches.append(Patch(f'build-{b["build"]}', a.title, b['date'], None, link=a.url))

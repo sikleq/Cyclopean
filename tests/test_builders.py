@@ -510,3 +510,16 @@ def test_build_page_lists_cosmetics_groundwork(monkeypatch):
     html = builds_pages.cosmetics_section(6711, '../')
     assert 'Base body' in html and '>Paige</a>' in html and 'heroes/bookworm.html' in html and 'hero poster' in html
     assert builds_pages.cosmetics_section(6710, '../') == ''
+
+
+def test_notes_vs_files_lists_valves_numbers_and_the_files(monkeypatch):
+    from builders import errata_page
+    row = {'id': '2026-05-22', 'date': '2026-05-22', 'line_counts': {'mismatch': 1}}
+    ch = {'key': 'k', 'label': 'Spirit Power Steal', 'old_s': '20', 'new_s': '25'}
+    ent = {'file': 'abilities.vdata', 'id': 'upgrade_spirit_snatch', 'kind': 'item', 'name': 'Spirit Snatch',
+           'changes': [ch]}
+    patch = {'entities': [ent], 'sections': [{'lines': [
+        {'text': 'Spirit Snatch: Spirit Power Steal increased from 20 to 28', 'status': 'mismatch', 'changes': ['k']}]}]}
+    monkeypatch.setattr(errata_page, 'load_json', lambda rel: [row] if rel == 'patches/index.json' else patch)
+    got = errata_page.rows()
+    assert got[0]['valve'] == '20 → 28' and got[0]['files'] == '20 → 25' and got[0]['label'] == 'Spirit Power Steal'

@@ -907,6 +907,20 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .tier .tn { font: 17px/1 var(--font-label); color: var(--bg-page); background: var(--patina-dim); text-align: center; padding: 4px 0; }
 .tier .tt { white-space: pre-line; }
 
+/* Patches / Notes vs files: centred, translucent lines both ways; the field and Valve's line read left */
+table.errata { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+table.errata th, table.errata td { padding: 6px 10px; text-align: center; vertical-align: middle;
+  border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+table.errata th { font: 600 12px/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
+table.errata td.nm, table.errata td.ln { text-align: left; }
+table.errata td.nm { white-space: nowrap; }
+table.errata td.nm .si2 { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+table.errata td.nm .lb { display: block; color: var(--text-dim); font-size: 12px; margin-left: 30px; }
+table.errata td.ln { color: var(--text); min-width: 260px; }
+table.errata td.v { white-space: nowrap; }
+table.errata td.v.f { color: var(--text-bright); }
+table.errata td.d { white-space: nowrap; }
+
 table.hist { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 table.hist td { padding: 4px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 table.hist tr.ph td { background: var(--bg-panel-2); padding: 8px; border-top: var(--px) solid var(--line); }

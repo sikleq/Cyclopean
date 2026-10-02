@@ -219,6 +219,24 @@ def test_big_build_without_notes_gets_its_own_patch():
     assert [b['build'] for b in ps[1].builds] == [2]
 
 
+def test_a_post_without_text_only_names_a_window():
+    """2026-10-02 "Listen up, Crumbums! Your King is here." (Rat King) came without text: it names the
+    notes-less build of its day, but opens no window and drops no follow-up of that date."""
+    from pipeline.news import TITLE_ONLY, Notes, Section
+    from pipeline.patches import group
+    reveal = Notes('Listen up, Crumbums! Your King is here.', '2026-01-20', 'u', TITLE_ONLY, [])
+    notes = Notes('01-01-2026 Update', '2026-01-01', 'n', 'forum',
+                  [Section('Heroes', [f'H{i}: X increased from 1 to 2' for i in range(5)])])
+    builds = [{'build': 1, 'date': '2026-01-01T20:00:00+00:00', 'file': 'a', 'fields': {'balance': 5}},
+              {'build': 2, 'date': '2026-01-20T20:00:00+00:00', 'file': 'b', 'fields': {'balance': 200}}]
+    ps = group([notes, reveal], builds)
+    assert [p.title for p in ps] == ['01-01-2026 Update', 'Listen up, Crumbums! Your King is here.']
+    # beside a changelog, a small build stays in its window: the title-only post makes no new one
+    small = [builds[0], {'build': 2, 'date': '2026-01-02T20:00:00+00:00', 'file': 'b', 'fields': {'balance': 200}}]
+    reveal2 = Notes('Reveal', '2026-01-02', 'u', TITLE_ONLY, [])
+    assert [p.id for p in group([notes, reveal2], small)] == ['2026-01-01']
+
+
 def test_compound_base_plus_scaling_pairs():
     assert parse_pairs('Heal on Melee hit increased from 100+1.5 to 120+1.75') == [(100.0, 120.0), (1.5, 1.75)]
 
