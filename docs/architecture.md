@@ -275,6 +275,17 @@ provides …" is a value that appeared (0 → N), after "no longer grants" one t
 +75 Health"); a change to N counts too ("Now has a 8s cooldown" while it was 3s), the invented 0 is
 never a rounding nor a mismatch (Valve reuses the property: "No longer grants +15% Spirit Lifesteal as
 base stat" while the field went 15 → 16). Up to six words may sit between "from A" and "to B".
+A patch that changes the number of boons rescales every per-boon value, and its hero lines quote growth
+in the OLD scale (`rules.boon_rescale`): 2024-09-26 "Boon count increased from 11 to 14" + "Non-Health
+boon bonuses rescaled…" (×11/14, health kept: "Kelvin: Bullet damage growth 1.2 → 0.9" is 0.707 in the
+files), 2025-06-17 "total stat levels increased from 20 to 32 (but rescaled…)" (×20/32, all stats). Such
+a field carries `MChange.scale`; `steps()` adds the new value in the notes' scale, so pairs and percents
+compare like for like — these were "mismatch" lines, the mistake ours, not Valve's. The two patch-wide
+lines link the boon levels and the plainly rescaled values (`rules.boon_lines`). A spawn timer says
+minutes without the word ("Vaults spawn time/interval 10/5 → 8/4" is 600/300 → 480/240 s): small
+numbers on a spawn / interval line with no seconds unit also try ×60. The golden statue alias holds
+the containers that carry its timers; "vault(s)" is Sinner's Sacrifice. A typed field without "m_"
+(`flCooldownOnBreak` of the shield trackers) is humanized like any field (`_TYPED_FIELD`, enrich 26).
 
 Patch notes, second pass (2026-10-01): a post's later patches ("03-10-2026 Patch:", "[ Follow-up … ]")
 split off by date and joined per date (`news.dated_chunks`), a copy appended to an old post yields to

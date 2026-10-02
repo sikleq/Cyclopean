@@ -607,12 +607,17 @@ def plain_label(path: str) -> dict | None:
 _ENUM_PREFIX_RE = re.compile(r'^(EItemSlotType_|MODIFIER_VALUE_|ESlot_|EModTier_|E(?=[A-Z][a-z]))')
 
 
+_TYPED_FIELD = re.compile(r'^(?:fl|n|i|b|str|vec|map|un|s|v|h|bits|sz|e)[A-Z][a-z]')
+
+
 def _segment(seg: str) -> str:
     m = re.match(r'^([^\[{]+)(?:\[(\d+)\]|\{([^}]*)\})?$', seg)
     if not m:
         return humanize(seg)
     name, idx, key = m.group(1), m.group(2), m.group(3)
-    text = humanize(_ENUM_PREFIX_RE.sub('', name)) if name.startswith(('m_', '_')) else \
+    # a field name with a type prefix but no "m_" ("flCooldownOnBreak" of the shield trackers sat raw)
+    field = name.startswith(('m_', '_')) or bool(_TYPED_FIELD.match(name))
+    text = humanize(_ENUM_PREFIX_RE.sub('', name)) if field else \
         _ENUM_PREFIX_RE.sub('', name).replace('_', ' ').strip()
     if idx is not None:
         text += f' #{int(idx) + 1}'

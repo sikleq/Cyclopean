@@ -910,3 +910,44 @@ def test_now_grants_and_no_longer_grants_are_values():
     pairs = granted_pair('Now has a 8s cooldown')
     assert score(cd, 'Now has a 8s cooldown', pairs, None, {'cooldown'}, None, set(), granted=True) >= 9
     assert score(cd, 'Now has a 8s cooldown', pairs, None, {'cooldown'}, None, set()) < 9
+
+
+def test_spawn_timers_say_minutes_without_the_word():
+    """"Vaults spawn time/interval changed from 10/5 to 8/4" is 600/300 -> 480/240 seconds in the files."""
+    from pipeline import match_rules as rules
+    from pipeline.match import annotate_line
+    camp = MChange('misc.vdata', 'neutral_camp_vaults', 'm_flSpawnInterval', 'change', 300, 240, 'balance', 'global',
+                   None, 'Spawn Interval (s)', False)
+    by_ent = {'misc.vdata:neutral_camp_vaults': [camp]}
+    res = annotate_line('Vaults spawn time/interval changed from 10/5 to 8/4', [camp], by_ent, {}, {}, {})
+    assert res['status'] == 'documented'
+    assert 'misc.vdata:neutral_camp_vaults' in rules.alias_keys('Vaults spawn time')
+    assert semantics.context_label('m_sModifer.flCooldownOnBreak') == 'Effect › Cooldown On Break'
+
+
+def test_boon_rescale_is_nobodys_mistake():
+    """2024-09-26 "Boon count increased from 11 to 14" + "Non-Health boon bonuses rescaled …": the hero
+    lines quote growth in the old scale (Kelvin 1.2 -> 0.9 is 1.2 -> 0.707 in the files) — a "mismatch"
+    was ours, not Valve's. 2025-06-17: 20 -> 32 stat levels (Wraith -18% is 0.351 -> 0.18)."""
+    from pipeline import match_rules as rules
+    from pipeline.match import num, pct_close
+    notes = ' '.join(['Boon count increased from 11 to 14 (added to 16/18/20k).',
+                      'Non-Health boon bonuses rescaled over the 14 levels'])
+    f, no_health = rules.boon_rescale(notes)
+    assert abs(f - 11 / 14) < 1e-9 and no_health
+    assert rules.boon_rescale('total stat levels increased from 20 to 32 (but rescaled in value)') == (0.625, False)
+    assert rules.boon_rescale('Boon distribution') is None
+    path = 'm_mapStandardLevelUpUpgrades.MODIFIER_VALUE_BASE_BULLET_DAMAGE_FROM_LEVEL'
+    kelvin = MChange('heroes.vdata', 'hero_kelvin', path, 'change', 1.2, 0.707, 'balance', 'hero', None,
+                     'Bullet damage per boon', False, scale=f)
+    assert score(kelvin, 'Bullet damage growth reduced from 1.2 to 0.9', [(1.2, 0.9)], None,
+                 {'bullet', 'growth'}, None, set()) >= 10
+    wraith = MChange('heroes.vdata', 'hero_wraith', path, 'change', 0.351, 0.18, 'balance', 'hero', None,
+                     'Bullet damage per boon', False, scale=0.625)
+    assert pct_close(wraith, 18, -1)
+    # the patch-wide lines link the boon levels and the plainly rescaled values
+    lvl = MChange('heroes.vdata', 'hero_kelvin', 'm_mapLevelInfo.16.m_bUseStandardUpgrade', 'change', False, True,
+                  'mechanic', 'hero', None, 'Level 16: gives a boon', False)
+    other = MChange('heroes.vdata', 'hero_haze', path, 'change', 0.7, 0.55, 'balance', 'hero', None, 'x', False, scale=f)
+    assert rules.boon_lines('Boon count increased from 11 to 14', [lvl, other], (f, True), num) == [lvl]
+    assert rules.boon_lines('Non-Health boon bonuses rescaled over the 14 levels', [lvl, other], (f, True), num) == [other]

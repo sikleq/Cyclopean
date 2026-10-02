@@ -98,6 +98,7 @@ class MChange:
     neg_base: bool = False                        # a bonus to a property stored negative (enrich.negative_props)
     unit: str = ''                                # what the tooltip prints after the value ('s', '%', 'm')
     invert: bool = False                          # a rate the game shows as a time (stamina per second -> cooldown)
+    scale: float = 1.0                            # the patch's boon rescale for this per-boon field (old / new count)
 
     @property
     def key(self) -> str:
@@ -110,6 +111,10 @@ class MChange:
         pairs = list(zip(chain, chain[1:]))
         if (chain[0], chain[-1]) not in pairs:
             pairs.append((chain[0], chain[-1]))
+        if self.scale != 1.0:
+            # the patch rescaled every per-boon value (rules.boon_rescale): the notes quote the new value
+            # in the old scale ("Kelvin: Bullet damage growth 1.2 -> 0.9" is 1.2 -> 0.707 in the files)
+            pairs += [(o, num(n) / self.scale) for o, n in pairs if num(n) is not None]
         return pairs
 
 
@@ -445,6 +450,8 @@ def label_words(c: MChange) -> set[str]:
 
 
 _MINUTES = re.compile(r'\b(minutes?|mins?)\b', re.I)
+_SPAWN_TIMER = re.compile(r'\b(spawns?|respawns?|spawn time|interval)\b', re.I)
+_SECONDS = re.compile(r'\d\s*(s|sec|secs|seconds?)\b', re.I)
 _UP_VERB = re.compile(r'\b(increas\w*|rais\w*|more|higher|boost\w*)\b', re.I)
 _DOWN_VERB = re.compile(r'\b(reduc\w*|decreas\w*|lower\w*|less|cut)\b', re.I)
 _TIME_LIKE = re.compile(r'(time|cooldown|interval|delay|cost|duration)', re.I)
@@ -575,6 +582,10 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
     by_ent: dict[str, list[MChange]] = {}
     for c in changes:
         by_ent.setdefault(ent_key(c), []).append(c)
+    notes = '\n'.join(ln for s in (p.notes.sections if p.notes else []) for ln in s.lines)
+    rescale = rules.boon_rescale(notes)
+    for c in changes:
+        c.scale = rescale[0] if rules.rescaled_field(c, rescale) else 1.0
     sections = []
     for sec in (p.notes.sections if p.notes else []):
         out_lines = []
@@ -588,7 +599,7 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
                 continue
             own_prefix = ':' in text[:48] and resolve_subject(text.split(':', 1)[0], idx, cat)
             probe = f'{head}: {text}' if head and not own_prefix else text
-            res = annotate_line(probe, changes, by_ent, idx, cat, tok)
+            res = annotate_line(probe, changes, by_ent, idx, cat, tok, rescale)
             res['text'] = text
             if res['status'] == 'unmatched':
                 topic = rules.untracked_topic(text.split(':', 1)[1] if own_prefix else text, sec.title,
@@ -634,7 +645,7 @@ def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
                     other.lines.append(line)
 
 
-def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
+def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     subject = None
     rest = text
     if ':' in text[:48]:
@@ -642,8 +653,10 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
         subject = resolve_subject(prefix, idx, cat)
     lw = expand_words(words(rest))
     pairs = parse_pairs(rest)
-    if _MINUTES.search(rest):
-        # "Rejuv duration 4 -> 3 minutes" while the files count seconds (240 -> 180): 8 lines unmatched
+    if _MINUTES.search(rest) or (_SPAWN_TIMER.search(rest) and not _SECONDS.search(rest)
+                                 and all(max(a, b) <= 60 for a, b in pairs)):
+        # "Rejuv duration 4 -> 3 minutes" while the files count seconds (240 -> 180): 8 lines unmatched;
+        # a spawn timer says minutes without the word ("Vaults spawn time/interval 10/5 -> 8/4")
         pairs = pairs + [(a * 60, b * 60) for a, b in pairs]
     granted = False
     if not pairs:
@@ -665,7 +678,8 @@ def annotate_line(text, changes, by_ent, idx, cat, tok) -> dict:
             # stays a fix ("…caused audio bugs as well"); not "visual": "Guardian melee no longer has a
             # splash range much larger than its visuals" is gameplay
             return _fix_or(result, text)
-        covered = rules.global_line(text, changes, cat, num) or rules.global_delta_line(text, changes, cat, num)
+        covered = (rules.boon_lines(text, changes, rescale, num) or rules.global_line(text, changes, cat, num)
+                   or rules.global_delta_line(text, changes, cat, num))
         if covered:
             return _link(result, covered, text, 'described')
         # "Walker bounty increased by 5%": the unit is named inside the line; failing a common word,

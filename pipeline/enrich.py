@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 25       # 25: tier speed bonuses m/s, "20%" kept; 24: modifier values; 23: shares %, NPC UP/DOWN
+ENRICH_VERSION = 26       # 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):

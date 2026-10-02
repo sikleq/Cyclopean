@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-02",
+    "title": "Boon rescales understood",
+    "items": [
+      "When a patch changes how many boons there are, Valve quotes hero growth in the old scale: \"Kelvin: Bullet damage growth 1.2 → 0.9\" is 0.707 after the 11 → 14 boon rescale of 2024-09-26. Such lines no longer show as disagreeing with the files; the same for the 20 → 32 rescale of 2025-06-17.",
+      "The patch-wide boon lines link the levels that give a boon and every rescaled value.",
+      "Spawn timers written in minutes without the word (\"Vaults spawn time/interval 10/5 → 8/4\") and golden statue timers are found; shield tracker fields read \"Cooldown On Break\", not \"flCooldownOnBreak\"."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "title": "Every number in a patch line finds its field",
     "items": [
       "A line with two changes links both: \"Base HP 6725 → 12500 and growth 470 → 200\", \"40 → 35 and scaling 1.2 → 1.1\", falloff \"20m→46m to 17m→42m\".",

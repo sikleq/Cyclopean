@@ -33,7 +33,7 @@ _alias(('base guardian', 'base guardians'), [('npc_units.vdata', 'npc_barrack_bo
 _alias(('shrine', 'shrines'), [('npc_units.vdata', 'destroyable_building'), ('generic_data.vdata', 'm_ObjectiveParams')])
 _alias(('mid boss', 'midboss', 'mid-boss'), [('npc_units.vdata', 'npc_super_neutral')])
 # the vault is a unit, its spawn timers live on the camp ("Sinner's Sacrifice spawn/respawn time 8/4 -> 10/5")
-_alias(("sinner's sacrifice", 'sinners sacrifice', 'sinner sacrifice'),
+_alias(("sinner's sacrifice", 'sinners sacrifice', 'sinner sacrifice', 'vault', 'vaults'),
        [('npc_units.vdata', 'neutral_sinners_sacrifice'), ('npc_units.vdata', 'neutral_vault'),
         ('misc.vdata', 'neutral_camp_vaults')])
 _alias(('trooper', 'troopers'), [('npc_units.vdata', 'trooper_normal'), ('npc_units.vdata', 'trooper_medic'),
@@ -49,10 +49,13 @@ _alias(('neutral', 'neutrals', 'camps', 'jungle'), [('npc_units.vdata', 'neutral
                                                     ('misc.vdata', 'neutral_camp_weak'),
                                                     ('misc.vdata', 'neutral_camp_medium'),
                                                     ('misc.vdata', 'neutral_camp_strong')])
+# the statue's bonuses, and the containers that hold its timers ("Golden Statues bonuses upgrade time
+# changed from 15 min to 10 min" is Match Time For Level2 Pickups on the item container)
 _alias(('golden statue', 'golden statues', 'statue', 'statues'),
        [('misc.vdata', f'{kind}_permanent_pickup{lv}') for kind in ('hp', 'cd', 'ammo', 'bulletresist', 'techresist',
                                                                     'spirit', 'weapon', 'firerate', 'movespeed')
-        for lv in ('', '_lv2', '_lv3')])
+        for lv in ('', '_lv2', '_lv3')]
+       + [('misc.vdata', 'citadel_breakable_item_container'), ('misc.vdata', 'citadel_breakable_prop_drop_powerups')])
 _alias(('dash', 'dashes'), [('abilities.vdata', 'citadel_ability_dash')])
 _alias(('jump', 'dash jump'), [('abilities.vdata', 'citadel_ability_jump')])
 _alias(('slide', 'sliding'), [('abilities.vdata', 'citadel_ability_slide')])
@@ -288,6 +291,47 @@ def global_delta_line(text: str, changes: list, cat: dict, num) -> list | None:
                and any(moved(o, n) for o, n in c.steps())]
         if len(hit) >= DELTA_MIN:
             out += [c for c in hit if c not in out]
+    return out or None
+
+
+# ---- 1c. boon rescales: a patch that changes how many boons there are rescales every per-boon value ----
+# 2024-09-26: "Boon count increased from 11 to 14" + "Non-Health boon bonuses rescaled over the 14 levels
+# (same total as before)" — the hero lines quote growth in the OLD scale: "Kelvin: Bullet damage growth
+# reduced from 1.2 to 0.9" is 0.9 * 11/14 = 0.707 in the files. 2025-06-17: "total stat levels increased
+# from 20 to 32 (but rescaled in value …)": Wraith "-18%" is 0.351 * 0.82 * 20/32 = 0.18.
+_BOON_COUNT = re.compile(r'boon count (?:increased|reduced|decreased|changed) from (\d+) to (\d+)', re.I)
+_STAT_LEVELS = re.compile(r'total stat levels (?:increased|reduced|decreased|changed) from (\d+) to (\d+)', re.I)
+BOON_FIELD = re.compile(r'^m_mapStandardLevelUpUpgrades\.')
+
+
+def boon_rescale(text: str) -> tuple[float, bool] | None:
+    """(old count / new count, health left out?) when the notes rescale per-boon values, else None."""
+    m = _BOON_COUNT.search(text)
+    if m:
+        return int(m.group(1)) / int(m.group(2)), bool(re.search(r'non-health', text, re.I))
+    m = _STAT_LEVELS.search(text)
+    if m and re.search(r'rescal', text, re.I):
+        return int(m.group(1)) / int(m.group(2)), False
+    return None
+
+
+def rescaled_field(c, rescale: tuple[float, bool] | None) -> bool:
+    return bool(rescale) and bool(BOON_FIELD.match(c.path)) and not (rescale[1] and 'HEALTH' in c.path)
+
+
+def boon_lines(text: str, changes: list, rescale: tuple[float, bool] | None, num) -> list | None:
+    """The patch-wide boon lines themselves: the boon count (the levels that give one) and the rescale
+    (every per-boon value moved by old / new count)."""
+    low = text.lower()
+    if 'boon' not in low:
+        return None
+    out = []
+    if _BOON_COUNT.search(text) or re.search(r'boons are distributed|extra boon', low):
+        out += [c for c in changes if c.path.startswith('m_mapLevelInfo.')]
+    if rescale and re.search(r'rescal', low):
+        f = rescale[0]
+        out += [c for c in changes if rescaled_field(c, rescale) and c not in out
+                and any(num(o) and num(n) is not None and abs(num(n) / num(o) - f) <= 0.03 * f for o, n in c.steps())]
     return out or None
 
 
