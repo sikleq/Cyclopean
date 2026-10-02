@@ -319,6 +319,17 @@ def load_json(rel: str):
 
 
 @lru_cache(maxsize=1)
+def cosmetics() -> dict:
+    """data/cosmetics.json (pipeline/cosmetics.py): skin-system groundwork by build and by hero."""
+    p = DATA / 'cosmetics.json'
+    return json.loads(p.read_text(encoding='utf-8')) if p.exists() else {'events': [], 'heroes': {}}
+
+
+COSMETIC_KINDS = {'base body': 'Base body (what a skin is put on)', 'cosmetic animation': 'Cosmetic animation',
+                  'cosmetic sounds': 'Cosmetic sounds', 'cosmetic code': 'Cosmetic item code'}
+
+
+@lru_cache(maxsize=1)
 def build_pages() -> dict[str, str]:
     """{build record file name: page stem}. Stem = build number, '-2' etc. when a
     build number was committed more than once by the tracker."""

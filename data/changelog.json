@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-02",
+    "title": "Cosmetics in the files",
+    "items": [
+      "Build pages show skin-system groundwork: the base bodies skins are put on (Paige, Victor, Deadman Danny since City Never Sleeps), cosmetic animations for 41 heroes, emotes, snowballs and posters.",
+      "Heroes whose base body is in the files carry a \"skin base in files\" mark."
+    ]
+  },
+  {
+    "date": "2026-10-02",
     "title": "Sharper links between patch notes and files",
     "items": [
       "A line that names a unit or item inside it (\"Base Guardian Health +20%\", \"Medic Trooper HP 260 → 350\", golden statue levels, breakables) links to that entity, not to every field of the patch that moved by the same amount.",

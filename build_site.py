@@ -6,7 +6,7 @@
 
 The site is built ONLY from data/ (committed JSON) + site/ + icons/, so CI can
 build and deploy without the 200 MB tracker clone. `--data` runs the
-pipeline: tracker sync -> history -> enrich -> catalog -> hero table -> notes -> match.
+pipeline: tracker sync -> history -> enrich -> catalog -> cosmetics -> hero table -> notes -> match.
 """
 from __future__ import annotations
 
@@ -36,7 +36,8 @@ STEP_DIRS = {'patches': ('patches',), 'builds': ('builds',), 'entities': ('heroe
 
 
 def refresh_data(sync: bool) -> None:
-    from pipeline import abilities, catalog, enrich, hero_table, history, item_table, match, news, tracker, unit_table
+    from pipeline import (abilities, catalog, cosmetics, enrich, hero_table, history, item_table, match, news, tracker,
+                          unit_table)
     if sync:
         print('tracker ->', tracker.sync()[:8])
     # the last processed tracker commit: update-data.yml compares it with
@@ -46,6 +47,7 @@ def refresh_data(sync: bool) -> None:
     history.run()
     enrich.run()
     catalog.build()
+    cosmetics.build()
     abilities.build()
     hero_table.build()
     unit_table.build()

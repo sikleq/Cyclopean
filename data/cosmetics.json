@@ -1,0 +1,232 @@
+{
+ "events": [
+  {
+   "build": 6127,
+   "date": "2026-01-22",
+   "commit": "f3ac323d",
+   "kind": "cosmetic sounds",
+   "op": "added",
+   "subjects": [
+    "hero_poster"
+   ],
+   "files": 22
+  },
+  {
+   "build": 6395,
+   "date": "2026-03-14",
+   "commit": "d64b01ae",
+   "kind": "cosmetic code",
+   "op": "added",
+   "subjects": [
+    "Snowball",
+    "VotingPoster"
+   ],
+   "files": 2
+  },
+  {
+   "build": 6711,
+   "date": "2026-09-29",
+   "commit": "58b3529c",
+   "kind": "base body",
+   "op": "added",
+   "subjects": [
+    "hero_bookworm",
+    "hero_deadpack",
+    "hero_frank"
+   ],
+   "files": 36
+  },
+  {
+   "build": 6711,
+   "date": "2026-09-29",
+   "commit": "58b3529c",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_astro",
+    "hero_atlas",
+    "hero_bebop",
+    "hero_boho",
+    "hero_bookworm",
+    "hero_chrono",
+    "hero_doorman",
+    "hero_drifter",
+    "hero_druid",
+    "hero_dynamo",
+    "hero_familiar",
+    "hero_fencer",
+    "hero_forge",
+    "hero_fortuna",
+    "hero_frank",
+    "hero_ghost",
+    "hero_gigawatt",
+    "hero_haze",
+    "hero_hornet",
+    "hero_inferno",
+    "hero_kelvin",
+    "hero_krill",
+    "hero_lash",
+    "hero_magician",
+    "hero_mirage",
+    "hero_nano",
+    "hero_necro",
+    "hero_orion",
+    "hero_priest",
+    "hero_punkgoat",
+    "hero_shiv",
+    "hero_synth",
+    "hero_tengu",
+    "hero_unicorn",
+    "hero_vampirebat",
+    "hero_viper",
+    "hero_viscous",
+    "hero_warden",
+    "hero_werewolf",
+    "hero_wraith",
+    "hero_yamato"
+   ],
+   "files": 44
+  },
+  {
+   "build": 6711,
+   "date": "2026-09-29",
+   "commit": "58b3529c",
+   "kind": "cosmetic code",
+   "op": "added",
+   "subjects": [
+    "Emote"
+   ],
+   "files": 1
+  }
+ ],
+ "heroes": {
+  "hero_astro": [
+   "cosmetic animation"
+  ],
+  "hero_atlas": [
+   "cosmetic animation"
+  ],
+  "hero_bebop": [
+   "cosmetic animation"
+  ],
+  "hero_boho": [
+   "cosmetic animation"
+  ],
+  "hero_bookworm": [
+   "base body",
+   "cosmetic animation"
+  ],
+  "hero_chrono": [
+   "cosmetic animation"
+  ],
+  "hero_deadpack": [
+   "base body"
+  ],
+  "hero_doorman": [
+   "cosmetic animation"
+  ],
+  "hero_drifter": [
+   "cosmetic animation"
+  ],
+  "hero_druid": [
+   "cosmetic animation"
+  ],
+  "hero_dynamo": [
+   "cosmetic animation"
+  ],
+  "hero_familiar": [
+   "cosmetic animation"
+  ],
+  "hero_fencer": [
+   "cosmetic animation"
+  ],
+  "hero_forge": [
+   "cosmetic animation"
+  ],
+  "hero_fortuna": [
+   "cosmetic animation"
+  ],
+  "hero_frank": [
+   "base body",
+   "cosmetic animation"
+  ],
+  "hero_ghost": [
+   "cosmetic animation"
+  ],
+  "hero_gigawatt": [
+   "cosmetic animation"
+  ],
+  "hero_haze": [
+   "cosmetic animation"
+  ],
+  "hero_hornet": [
+   "cosmetic animation"
+  ],
+  "hero_inferno": [
+   "cosmetic animation"
+  ],
+  "hero_kelvin": [
+   "cosmetic animation"
+  ],
+  "hero_krill": [
+   "cosmetic animation"
+  ],
+  "hero_lash": [
+   "cosmetic animation"
+  ],
+  "hero_magician": [
+   "cosmetic animation"
+  ],
+  "hero_mirage": [
+   "cosmetic animation"
+  ],
+  "hero_nano": [
+   "cosmetic animation"
+  ],
+  "hero_necro": [
+   "cosmetic animation"
+  ],
+  "hero_orion": [
+   "cosmetic animation"
+  ],
+  "hero_priest": [
+   "cosmetic animation"
+  ],
+  "hero_punkgoat": [
+   "cosmetic animation"
+  ],
+  "hero_shiv": [
+   "cosmetic animation"
+  ],
+  "hero_synth": [
+   "cosmetic animation"
+  ],
+  "hero_tengu": [
+   "cosmetic animation"
+  ],
+  "hero_unicorn": [
+   "cosmetic animation"
+  ],
+  "hero_vampirebat": [
+   "cosmetic animation"
+  ],
+  "hero_viper": [
+   "cosmetic animation"
+  ],
+  "hero_viscous": [
+   "cosmetic animation"
+  ],
+  "hero_warden": [
+   "cosmetic animation"
+  ],
+  "hero_werewolf": [
+   "cosmetic animation"
+  ],
+  "hero_wraith": [
+   "cosmetic animation"
+  ],
+  "hero_yamato": [
+   "cosmetic animation"
+  ]
+ }
+}

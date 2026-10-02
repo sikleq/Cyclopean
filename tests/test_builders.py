@@ -499,3 +499,14 @@ def test_flags_written_without_spaces_read_as_words():
     v = 'CITADEL_ABILITY_BEHAVIOR_CHANNELLED|CITADEL_ABILITY_BEHAVIOR_NO_TARGET'
     assert readable_value(v) == 'Channelled | No Target'
     assert '+channelled' in flags_html('', v)
+
+
+def test_build_page_lists_cosmetics_groundwork(monkeypatch):
+    from builders import builds_pages
+    ev = {'build': 6711, 'kind': 'base body', 'op': 'added', 'subjects': ['hero_bookworm'], 'files': 30}
+    snd = {'build': 6711, 'kind': 'cosmetic sounds', 'op': 'added', 'subjects': ['hero_poster'], 'files': 22}
+    monkeypatch.setattr(builds_pages, 'cosmetics', lambda: {'events': [ev, snd], 'heroes': {}})
+    monkeypatch.setattr(builds_pages, 'names_by_id', lambda: {'hero_bookworm': 'Paige'})
+    html = builds_pages.cosmetics_section(6711, '../')
+    assert 'Base body' in html and '>Paige</a>' in html and 'heroes/bookworm.html' in html and 'hero poster' in html
+    assert builds_pages.cosmetics_section(6710, '../') == ''

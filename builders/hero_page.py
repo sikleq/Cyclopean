@@ -7,7 +7,8 @@ import json
 from functools import lru_cache
 import re
 
-from .common import display_name, entity_icon, esc, glyph_for, hero_icon, icon, img, load_json, mark, page, pretty_id
+from .common import (cosmetics, display_name, entity_icon, esc, glyph_for, hero_icon, icon, img, load_json, mark, page,
+                     pretty_id)
 from .history_view import history_table  # noqa: F401  (re-exported for entities_pages)
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
@@ -272,6 +273,9 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
         chips.append(f'<span class="chip dev">{mark("unreleased")}in development</span>')
     if table_row and table_row.get('type'):
         chips.append(f'<span class="chip">{esc(table_row["type"].rsplit("_", 1)[-1])}</span>')
+    if 'base body' in cosmetics()['heroes'].get(hid, ()):
+        # the body a skin is put on is in the files (pipeline/cosmetics.py): skins are being made
+        chips.append('<span class="chip">skin base in files</span>')
     head = (f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
             f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div><h1>{esc(name)}</h1>'
             f'<div class="meta">First seen: build {h["first"][0]} ({esc(h["first"][1])})</div>'

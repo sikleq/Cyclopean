@@ -1,7 +1,8 @@
 """Build pages: every tracked game build and exactly what its files changed."""
 from __future__ import annotations
 
-from .common import build_label, build_pages, esc, load_json, plural, page, patch_title_text, write
+from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
+                     patch_title_text, pretty_id, slug, write)
 from .patches_pages import _changes_table, _loc_li, convar_li
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -24,6 +25,30 @@ def _row_label(r: dict, stems: dict) -> str:
     stem = stems.get(r['file'], '')
     nth = stem.rsplit('-', 1)[1] if r['build'] is not None and '-' in stem else ''
     return build_label(r['build']) + (f' (#{nth})' if nth else '')
+
+
+HERO_KINDS = ('base body', 'cosmetic animation')     # their subjects are heroes; a sound set ('hero_poster') is not
+
+
+def _cosmetic_subject(s: str, kind: str, rel: str) -> str:
+    """A hero links to its page; a sound set or a code class reads as words."""
+    if kind in HERO_KINDS and s.startswith('hero_'):
+        return f'<a href="{rel}{slug("heroes.vdata", s)}">{esc(names_by_id().get(s) or pretty_id(s))}</a>'
+    return esc(s.replace('_', ' '))
+
+
+def cosmetics_section(build: int | None, rel: str) -> str:
+    """Skin-system groundwork this build added or removed (pipeline/cosmetics.py)."""
+    evs = [e for e in cosmetics()['events'] if e['build'] == build and build is not None]
+    if not evs:
+        return ''
+    def by_name(e):              # heroes alphabetically by the name shown, not by internal id (hero_astro = Holliday)
+        return sorted(e['subjects'], key=lambda s: (names_by_id().get(s) or pretty_id(s)).lower())
+    rows = ''.join(f'<li><span class="lbl">{esc(COSMETIC_KINDS.get(e["kind"], e["kind"]))} · {esc(e["op"])}</span>'
+                   f'<span class="vals">{", ".join(_cosmetic_subject(s, e["kind"], rel) for s in by_name(e))}</span></li>'
+                   for e in evs)
+    return (f'<details class="collapsible section px-frame" open><summary>Cosmetics<span class="chip">{len(evs)}</span>'
+            f'</summary><ul class="change-list">{rows}</ul></details>')
 
 
 def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
@@ -78,6 +103,9 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
         rows = ''.join(convar_li(x) for x in rec['convars'][:400])
         body.append(f'<details class="collapsible section px-frame"><summary>Console variables<span class="chip">{len(rec["convars"])}</span></summary>'
                     f'<ul class="change-list">{rows}</ul></details>')
+    cos = cosmetics_section(rec.get('build'), rel)
+    if cos:
+        body.append(cos)
     if rec.get('assets'):
         a = rec['assets']
         rows = ''.join(f'<li><span class="lbl">{esc(cat)}</span><span class="vals">+{t["added"]} / −{t["removed"]} / ~{t["modified"]}</span></li>'

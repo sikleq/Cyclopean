@@ -389,6 +389,18 @@ matched (or names); each line gets the tag of the change it matched (counters wh
 kinds); "from A to B" / "by N" numbers are highlighted in the direction's colour; the right column keeps
 what the files say.
 
+## Cosmetics groundwork (`pipeline/cosmetics.py` → `data/cosmetics.json`)
+
+Skin-system work ships in the files long before an announcement (2026-10-02: news of "underwear
+textures" for Paige and Victor — `*_basebody` materials since City Never Sleeps, build 6711). The step
+reads the tracker's packed-file list (`git log -G` over `pak01_dir.txt`) and the server schema dumps:
+base bodies (`models/heroes*/<hero>/…basebody…`), per-hero cosmetic animation graphs
+(`hero_cosmetic.vnmgraph+<hero>`), cosmetic sound sets, cosmetic item classes
+(`CCitadel_Cosmetic{Item,Ability}_<Name>`; a rename Item → Ability in one build cancels out). Hero
+codes resolve by model folder / file (any `models/heroes*`), id word or game name ("calico", "mo_krill").
+Build pages list the build's events ("Cosmetics"); a hero with a base body gets the "skin base in files"
+chip.
+
 ## Icons without per-entity art
 
 | Rows | Source |

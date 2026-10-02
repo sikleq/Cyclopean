@@ -827,3 +827,21 @@ def test_subject_less_lines_find_their_subject_or_stay_untracked():
     # nor does a line about its sounds describe it
     res = annotate_line('Updated Medic Pack start and end sounds', [rng], {'misc.vdata:medic_pack': [rng]}, idx, cat, {})
     assert res['changes'] == []
+
+
+def test_cosmetic_files_name_their_heroes():
+    """2026-10-02: news of "underwear textures" for Paige and Victor — the files had them since 6711."""
+    from pipeline.cosmetics import ASSET_KINDS, hero_codes, subject_of
+    heroes = {'hero_bookworm': {'m_strModelName': 'models/heroes_wip/bookworm/bookworm.vmdl'},
+              'hero_nano': {'m_strModelName': 'models/heroes_staging/nano/nano_v2/nano.vmdl'},
+              'hero_krill': {'m_strModelName': 'models/heroes_staging/digger/digger.vmdl'},
+              'hero_priest': {'m_strModelName': 'models/heroes_wip/priest/priest.vmdl'}}
+    codes = hero_codes(heroes, {'hero_nano': 'Calico', 'hero_krill': 'Mo & Krill'})
+    assert subject_of('bookworm', codes) == 'hero_bookworm'
+    assert subject_of('calico', codes) == 'hero_nano' and subject_of('mo_krill', codes) == 'hero_krill'
+    assert subject_of('priest_crossbow', codes) == 'hero_priest'           # a variant of the hero's graph
+    assert subject_of('ratking', codes) == 'ratking'                      # unknown: kept as is
+    kind = lambda p: next((k for k, rx in ASSET_KINDS if rx.match(p)), None)     # noqa: E731
+    assert kind('models/heroes_wip/bookworm/materials/bookworm_basebody_color_png_1eb21a27.vtex_c') == 'base body'
+    assert kind('animgraphs/animgraph2/hero/hero_cosmetic.vnmgraph+abrams.vnmgraph_c') == 'cosmetic animation'
+    assert kind('models/heroes_wip/bookworm/materials/bookworm_head.vmat_c') is None
