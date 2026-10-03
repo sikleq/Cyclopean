@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from .common import entity_icon, esc, hero_icon, load_json, page, section_tabs, write
+from .common import entity_icon, esc, hero_icon, load_json, page, pretty_id, section_tabs, write
 
 
 # Hero table layout: the group header gives the context, so column headers stay one
@@ -76,7 +76,10 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                  row_cls: Callable[[dict], str] | None = None, table_id: str = '',
                  section_of: Callable[[dict], str] | None = None,
                  cell_attrs: Callable[[dict, dict], str] | None = None,
-                 row_attrs: Callable[[dict], str] | None = None) -> str:
+                 row_attrs: Callable[[dict], str] | None = None,
+                 extra: tuple[str, Callable[[dict], str]] | None = None) -> str:
+    """`extra`: (header, cell builder) of one more column right after the names (items: what an item
+    builds from and into)."""
     cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
     for c in cols:
@@ -90,20 +93,22 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
 
     def gcls(group: str) -> str:
         return ' g-details' if group == DETAILS else ''
-    cat_row = '<tr class="cats"><th class="name"></th>' + ''.join(
-        f'<th colspan="{n}" class="cat{gcls(g)}">{esc(g)}</th>' for g, n in groups) + '</tr>'
+    cat_row = ('<tr class="cats"><th class="name"></th>' + ('<th class="cat"></th>' if extra else '') + ''.join(
+        f'<th colspan="{n}" class="cat{gcls(g)}" data-group="{esc(g)}">{esc(g)}</th>' for g, n in groups) + '</tr>')
 
     def head(c: dict) -> str:
         short = c.get('short')
         tip = f' data-tooltip="{esc(c["label"])}"' if short and short != c['label'] else ''
         cls = ('grp-start' if c['key'] in first_of_group else '') + gcls(c['group'])
-        return f'<th data-col="{esc(c["key"])}" class="{cls.strip()}"{tip}>{esc(short or c["label"])}</th>'
+        return (f'<th data-col="{esc(c["key"])}" data-group="{esc(c["group"])}" class="{cls.strip()}"{tip}>'
+                f'{esc(short or c["label"])}</th>')
     col_row = (f'<tr class="cols"><th class="name" data-col="name">{esc(name_title)}</th>'
+               + (f'<th class="xcol">{esc(extra[0])}</th>' if extra else '')
                + ''.join(head(c) for c in cols) + '</tr>')
     body: list[str] = []
     last_section: list[str | None] = [None]
     for r in rows:
-        cells = [name_cell(r)]
+        cells = [name_cell(r)] + ([extra[1](r)] if extra else [])
         for c in cols:
             v = r['values'].get(c['key'])
             hist = r['history'].get(c['key'])
@@ -131,7 +136,7 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             sec = section_of(r)
             if sec != last_section[0]:
                 last_section[0] = sec
-                body.append(f'<tr class="sec"><td class="name">{sec}</td><td colspan="{len(cols)}"></td></tr>')
+                body.append(f'<tr class="sec"><td class="name">{sec}</td><td colspan="{len(cols) + bool(extra)}"></td></tr>')
         rc = f' class="{row_cls(r)}"' if row_cls and row_cls(r) else ''
         ra = row_attrs(r) if row_attrs else ''
         body.append(f'<tr{rc}{ra} data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
@@ -344,17 +349,55 @@ def items_table() -> str:
         info = (cards.get(it['id']) or {}).get('item') or {}
         return not info.get('street_brawl') and not info.get('disabled') and (it['values'].get('tier') or 0) <= 4
 
-    # the game's shop: Weapon, Spirit, Vitality, each by tier (game order), only the columns it fills
-    groups = []
-    for slot, css, ik in ITEM_SECTIONS:
-        rows = sorted((it for it in t['items'] if it.get('slot') == slot and in_shop(it)),
-                      key=lambda it: (it['values'].get('tier') or 9, it['name'].lower()))
-        src = icon(f'prop:{ik}', rel)
-        title = (f'<img class="cat-i" src="{esc(src)}" alt="">' if src else '') + esc(slot)
-        groups.append((css, title, rows))
-    body = ('<h1>Item Stats</h1>' + section_tabs('items', 'stats') + _toolbar('Item…')
-            + _section_tables(groups, t['columns'], name_cell, 'Item', t.get('date'),
-                              section_of=lambda it: f'Tier {it["values"].get("tier")} · {_fmt(it["values"].get("cost"), 0)} souls'))
+    # ONE table of the shop (owner, 2026-10-03; Sloppy's Mana Items): Weapon → Spirit → Vitality, each by
+    # tier; chips filter by category, tier and kind, the columns no shown row fills hide (scripts.js
+    # item-filter), "Souls per point" turns each stat into what one point of it costs
+    order = {slot: i for i, (slot, _, _) in enumerate(ITEM_SECTIONS)}
+    cat_of = {slot: css for slot, css, _ in ITEM_SECTIONS}
+    rows = sorted((it for it in t['items'] if in_shop(it)),
+                  key=lambda it: (order.get(it.get('slot'), 9), it['values'].get('tier') or 9, it['name'].lower()))
+    names = {it['id']: it['name'] for it in t['items']}
+    into: dict[str, list[str]] = {}
+    for it in rows:
+        for comp in ((cards.get(it['id']) or {}).get('item') or {}).get('components') or []:
+            into.setdefault(comp, []).append(it['id'])
+
+    def mini(iid: str) -> str:
+        ic = entity_icon('abilities.vdata', iid, 'item', rel)
+        nm = names.get(iid) or pretty_id(iid)
+        img = f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
+        return (f'<a class="bmini" href="{rel}items/{esc(iid.removeprefix("upgrade_"))}.html" data-tooltip="{esc(nm)}" '
+                f'aria-label="{esc(nm)}">{img}</a>')
+
+    def builds(it: dict) -> str:
+        comps = ((cards.get(it['id']) or {}).get('item') or {}).get('components') or []
+        ups = into.get(it['id'], [])
+        if not comps and not ups:
+            return '<td class="xcol"><span class="dash">—</span></td>'
+        arrow = '<span class="barrow">→</span>' if comps and ups else ''
+        return f'<td class="xcol">{"".join(mini(c) for c in comps)}{arrow}{"".join(mini(u) for u in ups)}</td>'
+
+    def row_attrs(it: dict) -> str:
+        info = (cards.get(it['id']) or {}).get('item') or {}
+        kind = 'imbue' if info.get('imbue') else (it.get('activation') or 'passive').lower()
+        return (f' data-cat="{cat_of.get(it.get("slot"), "")}" data-tier="{it["values"].get("tier") or ""}"'
+                f' data-kind="{esc(kind)}" data-cost="{it["values"].get("cost") or ""}"')
+    chips = ('<span class="it-filter">'
+             + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}">'
+                       + (f'<img class="cat-i" src="{esc(icon(f"prop:{ik}", rel))}" alt="">' if icon(f'prop:{ik}', rel) else '')
+                       + f'{esc(slot)}</button>' for slot, css, ik in ITEM_SECTIONS)
+             + '</span><span class="sep"></span><span class="it-filter">'
+             + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}">Tier {r}</button>'
+                       for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
+             + '</span><span class="sep"></span><span class="it-filter">'
+             + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}">{lbl}</button>'
+                       for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))
+             + '</span><span class="sep"></span><label class="switch"><input type="checkbox" data-souls-per>'
+               '<span class="track"></span>Souls per point</label>')
+    table = render_table(non_empty(t['columns'], rows), rows, name_cell, 'Item', as_of=t.get('date'),
+                         row_attrs=row_attrs, table_id='items-table', extra=('Builds', builds))
+    body = ('<h1>Item Stats</h1>' + section_tabs('items', 'stats') + _toolbar('Item…', extra='<span class="sep"></span>' + chips)
+            + table)
     return page('Item Stats', body, rel, 'items', build=t['build'],
                 description='Deadlock shop items with the history of every value', wide=True)
 

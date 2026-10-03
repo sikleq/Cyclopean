@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Item Stats: one table with filters",
+    "items": [
+      "Item Stats is one table of the whole shop with chips for Weapon / Spirit / Vitality, the tiers and Active / Passive / Imbue; columns nothing shown fills disappear, so Vitality tier I is 8 rows and 10 columns.",
+      "A Builds column shows what each item is made from and what it builds into, as icons.",
+      "\"Souls per point\" shows what one point of a stat costs (Extra Health: 3.8 souls per health)."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Unit families: one page per Slum Shroom, not three",
     "items": [
       "Units that are one thing to a player are one card and one page: Slum Shroom I-III, the five Gutter Ghouls of each tier, the four Walkers, the three Base Guardians. Inside, each tier or variant is a group; identical changes show once (\"Tier I\", \"All variants\"), and buttons filter by tier.",

@@ -455,6 +455,12 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   unreleased work are left out).
 - Hero Stats: group labels left-aligned (visible at each group's start), a right-edge fade while more
   columns are off-screen (`.table-fade`, removed when scrolled to the end).
+- Item Stats (`tables_pages.items_table`, 2026-10-03, Sloppy's Mana Items): ONE table of the shop
+  (Weapon → Spirit → Vitality, by tier), a "Builds" column (component icons → what it builds into),
+  chips by category / tier / Active · Passive · Imbue (rows carry `data-cat / data-tier / data-kind`),
+  columns no shown row fills hide and the group headers re-span (scripts.js `item-filter`, also after a
+  search), "Souls per point" turns each Stats cell into cost / value (lower is better, heat re-ranks via
+  `window.__reheat`).
 
 ## Patch notes tab (`builders/notes_view.py`)
 

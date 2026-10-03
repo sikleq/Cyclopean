@@ -1430,6 +1430,19 @@ table.stats tr.sec td { position: sticky; background: var(--bg-panel-3); border-
   font: 600 12px/1 var(--font-ui); color: var(--text-dim); text-align: left; padding: 5px 10px; }
 table.stats tr.sec td.name { z-index: 2; color: var(--text-bright); }
 table.stats td.name .copies { margin-left: 6px; font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); }
+table.stats td.name > span { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 15px/1 var(--font-ui); }
+/* Item Stats (tables_pages.items_table): what an item builds from → into; filters hide rows and the
+   columns no shown row fills; "Souls per point" marks the stats group */
+table.stats .xcol { white-space: nowrap; text-align: left; }
+table.stats td.xcol { padding-top: 3px; padding-bottom: 3px; }
+.bmini { display: inline-block; width: 22px; height: 22px; margin-right: 2px; vertical-align: middle; background: var(--bg-panel-4); }
+.bmini img { display: block; width: 22px; height: 22px; object-fit: cover; }
+.bmini:hover { outline: 2px solid var(--patina); }
+.barrow { margin: 0 5px 0 3px; color: var(--arrow); vertical-align: middle; }
+table.stats tr.f-out, table.stats .col-off { display: none; }
+table.per-soul th.cat[data-group="Stats"]::after { content: " · souls per point"; color: var(--patina); }
+.it-filter { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.it-filter .cat-i { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
 table.stats td.name .it-act { margin: 0 0 0 6px; }
 .tbl-sec .cat-i { width: 20px; height: 20px; margin-right: 8px; vertical-align: -4px; }
 .tbl-sec.w { box-shadow: inset 4px 0 0 var(--weapon), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }

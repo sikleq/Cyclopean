@@ -646,6 +646,11 @@
       btn.classList.toggle('on', on);
       document.querySelectorAll('table.stats').forEach(function (table) { heat(table, on); });
     });
+    // values that change in place (Boons, "Souls per point") re-rank the heat if it is on
+    window.__reheat = function () {
+      if (!btn.classList.contains('on')) return;
+      document.querySelectorAll('table.stats').forEach(function (table) { heat(table, true); });
+    };
     function heat(table, on) {
       table.querySelectorAll('td.hm-hi, td.hm-lo').forEach(function (td) { td.classList.remove('hm-hi', 'hm-lo'); });
       if (!on) return;
@@ -670,6 +675,91 @@
         });
       });
     }
+  });
+
+  /* ---------- Item Stats: chips by category / tier / kind; columns no shown row fills hide; souls per point ---------- */
+  safe('item-filter', function () {
+    var table = document.getElementById('items-table');
+    if (!table) return;
+    var bar = document.querySelector('.toolbar');
+    var sel = { cat: [], tier: [], kind: [] };
+    var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+    var heads = Array.prototype.slice.call(table.querySelectorAll('thead tr.cols th[data-col]'))
+      .filter(function (th) { return th.getAttribute('data-col') !== 'name'; });
+    var cats = Array.prototype.slice.call(table.querySelectorAll('thead tr.cats th[data-group]'));
+    // td per (row, column), read once
+    var cells = rows.map(function (r) {
+      var m = {};
+      Array.prototype.forEach.call(r.querySelectorAll('td[data-col]'), function (td) { m[td.getAttribute('data-col')] = td; });
+      return m;
+    });
+    function shown(r) { return !r.classList.contains('f-out') && !r.classList.contains('hidden-el'); }
+    function columns() {
+      var count = {};
+      heads.forEach(function (th) {
+        var key = th.getAttribute('data-col'), any = false;
+        for (var i = 0; i < rows.length && !any; i++) {
+          var td = cells[i][key];
+          any = shown(rows[i]) && td && td.getAttribute('data-sort') !== '';
+        }
+        th.classList.toggle('col-off', !any);
+        cells.forEach(function (m) { if (m[key]) m[key].classList.toggle('col-off', !any); });
+        if (any) count[th.getAttribute('data-group')] = (count[th.getAttribute('data-group')] || 0) + 1;
+      });
+      cats.forEach(function (th) {        // the group headers span what is left of them
+        var n = count[th.getAttribute('data-group')] || 0;
+        th.classList.toggle('col-off', !n);
+        if (n) th.colSpan = n;
+      });
+    }
+    function apply() {
+      rows.forEach(function (r) {
+        var ok = ['cat', 'tier', 'kind'].every(function (k) {
+          return !sel[k].length || sel[k].indexOf(r.getAttribute('data-' + k)) >= 0;
+        });
+        r.classList.toggle('f-out', !ok);
+      });
+      columns();
+    }
+    bar.addEventListener('click', function (ev) {
+      var b = ev.target.closest('button[data-f]');
+      if (!b) return;
+      var k = b.getAttribute('data-f'), v = b.getAttribute('data-v'), i = sel[k].indexOf(v);
+      if (i >= 0) sel[k].splice(i, 1); else sel[k].push(v);
+      b.classList.toggle('on', i < 0);
+      apply();
+    });
+    var search = bar.querySelector('input[type=search]');
+    if (search) search.addEventListener('input', function () { setTimeout(columns, 0); });
+    // what one point of a stat costs: cost / value (lower is better), back to the values when off
+    var per = bar.querySelector('[data-souls-per]');
+    if (per) per.addEventListener('change', function () {
+      var on = per.checked;
+      table.classList.toggle('per-soul', on);
+      rows.forEach(function (r, i) {
+        var cost = parseFloat(r.getAttribute('data-cost'));
+        heads.forEach(function (th) {
+          if (th.getAttribute('data-group') !== 'Stats') return;
+          var td = cells[i][th.getAttribute('data-col')];
+          if (!td) return;
+          if (on) {
+            var v = parseFloat(td.getAttribute('data-sort'));
+            if (isNaN(v) || v <= 0 || isNaN(cost)) return;
+            td.__orig = [td.innerHTML, td.getAttribute('data-sort'), td.getAttribute('data-pol')];
+            var s = cost / v;
+            td.textContent = s >= 10 ? Math.round(s) : s.toFixed(1);
+            td.setAttribute('data-sort', s);
+            td.setAttribute('data-pol', '-1');
+          } else if (td.__orig) {
+            td.innerHTML = td.__orig[0];
+            td.setAttribute('data-sort', td.__orig[1]);
+            td.setAttribute('data-pol', td.__orig[2]);
+            td.__orig = null;
+          }
+        });
+      });
+      if (window.__reheat) window.__reheat();
+    });
   });
 
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
