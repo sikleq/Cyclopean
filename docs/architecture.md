@@ -368,7 +368,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   note line covered the change; ability chips merge namesakes (`data-f-ab="id1 id2"`), removed ones
   fold behind "Removed (N)", a chip without art shows its name; a lazy band carries `data-tags /
   -abs / -areas` so a filter stamps only bands that can match. Matrix tag chips SELECT (as here), not
-  hide. Unnamed units (`unit_families.is_named`) sit with the helpers and stay off the home feed.
+  hide. Unnamed units (`unit_families.is_named`) sit with the helpers and stay off the home feed. An
+  item page splits its "Enhanced: …" rows into an "Enhanced version" group (`history_table(enhanced=
+  True)`, parts Base / Enhanced; the item's own group has no header).
 - Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).

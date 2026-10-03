@@ -66,7 +66,8 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
                 f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
                 f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
         sections = (hdr + ''.join(blocks)) if blocks or hdr else ''
-    history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel)
+    history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
+                            enhanced=True)
     # the page is the history (owner, 2026-10-03): what the item does today folds under one line
     now = (f'<details class="now px-frame"><summary>Current values</summary><div class="now-body">{sections}</div>'
            f'</details>') if sections else ''

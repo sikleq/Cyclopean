@@ -643,3 +643,15 @@ def test_engine_vocabulary_stays_off_the_pages_unless_the_notes_spoke():
     assert is_engine({'cat': 'mechanic', 'label': 'Scatter Offsets[3]', 'path': 'm_mapWeaponInfos.primary.m_vecScatterOffsets[3]',
                       'old_s': '2, 0', 'new_s': None})
     assert not is_engine({'cat': 'balance', 'label': 'Silence Duration', 'old_s': None, 'new_s': '0.3'})
+
+
+def test_item_history_puts_the_enhanced_version_in_its_own_group():
+    """2026-10-03: 14% of item rows read "Enhanced: …" — on the item page they are a group of their own."""
+    from builders.history_view import history_table
+    row = {'id': 'p1', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}
+    key = 'abilities.vdata:upgrade_x'
+    by_ent = {key: [(row, [ch(key='a', label='Bonus Health', dir='buff'), ch(key='b', label='Enhanced: Bonus Health')])]}
+    html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../', enhanced=True)
+    assert 'Enhanced version' in html and 'Enhanced: ' not in html
+    assert 'data-f-area="base"' in html and 'data-f-area="enh"' in html
+    assert html.count('class="esub') == 1                 # the item's own rows need no header

@@ -20,6 +20,7 @@ EAGER_PATCHES = 6         # blocks rendered in the page; older ones wait in a <t
 TEXT_STATUSES = ('code',)  # note lines shown as rows: changes in the game's code (the files did not move)
 TAG_FILTERS = ('new', 'rework', 'buff', 'nerf', 'del', 'mech', 'up', 'down')
 AREAS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
+_ENHANCED = 'Enhanced: '
 
 
 def _drop_prefix(text: str, names: list[str]) -> str:
@@ -56,7 +57,7 @@ def _entity_of_line(ln: dict, key_set: set[str], names_by_key: dict[str, str], f
 def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_ent, by_subject, rel: str,
                   line_names: bool = True, areas: dict[str, str] | None = None, gone: set[str] = frozenset(),
                   in_dev: bool = False, area_labels: tuple[tuple[str, str], ...] = AREAS,
-                  merge=None) -> str:
+                  merge=None, enhanced: bool = False) -> str:
     """The History section: heading, toolbar, blocks. keys: [(entity key, display name, icon url)] in
     display order, the page's own entity first; names: subjects whose note lines belong here.
     `line_names`: the other keys' names pull note lines in too (a hero's abilities do; a boss's "Rocket
@@ -64,7 +65,9 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     hero's page); `gone`: keys of abilities the entity no longer has; `in_dev`: the entity itself is in
     development, so its development work shows by default. `area_labels`: the part buttons (a unit
     family: its tiers); `merge`: members whose rows in a patch are identical show as ONE group named by
-    merge(labels) (unit_families.merged_label) — the five Gutter Ghouls I, the four Walkers."""
+    merge(labels) (unit_families.merged_label) — the five Gutter Ghouls I, the four Walkers.
+    `enhanced`: an item page — its "Enhanced: …" rows (the Enhanced version, 14% of item rows) are their
+    own group under "Enhanced version", the parts Base / Enhanced."""
     order = {k: i for i, (k, _, _) in enumerate(keys)}
     meta = {k: (nm, ic) for k, nm, ic in keys}
     names_by_key = {k: nm for k, nm, _ in keys}
@@ -72,9 +75,21 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     own = keys[0][0]
     subjects = [n for n in names if n] + ([nm for k, nm, _ in keys[1:]] if line_names else [])
     per_patch: dict[str, dict] = {}
+    if enhanced:
+        enh = own + '#enh'
+        order[enh] = len(order)
+        meta[enh] = ('Enhanced version', meta[own][1])
+        areas = {**(areas or {}), own: 'base', enh: 'enh'}
+        area_labels = (('base', 'Base'), ('enh', 'Enhanced'))
     for key, _, _ in keys:
         for row, ch in by_ent.get(key, []):
             slot = per_patch.setdefault(row['id'], {'row': row, 'ch': {}, 'lines': {}})
+            if enhanced and key == own:
+                ups = [c for c in ch if str(c.get('label') or '').startswith(_ENHANCED)]
+                if ups:
+                    slot['ch'].setdefault(enh, []).extend(
+                        {**c, 'label': str(c['label'])[len(_ENHANCED):]} for c in ups)
+                ch = [c for c in ch if not str(c.get('label') or '').startswith(_ENHANCED)]
             slot['ch'].setdefault(key, []).extend(ch)
     seen: set[tuple[str, str]] = set()
     for n in subjects:
@@ -97,7 +112,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         open_ = real and opened < OPEN_PATCHES
         opened += open_
         blocks.append(_patch_block(pid, slot, order, meta, names, rel, open_, i >= EAGER_PATCHES, areas, in_dev,
-                                   facts, merge))
+                                   facts, merge, headless_own=enhanced))
     bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels)
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
@@ -154,7 +169,8 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
 
 
 def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str], rel: str, open_: bool,
-                 lazy: bool, areas: dict | None, in_dev: bool, facts: dict, merge=None) -> str:
+                 lazy: bool, areas: dict | None, in_dev: bool, facts: dict, merge=None,
+                 headless_own: bool = False) -> str:
     """One patch = its banner + ONE full-width panel: a sub-header per part, rows below it."""
     from .cards import entity_rows, is_hidden, player_facing, row, sub_head
     from .render import tag_of, tag_summary
@@ -200,7 +216,9 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         if len(order) > 1 and key != list(order)[0] and (areas or {}).get(key, 'abil') in ('abil', 'weapon'):
             facts['abs'].add(key)
         hidden = is_hidden(counted)
-        head = '' if single else sub_head(nm, ic, glyph_for(file, eid), counted, hidden)
+        # an item's own rows need no header naming the item (its Enhanced version gets one)
+        headless = single or (headless_own and key == list(order)[0])
+        head = '' if headless else sub_head(nm, ic, glyph_for(file, eid), counted, hidden)
         cls = 'hgroup' + (' has-hidden' if hidden else '') + (' dev-only' if group_dev else '')
         parts.append(f'<div class="{cls}" data-ab="{esc(eid)}" data-area="{esc(area)}">{head}{g["rows"]}</div>')
     if not parts:
