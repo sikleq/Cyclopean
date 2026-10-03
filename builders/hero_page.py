@@ -3,12 +3,11 @@ tooltip rebuilt from data), the remaining stats as compact panels, and the full
 history grouped by patch and by ability."""
 from __future__ import annotations
 
-import json
 from functools import lru_cache
 import re
 
-from .common import (cosmetics, display_name, entity_icon, esc, glyph_for, hero_icon, icon, img, load_json, mark, page,
-                     pretty_id)
+from .common import (cosmetics, display_name, entity_icon, esc, glyph_for, hero_icon, icon, img, json_attr, load_json,
+                     mark, page, pretty_id)
 from .history_view import history_table  # noqa: F401  (re-exported for entities_pages)
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
@@ -63,8 +62,7 @@ def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
         cls.append('has-hist')
         if str(hist[-1][1])[:10] >= _recent_cutoff():
             cls.append('recent')
-        attrs += (f' data-hist="{esc(json.dumps(hist, separators=(",", ":")))}"'
-                  f' data-title="{esc(name)} · {esc(col["label"])}"')
+        attrs += json_attr('data-hist', hist) + f' data-title="{esc(name)} · {esc(col["label"])}"'
     return ' '.join(cls), attrs
 
 

@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Stats tables: fold groups, cleaner history",
+    "items": [
+      "Click a column group's header (Weapon, Vitality, …) to fold it to its first column; click again to open it.",
+      "The heatmap follows the Boons number; zeros read quieter; search takes several names at once (\"haze, abrams\").",
+      "A cell's history no longer lists steps too small to show at the column's rounding."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Item Stats: one table with filters",
     "items": [
       "Item Stats is one table of the whole shop with chips for Weapon / Spirit / Vitality, the tiers and Active / Passive / Imbue; columns nothing shown fills disappear, so Vitality tier I is 8 rows and 10 columns.",

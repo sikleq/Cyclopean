@@ -455,6 +455,11 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   unreleased work are left out).
 - Hero Stats: group labels left-aligned (visible at each group's start), a right-edge fade while more
   columns are off-screen (`.table-fade`, removed when scrolled to the end).
+- Every stats table (2026-10-03): a click on a group header folds the group to its first column
+  (scripts.js `col-groups`); zeros are quieter (`td.zero`); a cell's history drops steps its rounding
+  cannot show (`tables_pages._same_shown`: Max DPS 122.925 → 122.9251); `data-hist` is single-quoted
+  JSON (`common.json_attr`, no `&quot;`). Boons redraw once per frame and re-rank the heat; the search
+  waits for a pause in typing and takes comma-separated names ("haze, abrams").
 - Item Stats (`tables_pages.items_table`, 2026-10-03, Sloppy's Mana Items): ONE table of the shop
   (Weapon → Spirit → Vitality, by tier), a "Builds" column (component icons → what it builds into),
   chips by category / tier / Active · Passive · Imbue (rows carry `data-cat / data-tier / data-kind`),

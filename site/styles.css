@@ -1551,6 +1551,12 @@ table.dt-rows td:last-child { border-right: 0; }
   background: var(--bg-page); border: 2px solid var(--frame-line); }
 .boons input:focus { outline: none; border-color: var(--patina); }
 table.stats td.boosted { color: var(--patina-strong); font-weight: 600; }
+/* a group header folds its group to the first column (scripts.js col-groups); zeros read quieter */
+table.stats th.cat.foldable { cursor: pointer; }
+table.stats th.cat.foldable:hover { color: var(--text-bright); }
+table.stats th.cat.folded::after { content: " +"; color: var(--patina); }
+table.stats .grp-off { display: none; }
+table.stats td.zero { color: var(--text-dimmer); }
 table.stats tr.role-out { display: none; }
 table.stats td.tint-vit { color: color-mix(in srgb, var(--vitality) 55%, var(--text-main)); }
 table.stats td.tint-wpn { color: color-mix(in srgb, var(--weapon) 45%, var(--text-main)); }

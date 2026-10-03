@@ -598,7 +598,17 @@
           td.classList.toggle('boosted', n > 0);
         });
       }
-      inp.addEventListener('input', apply);
+      // one redraw per frame while the number spins, then the heat re-ranks the new values
+      var pending = false;
+      inp.addEventListener('input', function () {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(function () {
+          pending = false;
+          apply();
+          if (window.__reheat) window.__reheat();
+        });
+      });
     });
   });
 
@@ -677,6 +687,41 @@
     }
   });
 
+  /* ---------- stats tables: a click on a group header folds the group to its first column ---------- */
+  safe('col-groups', function () {
+    document.querySelectorAll('table.stats').forEach(function (table) {
+      var cats = Array.prototype.slice.call(table.querySelectorAll('thead tr.cats th.cat[data-group]'));
+      var heads = Array.prototype.slice.call(table.querySelectorAll('thead tr.cols th[data-group]'));
+      if (cats.length < 2) return;
+      function recount() {
+        cats.forEach(function (th) {
+          var g = th.getAttribute('data-group');
+          var n = heads.filter(function (h) {
+            return h.getAttribute('data-group') === g && getComputedStyle(h).display !== 'none';
+          }).length;
+          if (n) th.colSpan = n;
+        });
+      }
+      cats.forEach(function (th) {
+        th.classList.add('foldable');
+        th.addEventListener('click', function () {
+          var g = th.getAttribute('data-group'), off = !th.classList.contains('folded');
+          th.classList.toggle('folded', off);
+          heads.filter(function (h) { return h.getAttribute('data-group') === g; }).slice(1).forEach(function (h) {
+            var key = h.getAttribute('data-col');
+            h.classList.toggle('grp-off', off);
+            table.querySelectorAll('td[data-col="' + key + '"]').forEach(function (td) { td.classList.toggle('grp-off', off); });
+          });
+          recount();
+        });
+      });
+      // the Details switch shows / hides a whole group: the spans follow
+      document.querySelectorAll('[data-toggle-class="show-details"]').forEach(function (b) {
+        b.addEventListener('click', function () { setTimeout(recount, 0); });
+      });
+    });
+  });
+
   /* ---------- Item Stats: chips by category / tier / kind; columns no shown row fills hide; souls per point ---------- */
   safe('item-filter', function () {
     var table = document.getElementById('items-table');
@@ -730,7 +775,7 @@
       apply();
     });
     var search = bar.querySelector('input[type=search]');
-    if (search) search.addEventListener('input', function () { setTimeout(columns, 0); });
+    if (search) search.addEventListener('searched', columns);     // the search module ran
     // what one point of a stat costs: cost / value (lower is better), back to the values when off
     var per = bar.querySelector('[data-souls-per]');
     if (per) per.addEventListener('change', function () {
@@ -896,13 +941,20 @@
   /* ---------- search: filters elements with data-search ---------- */
   safe('search', function () {
     document.querySelectorAll('input[data-search-target]').forEach(function (input) {
-      var sel = input.getAttribute('data-search-target');
+      var sel = input.getAttribute('data-search-target'), timer = 0;
+      // after a pause in typing (one pass, not one per key); "haze, abrams" finds either (Sloppy's search)
       input.addEventListener('input', function () {
+        clearTimeout(timer);
+        timer = setTimeout(run, 100);
+      });
+      function run() {
         var q = input.value.trim().toLowerCase();
+        var terms = q.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
         var tables = [];
         document.querySelectorAll(sel).forEach(function (el) {
           var hay = (el.getAttribute('data-search') || el.textContent).toLowerCase();
-          el.classList.toggle('hidden-el', q !== '' && hay.indexOf(q) < 0);
+          var hit = !terms.length || terms.some(function (t) { return hay.indexOf(t) >= 0; });
+          el.classList.toggle('hidden-el', !hit);
           var t = el.closest && el.closest('table');
           if (t && tables.indexOf(t) < 0) tables.push(t);
         });
@@ -918,7 +970,8 @@
             sec.classList.toggle('hidden-el', q !== '' && !any);
           });
         });
-      });
+        input.dispatchEvent(new CustomEvent('searched'));
+      }
     });
   });
 })();

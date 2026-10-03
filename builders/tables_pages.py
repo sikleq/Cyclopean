@@ -2,10 +2,9 @@
 hover a cell with a dot for its full change history."""
 from __future__ import annotations
 
-import json
 from typing import Callable
 
-from .common import entity_icon, esc, hero_icon, load_json, page, pretty_id, section_tabs, write
+from .common import entity_icon, esc, hero_icon, json_attr, load_json, page, pretty_id, section_tabs, write
 
 
 # Hero table layout: the group header gives the context, so column headers stay one
@@ -54,6 +53,13 @@ def _fmt(v, digits: int) -> str:
     if '.' in s:
         s = s.rstrip('0').rstrip('.')
     return s
+
+
+def _same_shown(a, b, digits: int) -> bool:
+    """Two values the column prints the same (numbers at its digits; anything else as text)."""
+    if isinstance(a, (int, float)) and isinstance(b, (int, float)):
+        return _fmt(a, digits) == _fmt(b, digits)
+    return a == b
 
 
 RECENT_DAYS = 45      # the corner dot marks values changed this recently; older history is on hover only
@@ -125,12 +131,16 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             tint = COLUMN_TINT.get(c['key'])
             if tint:
                 cls.append(tint)
+            if v == 0 and isinstance(v, (int, float)):
+                cls.append('zero')                  # a zero reads quieter than a number (Sloppy's regen 0)
+            # a step the column's rounding cannot show is not a change to a reader (Max DPS 122.925 ->
+            # 122.9251 sat in Abrams' history, 2026-10-03)
+            hist = [h for h in hist or [] if not _same_shown(h[2], h[3], c['digits'])] or None
             if hist:
                 cls.append('has-hist')
                 if str(hist[-1][1])[:10] >= cutoff:
                     cls.append('recent')
-                attrs += (f' data-hist="{esc(json.dumps(hist, separators=(",", ":")))}"'
-                          f' data-title="{esc(r["name"])} · {esc(c["label"])}"')
+                attrs += json_attr('data-hist', hist) + f' data-title="{esc(r["name"])} · {esc(c["label"])}"'
             cells.append(f'<td class="{" ".join(cls)}"{attrs}>{_fmt(v, c["digits"])}</td>')
         if section_of:
             sec = section_of(r)

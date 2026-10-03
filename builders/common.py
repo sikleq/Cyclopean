@@ -100,6 +100,14 @@ def esc(s) -> str:
     return html.escape('' if s is None else str(s), quote=True)
 
 
+def json_attr(name: str, value) -> str:
+    """ name='[…]': JSON in a single-quoted attribute, its double quotes left as they are (a value's
+    history in a cell — Hero Stats carried ~60 KB of &quot;, 2026-10-03). Only & < > ' are escaped."""
+    import json
+    raw = json.dumps(value, ensure_ascii=False, separators=(',', ':'))
+    return f" {name}='{html.escape(raw, quote=False).replace(chr(39), '&#x27;')}'"
+
+
 def mark(status: str) -> str:
     if status not in STATUS_MARK:
         return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
