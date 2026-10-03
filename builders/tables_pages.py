@@ -273,9 +273,14 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
                 return True
         return False
     fam_cols = []
+    kept: list[str] = []
     for c in cols:
         if c['key'] in shared or not any(u['values'].get(c['key']) is not None for u in tiered):
             continue
+        # a column that repeats an earlier one in every unit says nothing new (Walk = Run on all neutrals)
+        if any(all(u['values'].get(c['key']) == u['values'].get(k) for u in tiered) for k in kept):
+            continue
+        kept.append(c['key'])
         if varies_by_tier(c['key']):
             fam_cols += [{**c, 'key': f'{c["key"]}@{t}', 'label': f'{c["label"]} {t}',
                           'short': f'{c.get("short") or c["label"]} {t}'} for t in tiers]
@@ -342,13 +347,15 @@ def units_table() -> str:
     rel = '../'
     t = load_json('tables/units.json')
 
-    from .unit_families import main_of
+    from .unit_families import is_named, main_of
     ents = [e for e in load_json('entities.json')['entities'] if e['file'] == 'npc_units.vdata' and not e.get('template')]
     main = main_of(ents)
 
     def name_cell(u):
+        from .common import glyph_for, visual
         ic = entity_icon('npc_units.vdata', u['id'], u['kind'], rel)
-        img_html = f'<img class="px" src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
+        # no art: the unit glyph, so every row has its mark (Shrine, Overseer had none, round 3)
+        img_html = visual(ic, glyph_for('npc_units.vdata', u['id']), 'px')
         copies = f'<span class="copies">×{u["copies"]}</span>' if u.get('copies') else ''
         label = unit_label(u)
         if u.get('tier_row'):                  # a row of the tier template: no page of its own
@@ -359,8 +366,9 @@ def units_table() -> str:
 
     groups = []
     for kind, title in UNIT_SECTIONS:
+        # what the Units index shows: named units (unit_families.is_named) with a stat besides a placeholder
         rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
-                and has_stats(u)]
+                and has_stats(u) and is_named(u)]
         if kind == 'neutral':
             groups += neutral_groups(rows, t['columns'], title)
             continue

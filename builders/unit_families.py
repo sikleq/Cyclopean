@@ -17,8 +17,9 @@ _STOP = {'npc', 'neutral', 'citadel'}
 
 def is_named(u: dict) -> bool:
     """The game gives it a name. An unnamed unit (Neutral bug, Rat King's rats, Spider animating) is
-    something the code spawns: it sits with the helpers, off the home feed (advisor, 2026-10-03)."""
-    return bool(u.get('name')) and u['name'] != u['id']
+    something the code spawns: it sits with the helpers, off the home feed (advisor, 2026-10-03). A
+    building is real named or not (the base defense sentry)."""
+    return (bool(u.get('name')) and u['name'] != u['id']) or u.get('kind') == 'building'
 
 
 def family_name(u: dict) -> str:
@@ -59,11 +60,13 @@ def families(units: list[dict]) -> dict[str, list[dict]]:
 
 
 def member_label(u: dict, members: list[dict]) -> str:
-    """'Tier II · dock creature', 'Tier I', 'alt weak' — or the family name for the main one alone."""
-    words = _variant_words(members).get(u['id'], '') if len(members) > 1 else ''
+    """'Tier II' for a tiered family (its variants differ in looks, not stats: "Tier I · trooper" named
+    one of five, advisor round 3), 'alt weak' between untiered copies, the family name for the main one."""
     tier = tier_of(u)
-    parts = ([f'Tier {tier}'] if tier else []) + ([words] if words else [])
-    return ' · '.join(parts) or family_name(u)
+    if tier:
+        return f'Tier {tier}'
+    words = _variant_words(members).get(u['id'], '') if len(members) > 1 else ''
+    return words or family_name(u)
 
 
 def merged_label(labels: list[str], total: int = 0) -> str:

@@ -326,6 +326,29 @@ def pct_grade(pct: float) -> int:
     return 1 + sum(a >= s for s in PCT_STEPS)
 
 
+_MINUS_ONE = re.compile(r'^[-−]1(?:\.0+)?(?:m|s|m/s)?$')       # not "-1%": a real one-percent penalty
+_UNIT_TAIL = re.compile(r'^([-−+]?\d+(?:\.\d+)?)(m/s|m|s|%)$')
+_BARE_NUM = re.compile(r'^[-−+]?\d+(?:\.\d+)?$')
+
+
+def _sentinel(s: str) -> str:
+    """The game's "-1" (no cap, no charge limit, the default) and an empty value, as a reader says them
+    (advisor round 3: "Channel Move Speed 8m → −1" on 29 rows, "Weapon Damage 20% →")."""
+    if s is None or str(s).strip() == '':
+        return '—'
+    return 'no limit' if _MINUS_ONE.match(str(s).strip()) else s
+
+
+def _same_unit(old: str, new: str) -> tuple[str, str]:
+    """"50 → 20m" reads as two kinds of number: the unit goes on both sides."""
+    mo, mn = _UNIT_TAIL.match(str(old)), _UNIT_TAIL.match(str(new))
+    if mn and not mo and _BARE_NUM.match(str(old)):
+        return f'{old}{mn.group(2)}', new
+    if mo and not mn and _BARE_NUM.match(str(new)):
+        return old, f'{new}{mo.group(2)}'
+    return old, new
+
+
 def vals_html(c: dict) -> str:
     op = c.get('op')
     if c.get('cat') in ('visual', 'audio', 'ui'):
@@ -341,6 +364,7 @@ def vals_html(c: dict) -> str:
     if fl:
         return fl
     old_s, new_s = _clip(old_s), _clip(new_s)
+    old_s, new_s = _same_unit(_sentinel(old_s), _sentinel(new_s))
     # rows without a % pill keep its slot (.pct-pad, shown only in change rows), so the new
     # values of every row end on one vertical line
     if op == 'add':

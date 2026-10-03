@@ -52,7 +52,8 @@ def test_unit_families_tiers_and_variants():
     w = fams['Walker']
     assert [member_label(m, w) for m in w] == ['Walker', 'weak', 'alt', 'alt weak']
     b = fams['Barrel Mimic']
-    assert member_label(b[0], b) == 'Tier I · model 1' and member_label(b[-1], b) == 'Tier III · model 2'
+    # a tiered family's variants differ in looks only: the tier names the group (round 3)
+    assert member_label(b[0], b) == 'Tier I' and member_label(b[-1], b) == 'Tier III'
     assert merged_label(['Tier I · model 1', 'Tier I · model 2']) == 'Tier I'
     assert merged_label(['Tier I · model 1', 'Tier II · model 1']) == 'All tiers'
     assert merged_label(['Walker', 'weak', 'alt', 'alt weak'], 4) == 'All variants'
@@ -655,3 +656,12 @@ def test_item_history_puts_the_enhanced_version_in_its_own_group():
     assert 'Enhanced version' in html and 'Enhanced: ' not in html
     assert 'data-f-area="base"' in html and 'data-f-area="enh"' in html
     assert html.count('class="esub') == 1                 # the item's own rows need no header
+
+
+def test_values_say_no_limit_and_carry_their_unit_on_both_sides():
+    """Advisor round 3, 2026-10-03: "Channel Move Speed 8m → −1", "Weapon Damage 20% →", "50 → 20m"."""
+    from builders.render import vals_html
+    assert 'no limit' in vals_html(ch(old_s='8m', new_s='-1', pct=None))
+    assert '>—<' in vals_html(ch(old_s='20%', new_s='', pct=None))
+    assert '>50m<' in vals_html(ch(old_s='50', new_s='20m'))
+    assert '>-1%<' in vals_html(ch(old_s='-2%', new_s='-1%'))           # a real penalty stays a number

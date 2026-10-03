@@ -26,7 +26,8 @@ def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[st
         if owner.startswith('hero_'):
             return f'heroes.vdata:{owner}', 'heroes'
         return None
-    if file == 'npc_units.vdata' and e.get('kind') != 'helper' and e.get('name') and e['name'] != eid:
+    named = (e.get('name') and e['name'] != eid) or e.get('kind') == 'building'     # unit_families.is_named
+    if file == 'npc_units.vdata' and e.get('kind') != 'helper' and named:
         # a unit's page is its family's (unit_families: the five Gutter Ghouls I are one page)
         return f'npc_units.vdata:{(unit_main or {}).get(eid, eid)}', 'units'
     return None
@@ -114,19 +115,26 @@ def build_all() -> int:
     ents = load_json('entities.json')['entities']
     names = {f"{e['file']}:{e['id']}": display_name(e) for e in ents}
     templates = frozenset(f"{e['file']}:{e['id']}" for e in ents if e.get('template'))
-    from .unit_families import families
+    from .unit_families import families, is_named
     fams = families([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
     unit_main = {m['id']: ms[0]['id'] for ms in fams.values() for m in ms}
     names |= {f"npc_units.vdata:{ms[0]['id']}": name for name, ms in fams.items()}     # "Slum Shroom", not "… I"
-    total_hidden = sum(p['counts'].get('hidden', 0) for p in patches)
+    # the counters count what the hero / item / unit pages show (round 3: "8620 hidden" counted engine
+    # plumbing and work on unreleased heroes too)
+    total, total_hidden = 0, 0
+    for row in patches:
+        for sec in update_feed(load_json(f'patches/{row["id"]}.json.gz'), templates, unit_main).values():
+            total += sum(s['n'] for s in sec.values())
+            total_hidden += sum(s['hidden'] for s in sec.values())
     last_build = builds[-1] if builds else None
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
     counts = {'heroes': len(heroes),
               # what the shop sells now (the tiers 1-4 on the Shop page)
               'items': sum(1 for i in shop if not i.get('disabled') and not i.get('street_brawl')
                            and str(i.get('tier')) in '1234'),
-              'units': sum(1 for e in ents if e['file'] == 'npc_units.vdata' and e.get('alive')
-                           and e.get('kind') != 'helper' and not e.get('template'))}
+              # the unit families the Units index shows (unit_families)
+              'units': sum(1 for ms in fams.values() if ms[0].get('alive') and ms[0].get('kind') != 'helper'
+                           and is_named(ms[0]))}
     faces = [hero_icon(h['id'], '') or '' for h in heroes]
     # the units a player meets first: the objectives, then troopers and neutrals with their own icon
     order = {'building': 0, 'trooper': 1, 'neutral': 2}
@@ -139,8 +147,8 @@ def build_all() -> int:
 <div class="home-top">
   <div class="home-brand"><span class="mark hidden">{EYE_SVG}</span><h1>Cyclopean</h1></div>
   <div class="home-stats">
-    <div class="hs"><span class="n">{len(builds)}</span><span class="l">builds compared</span></div>
-    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">hidden changes</span></div>
+    <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
+    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">not in the notes</span></div>
   </div>
 </div>
 {_tiles(counts, faces, unit_art)}

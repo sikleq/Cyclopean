@@ -56,7 +56,8 @@ def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str
 
 # engine plumbing that reached a gameplay category: '{}' blocks, ENUM_CONSTANTS, ETypeNames
 _ENGINE_VALUE = re.compile(r'^\{\}$|^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$|^E[A-Z][a-zA-Z]+(?:_[A-Za-z]+)*$')
-_ENGINE_LABEL = re.compile(r'\b(scaling stats|roster|layout|background|css|panel|particle)\b', re.I)
+# "Viewer Souls Class › 0 weak_to_viewer": how a neutral's souls show to spectators (2026-10-03)
+_ENGINE_LABEL = re.compile(r'\b(scaling stats|roster|layout|background|css|panel|particle|viewer)\b', re.I)
 
 
 def merge_renames(changes: list[dict]) -> list[dict]:
@@ -106,6 +107,11 @@ def _num(v) -> float | None:
 # names (advisor, 2026-10-03: 452 "Behaviour" rows, 97 pellet offsets, Walker's weak-point joints)
 _ENGINE_TOKENS = re.compile(r'^[A-Z][A-Z0-9_]+(?:\s*\|\s*[A-Z][A-Z0-9_]+)+$|\bPBF_\w+|\bk_e[A-Z]\w+|\bjoint_\w+')
 _ENGINE_PATH = re.compile(r'm_vecScatterOffsets|m_vecWeakPoints\{[^}]*\}\.m_strName')
+# a unit's AI wiring (advisor round 3, 2026-10-03: a new Gutter Ghoul's page was mostly these); its
+# health, damage, range, speed, bounty, resists and abilities stay
+_NPC_AI_LABEL = re.compile(r'^(?:Attack Range Target|Non Move Attack Duration|Cap Simultan|Face Enemy While Idle|'
+                           r'Npc Aiming Spread|Weak Point (?:Count|Respawn Time)|Ability Chance\s*\d|Sweep|Model Scale|'
+                           r'Jump Up Base Cost|Track Out Of Combat|Melee Attack Points)', re.I)
 NOTED = ('documented', 'described', 'rounded', 'mismatch')
 
 
@@ -119,6 +125,8 @@ def is_engine(c: dict) -> bool:
     # what the notes talked about stays, however it is spelled in the files ("No longer interrupts sliding")
     if c.get('status') in NOTED:
         return False
+    if str(c.get('file') or c.get('key') or '').startswith('npc_units.vdata') and _NPC_AI_LABEL.match(str(c.get('label') or '')):
+        return True
     return bool(_ENGINE_PATH.search(str(c.get('path') or ''))) or (
         bool(vals) and any(_ENGINE_TOKENS.search(v) for v in vals))
 

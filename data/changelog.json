@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Cleaner unit pages and values",
+    "items": [
+      "A neutral's AI wiring (attack range target, aiming spread, ability chances, weak-point respawns…) no longer fills its history; health, damage, range, speed, bounty, resists and abilities stay.",
+      "Values read as players say them: \"-1\" is \"no limit\", an empty new value is a dash, and both sides carry the unit (50m → 20m).",
+      "A unit family's groups are named by tier (\"Tier I\", not \"Tier I · trooper\"); a patch's banner says \"all 5 hidden\".",
+      "Units index and Unit Stats agree: the base defense sentry is a building, unnamed units are in neither, Walk Speed no longer repeats Run Speed, every row has its mark.",
+      "The history filters scroll away with the page; the home counters count what the pages show: 12,679 changes, 4,774 of them not in the notes."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Quieter history, fixed tier speeds",
     "items": [
       "A patch the notes never mentioned shows one eye on its banner (\"all hidden\") instead of an eye on every row.",

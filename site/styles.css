@@ -574,7 +574,9 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }
 .hblocks .f-out { display: none !important; }
-.hist-bar { flex-wrap: wrap; row-gap: 8px; margin: 4px 0 14px; }
+/* the history toolbar scrolls away like Sloppy's (only the site bar stays): stuck, it took 82-102px of a
+   900px window (advisor round 3) */
+.hist-bar { position: static; flex-wrap: wrap; row-gap: 8px; margin: 4px 0 14px; }
 .hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hist-bar .hf-tags .tag { cursor: pointer; border: 0; }
 .hist-bar .hf-tags .tag.on { box-shadow: 0 0 0 2px var(--text-bright); }
@@ -1395,6 +1397,8 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 #heroes-grid:not(.show-pre) .hgcard.pre { display: none; }
 #units-grid:not(.show-gone) .card.gone { display: none; }
 #units-grid:not(.show-helpers) .helper-group { display: none; }
+/* the helper group counts and shows its removed entries itself (the two switches never overlap) */
+#units-grid.show-helpers .helper-group .card.gone { display: flex; }
 details.fold-group > summary { cursor: pointer; list-style: none; }
 details.fold-group > summary::-webkit-details-marker { display: none; }
 details.fold-group > summary::before { content: "+ "; color: var(--patina); }

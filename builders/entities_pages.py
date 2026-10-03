@@ -251,7 +251,8 @@ def build_all() -> dict[str, int]:
         wrap = ' class="helper-group"' if kind == 'helper' else ''
         groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
                       + ''.join(cards_html) + '</div></div>')
-    n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive'))
+    # the two switches count apart (round 3: "Removed 39" and "Unnamed & helpers 65" overlapped)
+    n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive') and group_of(ms) != 'helper')
     n_helpers = sum(1 for ms in fams.values() if group_of(ms) == 'helper')
     gone_switch = ''.join(
         f'<label class="switch"><input type="checkbox" data-toggle-class="{cls}" data-target="#units-grid">'

@@ -227,8 +227,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
     # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
-    word = 'all hidden' if all_hidden else 'hidden'
-    chips = f'<span class="chip eye-chip">{mark("hidden")}{n_hidden} {word}</span>' if n_hidden else ''
+    text = f'all {n_hidden} hidden' if all_hidden else f'{n_hidden} hidden'
+    chips = f'<span class="chip eye-chip">{mark("hidden")}{text}</span>' if n_hidden else ''
     hidden_cls = ' has-hidden' + (' all-hidden' if all_hidden else '') if n_hidden else ''
     dev_cls = ' dev-only' if all_dev and not in_dev else ''
     cls = ' named' if patch_name(hdr['title']) else ''
