@@ -15,6 +15,12 @@ TIER_RANK = {'I': 1, 'II': 2, 'III': 3, 'IV': 4, 'V': 5}
 _STOP = {'npc', 'neutral', 'citadel'}
 
 
+def is_named(u: dict) -> bool:
+    """The game gives it a name. An unnamed unit (Neutral bug, Rat King's rats, Spider animating) is
+    something the code spawns: it sits with the helpers, off the home feed (advisor, 2026-10-03)."""
+    return bool(u.get('name')) and u['name'] != u['id']
+
+
 def family_name(u: dict) -> str:
     """'Slum Shroom II' -> 'Slum Shroom'; a unit without a localized name is its own family."""
     return _TIER.sub('', display_name(u))

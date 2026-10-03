@@ -102,12 +102,25 @@ def _num(v) -> float | None:
     return float(m.group(1)) if m else None
 
 
+# the engine's own vocabulary in a value: flag sets "A | B", projectile flags PBF_*, k_e* enums, bone
+# names (advisor, 2026-10-03: 452 "Behaviour" rows, 97 pellet offsets, Walker's weak-point joints)
+_ENGINE_TOKENS = re.compile(r'^[A-Z][A-Z0-9_]+(?:\s*\|\s*[A-Z][A-Z0-9_]+)+$|\bPBF_\w+|\bk_e[A-Z]\w+|\bjoint_\w+')
+_ENGINE_PATH = re.compile(r'm_vecScatterOffsets|m_vecWeakPoints\{[^}]*\}\.m_strName')
+NOTED = ('documented', 'described', 'rounded', 'mismatch')
+
+
 def is_engine(c: dict) -> bool:
     if c.get('cat') == 'availability':      # "Pre Release", "Disabled": never plumbing
         return False
     vals = [str(c.get(k) or '').strip() for k in ('old_s', 'new_s')]
     vals = [v for v in vals if v and v != '—']
-    return bool(vals) and all(_ENGINE_VALUE.match(v) for v in vals) or bool(_ENGINE_LABEL.search(str(c.get('label'))))
+    if bool(vals) and all(_ENGINE_VALUE.match(v) for v in vals) or bool(_ENGINE_LABEL.search(str(c.get('label')))):
+        return True
+    # what the notes talked about stays, however it is spelled in the files ("No longer interrupts sliding")
+    if c.get('status') in NOTED:
+        return False
+    return bool(_ENGINE_PATH.search(str(c.get('path') or ''))) or (
+        bool(vals) and any(_ENGINE_TOKENS.search(v) for v in vals))
 
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')

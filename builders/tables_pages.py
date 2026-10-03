@@ -260,18 +260,47 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
     families: dict[str, list[dict]] = {}
     for u in tiered:
         families.setdefault(family_name(u), []).append(u)
+    # what differs between families: one column, or one per tier where a family's tiers differ too
+    # (Gutter Ghoul runs 3.81 / 3.05 / 2.03 — the table showed tier I's 3.81 for all, advisor 10-03)
+    tiers = sorted(by_tier, key=len)
+
+    def varies_by_tier(key: str) -> bool:
+        for fam in families.values():
+            per: dict[str, object] = {}
+            for u in fam:
+                per.setdefault(tier_of(u), u['values'].get(key))
+            if len(set(per.values())) > 1:
+                return True
+        return False
+    fam_cols = []
+    for c in cols:
+        if c['key'] in shared or not any(u['values'].get(c['key']) is not None for u in tiered):
+            continue
+        if varies_by_tier(c['key']):
+            fam_cols += [{**c, 'key': f'{c["key"]}@{t}', 'label': f'{c["label"]} {t}',
+                          'short': f'{c.get("short") or c["label"]} {t}'} for t in tiers]
+        else:
+            fam_cols.append(c)
     fam_rows = []
     for name, us in sorted(families.items()):
-        first = min(us, key=lambda u: (len(tier_of(u)), u['id']))
-        own = {k: v for k, v in first['values'].items() if k not in shared}
-        fam_rows.append({**first, 'name': name,
-                         'history': {k: v for k, v in (first.get('history') or {}).items() if k not in shared},
-                         'values': own})
+        by_t = {}
+        for u in sorted(us, key=lambda u: u['id']):
+            by_t.setdefault(tier_of(u), u)
+        values, history = {}, {}
+        for c in fam_cols:
+            base, _, t = c['key'].partition('@')
+            src = by_t.get(t) if t else by_t.get(tiers[0])
+            if src:
+                values[c['key']] = src['values'].get(base)
+                if (src.get('history') or {}).get(base):
+                    history[c['key']] = src['history'][base]
+        first = by_t.get(tiers[0]) or us[0]
+        fam_rows.append({**first, 'name': name, 'values': values, 'history': history})
     out = []
     if tier_rows:
         out.append(('neutral', f'{esc(title)} · tiers', tier_rows))
     if fam_rows:
-        out.append(('neutral', f'{esc(title)} · families', merge_copies(fam_rows)))
+        out.append(('neutral', f'{esc(title)} · families', merge_copies(fam_rows), fam_cols))
     if other:
         out.append(('neutral', f'{esc(title)} · others', merge_copies(sorted(other, key=lambda u: unit_label(u).lower()))))
     return out
@@ -294,14 +323,17 @@ def merge_copies(rows: list[dict]) -> list[dict]:
 
 def _section_tables(groups: list[tuple[str, str, list[dict]]], cols: list[dict], name_cell, name_title: str,
                     as_of: str | None, section_of=None) -> str:
-    """One banner + table per group, each with only the columns its rows fill."""
+    """One banner + table per group, each with only the columns its rows fill; a group may bring its own
+    columns as a 4th element (the neutral families' per-tier speeds)."""
     out = []
-    for key, title, rows in groups:
+    for group in groups:
+        key, title, rows = group[:3]
+        own_cols = group[3] if len(group) > 3 else cols
         if not rows:
             continue
         out.append(f'<div class="banner sub tbl-sec {esc(key)}"><span class="bt">{title}</span>'
                    f'<span class="bc">{len(rows)}</span></div>'
-                   + render_table(non_empty(cols, rows), rows, name_cell, name_title, as_of=as_of,
+                   + render_table(non_empty(own_cols, rows), rows, name_cell, name_title, as_of=as_of,
                                   section_of=section_of))
     return ''.join(out)
 

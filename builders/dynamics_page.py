@@ -224,7 +224,9 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
 
 def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
     target = f'#dyn-{kind}'
-    tags = ''.join(f'<button class="tag {t}" data-toggle-class="hide-{t}" data-target="{target}">{t.upper()}</button>'
+    # a tag chip SELECTS (only these tags), the same as on a hero / item / unit page (advisor 10-03: here
+    # "on" used to hide the tag)
+    tags = ''.join(f'<button class="tag {t}" data-dyn-tag="{t}" data-target="{target}">{t.upper()}</button>'
                    for t in ('buff', 'nerf', 'new', 'del', 'rework', 'mech', 'up', 'down'))
     rows_switch = (f'<label class="switch"><input type="checkbox" data-toggle-class="show-extra" data-target="{target}">'
                    f'<span class="track"></span>{esc(hidden_label)} <span class="n">{n_hidden_rows}</span></label>'
@@ -259,14 +261,15 @@ def unit_entries(units: list[dict], groups: tuple[tuple[str, str], ...], rel: st
     """A row per unit FAMILY (unit_families: Slum Shroom I-III, the four Walkers) in the order of the Units
     index (buildings, troopers, neutrals, others); removed ones and helpers hide."""
     from .common import slug
-    from .unit_families import families
+    from .unit_families import families, is_named
     order = {k: i for i, (k, _) in enumerate(groups)}
     out = []
     fams = sorted(families(units).items(),
                   key=lambda kv: (order.get(kv[1][0].get('kind'), len(order)), kv[0].lower()))
     for name, members in fams:
         u = members[0]
-        hidden = not u.get('alive') or u.get('kind') == 'helper'      # removed, or Hideout / bots / effects
+        # removed, Hideout / bots / effects, or unnamed (the code's own spawns)
+        hidden = not u.get('alive') or u.get('kind') == 'helper' or not is_named(u)
         out.append((f'unit:{u["id"]}', name, entity_icon(u['file'], u['id'], u.get('kind') or 'unit', rel),
                     slug(u['file'], u['id']).split('/', 1)[1], 'extra' if hidden else ''))
     return out

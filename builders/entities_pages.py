@@ -9,7 +9,7 @@ from .render import KIND_LABEL
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
-               ('unit', 'Other units'), ('helper', 'Hideout, bots & effects'))
+               ('unit', 'Other units'), ('helper', 'Unnamed, hideout, bots & effects'))
 SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vitality', 'EItemSlotType_Tech': 'Spirit'}
 
 
@@ -96,17 +96,29 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
             f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])})</div></div></div>')
-    # today's stats: one table per tier (the variants of a tier share them), folded under one line
-    shown, tables = set(), []
+    # today's stats folded under one line: a tiered family as ONE table, a stat per row, a tier per column
+    # (three stacked panels repeated every label, advisor 10-03); others as before
+    by_tier: dict[str, dict] = {}
     for m in members:
-        row = urow.get(m['id'])
-        t = tier_of(m)
-        if row and t not in shown:
-            shown.add(t)
-            title = f'<h3 class="now-h">Tier {esc(t)}</h3>' if t else ''
-            tables.append(title + stat_tables(row, cols, display_name(m), rel))
+        if urow.get(m['id']) and tier_of(m) not in by_tier:
+            by_tier[tier_of(m)] = urow[m['id']]
+    if len(by_tier) > 1:
+        from .tables_pages import _fmt
+        tiers_sorted = sorted(by_tier, key=lambda t: TIER_RANK.get(t, 0))
+        body_rows = []
+        for c in cols:
+            vals = [by_tier[t]['values'].get(c['key']) for t in tiers_sorted]
+            if all(v is None for v in vals):
+                continue
+            body_rows.append(f'<tr><td>{esc(c["label"])}</td>' + ''.join(f'<td class="v">{_fmt(v, c["digits"])}</td>'
+                                                                       for v in vals) + '</tr>')
+        head_row = '<tr><th></th>' + ''.join(f'<th>Tier {esc(t)}</th>' for t in tiers_sorted) + '</tr>'
+        stats_html = f'<table class="kvt tier-grid"><thead>{head_row}</thead><tbody>{"".join(body_rows)}</tbody></table>'
+    else:
+        row = next((urow.get(m['id']) for m in members if urow.get(m['id'])), None)
+        stats_html = stat_tables(row, cols, name, rel) if row else ''
     stats = (f'<details class="now px-frame"><summary>Current stats</summary><div class="now-body">'
-             f'{"".join(tables)}</div></details>') if tables else ''
+             f'{stats_html}</div></details>') if stats_html else ''
     # the members, then their own abilities and guns (B10: Walker's 120 ability rows were on no unit
     # page); ability names don't pull note lines in — "Rocket Barrage" is also a hero's
     keys = [(f'npc_units.vdata:{m["id"]}', member_label(m, members) if len(members) > 1 else name,
@@ -208,8 +220,12 @@ def build_all() -> dict[str, int]:
         for uid in e.get('units') or ():
             bound[uid].append(e)
     # one page and one card per unit family (unit_families); the other members point to it
-    from .unit_families import families, tier_of
+    from .unit_families import families, is_named, tier_of
     fams = families(units)
+
+    def group_of(ms: list[dict]) -> str:
+        """An unnamed unit the code spawns sits with the helpers (unit_families.is_named)."""
+        return ms[0]['kind'] if is_named(ms[0]) else 'helper'
     for name, members in fams.items():
         main = members[0]
         page_path = slug(main['file'], main['id'])
@@ -219,7 +235,7 @@ def build_all() -> dict[str, int]:
         counts['units'] += 1
     groups = []
     for kind, title in UNIT_GROUPS:
-        sel = sorted(((n, ms) for n, ms in fams.items() if ms[0]['kind'] == kind),
+        sel = sorted(((n, ms) for n, ms in fams.items() if group_of(ms) == kind),
                      key=lambda kv: (not kv[1][0].get('alive'), kv[0]))
         if not sel:
             continue
@@ -235,11 +251,11 @@ def build_all() -> dict[str, int]:
         groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
                       + ''.join(cards_html) + '</div></div>')
     n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive'))
-    n_helpers = sum(1 for ms in fams.values() if ms[0]['kind'] == 'helper')
+    n_helpers = sum(1 for ms in fams.values() if group_of(ms) == 'helper')
     gone_switch = ''.join(
         f'<label class="switch"><input type="checkbox" data-toggle-class="{cls}" data-target="#units-grid">'
         f'<span class="track"></span>{label} <span class="n">{n}</span></label>'
-        for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', 'Hideout, bots & effects', n_helpers)) if n)
+        for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', 'Unnamed & helpers', n_helpers)) if n)
     gone_switch = f'<span class="sep"></span>{gone_switch}' if gone_switch else ''
     body = ('<h1>Units</h1>' + sub_tabs('units', 'index')
             + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'

@@ -302,7 +302,8 @@
                   td.parentNode.classList.contains('extra'), false];
         }));
       var part = table.getAttribute('data-part') || 'all';
-      var hidden = order.filter(function (t) { return table.classList.contains('hide-' + t); });
+      var sel = table.__sel || [];
+      var hidden = sel.length ? order.filter(function (t) { return sel.indexOf(t) < 0; }) : [];
       var showOld = table.classList.contains('show-old'), showExtra = table.classList.contains('show-extra');
       list.forEach(function (pair) {
         var a = pair[0], c = pair[1];
@@ -332,12 +333,15 @@
         redraw(table);
       });
     });
-    // tag buttons toggle "hide-<tag>" on the table (generic toggle): redraw after it ran
-    document.querySelectorAll('.dyn-tags [data-toggle-class]').forEach(function (btn) {
+    // tag chips select: only the chosen tags colour the tiles (none chosen = all), as on an entity page
+    document.querySelectorAll('.dyn-tags [data-dyn-tag]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var table = document.querySelector(btn.getAttribute('data-target'));
-        var tag = (btn.getAttribute('data-toggle-class') || '').replace('hide-', '');
-        if (table) setTimeout(function () { redraw(table, tag); }, 0);
+        if (!table) return;
+        var sel = table.__sel || (table.__sel = []), tag = btn.getAttribute('data-dyn-tag'), i = sel.indexOf(tag);
+        if (i >= 0) sel.splice(i, 1); else sel.push(tag);
+        btn.classList.toggle('on', i < 0);
+        redraw(table);
       });
     });
     // old columns / hidden rows coming into sight: draw the tiles a filter skipped
@@ -840,14 +844,23 @@
       var onlyHidden = box.classList.contains('only-hidden'), dev = box.classList.contains('show-dev');
       box.classList.toggle('filtering', !!active);
       var blocks = box.querySelectorAll('details.pblock');
-      if (active) blocks.forEach(stamp);
+      // a band still in its <template> says what it holds (data-tags / -abs / -areas): one that cannot
+      // match is folded away unstamped (the first filter stamped all 33 of Calico's)
+      function mayMatch(b) {
+        var has = function (attr, v) { return (' ' + (b.getAttribute(attr) || '') + ' ').indexOf(' ' + v + ' ') >= 0; };
+        return !(state.tags.length && !state.tags.some(function (t) { return has('data-tags', t); })) &&
+               !(state.ab && !state.ab.split(' ').some(function (id) { return has('data-abs', id); })) &&
+               !(state.area && !has('data-areas', state.area));
+      }
       blocks.forEach(function (b) {
+        if (active && b.querySelector('template.hp-t') && !mayMatch(b)) { b.classList.add('f-out'); return; }
+        if (active) stamp(b);
         if (!active && !b.querySelector('.f-out')) { b.classList.remove('f-out'); return; }
         var any = false;
         b.querySelectorAll('.hgroup').forEach(function (g) {
           // a merged group belongs to several parts ("t1 t2 t3": the same change on every tier)
           var gok = (!state.area || (' ' + g.getAttribute('data-area') + ' ').indexOf(' ' + state.area + ' ') >= 0) &&
-                    (!state.ab || g.getAttribute('data-ab') === state.ab);
+                    (!state.ab || (' ' + state.ab + ' ').indexOf(' ' + g.getAttribute('data-ab') + ' ') >= 0);
           var gany = false;
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
@@ -872,7 +885,13 @@
     // #ab-<ability id> (an ability card's "History" link, Sloppy's ?ability=) filters to that ability
     function fromHash() {
       if (location.hash.indexOf('#ab-') !== 0) return;
-      state.ab = decodeURIComponent(location.hash.slice(4));
+      var id = decodeURIComponent(location.hash.slice(4));
+      // the chip that holds this id (one chip may stand for namesakes: "id1 id2")
+      var chip = Array.prototype.filter.call(bar.querySelectorAll('[data-f-ab]'), function (b) {
+        return b.getAttribute('data-f-ab').split(' ').indexOf(id) >= 0;
+      })[0];
+      state.ab = chip ? chip.getAttribute('data-f-ab') : id;
+      if (chip && chip.classList.contains('gone')) chip.parentNode.classList.add('show-gone');
       bar.querySelectorAll('[data-f-ab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-ab') === state.ab); });
       apply();
       box.scrollIntoView({ block: 'start' });

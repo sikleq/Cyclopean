@@ -1,6 +1,17 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Quieter history, fixed tier speeds",
+    "items": [
+      "A patch the notes never mentioned shows one eye on its banner (\"all hidden\") instead of an eye on every row.",
+      "Engine flags, projectile flags, pellet offsets and bone names are gone from the pages unless the notes talked about them (about 500 rows).",
+      "Ability filters: abilities with the same name are one chip, removed abilities fold behind \"Removed\", and filtering opens only the patches that can match.",
+      "Unit Stats shows the neutral families' speed per tier (Gutter Ghoul runs 3.81 / 3.05 / 2.03, not 3.81 for all), and a family page lists its stats as one table with a column per tier.",
+      "Matrix tag chips now pick the tags to show, as on hero, item and unit pages; unnamed units (Rat King's rats, bugs) moved to the \"Unnamed & helpers\" switch and off the home page."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Stats tables: fold groups, cleaner history",
     "items": [
       "Click a column group's header (Weapon, Vitality, …) to fold it to its first column; click again to open it.",

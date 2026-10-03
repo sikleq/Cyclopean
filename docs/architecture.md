@@ -362,6 +362,13 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   "In development" (work on a hero before release: rows `st-unreleased`, groups / bands `dev-only`;
   shown by default only while the hero itself is in development). A patch with a match opens; a band
   left empty folds away.
+- Round 2 (advisor, 2026-10-03): a band where every row is hidden carries ONE eye, on its banner
+  (`pblock.all-hidden`; the eye sat on 46% of hero rows); engine vocabulary — flag sets "A | B",
+  `PBF_*`, `k_e*`, bone names, pellet `m_vecScatterOffsets` — is plumbing (`cards.is_engine`) unless a
+  note line covered the change; ability chips merge namesakes (`data-f-ab="id1 id2"`), removed ones
+  fold behind "Removed (N)", a chip without art shows its name; a lazy band carries `data-tags /
+  -abs / -areas` so a filter stamps only bands that can match. Matrix tag chips SELECT (as here), not
+  hide. Unnamed units (`unit_families.is_named`) sit with the helpers and stay off the home feed.
 - Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).
@@ -393,7 +400,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   members whose rows in a patch are identical are one group ("Tier I", "All tiers", "All variants";
   `history_view` `merge`); the part buttons are the tiers. Unit Stats: the neutral camps are a TIER
   table (what every family shares per tier: health, damage, bounty) + a FAMILY table (a row per family,
-  only the columns that differ: range, speed) + the others (Mid-Boss, Sinner's Sacrifice); rows with no
+  only the columns that differ: range; speeds a column per tier where a family's tiers differ, "Run
+  Speed I / II / III") + the others (Mid-Boss, Sinner's Sacrifice); a family page's "Current stats" is
+  one table, a stat per row and a tier per column (`table.tier-grid`); rows with no
   stat but a 1-HP placeholder are dropped (`tables_pages.has_stats`). Removed units hide behind a
   "Removed" switch. Helpers — the
   Hideout's toys, the bots' brain, entries with only a model / particles / sounds and not one gameplay

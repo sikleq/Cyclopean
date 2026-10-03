@@ -480,7 +480,8 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     # one tile per cell (no split, owner 10-01); the part counts ride in the data for the filter
     assert 'dsq split' not in html and 'tr class="sub' not in html and '{"abil":{"nerf":1}' in html
     bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
-    assert 'show-old' in bar and 'bvn' in bar and 'hide-buff' in bar and 'show-extra' in bar
+    # tag chips select (only these tags), as on an entity page — not "hide this tag"
+    assert 'show-old' in bar and 'bvn' in bar and 'data-dyn-tag="buff"' in bar and 'show-extra' in bar
     assert 'data-part="weapon"' in bar and 'data-part="all"' in bar
 
 
@@ -629,3 +630,16 @@ def test_entity_history_rows_marks_filters_and_lazy_blocks(monkeypatch):
     assert 'pblock dev-only' in html and 'In development' in html
     released = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas, in_dev=True)
     assert 'dev-only' not in released and 'hblocks show-dev' in released
+
+
+def test_engine_vocabulary_stays_off_the_pages_unless_the_notes_spoke():
+    """2026-10-03 advisor: 452 'Behaviour' flag rows, pellet offsets, Walker's weak-point joints read as
+    noise; a flag change a note line covers ("No longer interrupts sliding") stays."""
+    from builders.cards import is_engine
+    flags = {'cat': 'mechanic', 'label': 'Behaviour', 'status': 'hidden',
+             'old_s': 'CITADEL_ABILITY_BEHAVIOR_A', 'new_s': 'CITADEL_ABILITY_BEHAVIOR_A | CITADEL_ABILITY_BEHAVIOR_B'}
+    assert is_engine(flags) and not is_engine({**flags, 'status': 'described'})
+    assert is_engine({'cat': 'mechanic', 'label': 'Projectile › Behaviour', 'old_s': 'PBF_StickToWorld', 'new_s': None})
+    assert is_engine({'cat': 'mechanic', 'label': 'Scatter Offsets[3]', 'path': 'm_mapWeaponInfos.primary.m_vecScatterOffsets[3]',
+                      'old_s': '2, 0', 'new_s': None})
+    assert not is_engine({'cat': 'balance', 'label': 'Silence Duration', 'old_s': None, 'new_s': '0.3'})

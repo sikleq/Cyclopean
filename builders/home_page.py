@@ -26,7 +26,7 @@ def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[st
         if owner.startswith('hero_'):
             return f'heroes.vdata:{owner}', 'heroes'
         return None
-    if file == 'npc_units.vdata' and e.get('kind') != 'helper':
+    if file == 'npc_units.vdata' and e.get('kind') != 'helper' and e.get('name') and e['name'] != eid:
         # a unit's page is its family's (unit_families: the five Gutter Ghouls I are one page)
         return f'npc_units.vdata:{(unit_main or {}).get(eid, eid)}', 'units'
     return None

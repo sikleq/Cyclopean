@@ -122,16 +122,29 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
             if a in facts['areas']) + '</span>')
     chips = [(k, nm, ic) for k, nm, ic in keys[1:] if k in facts['abs']]
     if len(chips) > 1:
-        now = [c for c in chips if c[0] not in gone]
-        old = [c for c in chips if c[0] in gone]
+        # one chip per name (Calico's two "Queen of Shadows"), the current ones in slot order; removed ones
+        # fold behind "Removed (N)" (13 of Calico's 18 chips, advisor 10-03); no art -> the name as text
+        def merged(sel: list[tuple]) -> list[tuple[list[str], str, str | None]]:
+            by_name: dict[str, list] = {}
+            for k, nm, ic in sel:
+                slot = by_name.setdefault(nm, [[], nm, ic])
+                slot[0].append(k)
+                slot[2] = slot[2] or ic
+            return [tuple(v) for v in by_name.values()]
+        now = merged([c for c in chips if c[0] not in gone])
+        now_names = {c[1] for c in now}
+        old = [c for c in merged([c for c in chips if c[0] in gone]) if c[1] not in now_names]
 
-        def chip(k: str, nm: str, ic: str | None, cls: str = '') -> str:
-            file, _, eid = k.partition(':')
-            return (f'<button class="hf-ab{cls}" data-f-ab="{esc(eid)}" data-tooltip="{esc(nm)}" aria-label="{esc(nm)}">'
-                    f'{visual(ic, glyph_for(file, eid), "px")}</button>')
-        parts.append('<span class="hf-abs">' + ''.join(chip(*c) for c in now)
-                     + ('<span class="sep"></span>' + ''.join(chip(*c, ' gone') for c in old) if old else '')
-                     + '</span>')
+        def chip(ks: list[str], nm: str, ic: str | None, cls: str = '') -> str:
+            eids = ' '.join(k.partition(':')[2] for k in ks)
+            inner = visual(ic, '', 'px') if ic else f'<span class="hf-txt">{esc(nm)}</span>'
+            return (f'<button class="hf-ab{cls}{"" if ic else " txt"}" data-f-ab="{esc(eids)}" data-tooltip="{esc(nm)}" '
+                    f'aria-label="{esc(nm)}">{inner}</button>')
+        gone_html = ''
+        if old:
+            gone_html = (f'<button class="px-btn hf-gone-btn" data-toggle-class="show-gone" data-target=".hf-abs">'
+                         f'Removed <span class="n">{len(old)}</span></button>' + ''.join(chip(*c, ' gone') for c in old))
+        parts.append('<span class="hf-abs">' + ''.join(chip(*c) for c in now) + gone_html + '</span>')
     if facts['dev'] and not in_dev:
         parts.append(f'<label class="switch"><input type="checkbox" data-toggle-class="show-dev" data-target="#history">'
                      f'<span class="track"></span>In development <span class="n">{facts["dev"]}</span></label>')
@@ -193,16 +206,28 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     if not parts:
         return ''
     n_hidden = sum(1 for c in counted_all if c.get('status') == 'hidden')
-    chips = f'<span class="chip eye-chip">{mark("hidden")}{n_hidden} hidden</span>' if n_hidden else ''
-    hidden_cls = ' has-hidden' if n_hidden else ''
+    # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
+    # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)
+    all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
+    word = 'all hidden' if all_hidden else 'hidden'
+    chips = f'<span class="chip eye-chip">{mark("hidden")}{n_hidden} {word}</span>' if n_hidden else ''
+    hidden_cls = ' has-hidden' + (' all-hidden' if all_hidden else '') if n_hidden else ''
     dev_cls = ' dev-only' if all_dev and not in_dev else ''
     cls = ' named' if patch_name(hdr['title']) else ''
     summary = (f'<summary class="banner{cls}">'
                f'<span class="bt"><a href="{rel}patches/{esc(pid)}.html">{patch_title_html(hdr)}</a></span>'
                f'<span class="bc">{tag_summary(counted_all)}{chips}</span></summary>')
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'
+    meta_attrs = ''
     if lazy:
         panel = f'<template class="hp-t">{panel}</template>'
+        # what the band holds, so a filter skips stamping a band that cannot match
+        tags = {tag_of(c)[0] for g in groups for c in player_facing(g['changes'])}
+        tags |= {m.group(1) for g in groups for ln in g['lines']                  # a code line's word tag
+                 for m in [re.search(r'class="tag (\w+)', text_tag(ln['text'], ln.get('topic')))] if m}
+        abs_ = ' '.join(dict.fromkeys(g['keys'][0].partition(':')[2] for g in groups))
+        areas_ = ' '.join(dict.fromkeys(a for g in groups for k in g['keys'] for a in [(areas or {}).get(k, 'abil')]))
+        meta_attrs = f' data-tags="{esc(" ".join(sorted(tags)))}" data-abs="{esc(abs_)}" data-areas="{esc(areas_)}"'
     # the anchor change matrices and the home page link to (#p-<patch id>; scripts.js opens it)
-    return (f'<details class="pblock{hidden_cls}{dev_cls}" id="p-{esc(pid)}"{" open" if open_ and not lazy else ""}>'
-            f'{summary}{panel}</details>')
+    return (f'<details class="pblock{hidden_cls}{dev_cls}" id="p-{esc(pid)}"{meta_attrs}'
+            f'{" open" if open_ and not lazy else ""}>{summary}{panel}</details>')
