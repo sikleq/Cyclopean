@@ -400,17 +400,34 @@
       sound.addEventListener('click', function () { muted = !muted; store(SND_KEY, muted ? 'off' : 'on'); soundState(); });
     }
 
-    // a name too long for its two lines shrinks until it fits (the game's text-overflow: shrink)
+    // a name keeps inside its card (the game's text-overflow: shrink): words never break, a long one —
+    // "Sharpshooter", "Enchantment" — shrinks until the text is narrower than the card and fits two lines
+    var probe = document.createRange();
+    function tooBig(n) {
+      probe.selectNodeContents(n);
+      var room = n.clientWidth - 2 * parseFloat(getComputedStyle(n).paddingLeft);
+      return n.scrollHeight > n.clientHeight + 1 || probe.getBoundingClientRect().width > room * 0.98;
+    }
     function fit(page) {
       // a hidden page measures nothing: it fits when its tab opens
       if (!page || page.hidden || page.getAttribute('data-fit')) return;
       page.setAttribute('data-fit', '1');
       page.querySelectorAll('.gc-nm').forEach(function (n) {
-        for (var k = 14.5; n.scrollHeight > n.clientHeight + 1 && k >= 10; k -= 0.5) {
-          n.style.fontSize = 'calc(' + k + ' * var(--u))';
-        }
+        n.style.fontSize = '';
+        for (var k = 14.5; tooBig(n) && k >= 9; k -= 0.5) n.style.fontSize = 'calc(' + k + ' * var(--u))';
       });
     }
+    function refit() {
+      pages.forEach(function (p) { p.removeAttribute('data-fit'); });
+      fit(root.querySelector('.gs-page:not([hidden])'));
+    }
+    var fitT = 0, lastW = window.innerWidth;
+    window.addEventListener('resize', function () {
+      if (window.innerWidth === lastW) return;           // a phone's address bar changes only the height
+      lastW = window.innerWidth;
+      clearTimeout(fitT);
+      fitT = setTimeout(refit, 200);
+    });
     function show(key, byUser) {
       if (!HASH[key]) key = 'w';
       pages.forEach(function (p) { p.hidden = p.getAttribute('data-page') !== key; });
@@ -432,6 +449,19 @@
     show(hashTab() || stored(TAB_KEY) || 'w', false);
     window.addEventListener('hashchange', function () { if (hashTab()) show(hashTab(), false); });
 
+    /* tooltips: one json (items/shop-tips.json), fetched on the first hover over the shop */
+    var tips = null, tipsReq = null;
+    function loadTips() {
+      if (!tipsReq) {
+        tipsReq = fetch(root.getAttribute('data-tips'))
+          .then(function (r) { if (!r.ok) throw new Error('tips ' + r.status); return r.json(); })
+          .then(function (j) { tips = j; return j; })
+          .catch(function () { tipsReq = null; return {}; });   // no tooltips now; the next hover asks again
+      }
+      return tipsReq;
+    }
+    root.addEventListener('pointerover', loadTips, { once: true });
+
     /* hover: the tooltip sits left of the card (the game's tooltip-position: left), right when no room */
     var tip = document.createElement('div');
     tip.className = 'gs-tip';
@@ -449,74 +479,62 @@
       tip.style.left = left + 'px';
       tip.style.top = top + 'px';
     }
+    var active = null;
+    function showTip(card) {
+      var id = card.getAttribute('data-id');
+      // after a failed load, only the next hover asks again (no retry loop on this card)
+      if (!tips) { loadTips().then(function () { if (tips && active === card) showTip(card); }); return; }
+      if (!tips[id]) { tip.hidden = true; return; }
+      tip.innerHTML = tips[id];                 // built and escaped by builders/game_shop.py
+      tip.hidden = false;
+      place(card);
+    }
     root.querySelectorAll('.gs-board').forEach(function (board) {
-      var cat = board.closest('.gs-page').getAttribute('data-page');
-      var byId = {}, cur = null;
+      var byId = {}, lit = [], leaveT = 0;
       board.querySelectorAll('.gcard[data-id]').forEach(function (c) { byId[c.getAttribute('data-id')] = c; });
       function mark(ids, cls) {
-        (ids || '').split(' ').forEach(function (id) { if (byId[id]) byId[id].classList.add(cls); });
+        (ids || '').split(' ').forEach(function (id) {
+          var c = byId[id];
+          if (c && c !== active) { c.classList.add(cls); lit.push(c); }
+        });
       }
-      function clear() {
-        cur = null;
-        tip.hidden = true;
+      // only the few cards that change get a class: the rest dims under the board's single layer
+      function unlight() {
+        lit.forEach(function (c) { c.classList.remove('is-me', 'is-comp', 'is-up'); });
+        lit = [];
+      }
+      function leave() {
+        active = null;
+        unlight();
         board.classList.remove('hovering');
-        board.querySelectorAll('.is-me, .is-comp, .is-up').forEach(function (c) { c.classList.remove('is-me', 'is-comp', 'is-up'); });
+        tip.hidden = true;
       }
       board.addEventListener('mouseover', function (ev) {
         var card = ev.target.closest('.gcard');
-        if (card === cur) return;
-        clear();
-        if (!card) return;
-        cur = card;
-        board.classList.add('hovering');
+        if (!card) {                            // the gap between cards: let go only if it lasts
+          clearTimeout(leaveT);
+          if (active) leaveT = setTimeout(leave, 90);
+          return;
+        }
+        clearTimeout(leaveT);
+        if (card === active) return;
+        unlight();
+        active = card;
         card.classList.add('is-me');
+        lit.push(card);
         mark(card.getAttribute('data-comp'), 'is-comp');
         mark(card.getAttribute('data-up'), 'is-up');
-        var tpl = document.getElementById('gt-' + card.getAttribute('data-id'));
-        if (tpl) {
-          tip.textContent = '';
-          tip.appendChild(tpl.content.cloneNode(true));
-          tip.hidden = false;
-          place(card);
-        }
+        if (!board.classList.contains('hovering')) board.classList.add('hovering');
+        showTip(card);
+        var cat = (card.className.match(/p-([wsv])/) || [])[1] || 'w';
         play('hover_' + cat + '_' + pick(hoverN[cat] || 1), HOVER_GAIN[cat] || 0.35, 1.2);
       });
-      board.addEventListener('mouseleave', clear);
+      board.addEventListener('mouseleave', function () { clearTimeout(leaveT); leave(); });
     });
     // the card moves with the page: the tooltip follows it
     window.addEventListener('scroll', function () {
-      var on = root.querySelector('.gcard.is-me');
-      if (on && !tip.hidden) place(on);
+      if (active && !tip.hidden) place(active);
     }, { passive: true });
-  });
-
-  /* ---------- items shop, All Items tab: hover lights up components and upgrades ---------- */
-  safe('shop', function () {
-    var shops = document.querySelectorAll('.shop');
-    if (!shops.length) return;
-    shops.forEach(function (shop) {
-      var byId = {};
-      shop.querySelectorAll('.icard[data-id]').forEach(function (c) { byId[c.getAttribute('data-id')] = c; });
-      function mark(ids, cls) {
-        (ids || '').split(' ').forEach(function (id) { if (byId[id]) byId[id].classList.add(cls); });
-      }
-      function clear() {
-        shop.classList.remove('hovering');
-        shop.querySelectorAll('.is-me, .is-comp, .is-up').forEach(function (c) { c.classList.remove('is-me', 'is-comp', 'is-up'); });
-      }
-      shop.addEventListener('mouseover', function (ev) {
-        var card = ev.target.closest('.icard');
-        if (!card || card.classList.contains('is-me')) return;
-        clear();
-        var comp = card.getAttribute('data-comp'), up = card.getAttribute('data-up');
-        if (!comp && !up) return;
-        shop.classList.add('hovering');
-        card.classList.add('is-me');
-        mark(comp, 'is-comp');
-        mark(up, 'is-up');
-      });
-      shop.addEventListener('mouseleave', clear);
-    });
   });
 
   /* ---------- Hero Stats at N boons (Sloppy's LVL box): base + N x per-boon, shown in its own colour ---------- */

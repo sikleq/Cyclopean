@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Shop: page width, All Items like the game, faster",
+    "items": [
+      "The shop fills the page's width; All Items is the game's own page too: three paper columns under \"Weapon · Spirit · Vitality\", a price sticker per tier (§800 … the \"Premium Quality\" §6400 star), the same cards.",
+      "Item names stay inside their cards: a long one (Sharpshooter, Ballistic Enchantment) shrinks to fit, as in the game.",
+      "Hovering is about 8 times cheaper and All Items opens in 12 ms instead of 250; the tooltips load on the first hover, the page is a third of its size. A tooltip also says the last patch that changed the item."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Items: the game's shop",
     "items": [
       "The Items page is the in-game shop: Weapon, Spirit and Vitality tabs open the Fairfax, Curiosity Catalog and MPS pages from the game files, with each tier where the game puts it, the price on its tape, paper cards per tier and round cards for active items.",

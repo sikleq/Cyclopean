@@ -1,13 +1,17 @@
-"""The Items page as the game's shop: tabs on the left (All Items, Weapon, Spirit, Vitality), and each
+"""The Items page as the game's shop: tabs on the left (All Items, Weapon, Spirit, Vitality), each
 category a catalog page drawn like the game's — Fairfax / MPS / Curiosity Catalog art from the VPK
 (tools/extract_shop_assets.py), four tier boxes where the game puts them, paper cards per category and
-tier, round cards for active items, the price on the tape. Hovering a card dims the others, lights up
-what it builds from and into, shows the item's tooltip and plays the category's hover sound.
+tier, round cards for active items, the price on the tape — and All Items as the game draws it: three
+paper columns under their header strip, a price sticker per tier. Hovering a card dims the rest, lights
+up what it builds from and into, shows the item's tooltip and plays the category's hover sound.
 
-Geometry is the game's own, in its design pixels (the catalog is 1120 x 960):
+Geometry is the game's own, in its design pixels (a catalog is 1120 x 960):
 panorama/styles/citadel_shop_mods_filtered.css (tier rows) and citadel_shop_mod_view.css (cards);
-see docs/shop.md. The page scales it with the width; narrow screens stack the tiers."""
+see docs/shop.md. The page scales it to its width; narrow screens stack the tiers.
+The tooltips are a separate file (items/shop-tips.json) the page loads on the first hover."""
 from __future__ import annotations
+
+import json
 
 from .common import entity_icon, esc, icon, pretty_id, slug
 from .hero_page import prop_rows
@@ -32,8 +36,11 @@ PRICE_AT = {1: (75, 166), 2: (576, 38), 3: (94, 508), 4: (595, 502)}
 PRICE_AT_WEAPON_T4 = (776, 503)
 PRICE_SIZE = {1: 24, 2: 26, 3: 28, 4: 28}       # CostLabel font-size per tier
 PRICES = {1: 800, 2: 1600, 3: 3200, 4: 6400}    # generic_data m_nItemPricePerTier
+# All Items: the tier's price sticker (CostSticker: size, tilt) and the band it takes above the cards
+STICKERS = {1: (100, 45, -2), 2: (100, 45, 5), 3: (100, 55, -3), 4: (110, 110, 0)}
 # the game's fonts (VALVEOracle for names, VALVEPulp for prices) are not in the VPK: close free ones
 FONTS = 'https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Fredoka:wght@600&display=swap'
+TIPS_FILE = 'shop-tips.json'
 
 
 def tier_box(cat: str, tier: int) -> tuple[int, int, int]:
@@ -51,15 +58,16 @@ def _name(e: dict) -> str:
     return e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'])
 
 
-def card_html(e: dict, card: dict | None, rel: str, used_in: list[str], n: int) -> str:
-    """One card. `n`: its place in the tier (the game picks the torn-edge icon mask by it)."""
+def card_html(e: dict, card: dict | None, rel: str, used_in: list[str], n: int, cat: str, tier: int) -> str:
+    """One card: paper of its category and tier (`p-w1` … `p-v4`; Street Brawl's T5 takes the dark T4
+    card). `n`: its place in the tier (the game picks the torn-edge icon mask by it)."""
     info = (card or {}).get('item') or {}
     name = _name(e)
     href = slug(e['file'], e['id']).split('/', 1)[1]
     active = info.get('activation') == 'Active'
     src = entity_icon(e['file'], e['id'], 'item', rel)
     img = f'<img src="{esc(src)}" alt="" loading="lazy">' if src else ''
-    cls = 'gcard' + (' act' if active else f' m{n % 3 + 1}') + (' imb' if info.get('imbue') else '')
+    cls = f'gcard p-{cat}{min(max(tier, 1), 4)}' + (' act' if active else f' m{n % 3 + 1}')
     imbue = '<span class="gc-imb">Imbue</span>' if info.get('imbue') else ''
     return (f'<a class="{cls}" href="{esc(href)}" data-id="{esc(e["id"])}" '
             f'data-comp="{esc(" ".join(info.get("components") or []))}" data-up="{esc(" ".join(used_in))}" '
@@ -84,24 +92,28 @@ def _section_rows(card: dict, rel: str) -> str:
     return ''.join(out)
 
 
-def tooltip_html(e: dict, card: dict | None, cat: str, rel: str, names: dict[str, str]) -> str:
-    """The item tooltip (citadel_tooltip_mod_details): header strip of the category with the name and
-    the price, innate stats, the Active / Passive sections, what it builds from and into."""
+def tooltip_html(e: dict, card: dict | None, cat: str, rel: str, names: dict[str, str], up: list[str]) -> str:
+    """The item tooltip (citadel_tooltip_mod_details): the category's header strip with the name and the
+    price, innate stats, the Active / Passive sections, what it builds from and into — and, ours, the
+    last patch that changed it."""
+    from .render import pip
+    from .trail import last_change
     card = card or {}
     info = card.get('item') or {}
     cost = info.get('cost')
     souls = icon('prop:souls', rel)
     price = (f'<span class="gt-cost"><img src="{esc(souls)}" alt="">{esc(cost)}</span>' if cost and souls
              else f'<span class="gt-cost">{esc(cost)}</span>' if cost else '')
-    body = _section_rows(card, rel)
     links = []
-    for label, ids in (('Upgrades from', info.get('components') or []), ('Upgrades to', e.get('_up') or [])):
+    for label, ids in (('Upgrades from', info.get('components') or []), ('Upgrades to', up)):
         named = [names[i] for i in ids if i in names]
         if named:
             links.append(f'<div class="gt-comp"><b>{label}</b> {esc(", ".join(named))}</div>')
-    return (f'<template id="gt-{esc(e["id"])}"><div class="gtip {cat}"><div class="gt-head">'
-            f'<span class="gt-name">{esc(_name(e))}</span>{price}</div>'
-            f'<div class="gt-body">{body}{"".join(links)}</div></div></template>')
+    last = last_change(f"{e['file']}:{e['id']}")
+    if last:
+        links.append(f'<div class="gt-last"><b>Last change</b> {pip(last[1])} {esc(last[0]["date"])}</div>')
+    return (f'<div class="gtip {cat}"><div class="gt-head"><span class="gt-name">{esc(_name(e))}</span>{price}</div>'
+            f'<div class="gt-body">{_section_rows(card, rel)}{"".join(links)}</div></div>')
 
 
 def tabs_html(rel: str) -> str:
@@ -117,35 +129,73 @@ def tabs_html(rel: str) -> str:
     return f'<nav class="gs-tabs">{"".join(tabs)}{sound}</nav>'
 
 
-def catalog_page(cat: str, shop: list[dict], cards: dict, rel: str, used_in: dict[str, list[str]],
-                 tier_of, slot_of) -> str:
-    slot = next(c[1] for c in CATEGORIES if c[0] == cat)
+class Shop:
+    """The items the shop sells and how to read them (built by shop_page.shop_html)."""
+
+    def __init__(self, shop: list[dict], cards: dict, rel: str, used_in: dict[str, list[str]], tier_of, slot_of):
+        self.shop, self.cards, self.rel, self.used_in = shop, cards, rel, used_in
+        self.tier_of, self.slot_of = tier_of, slot_of
+
+    def cat(self, e: dict) -> str:
+        return next((c[0] for c in CATEGORIES if c[1] == self.slot_of(e)), 'w')
+
+    def group(self, cat: str, tier: int, items: list[dict] | None = None) -> list[dict]:
+        return sorted((e for e in (self.shop if items is None else items)
+                       if self.cat(e) == cat and (tier == 0 or self.tier_of(e) == tier)), key=_name)
+
+    def cards_html(self, items: list[dict], tier: int | None = None) -> str:
+        return ''.join(card_html(e, self.cards.get(e['id']), self.rel, self.used_in.get(e['id'], []), i,
+                                 self.cat(e), tier or self.tier_of(e) or 1) for i, e in enumerate(items))
+
+
+def catalog_page(s: Shop, cat: str) -> str:
     boxes = []
     for t in (1, 2, 3, 4):
-        group = sorted((e for e in shop if slot_of(e) == slot and tier_of(e) == t), key=_name)
         left, top, per = tier_box(cat, t)
         px, py = price_at(cat, t)
         boxes.append(
-            f'<span class="gs-price t{t}" style="--x:{px};--y:{py};--fs:{PRICE_SIZE[t]}">{PRICES[t]}</span>'
-            f'<div class="gs-tier t{t}" data-tier="Tier {t}" style="--x:{left};--y:{top};--n:{per}">' + ''.join(
-                card_html(e, cards.get(e['id']), rel, used_in.get(e['id'], []), i) for i, e in enumerate(group))
-            + '</div>')
+            f'<span class="gs-price" style="--x:{px};--y:{py};--fs:{PRICE_SIZE[t]}">{PRICES[t]}</span>'
+            f'<div class="gs-tier" style="--x:{left};--y:{top};--n:{per}">{s.cards_html(s.group(cat, t))}</div>')
     return (f'<section class="gs-page {cat}" data-page="{cat}" hidden>'
-            f'<div class="gs-board">{"".join(boxes)}</div></section>')
+            f'<div class="gs-board cat">{"".join(boxes)}</div></section>')
 
 
-def game_shop_html(shop: list[dict], cards: dict, rel: str, used_in: dict[str, list[str]], tier_of, slot_of,
-                   all_items: str) -> str:
-    """The whole shop: tabs + three catalog pages + the All Items page (`all_items`, shop_page.py)."""
-    names = {e['id']: _name(e) for e in shop}
-    tips = []
-    for e in shop:
-        cat = next((c[0] for c in CATEGORIES if c[1] == slot_of(e)), 'w')
-        tips.append(tooltip_html({**e, '_up': used_in.get(e['id'], [])}, cards.get(e['id']), cat, rel, names))
-    pages = ''.join(catalog_page(c[0], shop, cards, rel, used_in, tier_of, slot_of) for c in CATEGORIES)
+def all_page(s: Shop, brawl: list[dict], gone: list[dict]) -> str:
+    """All Items (the game's showingAllItems): the header strip over three paper columns Weapon / Spirit /
+    Vitality, a row per tier under its price sticker. Then ours: Street Brawl's draft-only T5 and the
+    items no longer sold."""
+    rows = []
+    for t in (1, 2, 3, 4):
+        w, h, tilt = STICKERS[t]
+        cols = ''.join(f'<div class="ga-col {c[0]}" data-label="{c[2]}">{s.cards_html(s.group(c[0], t))}</div>'
+                       for c in CATEGORIES)
+        rows.append(f'<div class="ga-row" style="--band:{h + 12};--pw:{w};--rot:{tilt}deg">'
+                    f'<img class="ga-price" src="{s.rel}icons/shop/price_t{t}.webp" alt="{PRICES[t]} souls" '
+                    f'loading="lazy">{cols}</div>')
+    out = [f'<div class="gs-board all"><div class="ga-head" role="presentation"></div>{"".join(rows)}</div>']
+    if brawl:
+        cols = ''.join(f'<div class="ga-col {c[0]}" data-label="{c[2]}">{s.cards_html(s.group(c[0], 0, brawl), 4)}</div>'
+                       for c in CATEGORIES)
+        out.append('<h2 class="ga-title">Street Brawl legendaries <small>T5 · draft only</small></h2>'
+                   f'<div class="gs-board extra"><div class="ga-row">{cols}</div></div>')
+    if gone:
+        out.append('<h2 class="ga-title">Removed or disabled</h2>'
+                   f'<div class="gs-board extra gone"><div class="ga-flow">{s.cards_html(sorted(gone, key=_name), 1)}</div></div>')
+    return f'<section class="gs-page all" data-page="all" hidden>{"".join(out)}</section>'
+
+
+def game_shop_html(shop: list[dict], brawl: list[dict], gone: list[dict], cards: dict, rel: str,
+                   used_in: dict[str, list[str]], tier_of, slot_of) -> tuple[str, str]:
+    """The whole shop: (page html, tooltips json). Tabs + three catalog pages + All Items."""
+    s = Shop(shop, cards, rel, used_in, tier_of, slot_of)
+    every = shop + brawl + gone
+    names = {e['id']: _name(e) for e in every}
+    tips = {e['id']: tooltip_html(e, cards.get(e['id']), s.cat(e), rel, names, used_in.get(e['id'], []))
+            for e in every}
+    pages = ''.join(catalog_page(s, c[0]) for c in CATEGORIES) + all_page(s, brawl, gone)
     sounds = ' '.join(f'{k}:{n}' for k, n in HOVER_SOUNDS.items())
     # pages start hidden and the script opens one; without the script they all show
     noscript = '<noscript><style>.gs-page[hidden] { display: block; }</style></noscript>'
-    return (f'{noscript}<div class="gshop" data-sfx="{rel}sounds/shop/" data-hover="{sounds}">{tabs_html(rel)}'
-            f'<div class="gs-pages">{pages}<section class="gs-page all" data-page="all" hidden>{all_items}</section>'
-            f'</div></div><div class="gs-tips" hidden>{"".join(tips)}</div>')
+    html = (f'{noscript}<div class="gshop" data-sfx="{rel}sounds/shop/" data-tips="{TIPS_FILE}" '
+            f'data-hover="{sounds}">{tabs_html(rel)}<div class="gs-pages">{pages}</div></div>')
+    return html, json.dumps(tips, ensure_ascii=False, separators=(',', ':'))

@@ -89,6 +89,14 @@ def convert() -> list[str]:
         src = CATALOG / 'cards' / f'icon_mask0{i}_psd.png'
         if need(src):
             _webp(src, OUT / f'mask_{i}.webp', (152, 152), luminance_mask=True)
+    # the All Items page: three paper columns, their header strip, the price stickers of each tier
+    if need(CATALOG / 'catalog_shop_filter_bg_psd.png'):
+        _webp(CATALOG / 'catalog_shop_filter_bg_psd.png', OUT / 'bg_all.webp', (BG_WIDTH, 1618), quality=80)
+    if need(CATALOG / 'filters' / 'shop_filtered_tree_header_full_psd.png'):
+        _webp(CATALOG / 'filters' / 'shop_filtered_tree_header_full_psd.png', OUT / 'all_head.webp', (1600, 136))
+    for t, size in ((1, (200, 121)), (2, (200, 120)), (3, (200, 159)), (4, (240, 240))):
+        if need(CATALOG / f'pricetag_tier{t}_psd.png'):
+            _webp(CATALOG / f'pricetag_tier{t}_psd.png', OUT / f'price_t{t}.webp', size)
     # the card's torn-paper silhouette with the folded corner (#ModCard opacity-mask)
     if need(SHOP / 'card_backer_png.png'):
         _webp(SHOP / 'card_backer_png.png', OUT / 'card_mask.webp', CARD)

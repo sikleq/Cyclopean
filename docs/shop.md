@@ -36,8 +36,16 @@ The page art (`catalog_shop_bg_*`) already holds the logo, the tier frames, "TIE
 - A card is 76 x 114 with a 3px margin (pitch 82 x 120): 5 / 6 / 7 / 4 per row on Fairfax, 5 / 6 / 5 / 6
   on the other two — the same as the game.
 - The price sits on the black tape painted into the art (`game_shop.PRICE_AT`, measured on the art).
-- The site scales it all with the board's width (`--u` = 1 design px); below 820px the tiers stack at
-  the game's real card size on the page's paper colour.
+- The board fills the page's width (`--u` = 1 design px = board width / 1120, in our frame); below 820px
+  the tiers stack at the game's real card size on the page's paper colour.
+
+## All Items
+
+The game's `showingAllItems`: `catalog_shop_filter_bg` (three paper columns), the header strip
+`shop_filtered_tree_header_full` ("WEAPON Stock up! · Spirit Big deal! · Vitality Feel good!"), a row per
+tier with its price sticker (`pricetag_tier1..4`: §800, §1600, §3200 and the "Premium Quality §6400"
+star; 100 x 45 tilted -2°, 5°, -3°, the star upright) and three columns of the same cards, 4 a row.
+Ours below it: Street Brawl's draft-only T5 (dark cards) and the items no longer sold.
 
 ## A card and hover
 
@@ -46,11 +54,28 @@ The page art (`catalog_shop_bg_*`) already holds the logo, the tier frames, "TIE
 - Passive item: square art with a torn edge (`icon_mask01..03` at half strength, by place in the tier).
   Active item: round art under an arched card. Imbue items: the IMBUE strip over the art.
 - Item art is the shop art (`m_strShopIconLarge`, colour), not the HUD mask.
-- Names: 15px, two lines; a longer one shrinks to fit (the game's `text-overflow: shrink`).
-- Hover (`HoveringItem`): every other card dims to half; what the item builds from lights up with a white
+- Names: 15px, two lines, words never break; one too wide or too tall shrinks until it fits inside the card
+  (the game's `text-overflow: shrink`; "Sharpshooter" → 12.5px), again after the window width changes.
+- Hover (`HoveringItem`): every other card dims; what the item builds from lights up with a white
   outline; what it builds into pulses (scale 1.1 → 1.25, 2 s); the tooltip opens left of the card (right
-  when there is no room); the category's hover sound plays.
+  when there is no room); the category's hover sound plays. The tooltip also says the last patch that
+  changed the item (ours).
 - Not shown: Owned / Can't afford / Sell / the popular-item hero badge — they need a player in a match.
+
+## Performance (measured 2026-10-03, 1600px window)
+
+| | before | after |
+|---|---|---|
+| hover a card (style + layout) | 10.5 ms median, 33 ms max | 1.2 ms, 2.6 ms |
+| open All Items | 246 ms | 11.5 ms |
+| DOM nodes / page html (gzip) | 3261 / ~45 KB | 1806 / 15 KB |
+
+- The rest dims under ONE layer over the board (`.gs-board::after`), the lit cards rise above it; no
+  filter on 150 cards. A hover changes the classes of the few cards involved only; `hovering` stays on the
+  board while the pointer crosses the gaps (90 ms).
+- Cards are `contain: layout style`; Street Brawl and the removed items render when scrolled to
+  (`content-visibility: auto`).
+- Tooltips are `items/shop-tips.json` (26 KB gzip), fetched on the first pointer over the shop.
 
 ## Sounds
 

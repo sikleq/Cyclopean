@@ -385,20 +385,21 @@ def test_items_index_is_the_game_shop_matrix(monkeypatch):
                                         'components': ['upgrade_basic']}},
              'upgrade_spell': {'item': {'tier': '1', 'slot': 'Tech', 'activation': 'Passive', 'imbue': True, 'cost': 800}},
              'upgrade_brawl': {'item': {'tier': '5', 'slot': 'Armor', 'street_brawl': True, 'cost': 9999}}}
-    html = shop_page.shop_html(items, cards, '../')
-    # the game's column order and one row per tier with its price
-    assert html.index('cat-h w') < html.index('cat-h s') < html.index('cat-h v')
-    assert 'shop-row t1' in html and 'shop-row t4' in html and '800' in html
-    assert 'data-comp="upgrade_basic"' in html and 'data-up="upgrade_sharp"' in html
-    assert 'it-act' in html and 'it-imb' in html
-    assert 'Street Brawl legendaries' in html and 'Removed or disabled' in html
-    # the game's shop around it: tabs in the game's order, a catalog page per category, All Items last
+    import json
+    html, tips = shop_page.shop_html(items, cards, '../')
+    # tabs in the game's order, a catalog page per category, All Items with the game's three columns
     assert html.index('data-gs="all"') < html.index('data-gs="w"') < html.index('data-gs="s"') < html.index('data-gs="v"')
     assert 'class="gs-page w"' in html and 'class="gs-page all"' in html
-    # round card for an active item, the Imbue label, a tooltip with what it builds from
-    assert 'class="gcard act"' in html and 'class="gc-imb"' in html
-    assert '<template id="gt-upgrade_sharp">' in html and 'Upgrades from</b> Basic' in html
-    assert 'data-gs="brawl"' not in html and 'gt-upgrade_brawl' not in html and 'gt-upgrade_old' not in html
+    assert html.index('ga-col w') < html.index('ga-col s') < html.index('ga-col v') and 'price_t4.webp' in html
+    # paper of the card's category and tier, round for an active item, the Imbue strip, what it builds from/into
+    assert 'class="gcard p-w2 act"' in html and 'class="gcard p-s1 m1"' in html and 'class="gc-imb"' in html
+    assert 'data-comp="upgrade_basic"' in html and 'data-up="upgrade_sharp"' in html
+    # Street Brawl's T5 on the dark card, removed items last; tooltips are a separate json
+    assert 'Street Brawl legendaries' in html and 'gcard p-v4' in html and 'Removed or disabled' in html
+    assert '<template' not in html and 'data-tips="shop-tips.json"' in html
+    tips = json.loads(tips)
+    assert set(tips) == {'upgrade_basic', 'upgrade_sharp', 'upgrade_spell', 'upgrade_brawl', 'upgrade_old'}
+    assert 'Upgrades from</b> Basic' in tips['upgrade_sharp'] and 'Upgrades to</b> Sharp' in tips['upgrade_basic']
 
 
 def test_shop_catalog_geometry_is_the_games():

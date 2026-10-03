@@ -181,9 +181,10 @@ def build_all() -> dict[str, int]:
     # laid out like the game's shop: tiers x Weapon / Spirit / Vitality (builders/shop_page.py)
     from .dynamics_page import item_entries
     from .shop_page import shop_html
+    shop, tips = shop_html(items, cards, rel)
+    write('items/shop-tips.json', tips)          # the tooltips, loaded on the first hover
     body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
-            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".icard, .gcard"></div>'
-            + shop_html(items, cards, rel))
+            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard"></div>' + shop)
     entries = item_entries(items, cards, rel)
     n_gone = sum(1 for e in entries if e[4])
     write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
