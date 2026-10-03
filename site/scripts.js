@@ -869,6 +869,16 @@
     }
     var bar = document.querySelector('.hist-bar');
     if (!bar) return;
+    // #ab-<ability id> (an ability card's "History" link, Sloppy's ?ability=) filters to that ability
+    function fromHash() {
+      if (location.hash.indexOf('#ab-') !== 0) return;
+      state.ab = decodeURIComponent(location.hash.slice(4));
+      bar.querySelectorAll('[data-f-ab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-ab') === state.ab); });
+      apply();
+      box.scrollIntoView({ block: 'start' });
+    }
+    fromHash();
+    window.addEventListener('hashchange', fromHash);
     bar.addEventListener('click', function (ev) {
       var btn = ev.target.closest('button');
       if (!btn) return;

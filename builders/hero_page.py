@@ -212,7 +212,8 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         last_html = (f'<a class="ac-last t-{esc(tag)}" href="{rel}patches/{esc(prow["id"])}.html">'
                      f'{pip(tag)} {esc(prow["date"])}</a>')
     return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{img(ic, "", "px", "abilities")}'
-            f'<div class="ac-id"><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}{last_html}</div>'
+            f'<div class="ac-id"><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}{last_html}'
+            f'<a class="ac-hist" href="#ab-{esc(c["id"])}">History</a></div>'
             f'{trail_html(key, None, rel)}</div></div>'
             f'{"<div class=ac-hdr>" + hdr + "</div>" if hdr else ""}{desc}{table}'
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')

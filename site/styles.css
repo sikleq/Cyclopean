@@ -941,6 +941,8 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-id { min-width: 0; flex: 1; }
 .ability-card .ac-id .trail { margin-top: 6px; }
 .ability-card .ac-last { margin-left: 10px; font: 600 12px/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.ability-card .ac-hist { margin-left: 10px; font: 600 12px/1 var(--font-ui); color: var(--patina); }
+.ability-card .ac-hist:hover { color: var(--text-bright); }
 .ability-card .ac-last.t-buff { color: var(--tag-buff); }
 .ability-card .ac-last.t-nerf { color: var(--tag-nerf); }
 .ability-card .ac-last.t-rework { color: var(--tag-rework); }
