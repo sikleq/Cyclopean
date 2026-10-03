@@ -418,11 +418,17 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   real state, so a stat removed and later restored shows both changes with their dates. Old builds:
   bullet speed from the flat `m_BulletSpeedCurve` before 5747, dash times from the shared dash ability
   (Innate 1) before 5706, an omitted burst interval is 0 (audit of data gaps, 2026-10-01).
-- Items index (`builders/shop_page.py`), like the game's shop "All Items": one row per tier with its
-  price tag, columns Weapon → Spirit → Vitality (the game's order), cards with ACTIVE / IMBUE labels
-  and the last change; hovering a card lights up its components and what it builds into, the rest
-  dims. Street Brawl's T5 draft items (`ERequirementStreetBrawl`) and removed items follow below.
-- Home "Biggest changes": one card per ability.
+- Items index = the game's shop (`builders/shop_page.py` + `game_shop.py`, see docs/shop.md).
+- Navigation (2026-10-03, owner: "closer to Sloppy"): the bar is Heroes | Items | Units; each section has
+  the same three sub-tabs (`common.SECTION_TABS`): its index, its stats table (Hero / Item / Unit Stats)
+  and its change matrix. Patches, builds, the calendar and Notes vs files are still built but off the
+  bar: the footer's "Patch archive" and the date banners lead there. A matrix tile and the home feed open
+  the entity's own page at that patch (`#p-<patch id>` on every history block; scripts.js opens it).
+- Home (`builders/home_page.py`): the three sections as tiles, then "Latest changes" — for each of the
+  last 4 updates with gameplay changes, the heroes, items and units it touched as icons (count, net
+  buff / nerf edge, the eye when something was hidden) linking to that page at that update
+  (`home_page.update_feed`: a hero's abilities count on the hero; '@shared', templates, helpers and
+  unreleased work are left out).
 - Hero Stats: group labels left-aligned (visible at each group's start), a right-edge fade while more
   columns are off-screen (`.table-fade`, removed when scrolled to the end).
 

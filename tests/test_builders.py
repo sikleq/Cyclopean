@@ -464,7 +464,8 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     # >1 year old column: hidden with its colgroup column; a run of empty cells is one cell
     assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
     assert '--n-all:2;--n-new:1' in html
-    assert '#c-hero_atlas' in html and 'tr class="extra"' in html
+    # a tile opens the row's own page at that patch, not the patch page (off the bar since 10-03)
+    assert 'href="hero_atlas.html#p-p2"' in html and 'tr class="extra"' in html
     # the hover card's data: the cell's counts and its biggest changes, the number on the tile
     assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
     # one tile per cell (no split, owner 10-01); the part counts ride in the data for the filter
@@ -565,3 +566,27 @@ def test_notes_vs_files_lists_valves_numbers_and_the_files(monkeypatch):
     monkeypatch.setattr(errata_page, 'load_json', lambda rel: [row] if rel == 'patches/index.json' else patch)
     got = errata_page.rows()
     assert got[0]['valve'] == '20 → 28' and got[0]['files'] == '20 → 25' and got[0]['label'] == 'Spirit Power Steal'
+
+
+def test_home_feed_puts_changes_on_their_pages():
+    """2026-10-03, the site is about entities: the home feed shows what an update did to each hero, item and
+    unit page — a hero's ability counts on the hero; '@shared', templates, helpers and unreleased work don't."""
+    from builders.home_page import page_of, update_feed
+    ch = lambda **kw: {'cat': 'balance', 'key': 'k', 'label': 'x', 'old_s': '1', 'new_s': '2', 'op': 'change', **kw}
+    ents = [
+        {'key': 'abilities.vdata:a1', 'file': 'abilities.vdata', 'id': 'a1', 'kind': 'ability', 'owner': 'hero_atlas',
+         'changes': [ch(key='abilities.vdata:a1:p', status='hidden', dir='buff')]},
+        {'key': 'abilities.vdata:upgrade_x', 'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item',
+         'changes': [ch(key='abilities.vdata:upgrade_x:p', status='documented', dir='nerf')]},
+        {'key': 'npc_units.vdata:@shared', 'file': 'npc_units.vdata', 'id': '@shared', 'kind': 'unit',
+         'changes': [ch(key='npc_units.vdata:@shared:p')]},
+        {'key': 'npc_units.vdata:bot', 'file': 'npc_units.vdata', 'id': 'bot', 'kind': 'helper',
+         'changes': [ch(key='npc_units.vdata:bot:p')]},
+        {'key': 'abilities.vdata:dev', 'file': 'abilities.vdata', 'id': 'dev', 'kind': 'ability', 'owner': 'hero_new',
+         'changes': [ch(key='abilities.vdata:dev:p', status='unreleased')]},
+    ]
+    feed = update_feed({'entities': ents})
+    assert set(feed) == {'heroes', 'items'}
+    assert feed['heroes']['heroes.vdata:hero_atlas']['hidden'] == 1 and feed['items']['abilities.vdata:upgrade_x']['nerf'] == 1
+    assert page_of({'file': 'npc_units.vdata', 'id': 'trooper_base', 'kind': 'trooper'},
+                   frozenset({'npc_units.vdata:trooper_base'})) is None

@@ -117,16 +117,10 @@ def unit_variants(units: list[dict]) -> dict[str, str]:
     return out
 
 
-SUB_TABS = {'heroes': (('index', 'Heroes'), ('changes', 'Hero changes')),
-            'items': (('index', 'Items'), ('changes', 'Item changes')),
-            'units': (('index', 'Units'), ('changes', 'Unit changes'))}
-
-
 def sub_tabs(section: str, active: str) -> str:
-    """The grid and its change matrix (Sloppy's Materials / Dynamics pair)."""
-    return '<div class="flex table-tabs">' + ''.join(
-        f'<a class="px-btn{" on" if k == active else ""}" href="{k}.html">{esc(lbl)}</a>'
-        for k, lbl in SUB_TABS[section]) + '</div>'
+    """The index, its stats table and its change matrix (common.SECTION_TABS)."""
+    from .common import section_tabs
+    return section_tabs(section, active)
 
 
 def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:

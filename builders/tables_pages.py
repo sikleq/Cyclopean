@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Callable
 
-from .common import entity_icon, esc, hero_icon, load_json, page, write
+from .common import entity_icon, esc, hero_icon, load_json, page, section_tabs, write
 
 
 # Hero table layout: the group header gives the context, so column headers stay one
@@ -197,9 +197,9 @@ def heroes_table() -> str:
              f'value="0" data-boons="#hero-stats"></label>')
     role_btns = '<span class="sep"></span>' + ''.join(
         f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats">{esc(r)}</button>' for r in roles)
-    body = ('<h1>Hero Stats</h1>' + tabs('heroes') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
+    body = ('<h1>Hero Stats</h1>' + section_tabs('heroes', 'stats') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
             + table)
-    return page('Hero Stats', body, rel, 'tables', build=t['build'],
+    return page('Hero Stats', body, rel, 'heroes', build=t['build'],
                 description='Deadlock hero stats with the full history of every value', wide=True)
 
 
@@ -263,9 +263,9 @@ def units_table() -> str:
     for kind, title in UNIT_SECTIONS:
         rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind]
         groups.append((kind, esc(title), merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
-    body = ('<h1>Units & Buildings</h1>' + tabs('units') + _toolbar('Unit…')
+    body = ('<h1>Unit Stats</h1>' + section_tabs('units', 'stats') + _toolbar('Unit…')
             + _section_tables(groups, t['columns'], name_cell, 'Unit', t.get('date')))
-    return page('Units & Buildings', body, rel, 'tables', build=t['build'],
+    return page('Unit Stats', body, rel, 'units', build=t['build'],
                 description='Deadlock troopers, guardians, walkers, patron and neutrals with the history of every value', wide=True)
 
 
@@ -297,18 +297,11 @@ def items_table() -> str:
         src = icon(f'prop:{ik}', rel)
         title = (f'<img class="cat-i" src="{esc(src)}" alt="">' if src else '') + esc(slot)
         groups.append((css, title, rows))
-    body = ('<h1>Items</h1>' + tabs('items') + _toolbar('Item…')
+    body = ('<h1>Item Stats</h1>' + section_tabs('items', 'stats') + _toolbar('Item…')
             + _section_tables(groups, t['columns'], name_cell, 'Item', t.get('date'),
                               section_of=lambda it: f'Tier {it["values"].get("tier")} · {_fmt(it["values"].get("cost"), 0)} souls'))
-    return page('Item Stats', body, rel, 'tables', build=t['build'],
+    return page('Item Stats', body, rel, 'items', build=t['build'],
                 description='Deadlock shop items with the history of every value', wide=True)
-
-
-def tabs(active: str) -> str:
-    items = (('heroes', 'Heroes', 'heroes.html'), ('units', 'Units & Buildings', 'units.html'),
-             ('items', 'Items', 'items.html'))
-    return '<div class="flex table-tabs">' + ''.join(
-        f'<a class="px-btn{" on" if k == active else ""}" href="{href}">{esc(lbl)}</a>' for k, lbl, href in items) + '</div>'
 
 
 def build_all() -> int:

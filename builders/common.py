@@ -20,14 +20,28 @@ DIST = ROOT / 'dist'
 FONTS = ('https://fonts.googleapis.com/css2?family=Jacquard+24&family=Jersey+20&family=VT323'
          '&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap')
 
+# the site is about what changed on each hero, item and unit (owner, 2026-10-03: "closer to Sloppy"):
+# three sections; patches, builds, the calendar and Notes vs files are still built but live off the bar
 NAV = (
-    ('patches', 'Patches', 'patches/index.html'),
-    ('builds', 'Builds', 'builds/index.html'),
     ('heroes', 'Heroes', 'heroes/index.html'),
     ('items', 'Items', 'items/index.html'),
     ('units', 'Units', 'units/index.html'),
-    ('tables', 'Hero Stats', 'tables/heroes.html'),
 )
+# each section: its index, its stats table, its change matrix (Sloppy's Materials / Dynamics)
+SECTION_TABS = {
+    'heroes': (('index', 'Heroes', 'heroes/index.html'), ('stats', 'Hero Stats', 'tables/heroes.html'),
+               ('changes', 'Hero changes', 'heroes/changes.html')),
+    'items': (('index', 'Shop', 'items/index.html'), ('stats', 'Item Stats', 'tables/items.html'),
+              ('changes', 'Item changes', 'items/changes.html')),
+    'units': (('index', 'Units', 'units/index.html'), ('stats', 'Unit Stats', 'tables/units.html'),
+              ('changes', 'Unit changes', 'units/changes.html')),
+}
+
+
+def section_tabs(section: str, active: str, rel: str = '../') -> str:
+    return '<div class="flex table-tabs">' + ''.join(
+        f'<a class="px-btn{" on" if k == active else ""}" href="{rel}{href}">{esc(lbl)}</a>'
+        for k, lbl, href in SECTION_TABS[section]) + '</div>'
 
 EYE_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
            'd="M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1z'
@@ -307,7 +321,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
 <main class="page{' wide' if wide else ''}">
 {body}
 </main>
-<footer class="site-foot">Data: SteamTracking GameTracking-Deadlock, Steam News, the official Deadlock forum; icons from the game files. Not affiliated with Valve. · <a href="{rel}changelog.html">Site changelog</a> · <a href="https://github.com/sikleq/Cyclopean" rel="noopener">Source</a></footer>
+<footer class="site-foot">Data: SteamTracking GameTracking-Deadlock, Steam News, the official Deadlock forum; icons from the game files. Not affiliated with Valve. · <a href="{rel}patches/index.html">Patch archive</a> · <a href="{rel}changelog.html">Site changelog</a> · <a href="https://github.com/sikleq/Cyclopean" rel="noopener">Source</a></footer>
 <script src="{rel}scripts.js?v={ver}"></script>
 </body>
 </html>

@@ -132,5 +132,6 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     summary = (f'<summary class="banner{cls}">'
                f'<span class="bt"><a href="{rel}patches/{esc(pid)}.html">{patch_title_html(hdr)}</a></span>'
                f'<span class="bc">{tag_summary(player_facing(counted_all))}{chips}</span></summary>')
-    return (f'<details class="pblock{hidden_cls}"{" open" if open_ else ""}>{summary}'
+    # the anchor change matrices and the home page link to (#p-<patch id>; scripts.js opens it)
+    return (f'<details class="pblock{hidden_cls}" id="p-{esc(pid)}"{" open" if open_ else ""}>{summary}'
             f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div></details>')

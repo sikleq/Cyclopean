@@ -169,7 +169,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
     tips: list = []
     body: list[str] = []
 
-    def tds(key: str, mine: dict, anchor: str, part_of_cell: dict | None) -> str:
+    def tds(key: str, mine: dict, href: str, part_of_cell: dict | None) -> str:
         out, run, run_old = [], 0, True
         for r in rows:
             counts = mine.get(r['id'])
@@ -184,7 +184,8 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             if part_of_cell is not None:
                 entry.append(part_of_cell.get(r['id'], {}))     # {part: {tag: n}} for the filter
             tips.append(entry)
-            out.append(_cell(counts, f'../patches/{r["id"]}.html{anchor}', len(tips) - 1, old))
+            # the row's own page at that patch (patch pages are off the bar since 2026-10-03)
+            out.append(_cell(counts, f'{href}#p-{r["id"]}', len(tips) - 1, old))
         if run:
             out.append(_gap(run, run_old))
         return ''.join(out)
@@ -194,10 +195,9 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
         if not mine:
             continue
         img = f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
-        anchor = f'#c-{key.split(":", 1)[1]}' if kind == 'hero' else ''
         body.append(f'<tr class="{esc(extra)}" data-search="{esc(name.lower())}" data-name="{esc(name)}" '
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
-                    f'{tds(key, mine, anchor, parts.get(key, {}) if kind == "hero" else None)}</tr>')
+                    f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
             'cells': tips, 'icons': {t: tag_svg(t) for t in MATRIX_TAGS}, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
             'parts': dict(PARTS)}

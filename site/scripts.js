@@ -247,7 +247,7 @@
         html += '<table class="dt-rows">' + rowsHtml + '</table>';
       }
       var more = total - samples.length;
-      html += '<div class="dt-foot">' + (more > 0 ? '+' + more + ' more · ' : '') + 'click to open the patch</div>';
+      html += '<div class="dt-foot">' + (more > 0 ? '+' + more + ' more · ' : '') + 'click for its history at this patch</div>';
       tip.innerHTML = html;
       tip.classList.add('on');
       var r = a.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
@@ -669,6 +669,19 @@
   });
 
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
+  /* ---------- #p-<patch>: a history block named in the address opens and comes into view ---------- */
+  safe('patch-anchor', function () {
+    function go() {
+      if (location.hash.indexOf('#p-') !== 0) return;
+      var el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      if (!el) return;
+      if (el.tagName === 'DETAILS') el.open = true;
+      el.scrollIntoView({ block: 'start' });
+    }
+    go();
+    window.addEventListener('hashchange', go);
+  });
+
   safe('tabs', function () {
     var buttons = document.querySelectorAll('[data-tab]');
     function open(id) {

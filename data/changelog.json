@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Heroes, Items, Units first",
+    "items": [
+      "The site is now organised around heroes, items and units: the top bar has just these three, each with the same three tabs — the list, its stats table and its change matrix. Hero Stats lives under Heroes.",
+      "Patches and builds are still there (footer: Patch archive), but off the bar.",
+      "The home page shows what the latest updates changed on each hero, item and unit as icons — with the eye when something was hidden — each opening that page at that update. A matrix tile now opens the entity's own history at that patch too."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Change matrices: lighter and faster",
     "items": [
       "Hero, item and unit change matrices are a third lighter: a run of empty patch cells is one cell (the item matrix went from 29k cells to 4.8k, 38k page elements to 10k).",

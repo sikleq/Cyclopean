@@ -1,119 +1,142 @@
-"""Home page: the latest update first (how big, which way, who was hit, biggest moves),
-the site's totals, recent patches, all heroes."""
+"""Home page: the three sections (Heroes, Items, Units) and what the last updates changed on each of them —
+a strip of icons per update, each opening that hero's, item's or unit's history at that update. The site
+is about the entities, not the patch notes (owner, 2026-10-03: "closer to Sloppy")."""
 from __future__ import annotations
 
-from .common import (EYE_SVG, esc, plural, glyph_for, hero_icon, load_json, mark, page, patch_name, patch_parts,
-                     patch_title_html, visual, write)
-from .patches_pages import GAMEPLAY, _summary, hero_names
-from .render import tag_html, vals_html
+from .common import (EYE_SVG, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
+                     patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
 
-RECENT_PATCHES = 20       # the column beside the hero grid (8 rows of faces): 6 left most of it empty
-BIGGEST = 8
+LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
+SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'))
 
 
-def _biggest(p: dict) -> str:
-    """The biggest balance moves as small cards: icon, entity (+ its hero), tag, field, values."""
-    from .common import entity_icon
-    names = hero_names()
-    cards = []
-    # one card per ability: three rows of the same ultimate crowded out the rest
-    seen: set[str] = set()
-    picked = []
-    for r in p.get('key_changes') or []:
-        if r['entity'] not in seen:
-            seen.add(r['entity'])
-            picked.append(r)
-    picked = picked[:BIGGEST]
-    if len(picked) > 1:
-        picked = picked[:len(picked) // 2 * 2]      # two columns: full rows only, no stretched last card
-    for r in picked:
-        file, _, eid = r['entity'].partition(':')
-        ic = entity_icon(file, eid, r.get('kind') or '', '', r.get('name'), r.get('owner'))
-        who = names.get(r.get('owner') or '', '')
-        c = r['change']
-        cards.append(f'<div class="mini"><span class="mi">{visual(ic, glyph_for(file, eid))}</span>'
-                     f'<div class="mt"><div class="mn">{esc(r["name"])}'
-                     f'{"<span class=own>" + esc(who) + "</span>" if who and who != r["name"] else ""}</div>'
-                     f'<div class="ml">{tag_html(c)}<span>{esc(c["label"])}</span></div></div>'
-                     f'<div class="mv">{vals_html(c)}</div></div>')
-    return f'<div class="minis">{"".join(cards)}</div>' if cards else ''
+def page_of(e: dict, templates: frozenset[str] = frozenset()) -> tuple[str, str] | None:
+    """The page a patch entity's changes live on: (entity key, section). A hero's abilities and gun are the
+    hero's; the Hideout's toys, the bots and effects, templates ('trooper_base') and changes shared by
+    many ('@shared') have no page here."""
+    file, eid, owner = e['file'], e['id'], e.get('owner') or ''
+    if eid.startswith('@') or f'{file}:{eid}' in templates:
+        return None
+    if file == 'heroes.vdata':
+        return f'heroes.vdata:{eid}', 'heroes'
+    if file == 'abilities.vdata':
+        if eid.startswith('upgrade_'):
+            return f'abilities.vdata:{eid}', 'items'
+        if owner.startswith('hero_'):
+            return f'heroes.vdata:{owner}', 'heroes'
+        return None
+    if file == 'npc_units.vdata' and e.get('kind') != 'helper':
+        return f'npc_units.vdata:{eid}', 'units'
+    return None
 
 
-def _latest(row: dict | None) -> str:
-    if not row:
-        return ''
-    p = load_json(f'patches/{row["id"]}.json.gz')
-    from .cards import gameplay_entities
-    gameplay = gameplay_entities(p['entities'])
-    href = f'patches/{esc(row["id"])}.html'
-    c = p.get('counts', {})
-    # notes that only touch the interface say nothing about balance: say so next to the date
-    quiet = (' · <span class="no-notes">no balance notes</span>'
-             if p.get('sections') and not c.get('documented') and not c.get('described') else '')
-    return (f'<section class="latest px-frame hero-frame">'
-            f'<div class="banner{" named" if patch_name(row["title"]) else ""}"><span class="bt"><a href="{href}">'
-            f'{patch_title_html(row)}</a></span><span class="bd">latest update{quiet}</span>'
-            f'<span class="bc"><a class="px-btn" href="{href}">Open the patch →</a></span></div>'
-            f'{_summary(p, gameplay, "", link_base=href).replace("summary px-frame", "summary")}'
-            f'<h3 class="mini-h">Biggest changes</h3>{_biggest(p)}</section>')
+def update_feed(p: dict, templates: frozenset[str] = frozenset()) -> dict[str, dict[str, dict]]:
+    """section -> page key -> {n, hidden, buff, nerf, kind}: what one update did to each page.
+    Counts are the player-facing rows (cards.player_facing) a page shows; work on unreleased heroes
+    waits for their release."""
+    from .cards import gameplay_entities, player_facing
+    out: dict[str, dict[str, dict]] = {}
+    for e in gameplay_entities(p['entities']):
+        where = page_of(e, templates)
+        rows = [c for c in player_facing(e['changes']) if c.get('status') != 'unreleased']
+        if not where or not rows:
+            continue
+        key, section = where
+        slot = out.setdefault(section, {}).setdefault(key, {'n': 0, 'hidden': 0, 'buff': 0, 'nerf': 0,
+                                                             'kind': e.get('kind')})
+        slot['n'] += len(rows)
+        slot['hidden'] += sum(1 for c in rows if c.get('status') == 'hidden')
+        slot['buff'] += sum(1 for c in rows if c.get('dir') == 'buff')
+        slot['nerf'] += sum(1 for c in rows if c.get('dir') == 'nerf')
+    return out
 
 
-def _recent_name(r: dict) -> str:
-    """The date is in its own column: the row shows the update's name, or a quiet 'update'."""
-    name, _, follow = patch_parts(r)
-    fu = ' <span class="pfu">follow-up</span>' if follow else ''
-    return (f'<span class="pname">{esc(name)}</span>' if name else '<span class="pkind">update</span>') + fu
+def _chip(key: str, s: dict, pid: str, names: dict[str, str]) -> str:
+    """`names`: entity key -> its name today (common.display_name: never an id)."""
+    file, _, eid = key.partition(':')
+    name = names.get(key) or pretty_id(eid)
+    ic = hero_icon(eid, '') if file == 'heroes.vdata' else entity_icon(file, eid, s.get('kind') or '', '', name)
+    net = 'buff' if s['buff'] > s['nerf'] else 'nerf' if s['nerf'] > s['buff'] else 'mix'
+    tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} hidden' if s['hidden'] else '')
+    eye = f'<span class="lu-eye">{mark("hidden")}</span>' if s['hidden'] else ''
+    return (f'<a class="lu net-{net}" href="{esc(slug(file, eid))}#p-{esc(pid)}" data-tooltip="{esc(tip)}">'
+            f'{visual(ic, glyph_for(file, eid))}<span class="lu-n">{s["n"]}</span>{eye}</a>')
 
 
-def _recent(patches: list[dict]) -> str:
-    rows = []
-    for r in list(reversed(patches))[:RECENT_PATCHES]:
-        c, lc = r['counts'], r['line_counts']
-        if r.get('has_notes'):
-            chips = (f'<span class="au">{mark("documented")}<b>{c.get("documented", 0)}</b></span>'
-                     f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("hidden", 0)}</b></span>')
-        else:
-            chips = f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("unannounced", 0)}</b> no notes</span>'
-        if lc.get('mismatch'):
-            chips += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
-        rows.append(f'<a class="rp" href="patches/{esc(r["id"])}.html"><span class="rd">{esc(r["date"])}</span>'
-                    f'<span class="rt">{_recent_name(r)}</span><span class="rb">{plural(r["builds"], "build")}</span>'
-                    f'<span class="rc">{chips}</span></a>')
-    return '<div class="recent px-frame">' + ''.join(rows) + '</div>'
+def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str]) -> str:
+    blocks = []
+    for row in reversed(patches):
+        if len(blocks) == LATEST_UPDATES:
+            break
+        p = load_json(f'patches/{row["id"]}.json.gz')
+        feed = update_feed(p, templates)
+        if not feed:
+            continue
+        groups = []
+        for sec, title in SECTIONS:
+            got = sorted(feed.get(sec, {}).items(), key=lambda kv: (-kv[1]['n'], kv[0]))
+            if got:
+                groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b></span>'
+                              f'<div class="lu-row">{"".join(_chip(k, s, row["id"], names) for k, s in got)}</div></div>')
+        hidden = sum(s['hidden'] for sec in feed.values() for s in sec.values())
+        eye = f'<span class="au au-hidden">{mark("hidden")}<b>{hidden}</b> hidden</span>' if hidden else ''
+        blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
+                      f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
+                      f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
+    return ''.join(blocks)
+
+
+def _tiles(counts: dict[str, int], faces: list[str], units: list[str]) -> str:
+    """The three sections as big tiles (Sloppy's landing tiles, without blurbs)."""
+    art = {'heroes': ''.join(f'<img class="px" src="{esc(f)}" alt="" loading="lazy">' for f in faces[:6]),
+           'items': '<img src="icons/shop/tab_weapon.webp" alt=""><img src="icons/shop/tab_spirit.webp" alt="">'
+                    '<img src="icons/shop/tab_vitality.webp" alt="">',
+           'units': ''.join(f'<img class="px" src="{esc(u)}" alt="" loading="lazy">' for u in units[:6])}
+    return '<div class="home-tiles">' + ''.join(
+        f'<a class="htile px-frame {sec}" href="{sec}/index.html"><span class="ht-t">{title}</span>'
+        f'<span class="ht-n">{counts.get(sec, 0)}</span><span class="ht-art">{art[sec]}</span></a>'
+        for sec, title in SECTIONS) + '</div>'
 
 
 def build_all() -> int:
     patches = load_json('patches/index.json')
     builds = load_json('builds/index.json')
     heroes = load_json('tables/heroes.json')['heroes']
-    latest = patches[-1] if patches else None
+    ents = load_json('entities.json')['entities']
+    names = {f"{e['file']}:{e['id']}": display_name(e) for e in ents}
+    templates = frozenset(f"{e['file']}:{e['id']}" for e in ents if e.get('template'))
     total_hidden = sum(p['counts'].get('hidden', 0) for p in patches)
-    total_doc = sum(p['counts'].get('documented', 0) for p in patches)
-    total_mis = sum(p['line_counts'].get('mismatch', 0) for p in patches)
     last_build = builds[-1] if builds else None
-    strip = ''.join(f'<a class="hp" href="heroes/{esc(h["id"].removeprefix("hero_"))}.html">'
-                    f'<img class="px" src="{esc(hero_icon(h["id"], "") or "")}" alt="" loading="lazy">'
-                    f'<span>{esc(h["name"])}</span></a>' for h in heroes)
+    shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
+    counts = {'heroes': len(heroes),
+              # what the shop sells now (the tiers 1-4 on the Shop page)
+              'items': sum(1 for i in shop if not i.get('disabled') and not i.get('street_brawl')
+                           and str(i.get('tier')) in '1234'),
+              'units': sum(1 for e in ents if e['file'] == 'npc_units.vdata' and e.get('alive')
+                           and e.get('kind') != 'helper' and not e.get('template'))}
+    faces = [hero_icon(h['id'], '') or '' for h in heroes]
+    # the units a player meets first: the objectives, then troopers and neutrals with their own icon
+    order = {'building': 0, 'trooper': 1, 'neutral': 2}
+    unit_art = [u for u in (entity_icon(e['file'], e['id'], e.get('kind') or '', '')
+                            for e in sorted((e for e in ents if e['file'] == 'npc_units.vdata' and e.get('alive')
+                                             and e.get('kind') in order and not e.get('template')),
+                                            key=lambda e: (order[e['kind']], display_name(e)))) if u]
+    unit_art = list(dict.fromkeys(unit_art))       # the same icon on namesakes once
     body = f'''
 <div class="home-top">
   <div class="home-brand"><span class="mark hidden">{EYE_SVG}</span><h1>Cyclopean</h1></div>
   <div class="home-stats">
     <div class="hs"><span class="n">{len(builds)}</span><span class="l">builds compared</span></div>
-    <div class="hs documented"><span class="n">{total_doc}</span><span class="l">documented</span></div>
-    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">hidden</span></div>
-    <div class="hs mismatch"><span class="n">{total_mis}</span><span class="l">notes ≠ files</span></div>
+    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">hidden changes</span></div>
   </div>
 </div>
-{_latest(latest)}
-<div class="home-grid">
-  <div><div class="banner"><span class="bt">Recent patches</span><span class="bc"><a href="patches/index.html">all →</a></span></div>
-  {_recent(patches)}</div>
-  <div><div class="banner"><span class="bt">Heroes</span><span class="bc">{len(heroes)}</span></div>
-  <div class="hgrid">{strip}</div></div>
-</div>
+{_tiles(counts, faces, unit_art)}
+<h2 class="home-h">Latest changes</h2>
+{_feed(patches, names, templates)}
 '''
     write('index.html', page('Deadlock change history', body, '', '', build=last_build['build'] if last_build else None,
-                             description='Deadlock patch history from the game files: hidden changes, exact values, hero stats.'))
+                             description='What changed on every Deadlock hero, item and unit, from the game files: '
+                                         'exact values and the changes the notes leave out.'))
     write('changelog.html', changelog_page())
     return 2
 
