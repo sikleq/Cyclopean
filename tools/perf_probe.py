@@ -127,6 +127,11 @@ def serve() -> tuple[http.server.ThreadingHTTPServer, str]:
 def run_one(page, context, url: str, budget: float) -> dict:
     cdp = context.new_cdp_session(page)
     cdp.send('Performance.enable')
+    errors: list[str] = []                       # a script error fails the page too
+    on_console = lambda m: errors.append(m.text) if m.type == 'error' else None   # noqa: E731
+    on_error = lambda e: errors.append(str(e))                                     # noqa: E731
+    page.on('console', on_console)
+    page.on('pageerror', on_error)
     page.goto(url, wait_until='networkidle', timeout=60000)
     page.wait_for_timeout(200)
     dom = page.evaluate(DOM_STATS)
@@ -136,12 +141,16 @@ def run_one(page, context, url: str, budget: float) -> dict:
     deltas = {n: round((after.get(n, 0) - before.get(n, 0)) * (1000 if 'Duration' in n else 1), 1) for n in CDP_METRICS}
     frames = res['frames']
     p95 = round(percentile(frames, 95), 1)
-    return {'url': url, 'dom': dom,
+    page.remove_listener('console', on_console)
+    page.remove_listener('pageerror', on_error)
+    # Google Fonts may be unreachable offline: that is the network, not the page
+    errors = [e for e in errors if 'fonts.g' not in e and 'ERR_' not in e]
+    return {'url': url, 'dom': dom, 'errors': errors,
             'frames': {'count': len(frames), 'p50_ms': round(percentile(frames, 50), 1), 'p95_ms': p95,
                        'max_ms': round(max(frames), 1) if frames else 0.0,
                        'pct_over_16_7': round(100 * sum(f > 16.7 for f in frames) / len(frames), 1) if frames else 0.0},
             'long_tasks': {'count': len(res['longTasks']), 'total_ms': round(sum(t['duration'] for t in res['longTasks']), 1)},
-            'cdp_ms': deltas, 'pass': p95 <= budget}
+            'cdp_ms': deltas, 'pass': p95 <= budget and not errors}
 
 
 def main() -> int:
@@ -187,6 +196,8 @@ def main() -> int:
               f"{r['frames']['pct_over_16_7']:>7} {r['long_tasks']['count']:>5} {r['cdp_ms']['LayoutDuration']:>7} "
               f"{r['cdp_ms']['RecalcStyleDuration']:>7} {r['cdp_ms']['ScriptDuration']:>7}"
               + ('' if r['pass'] else '  FAIL'))
+        for e in r['errors'][:3]:
+            print(f'    JS error: {e[:120]}')
     print(f'\nbudget p95 <= {args.budget_p95} ms · {out_path.relative_to(ROOT)}')
     return 0 if all(r['pass'] for r in results) else 1
 
