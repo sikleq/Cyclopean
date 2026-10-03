@@ -390,9 +390,10 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   writes as "20m" reads m/s (`speed_m` → `M_SPEED`, display only: the matcher's transforms are
   unchanged). The history column stops at 1120px, % pills are 13px, long values wrap. A history of ≤3
   rows opens the "Current …" fold (`history_view.now_fold`); an entity event row ("Added to the game
-  files", path `@add`) has no value cell. Index cards carry a corner notch when the newest update
-  changed them (`entities_pages.latest_changes`, eye colour when its notes missed something; legend in
-  the toolbar); the newest update on the home page names its icons; stats tables explain their notch.
+  files", path `@add`) has no value cell. The newest update on the home page names its icons; stats
+  tables explain their notch. A "changed in the newest update" notch on index cards was tried and
+  dropped (owner, 2026-10-03): the newest update marked 1 hero, two weeks would mark 102 items — it
+  told nothing apart; the home feed and the search answer "what changed lately".
 - Home search (`builders/site_search.py`, scripts.js `site-search`): `search.json` = [name, page, what,
   icon] for every hero, its current abilities (`#ab-<id>` opens the hero filtered to it), item and
   named unit, fetched on the first keystroke; names that start with the query first.

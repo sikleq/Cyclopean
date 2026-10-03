@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from .common import (display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, img, load_json, page, pretty_id,
-                     recent_cls, slug, write)
+                     slug, write)
 from .hero_page import hero_page, history_table, now_fold, prop_icon, prop_rows, stat_tables
 from .render import KIND_LABEL
 
@@ -30,37 +30,6 @@ def _history() -> tuple[dict, dict]:
                 if ln.get('subject') and ln['status'] not in ('heading', 'repeated'):
                     by_subject[ln['subject'].strip().lower()].append((row, ln))
     return by_ent, by_subject
-
-
-def latest_changes(by_ent, ents: dict) -> tuple[str, dict[str, str]]:
-    """The newest update that changed something a player sees, and what it changed: entity key ->
-    'hid' (something the notes left out) or 'yes'. An ability counts for its hero. The index grids
-    mark these cards (advisor round 4: "what changed on X lately" took opening every page)."""
-    from .cards import player_facing
-    from .common import patch_title_text
-    patches = {row['id']: row for rows in by_ent.values() for row, _ in rows}
-    for row in sorted(patches.values(), key=lambda r: r['date'], reverse=True):
-        out: dict[str, str] = {}
-        for key, rows in by_ent.items():
-            facing = [c for r, ch in rows if r['id'] == row['id'] for c in player_facing(ch)
-                      if c.get('status') != 'unreleased']
-            if not facing:
-                continue
-            owner = (ents.get(key) or {}).get('owner')
-            target = f'heroes.vdata:{owner}' if owner and owner.startswith('hero_') else key
-            hid = any(c.get('status') == 'hidden' for c in facing)
-            out[target] = 'hid' if hid or out.get(target) == 'hid' else 'yes'
-        if out:
-            return patch_title_text(row), out
-    return '', {}
-
-
-def recent_legend(title: str) -> str:
-    """The card notch explained once in the index toolbar."""
-    if not title:
-        return ''
-    return (f'<span class="sep"></span><span class="chip legend-recent">changed in {esc(title)}</span>'
-            f'<span class="chip legend-recent hid">… not in its notes</span>')
 
 
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
@@ -183,7 +152,7 @@ def sub_tabs(section: str, active: str) -> str:
 
 def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
     href = slug(e['file'], e['id']).split('/', 1)[1]
-    cls = 'card px-frame' + ('' if e.get('alive') else ' gone') + recent_cls(e.get('recent'))
+    cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
     name = e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
     return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc(name.lower())} {esc(e["id"])}">'
             f'{img(rel_icon, "", "px", glyph_for(e["file"], e["id"]))}<span class="nm">{esc(name)}</span>'
@@ -214,14 +183,10 @@ def build_all() -> dict[str, int]:
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
     from .dynamics_page import hero_entries, matrix_html, toolbar
     from .heroes_grid import heroes_grid_html, pre_release_switch
-    latest, recent = latest_changes(by_ent, ents)
-
-    def marked(es: list[dict]) -> list[dict]:
-        return [{**e, 'recent': recent.get(f"{e['file']}:{e['id']}")} for e in es]
     body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
-            f'<span class="sep"></span>{pre_release_switch(live)}{recent_legend(latest)}</div>'
-            + heroes_grid_html(marked(live), marked(other), trow, rel))
+            f'<span class="sep"></span>{pre_release_switch(live)}</div>'
+            + heroes_grid_html(live, other, trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
     dyn = matrix_html(hero_entries(live, rel), 'hero')
@@ -237,11 +202,10 @@ def build_all() -> dict[str, int]:
     # laid out like the game's shop: tiers x Weapon / Spirit / Vitality (builders/shop_page.py)
     from .dynamics_page import item_entries
     from .shop_page import shop_html
-    shop, tips = shop_html(marked(items), cards, rel)
+    shop, tips = shop_html(items, cards, rel)
     write('items/shop-tips.json', tips)          # the tooltips, loaded on the first hover
     body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
-            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard">'
-            f'{recent_legend(latest)}</div>' + shop)
+            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard"></div>' + shop)
     entries = item_entries(items, cards, rel)
     n_gone = sum(1 for e in entries if e[4])
     write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
@@ -281,10 +245,7 @@ def build_all() -> dict[str, int]:
             copies = len(ms) // max(len(tiers), 1)
             sub = ('removed' if not ms[0].get('alive') else
                    ' · '.join(([' '.join(tiers)] if tiers else []) + ([f'×{copies}'] if copies > 1 else [])))
-            marks = [recent.get(f"{m['file']}:{m['id']}") for m in ms]
-            mark_ = 'hid' if 'hid' in marks else 'yes' if 'yes' in marks else None
-            cards_html.append(_card({**ms[0], 'name': n, 'recent': mark_},
-                                    entity_icon(ms[0]['file'], ms[0]['id'], kind, rel), sub))
+            cards_html.append(_card({**ms[0], 'name': n}, entity_icon(ms[0]['file'], ms[0]['id'], kind, rel), sub))
         # the Hideout's toys, the bots' brain, effect-only entries: behind their own switch
         wrap = ' class="helper-group"' if kind == 'helper' else ''
         groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
@@ -302,8 +263,7 @@ def build_all() -> dict[str, int]:
         for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', helpers_label, n_helpers)) if n)
     gone_switch = f'<span class="sep"></span>{gone_switch}' if gone_switch else ''
     body = ('<h1>Units</h1>' + sub_tabs('units', 'index')
-            + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}'
-            + f'{recent_legend(latest)}</div>'
+            + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'
             + f'<div id="units-grid">{"".join(groups)}</div>')
     write('units/index.html', page('Units', body, rel, 'units'))
     from .hero_page import current_cards

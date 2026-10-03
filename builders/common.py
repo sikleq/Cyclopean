@@ -393,11 +393,6 @@ def fmt_date(iso: str) -> str:
     return (iso or '')[:10]
 
 
-def recent_cls(mark_: str | None) -> str:
-    """An index card the newest update changed (entities_pages.latest_changes): 'yes' or 'hid'."""
-    return (' recent' + (' recent-hid' if mark_ == 'hid' else '')) if mark_ else ''
-
-
 def first_seen(first) -> str:
     """The page head's "First seen" line: the date only — a build number means nothing to a player
     (advisor, 2026-10-03). `first` is the entity's (build, date) pair."""

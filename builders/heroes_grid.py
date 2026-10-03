@@ -5,7 +5,7 @@ complexity and last-patch counters were dropped on the owner's call (2026-10-01)
 and Hero changes hold that."""
 from __future__ import annotations
 
-from .common import display_name, esc, hero_icon, icon, recent_cls, slug
+from .common import display_name, esc, hero_icon, icon, slug
 
 
 def hero_color(c) -> str | None:
@@ -32,8 +32,7 @@ def hero_card(h: dict, row: dict | None, rel: str) -> str:
     # (an exception the owner approved on 2026-10-01)
     color = hero_color(row.get('color'))
     style = f' style="--hero: {color}"' if color else ''
-    return (f'<a class="hgcard{" pre" if pre else ""}{recent_cls(h.get("recent"))}" href="{esc(href)}"{style} '
-            f'data-search="{esc(name.lower())}">'
+    return (f'<a class="hgcard{" pre" if pre else ""}" href="{esc(href)}"{style} data-search="{esc(name.lower())}">'
             f'<span class="hg-pic">{img}</span>{ribbon}<span class="hg-nm">{esc(name)}</span></a>')
 
 

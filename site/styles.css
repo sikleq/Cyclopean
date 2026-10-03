@@ -820,14 +820,6 @@ table.stats td.has-hist.recent::after { content: ""; position: absolute; right: 
 table.stats td.spirit { color: var(--tag-rework); }
 .table-tabs { margin-bottom: 12px; }
 .chip.legend-hist::before { content: ""; width: 0; height: 0; border-top: 7px solid var(--patina); border-left: 7px solid transparent; align-self: flex-start; }
-/* an index card the newest update changed (entities_pages.latest_changes): a notch in the top-left
-   corner (a pre-release ribbon holds the right one); the eye's colour when the notes left it out */
-.card.recent { position: relative; }
-.hgcard.recent::after, .card.recent::after, .gcard.recent::after { content: ""; position: absolute; left: 0; top: 0; z-index: 2;
-  width: 0; height: 0; border-top: 14px solid var(--patina); border-right: 14px solid transparent; pointer-events: none; }
-.recent.recent-hid::after { border-top-color: var(--eye); }
-.chip.legend-recent::before { content: ""; width: 0; height: 0; border-top: 10px solid var(--patina); border-right: 10px solid transparent; align-self: flex-start; }
-.chip.legend-recent.hid::before { border-top-color: var(--eye); }
 .chip.legend-spirit { color: var(--tag-rework); }
 table.stats td .dash, .dash { color: var(--text-dimmer); }
 table.stats td.hm-hi { background-color: var(--cell-hi); }

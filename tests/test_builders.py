@@ -704,22 +704,6 @@ def test_short_history_opens_the_current_fold_and_events_carry_no_value():
     assert vals_html({'op': 'add', 'path': '@add', 'cat': 'balance', 'label': 'Added to the game files'}) == ''
 
 
-def test_index_cards_mark_what_the_newest_update_changed():
-    """Advisor round 4: the grids did not say what the last update touched; an ability marks its hero,
-    the eye's colour when the notes left something out."""
-    from builders.entities_pages import latest_changes
-    old = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    new = {'id': 'p2', 'date': '2026-02-01', 'title': 'City Never Sleeps · 02-01-2026'}
-    by_ent = {'abilities.vdata:ab_charge': [(new, [ch(status='documented')])],
-              'heroes.vdata:hero_atlas': [(new, [ch(status='hidden')])],
-              'abilities.vdata:upgrade_x': [(old, [ch()])],
-              'abilities.vdata:upgrade_y': [(new, [ch(status='documented')])]}
-    ents = {'abilities.vdata:ab_charge': {'owner': 'hero_atlas'}}
-    title, marks = latest_changes(by_ent, ents)
-    assert title.startswith('City Never Sleeps')
-    assert marks == {'heroes.vdata:hero_atlas': 'hid', 'abilities.vdata:upgrade_y': 'yes'}
-
-
 def test_site_search_lists_heroes_abilities_items_and_units():
     """Advisor round 4: no way to jump to "what changed on X" from the home page."""
     from builders.site_search import search_rows
