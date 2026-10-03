@@ -371,6 +371,13 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   hide. Unnamed units (`unit_families.is_named`) sit with the helpers and stay off the home feed. An
   item page splits its "Enhanced: …" rows into an "Enhanced version" group (`history_table(enhanced=
   True)`, parts Base / Enhanced; the item's own group has no header).
+- Round 3: a unit's AI wiring is plumbing (`cards._NPC_AI_LABEL`: attack range target, aiming spread,
+  ability chances, weak-point count / respawn, sweep, model scale…; "Viewer" labels too); values read as
+  said (`render._sentinel`: "-1" → "no limit" except "-1%", empty → "—"; `_same_unit`: "50m → 20m");
+  family groups are named by tier only; buildings count as named; Unit Stats shows only named units,
+  drops a column that repeats another (Walk = Run), a glyph where there is no art; the history toolbar
+  is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
+  every patch).
 - Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).
