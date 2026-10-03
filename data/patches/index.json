@@ -1220,15 +1220,15 @@
   "date": "2025-03-13",
   "builds": 1,
   "counts": {
-   "documented": 17,
+   "documented": 18,
    "described": 23,
-   "hidden": 18,
+   "hidden": 17,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 9,
-   "documented": 12,
+   "unmatched": 8,
+   "documented": 13,
    "described": 3
   },
   "has_notes": true
@@ -1319,9 +1319,9 @@
   "date": "2025-05-08",
   "builds": 12,
   "counts": {
-   "documented": 70,
+   "documented": 74,
    "described": 63,
-   "hidden": 1282,
+   "hidden": 1278,
    "unannounced": 0,
    "unreleased": 158
   },
@@ -1474,8 +1474,8 @@
   "builds": 3,
   "counts": {
    "documented": 110,
-   "described": 72,
-   "hidden": 53,
+   "described": 71,
+   "hidden": 54,
    "unannounced": 0,
    "unreleased": 8
   },
@@ -1709,17 +1709,17 @@
   "date": "2025-11-21",
   "builds": 1,
   "counts": {
-   "documented": 196,
+   "documented": 197,
    "described": 232,
-   "hidden": 61,
+   "hidden": 60,
    "unannounced": 0,
    "unreleased": 6
   },
   "line_counts": {
-   "unmatched": 40,
+   "unmatched": 41,
    "untracked": 1,
    "documented": 164,
-   "described": 28,
+   "described": 27,
    "rounded": 7,
    "fix": 4,
    "mismatch": 2,
@@ -1811,14 +1811,14 @@
   "builds": 5,
   "counts": {
    "documented": 84,
-   "described": 53,
-   "hidden": 41,
+   "described": 50,
+   "hidden": 44,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 18,
-   "described": 12,
+   "unmatched": 19,
+   "described": 11,
    "documented": 45,
    "fix": 2
   },
@@ -2292,8 +2292,8 @@
   "date": "2026-05-28",
   "builds": 2,
   "counts": {
-   "documented": 2,
-   "described": 3,
+   "documented": 1,
+   "described": 4,
    "hidden": 18,
    "unannounced": 0,
    "unreleased": 0
@@ -2530,8 +2530,8 @@
   "builds": 7,
   "counts": {
    "documented": 1,
-   "described": 31,
-   "hidden": 1226,
+   "described": 25,
+   "hidden": 1232,
    "unannounced": 0,
    "unreleased": 262
   },
