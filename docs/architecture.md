@@ -48,6 +48,8 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 | Icons from the local game | `python tools/extract_icons.py` |
 | Debug the matcher on one patch | `python tools/inspect_patch.py 2026-09-16 unmatched mismatch` |
 | Tests | `python -m pytest` |
+| Shop look and sounds from the local game | `python tools/extract_shop_assets.py` |
+| Page performance (scroll p95, elements, layout / style time; before & after) | `python tools/perf_probe.py [--urls …] [--label before]` |
 
 ## Change statuses (patch pages)
 
