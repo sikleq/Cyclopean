@@ -459,8 +459,11 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
                                       ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
                                       ('hero:hero_none', 'Nothing', None, 'n.html', '')], 'hero')
     assert 'Nothing' not in html                                   # a row with no changes is not listed
-    assert 'st t-buff" style="flex:2"' in html and 'net-buff' in html
-    assert 'class="dc old"' in html and 'dd named' in html          # >1 year old column; gold named patch
+    # stripes as one gradient in tag order (buff before nerf), the nerf held at its 12% minimum share
+    assert 'var(--tag-buff) 0% 66.7%,var(--tag-nerf) 66.7% 100%' in html and 'net-buff' in html
+    # >1 year old column: hidden with its colgroup column; a run of empty cells is one cell
+    assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
+    assert '--n-all:2;--n-new:1' in html
     assert '#c-hero_atlas' in html and 'tr class="extra"' in html
     # the hover card's data: the cell's counts and its biggest changes, the number on the tile
     assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
@@ -469,6 +472,15 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
     assert 'show-old' in bar and 'bvn' in bar and 'hide-buff' in bar and 'show-extra' in bar
     assert 'data-part="weapon"' in bar and 'data-part="all"' in bar
+
+
+def test_matrix_merges_empty_runs_but_not_across_the_old_line():
+    """2026-10-03: the item matrix had 29k cells, 27k of them empty — a run of empty cells is one cell."""
+    from builders.dynamics_page import _gap, stripes
+    assert _gap(1, False) == '<td></td>' and _gap(5, True) == '<td class=old colspan=5></td>'
+    # a lone tag fills the tile; a tiny share still shows (12% minimum)
+    assert stripes({'new': 1}) == 'linear-gradient(var(--tag-new) 0% 100%)'
+    assert 'var(--tag-changed)' in stripes({'up': 1, 'buff': 30})
 
 
 def test_unit_table_names_and_copies():

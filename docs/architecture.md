@@ -389,6 +389,13 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Change matrix cells: a bevelled tile, its number of changes in the corner; hovering opens a card drawn by
   scripts.js from the page's `.dyn-data` JSON (who, which patch, counts with the tag icons, the three
   biggest changes, "+N more").
+- Matrix performance (2026-10-03, item matrix 29k → 4.8k cells, 38k → 10k elements): the stripes are ONE
+  inline gradient (`dynamics_page.stripes`, the same in scripts.js after a filter; 12% minimum share);
+  a run of empty cells is one `<td colspan>` (`_gap`) that never crosses into the old columns, the column
+  lines are its background; `table-layout: fixed` from a `<colgroup>` (30px per patch, `col.old` 0 while
+  hidden; table width from `--n-new` / `--n-all`) — the automatic layout with colspans took 0.5 s per
+  toggle. A tag filter redraws only the tiles that have the tag and are in sight; hidden ones are marked
+  dirty and drawn when their columns / rows show.
 - Patch calendar (`builders/calendar_page.py`, patches/calendar.html, Sloppy's Calendar): per year, months
   by days; a day's shade = game builds that day, a patch day a raised tile with its name (named update
   in gold); the year's numbers (patches, named, follow-ups, builds, median / longest / shortest stretch)

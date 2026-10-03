@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Change matrices: lighter and faster",
+    "items": [
+      "Hero, item and unit change matrices are a third lighter: a run of empty patch cells is one cell (the item matrix went from 29k cells to 4.8k, 38k page elements to 10k).",
+      "Tag filters redraw only the tiles that have the tag and are in sight (130 ms → 40 ms); columns keep an exact 30px grid."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Shop: page width, All Items like the game, faster",
     "items": [
       "The shop fills the page's width; All Items is the game's own page too: three paper columns under \"Weapon · Spirit · Vitality\", a price sticker per tier (§800 … the \"Premium Quality\" §6400 star), the same cards.",

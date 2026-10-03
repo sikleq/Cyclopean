@@ -202,7 +202,7 @@
   safe('dyn-tip', function () {
     var blobs = document.querySelectorAll('script.dyn-data');
     if (!blobs.length) return;
-    var data = {};
+    var data = window.__dyn = window.__dyn || {};     // shared with dyn-parts: parse each blob once
     blobs.forEach(function (b) { data[b.getAttribute('data-for')] = JSON.parse(b.textContent); });
     var tip = document.createElement('div');
     tip.className = 'dyn-tip px-frame';
@@ -272,25 +272,51 @@
     if (!tables.length) return;
     var order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
     var parsed = {};
-    function redraw(table) {
+    // the same gradient builders/dynamics_page.stripes draws: a stripe per tag, none thinner than 12%
+    var COLOUR = { up: 'changed', down: 'changed' };
+    function stripes(counts, tags) {
+      var total = 0, norm = 0, acc = 0;
+      tags.forEach(function (t) { total += counts[t]; });
+      var shares = tags.map(function (t) { var s = Math.max(counts[t] / total, 0.12); norm += s; return s; });
+      return 'linear-gradient(' + tags.map(function (t, i) {
+        var a = acc;
+        acc += shares[i] / norm * 100;
+        return 'var(--tag-' + (COLOUR[t] || t) + ') ' + a.toFixed(1) + '% ' + acc.toFixed(1) + '%';
+      }).join(',') + ')';
+    }
+    // `onlyTag`: a tag button touches only the tiles that have that tag; tiles out of sight (old columns,
+    // hidden rows) wait, marked dirty, until they show (2k tiles took 130 ms each click)
+    var tiles = {};
+    function redraw(table, onlyTag, onlyDirty) {
       var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
       if (!blob) return;
-      var d = parsed[table.id] || (parsed[table.id] = JSON.parse(blob.textContent));
+      var d = (window.__dyn || {})[table.id] || parsed[table.id] || (parsed[table.id] = JSON.parse(blob.textContent));
+      var list = tiles[table.id] || (tiles[table.id] = Array.prototype.map.call(
+        table.querySelectorAll('a.dsq[data-k]'), function (a) {
+          var td = a.parentNode;
+          return [a, d.cells[+a.getAttribute('data-k')], td.classList.contains('old'),
+                  td.parentNode.classList.contains('extra'), false];
+        }));
       var part = table.getAttribute('data-part') || 'all';
-      table.querySelectorAll('a.dsq[data-k]').forEach(function (a) {
-          var c = d.cells[+a.getAttribute('data-k')];
-          var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
-          var tags = order.filter(function (t) { return counts[t] && !table.classList.contains('hide-' + t); }), total = 0;
-          tags.forEach(function (t) { total += counts[t]; });
-          a.classList.toggle('part-out', !total);
-          if (!total) return;
-          a.innerHTML = tags.map(function (t) {
-            return '<span class="st t-' + t + '" style="flex:' + counts[t] + '"></span>';
-          }).join('') + '<span class="dn">' + total + '</span>';
-          var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
-          var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
-          a.classList.remove('net-buff', 'net-nerf', 'net-mix');
-          a.classList.add(good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix');
+      var hidden = order.filter(function (t) { return table.classList.contains('hide-' + t); });
+      var showOld = table.classList.contains('show-old'), showExtra = table.classList.contains('show-extra');
+      list.forEach(function (pair) {
+        var a = pair[0], c = pair[1];
+        if (onlyDirty && !pair[4]) return;
+        var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
+        if (onlyTag && !counts[onlyTag]) return;
+        if ((pair[2] && !showOld) || (pair[3] && !showExtra)) { pair[4] = true; return; }
+        pair[4] = false;
+        var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = 0;
+        tags.forEach(function (t) { total += counts[t]; });
+        var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
+        var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
+        var cls = 'dsq ' + (!total ? 'part-out' : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix');
+        // write only what changed: a text or class write re-lays the tile out
+        if (a.className !== cls) a.className = cls;
+        if (!total) return;
+        a.style.background = stripes(counts, tags);
+        if (a.firstChild.textContent !== String(total)) a.firstChild.textContent = total;
       });
     }
     document.querySelectorAll('[data-part]').forEach(function (btn) {
@@ -306,9 +332,18 @@
     document.querySelectorAll('.dyn-tags [data-toggle-class]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var table = document.querySelector(btn.getAttribute('data-target'));
-        if (table) setTimeout(function () { redraw(table); }, 0);
+        var tag = (btn.getAttribute('data-toggle-class') || '').replace('hide-', '');
+        if (table) setTimeout(function () { redraw(table, tag); }, 0);
       });
     });
+    // old columns / hidden rows coming into sight: draw the tiles a filter skipped
+    document.querySelectorAll('.dyn-bar input[data-toggle-class="show-old"], .dyn-bar input[data-toggle-class="show-extra"]')
+      .forEach(function (inp) {
+        inp.addEventListener('click', function () {
+          var table = document.querySelector(inp.getAttribute('data-target'));
+          if (table && tiles[table.id]) setTimeout(function () { redraw(table, null, true); }, 0);
+        });
+      });
   });
 
   /* ---------- change matrices open at the newest patches (the right end); older columns re-scroll ---------- */

@@ -14,7 +14,7 @@ from functools import lru_cache
 
 from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
 from .pixel_icons import tag_svg
-from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, counts_text, shown_value, tag_of
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
@@ -107,20 +107,38 @@ def _net(counts: dict[str, int]) -> str:
     return 'net-buff' if good > bad else 'net-nerf' if bad > good else 'net-mix'
 
 
-def _stripes(counts: dict[str, int]) -> str:
-    return ''.join(f'<span class="st t-{t}" style="flex:{n}"></span>'
-                   for t, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
+STRIPE_MIN = 0.12        # a stripe never thinner than this share of the tile (one buff among 30 rows)
+STRIPE_COLOUR = {'up': 'changed', 'down': 'changed'}
 
 
-def _cell(prow: dict, counts: dict[str, int] | None, href: str, old: bool, k: int | None) -> str:
-    cls = 'dc old' if old else 'dc'
-    if not counts:
-        return f'<td class="{cls}"></td>'
-    total = sum(counts.values())
-    tip = f'{patch_title_text(prow)}: {counts_text(counts)}'
+def stripes(counts: dict[str, int]) -> str:
+    """The tile's stripes as ONE gradient (scripts.js draws the same after a filter): a span per tag cost
+    ~10k nodes on the item matrix (2026-10-03)."""
+    tags = sorted((t for t in counts if counts[t]), key=lambda t: TAG_ORDER.get(t, 9))
+    if not tags:
+        return ''
+    total = sum(counts[t] for t in tags)
+    shares = [max(counts[t] / total, STRIPE_MIN) for t in tags]
+    norm = sum(shares)
+    stops, acc = [], 0.0
+    for t, s in zip(tags, shares):
+        a, acc = acc, acc + s / norm * 100
+        stops.append(f'var(--tag-{STRIPE_COLOUR.get(t, t)}) {a:.3g}% {acc:.3g}%')
+    return f'linear-gradient({",".join(stops)})'
+
+
+def _cell(counts: dict[str, int], href: str, k: int | None, old: bool) -> str:
     data_k = f' data-k="{k}"' if k is not None else ''
-    return (f'<td class="{cls}"><a class="dsq {_net(counts)}" href="{esc(href)}"{data_k} aria-label="{esc(tip)}">'
-            f'{_stripes(counts)}<span class="dn">{total}</span></a></td>')
+    return (f'<td{" class=old" if old else ""}><a class="dsq {_net(counts)}" href="{esc(href)}"{data_k} '
+            f'style="background:{stripes(counts)}"><span class="dn">{sum(counts.values())}</span></a></td>')
+
+
+def _gap(n: int, old: bool) -> str:
+    """A run of empty patch cells is ONE cell (the column lines are its background): the item matrix had
+    29k cells, 27k of them empty (2026-10-03). A run never crosses into the old columns, which hide."""
+    span = f' colspan={n}' if n > 1 else ''
+    cls = ' class=old' if old else ''
+    return f'<td{cls}{span}></td>'
 
 
 def _head(rows: list[dict], cutoff: str, label: str) -> str:
@@ -135,7 +153,11 @@ def _head(rows: list[dict], cutoff: str, label: str) -> str:
     sub = ''.join(f'<th class="dd{" old" if r["date"] < cutoff else ""}{" named" if patch_name(r["title"]) else ""}">'
                   f'<a href="../patches/{esc(r["id"])}.html" data-tooltip="{esc(patch_title_text(r))}">{esc(r["date"][8:])}</a></th>'
                   for r in rows)
-    return f'<thead><tr class="cats"><th class="name"></th>{top}</tr><tr class="cols"><th class="name">{esc(label)}</th>{sub}</tr></thead>'
+    # fixed layout takes the widths from these: the name, then 30px per patch (0 for an old one while
+    # the old patches are hidden) — the automatic layout of ~5k cells with colspans took 0.5 s per toggle
+    cols = '<col class="nm">' + ''.join('<col class="old">' if r['date'] < cutoff else '<col>' for r in rows)
+    return (f'<colgroup>{cols}</colgroup><thead><tr class="cats"><th class="name"></th>{top}</tr>'
+            f'<tr class="cols"><th class="name">{esc(label)}</th>{sub}</tr></thead>')
 
 
 def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str) -> str:
@@ -148,17 +170,23 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
     body: list[str] = []
 
     def tds(key: str, mine: dict, anchor: str, part_of_cell: dict | None) -> str:
-        out = []
+        out, run, run_old = [], 0, True
         for r in rows:
             counts = mine.get(r['id'])
-            k = None
-            if counts:
-                k = len(tips)
-                entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], [])]
-                if part_of_cell is not None:
-                    entry.append(part_of_cell.get(r['id'], {}))     # {part: {tag: n}} for the filter
-                tips.append(entry)
-            out.append(_cell(r, counts, f'../patches/{r["id"]}.html{anchor}', r['date'] < cutoff, k))
+            old = r['date'] < cutoff
+            if run and (counts or old != run_old):
+                out.append(_gap(run, run_old))
+                run = 0
+            if not counts:
+                run, run_old = run + 1, old
+                continue
+            entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], [])]
+            if part_of_cell is not None:
+                entry.append(part_of_cell.get(r['id'], {}))     # {part: {tag: n}} for the filter
+            tips.append(entry)
+            out.append(_cell(counts, f'../patches/{r["id"]}.html{anchor}', len(tips) - 1, old))
+        if run:
+            out.append(_gap(run, run_old))
         return ''.join(out)
 
     for key, name, ic, href, extra in entries:
@@ -175,7 +203,9 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             'parts': dict(PARTS)}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
-    return (f'<div class="table-fade"><div class="table-scroll"><table class="dyn" id="dyn-{kind}">{_head(rows, cutoff, kind.title())}'
+    n_old = sum(1 for r in rows if r['date'] < cutoff)
+    return (f'<div class="table-fade"><div class="table-scroll"><table class="dyn" id="dyn-{kind}" '
+            f'style="--n-all:{len(rows)};--n-new:{len(rows) - n_old}">{_head(rows, cutoff, kind.title())}'
             f'<tbody>{"".join(body)}</tbody></table></div></div>'
             f'<script type="application/json" class="dyn-data" data-for="dyn-{kind}">{blob}</script>')
 
