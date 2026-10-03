@@ -219,6 +219,10 @@ _NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|De
 
 METRES = 'metres'          # already metres: shown as is with "m"
 MPS = 'mps'                # already metres per second: shown as is with "m/s"
+# a speed Valve writes as "20m" (Channel Move Speed, a T3 "+3m"): the "m" is m/s; a bare number stays
+# bare (advisor round 4: "Channel Move Speed 20m → no limit"). Display only — describe() flags it as
+# 'speed_m' and keeps 'meters' False, so the matcher's transforms do not move.
+M_SPEED = 'm-speed'
 FRACTION = 'fraction'      # a share written 0..1: shown ×100 with "%"
 # shares the game writes as fractions and the notes as percents: "Move speed while shooting 55% -> 70%"
 # read "0.55 -> 0.7", Boss Damage Scale "0.5 -> 0.2" (audit 2026-10-02, AB14)
@@ -336,13 +340,29 @@ _CAMEL_RE = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z](?!s(?:[A-Z\d_
 _UNIT_WORDS = ((' In Seconds', ' (s)'), (' In Meters', ' (m)'), ('Domain Maxs', 'Domain (max)'), (' Mins', ' (min)'))
 
 
+# the game's words for Valve's internal ones, in labels the game never wrote (a field name split into
+# words): "Tech" is Spirit, an armor stat is a resist (advisor round 4, 2026-10-03: 63 rows read "Tech
+# Armor Damage Resist", "Intrinsic Modifiers boss intrinsic › Bullet Armor Damage Resist")
+_GAME_WORDS = ((re.compile(r'\bBullet Armor Damage (Resist|Reduction)\b'), 'Bullet Resist'),
+               (re.compile(r'\bTech Armor Damage (Resist|Reduction)\b'), 'Spirit Resist'),
+               (re.compile(r'\bBullet Armor\b'), 'Bullet Resist'),
+               (re.compile(r'\bTech Armor\b'), 'Spirit Resist'),
+               (re.compile(r'\bTech\b'), 'Spirit'))
+
+
+def game_words(text: str) -> str:
+    for rx, word in _GAME_WORDS:
+        text = rx.sub(word, text)
+    return text
+
+
 def humanize(key: str) -> str:
     k = _PREFIX_RE.sub('', key)
     k = k.lstrip('_').replace('_', ' ')
     out = _CAMEL_RE.sub(' ', k).strip() or key
     for a, b in _UNIT_WORDS:
         out = out.replace(a, b)
-    return out[:1].upper() + out[1:]
+    return game_words(out[:1].upper() + out[1:])
 
 
 def _loc_label(tok: dict[str, str], name: str, ability: str | None = None) -> str | None:
@@ -442,7 +462,17 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', s
     word = SCALE_STAT_WORDS.get(scaled_by or '')
     if word and '(spirit scaling' in d['label']:
         d = {**d, 'label': d['label'].replace('(spirit scaling', f'({word} scaling')}
+    if not d.get('unit') and d.get('meters') is False and d['group'] in _TIMED_GROUPS:
+        name = d.get('prop') or re.sub(r'\{.*\}|\[\d+\]', '', path.rsplit('.', 1)[-1])
+        if _TIME_FIELD.search(name):
+            d = {**d, 'unit': 's'}
     return d
+
+
+# a time the game keeps in seconds but no tooltip names (advisor round 4: Fire Interval, Reload Time,
+# Bullet Lifetime… 1,867 rows without "s"); a T1-T3 bonus or a corrupted value keeps its own unit
+_TIME_FIELD = re.compile(r'(Time|Duration|Delay|Interval|Cooldown|Lifetime|InSeconds)$')
+_TIMED_GROUPS = ('weapon', 'unit', 'other', 'property', 'powerup')
 
 
 def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None) -> dict:
@@ -460,7 +490,7 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         if rest == 'm_strValue':
             unit = prop_unit(tok, prop, token)
             return {'label': label, 'meters': SPEED if prop_speed(prop, unit) else False, 'group': 'property',
-                    'prop': prop, 'unit': unit}
+                    'prop': prop, 'unit': unit, 'speed_m': prop.endswith('Speed')}
         if rest == 'm_strStreetBrawlValue':
             return {'label': f'{label} (Street Brawl)', 'meters': False, 'group': 'streetbrawl', 'prop': prop}
         if rest.endswith('m_flStatScale'):
@@ -489,7 +519,7 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         # a flat bonus to a travel speed is engine units/s like the speed (Lunge's T3 Dash Speed +550)
         speed = field == 'm_strBonus' and not scaling and 'EMultiplyBase' not in parts and prop_speed(prop, unit)
         return {'label': f'{prefix}: {label}', 'meters': SPEED if speed else False, 'group': 'tier', 'prop': prop,
-                'tier': tier, 'unit': unit}
+                'tier': tier, 'unit': unit, 'speed_m': prop.endswith('Speed')}
     if path.startswith('m_mapStartingStats.'):
         stat = path.split('.')[1]
         if stat == 'EStaminaRegenPerSecond':
@@ -618,7 +648,7 @@ def _segment(seg: str) -> str:
     # a field name with a type prefix but no "m_" ("flCooldownOnBreak" of the shield trackers sat raw)
     field = name.startswith(('m_', '_')) or bool(_TYPED_FIELD.match(name))
     text = humanize(_ENUM_PREFIX_RE.sub('', name)) if field else \
-        _ENUM_PREFIX_RE.sub('', name).replace('_', ' ').strip()
+        game_words(_ENUM_PREFIX_RE.sub('', name).replace('_', ' ').strip())
     if idx is not None:
         text += f' #{int(idx) + 1}'
     if key:
@@ -644,7 +674,9 @@ CONTAINER_WORDS = {'m_projectileInfo': 'Projectile', 'm_mapAttacks': '', 'EAttac
                    'EAttackType_Light': 'Light melee', 'EAttackType_HeavyAir': 'Air heavy melee',
                    'EAttackType_Slide': 'Slide melee', 'm_deploymentInfo': 'Deploy', 'm_sModifer': 'Effect',
                    'm_sModifier': 'Effect', 'm_ModifierProvidedByAura': 'Aura', 'm_FriendlyAuraModifier': 'Ally aura',
-                   'm_ObjectiveRegen': 'Regen', 'm_EnemyTrooperDamageReduction': 'Vs troopers'}
+                   'm_ObjectiveRegen': 'Regen', 'm_EnemyTrooperDamageReduction': 'Vs troopers',
+                   # a unit's always-on modifier, by its id: "Intrinsic Modifiers boss intrinsic › …" (round 4)
+                   'm_vecIntrinsicModifiers': 'Passive'}
 FLAG_FIELDS = {'m_AbilityBehaviorsBits': 'Behaviour', 'm_nAbilityBehaviors': 'Behaviour',
                'm_nAbilityTargetTypes': 'Can target', 'm_nAbilityTargetFlags': 'Targeting rules',
                'm_bitsInterruptingStates': 'Interrupted by', 'm_nBehaviors': 'Behaviour',
@@ -658,7 +690,7 @@ _VALUE_LEAF = re.compile(r'^m_(?:fl)?(?:[mM]odifier)?[vV]alue$')
 def _context_segment(seg: str) -> str:
     m = _SCRIPT_VALUE.match(seg)
     if m:                                    # what the modifier changes: "Cooldown Reduction Percentage"
-        return m.group(1).replace('_', ' ').title()
+        return game_words(m.group(1).replace('_', ' ').title())
     base = re.sub(r'[\[{].*$', '', seg)
     if base in FLAG_FIELDS:
         return FLAG_FIELDS[base]
@@ -719,11 +751,11 @@ def display_raw(v, meters: bool | str = False) -> str:
         if m:
             x = float(m.group(1))
             if m.group(2) == 'm':
-                return display_value(x) + ('m/s' if meters in (SPEED, MPS) else 'm')
+                return display_value(x) + ('m/s' if meters in (SPEED, MPS, M_SPEED) else 'm')
             if m.group(2) == '%':
                 return display_value(x) + '%'          # already a percent, whatever the field
-            return display_value(x, meters)
-    return display_value(v, meters)
+            return display_value(x, False if meters == M_SPEED else meters)
+    return display_value(v, False if meters == M_SPEED else meters)
 
 
 def show(v, meters: bool | str = False, unit: str = '', invert: bool = False) -> str:

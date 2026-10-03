@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 27       # 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
+ENRICH_VERSION = 28       # 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):
@@ -119,8 +119,9 @@ def enrich_record(rec: dict) -> dict:
             if d.get('unit'):
                 c['unit'] = d['unit']
             if 'old' in c or 'new' in c:
-                c['old_s'] = semantics.show(c.get('old'), d['meters'], d.get('unit', ''), d.get('invert', False))
-                c['new_s'] = semantics.show(c.get('new'), d['meters'], d.get('unit', ''), d.get('invert', False))
+                shown = semantics.M_SPEED if d.get('speed_m') and not d['meters'] else d['meters']
+                c['old_s'] = semantics.show(c.get('old'), shown, d.get('unit', ''), d.get('invert', False))
+                c['new_s'] = semantics.show(c.get('new'), shown, d.get('unit', ''), d.get('invert', False))
                 # the property itself, not a T1-T3 bonus to it (a bigger bonus there shrinks the downside)
                 worse = c['path'].startswith('m_mapAbilityProperties.') and semantics.property_name(c['path']) in downsides
                 if worse:

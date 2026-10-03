@@ -159,10 +159,12 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
 def _toolbar(placeholder: str, details: bool = False, extra: str = '') -> str:
     more = ('<button class="px-btn" data-toggle-class="show-details" data-target=".table-scroll">Details</button>'
             if details else '')
+    # the corner notch explained once, at the end of the bar (advisor round 4: "recent" had no legend)
+    legend = f'<span class="chip legend-hist">changed in the last {RECENT_DAYS} days · hover a value for its history</span>'
     return ('<div class="toolbar">'
             f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr:not(.sec)">'
             f'<span class="sep"></span><label class="switch"><input type="checkbox" data-heatmap>'
-            f'<span class="track"></span>Heatmap</label>{more}{extra}</div>')
+            f'<span class="track"></span>Heatmap</label>{more}{extra}<span class="sep"></span>{legend}</div>')
 
 
 MAX_BOONS = 35            # levels 2-36 each give a boon (heroes.vdata m_mapLevelInfo)

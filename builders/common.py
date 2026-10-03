@@ -393,6 +393,17 @@ def fmt_date(iso: str) -> str:
     return (iso or '')[:10]
 
 
+def recent_cls(mark_: str | None) -> str:
+    """An index card the newest update changed (entities_pages.latest_changes): 'yes' or 'hid'."""
+    return (' recent' + (' recent-hid' if mark_ == 'hid' else '')) if mark_ else ''
+
+
+def first_seen(first) -> str:
+    """The page head's "First seen" line: the date only — a build number means nothing to a player
+    (advisor, 2026-10-03). `first` is the entity's (build, date) pair."""
+    return f'<div class="meta">First seen {esc(fmt_date(first[1]))}</div>' if first else ''
+
+
 # ---- patch titles: the date once; a named update shows its name -------------------------
 _TITLE_DATE = re.compile(r'\b\d{2}-\d{2}-\d{4}\b|\b\d{4}-\d{2}-\d{2}\b')
 FOLLOW_UP = ' · follow-up '

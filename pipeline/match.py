@@ -99,6 +99,7 @@ class MChange:
     unit: str = ''                                # what the tooltip prints after the value ('s', '%', 'm')
     invert: bool = False                          # a rate the game shows as a time (stamina per second -> cooldown)
     scale: float = 1.0                            # the patch's boon rescale for this per-boon field (old / new count)
+    speed_m: bool = False                         # a speed written "20m": shown m/s (semantics.M_SPEED), display only
 
     @property
     def key(self) -> str:
@@ -342,7 +343,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                             'unit' if ce.get('units') else ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
                             [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
                             drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
-                            unit=d.get('unit', ''), invert=bool(d.get('invert')))
+                            unit=d.get('unit', ''), invert=bool(d.get('invert')), speed_m=bool(d.get('speed_m')))
                     else:
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
@@ -1033,11 +1034,12 @@ def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = ''
 def change_json(c: MChange) -> dict:
     kind = c.kind or ''
     dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback, c.neg_base)
+    shown = semantics.M_SPEED if c.speed_m and not c.meters else c.meters
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.label,
-        'old_s': semantics.show(c.old, c.meters, c.unit, c.invert),
-        'new_s': semantics.show(c.new, c.meters, c.unit, c.invert),
+        'old_s': semantics.show(c.old, shown, c.unit, c.invert),
+        'new_s': semantics.show(c.new, shown, c.unit, c.invert),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
         'same': semantics.reencoded(c.old, c.new, c.path),

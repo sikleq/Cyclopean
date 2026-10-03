@@ -3,8 +3,9 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import display_name, entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
-from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
+from .common import (display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, img, load_json, page, pretty_id,
+                     recent_cls, slug, write)
+from .hero_page import hero_page, history_table, now_fold, prop_icon, prop_rows, stat_tables
 from .render import KIND_LABEL
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -31,6 +32,37 @@ def _history() -> tuple[dict, dict]:
     return by_ent, by_subject
 
 
+def latest_changes(by_ent, ents: dict) -> tuple[str, dict[str, str]]:
+    """The newest update that changed something a player sees, and what it changed: entity key ->
+    'hid' (something the notes left out) or 'yes'. An ability counts for its hero. The index grids
+    mark these cards (advisor round 4: "what changed on X lately" took opening every page)."""
+    from .cards import player_facing
+    from .common import patch_title_text
+    patches = {row['id']: row for rows in by_ent.values() for row, _ in rows}
+    for row in sorted(patches.values(), key=lambda r: r['date'], reverse=True):
+        out: dict[str, str] = {}
+        for key, rows in by_ent.items():
+            facing = [c for r, ch in rows if r['id'] == row['id'] for c in player_facing(ch)
+                      if c.get('status') != 'unreleased']
+            if not facing:
+                continue
+            owner = (ents.get(key) or {}).get('owner')
+            target = f'heroes.vdata:{owner}' if owner and owner.startswith('hero_') else key
+            hid = any(c.get('status') == 'hidden' for c in facing)
+            out[target] = 'hid' if hid or out.get(target) == 'hid' else 'yes'
+        if out:
+            return patch_title_text(row), out
+    return '', {}
+
+
+def recent_legend(title: str) -> str:
+    """The card notch explained once in the index toolbar."""
+    if not title:
+        return ''
+    return (f'<span class="sep"></span><span class="chip legend-recent">changed in {esc(title)}</span>'
+            f'<span class="chip legend-recent hid">… not in its notes</span>')
+
+
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
     name = it['name'] if it.get('name') and it['name'] != it['id'] else pretty_id(it['id'])
@@ -51,7 +83,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'<div class="meta">First seen: build {it["first"][0]} ({esc(it["first"][1])})</div></div></div>')
+            f'{first_seen(it["first"])}</div></div>')
     sections = ''
     if card:
         blocks = []
@@ -69,9 +101,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
                             enhanced=True)
     # the page is the history (owner, 2026-10-03): what the item does today folds under one line
-    now = (f'<details class="now px-frame"><summary>Current values</summary><div class="now-body">{sections}</div>'
-           f'</details>') if sections else ''
-    return page(name, head + now + history, rel, 'items')
+    return page(name, head + now_fold('Current values', sections, history) + history, rel, 'items')
 
 
 UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'Tier III'), ('abil', 'Abilities'))
@@ -96,7 +126,7 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])})</div></div></div>')
+            f'{first_seen(u["first"])}</div></div>')
     # today's stats folded under one line: a tiered family as ONE table, a stat per row, a tier per column
     # (three stacked panels repeated every label, advisor 10-03); others as before
     by_tier: dict[str, dict] = {}
@@ -106,11 +136,13 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     if len(by_tier) > 1:
         from .tables_pages import _fmt
         tiers_sorted = sorted(by_tier, key=lambda t: TIER_RANK.get(t, 0))
-        body_rows = []
+        body_rows, seen = [], []
         for c in cols:
             vals = [by_tier[t]['values'].get(c['key']) for t in tiers_sorted]
-            if all(v is None for v in vals):
+            # a row that repeats an earlier one in every tier says nothing new (Walk = Run, as Unit Stats)
+            if all(v is None for v in vals) or vals in seen:
                 continue
+            seen.append(vals)
             body_rows.append(f'<tr><td>{esc(c["label"])}</td>' + ''.join(f'<td class="v">{_fmt(v, c["digits"])}</td>'
                                                                        for v in vals) + '</tr>')
         head_row = '<tr><th></th>' + ''.join(f'<th>Tier {esc(t)}</th>' for t in tiers_sorted) + '</tr>'
@@ -118,8 +150,6 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     else:
         row = next((urow.get(m['id']) for m in members if urow.get(m['id'])), None)
         stats_html = stat_tables(row, cols, name, rel) if row else ''
-    stats = (f'<details class="now px-frame"><summary>Current stats</summary><div class="now-body">'
-             f'{stats_html}</div></details>') if stats_html else ''
     # the members, then their own abilities and guns (B10: Walker's 120 ability rows were on no unit
     # page); ability names don't pull note lines in — "Rocket Barrage" is also a hero's
     keys = [(f'npc_units.vdata:{m["id"]}', member_label(m, members) if len(members) > 1 else name,
@@ -132,7 +162,7 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     hist = history_table(keys + own, [name] + [display_name(m) for m in members], by_ent, by_subject, rel,
                          line_names=False, areas=areas, area_labels=UNIT_AREAS,
                          merge=lambda labels: merged_label(labels, len(members)))
-    return page(name, head + stats + hist, rel, 'units')
+    return page(name, head + now_fold('Current stats', stats_html, hist) + hist, rel, 'units')
 
 
 def redirect_page(target: str, name: str) -> str:
@@ -153,7 +183,7 @@ def sub_tabs(section: str, active: str) -> str:
 
 def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
     href = slug(e['file'], e['id']).split('/', 1)[1]
-    cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
+    cls = 'card px-frame' + ('' if e.get('alive') else ' gone') + recent_cls(e.get('recent'))
     name = e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
     return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc(name.lower())} {esc(e["id"])}">'
             f'{img(rel_icon, "", "px", glyph_for(e["file"], e["id"]))}<span class="nm">{esc(name)}</span>'
@@ -184,10 +214,14 @@ def build_all() -> dict[str, int]:
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
     from .dynamics_page import hero_entries, matrix_html, toolbar
     from .heroes_grid import heroes_grid_html, pre_release_switch
+    latest, recent = latest_changes(by_ent, ents)
+
+    def marked(es: list[dict]) -> list[dict]:
+        return [{**e, 'recent': recent.get(f"{e['file']}:{e['id']}")} for e in es]
     body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
-            f'<span class="sep"></span>{pre_release_switch(live)}</div>'
-            + heroes_grid_html(live, other, trow, rel))
+            f'<span class="sep"></span>{pre_release_switch(live)}{recent_legend(latest)}</div>'
+            + heroes_grid_html(marked(live), marked(other), trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
     dyn = matrix_html(hero_entries(live, rel), 'hero')
@@ -203,10 +237,11 @@ def build_all() -> dict[str, int]:
     # laid out like the game's shop: tiers x Weapon / Spirit / Vitality (builders/shop_page.py)
     from .dynamics_page import item_entries
     from .shop_page import shop_html
-    shop, tips = shop_html(items, cards, rel)
+    shop, tips = shop_html(marked(items), cards, rel)
     write('items/shop-tips.json', tips)          # the tooltips, loaded on the first hover
     body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
-            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard"></div>' + shop)
+            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard">'
+            f'{recent_legend(latest)}</div>' + shop)
     entries = item_entries(items, cards, rel)
     n_gone = sum(1 for e in entries if e[4])
     write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
@@ -246,7 +281,10 @@ def build_all() -> dict[str, int]:
             copies = len(ms) // max(len(tiers), 1)
             sub = ('removed' if not ms[0].get('alive') else
                    ' · '.join(([' '.join(tiers)] if tiers else []) + ([f'×{copies}'] if copies > 1 else [])))
-            cards_html.append(_card({**ms[0], 'name': n}, entity_icon(ms[0]['file'], ms[0]['id'], kind, rel), sub))
+            marks = [recent.get(f"{m['file']}:{m['id']}") for m in ms]
+            mark_ = 'hid' if 'hid' in marks else 'yes' if 'yes' in marks else None
+            cards_html.append(_card({**ms[0], 'name': n, 'recent': mark_},
+                                    entity_icon(ms[0]['file'], ms[0]['id'], kind, rel), sub))
         # the Hideout's toys, the bots' brain, effect-only entries: behind their own switch
         wrap = ' class="helper-group"' if kind == 'helper' else ''
         groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
@@ -254,15 +292,24 @@ def build_all() -> dict[str, int]:
     # the two switches count apart (round 3: "Removed 39" and "Unnamed & helpers 65" overlapped)
     n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive') and group_of(ms) != 'helper')
     n_helpers = sum(1 for ms in fams.values() if group_of(ms) == 'helper')
+    # every removed unit so far is an unnamed one: the helpers' switch says so (round 4: "where are the
+    # removed units?" — no Removed switch, they hid behind "Unnamed & helpers")
+    n_gone_helpers = sum(1 for ms in fams.values() if not ms[0].get('alive') and group_of(ms) == 'helper')
+    helpers_label = 'Unnamed, removed & helpers' if n_gone_helpers and not n_gone else 'Unnamed & helpers'
     gone_switch = ''.join(
         f'<label class="switch"><input type="checkbox" data-toggle-class="{cls}" data-target="#units-grid">'
         f'<span class="track"></span>{label} <span class="n">{n}</span></label>'
-        for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', 'Unnamed & helpers', n_helpers)) if n)
+        for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', helpers_label, n_helpers)) if n)
     gone_switch = f'<span class="sep"></span>{gone_switch}' if gone_switch else ''
     body = ('<h1>Units</h1>' + sub_tabs('units', 'index')
-            + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'
+            + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}'
+            + f'{recent_legend(latest)}</div>'
             + f'<div id="units-grid">{"".join(groups)}</div>')
     write('units/index.html', page('Units', body, rel, 'units'))
+    from .hero_page import current_cards
+    from .site_search import INDEX_FILE, search_json, search_rows
+    named = [(n, ms[0]) for n, ms in fams.items() if group_of(ms) != 'helper']
+    write(INDEX_FILE, search_json(search_rows(live, items, named, cards, current_cards)))
     from .dynamics_page import unit_entries
     entries = unit_entries(units, UNIT_GROUPS, rel)
     n_gone = sum(1 for e in entries if e[4])

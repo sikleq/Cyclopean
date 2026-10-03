@@ -357,9 +357,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   fixes, sound / look lines, engine plumbing and unmatched lines stay in data/ and the patch archive.
   One mark only: the eye on what the notes left out.
 - The history toolbar (`history_view.toolbar`, scripts.js `hist-filter`): the tags present (multi-
-  select), "Only hidden" (CSS on build-time `has-hidden` classes), the parts Stats / Weapon /
+  select), "Not in patch notes" (CSS on build-time `has-hidden` classes), the parts Stats / Weapon /
   Abilities, the abilities as icons (current ones in slot order, removed ones grey after a divider),
-  "In development" (work on a hero before release: rows `st-unreleased`, groups / bands `dev-only`;
+  "Before release" (work on a hero before release: rows `st-unreleased`, groups / bands `dev-only`;
   shown by default only while the hero itself is in development). A patch with a match opens; a band
   left empty folds away.
 - Round 2 (advisor, 2026-10-03): a band where every row is hidden carries ONE eye, on its banner
@@ -379,8 +379,23 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
   every patch).
 - Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as
-  tiles over the toolbar, oldest → newest, striped by tag (`dynamics_page.stripes`), the count, a dot
-  when something was hidden; a tile is `#p-<patch>` (the band opens and stamps).
+  tiles over the toolbar, newest first like the history below, striped by tag (`dynamics_page.stripes`),
+  the count, a dot (and a count in the tooltip) when the notes left something out; a tile is
+  `#p-<patch>` (the band opens and stamps).
+- Round 4 (advisor, a player's eye): one wording — "not in patch notes" for the eye (toolbar, banners,
+  home), "Before release" for work on a hero before it shipped, "First seen <date>" (`common.first_seen`)
+  instead of a build number. Labels split from field names use the game's words
+  (`semantics.game_words`: Tech → Spirit, Armor Damage Resist → Resist; `m_vecIntrinsicModifiers` →
+  "Passive"); a time field without a tooltip unit gets "s" (`semantics._TIME_FIELD`), a speed Valve
+  writes as "20m" reads m/s (`speed_m` → `M_SPEED`, display only: the matcher's transforms are
+  unchanged). The history column stops at 1120px, % pills are 13px, long values wrap. A history of ≤3
+  rows opens the "Current …" fold (`history_view.now_fold`); an entity event row ("Added to the game
+  files", path `@add`) has no value cell. Index cards carry a corner notch when the newest update
+  changed them (`entities_pages.latest_changes`, eye colour when its notes missed something; legend in
+  the toolbar); the newest update on the home page names its icons; stats tables explain their notch.
+- Home search (`builders/site_search.py`, scripts.js `site-search`): `search.json` = [name, page, what,
+  icon] for every hero, its current abilities (`#ab-<id>` opens the hero filtered to it), item and
+  named unit, fetched on the first keystroke; names that start with the query first.
 - Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).

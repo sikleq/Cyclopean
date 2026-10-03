@@ -6,9 +6,9 @@ from __future__ import annotations
 from functools import lru_cache
 import re
 
-from .common import (cosmetics, display_name, entity_icon, esc, glyph_for, hero_icon, icon, img, json_attr, load_json,
-                     mark, page, pretty_id)
-from .history_view import history_table  # noqa: F401  (re-exported for entities_pages)
+from .common import (cosmetics, display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, icon, img, json_attr,
+                     load_json, mark, page, pretty_id)
+from .history_view import history_table, now_fold  # noqa: F401  (re-exported for entities_pages)
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
 SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Signature_1': 'Ability 1',
@@ -279,7 +279,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
             f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
             f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
-            f'<div class="meta">First seen: build {h["first"][0]} ({esc(h["first"][1])})</div>'
+            f'{first_seen(h["first"])}'
             f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
             f'</div></div>')
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
@@ -289,9 +289,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
                   for c in mine if c.get('slot') != 'Weapon_Primary' or not table_row]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
     # the page is the history (owner, 2026-10-03): what the hero is today folds under one line
-    now = more_stats(table_row, cols, name, rel) if table_row else ''
-    now = (f'<details class="now px-frame"><summary>Current stats, weapon and abilities</summary>'
-           f'<div class="now-body">{now}{weapon}{abil}</div></details>') if now or weapon or abil else ''
+    now = (more_stats(table_row, cols, name, rel) if table_row else '') + weapon + abil
     keys = _owned_keys(hid, name, mine, ents_by_id, rel)
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}
@@ -300,5 +298,5 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             and e['id'] not in {c['id'] for c in mine}}
     hist = history_table(keys, [name], by_ent, by_subject, rel, areas=areas, gone=gone,
                          in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'))
-    body = head + now + hist
+    body = head + now_fold('Current stats, weapon and abilities', now, hist) + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities')

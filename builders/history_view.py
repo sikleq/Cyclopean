@@ -5,7 +5,7 @@ out, plus the changes the notes name that live in the game's code (status 'code'
 look lines, engine plumbing ("Technical") and unmatched note lines stay in data/, off the page.
 
 A toolbar filters by tag, by "hidden", by part (Stats / Weapon / Abilities) and by ability (scripts.js
-`hist-filter`). Work on a hero still in development hides behind "In development" once the hero is out.
+`hist-filter`). Work on a hero still in development hides behind "Before release" once the hero is out.
 Only the newest EAGER_PATCHES blocks are in the page; older ones are a <template> stamped when opened
 or filtered (Nano's page: 12k elements)."""
 from __future__ import annotations
@@ -119,19 +119,33 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
 
 
 STRIP_MAX = 40            # the latest patches in the strip; older ones are a scroll away below
+SHORT_HISTORY = 3         # rows; a history this short opens the "Current …" fold above it
+
+
+def now_fold(summary: str, body: str, history: str) -> str:
+    """What the entity is today, folded under one line above its history — open when the history is
+    only a few rows (Slum Shroom's page was one "Added to the game files" row under a closed fold,
+    advisor round 4)."""
+    if not body:
+        return ''
+    is_open = ' open' if history.count('<div class="erow') <= SHORT_HISTORY else ''
+    return (f'<details class="now px-frame"{is_open}><summary>{summary}</summary>'
+            f'<div class="now-body">{body}</div></details>')
 
 
 def patch_strip(items: list[tuple]) -> str:
-    """The entity's patches as a row of tiles, oldest → newest (its row of the change matrix, Sloppy's
-    entity patch strip): stripes in tag colours, the number of changes, a dot when something was hidden;
-    a tile opens that patch below (#p-<patch>)."""
-    from .common import patch_title_text
+    """The entity's patches as a row of tiles, newest first like the history below it (advisor 10-03:
+    the strip ran the other way): stripes in tag colours, the number of changes, a dot when something was
+    not in the notes; a tile opens that patch below (#p-<patch>)."""
+    from .common import patch_title_text, plural
     from .dynamics_page import stripes
     if len(items) < 2:
         return ''
     tiles = []
-    for pid, hdr, tally, hidden in reversed(items[:STRIP_MAX]):
-        tip = f'{patch_title_text(hdr)}: {sum(tally.values())} change{"s" if sum(tally.values()) != 1 else ""}'
+    for pid, hdr, tally, hidden in items[:STRIP_MAX]:
+        tip = f'{patch_title_text(hdr)}: {plural(sum(tally.values()), "change")}'
+        if hidden:
+            tip += f', {hidden} not in patch notes'
         tiles.append(f'<a class="ps-tile{" hid" if hidden else ""}" href="#p-{esc(pid)}" data-tooltip="{esc(tip)}" '
                      f'style="background:{stripes(tally)}"><span class="dn">{sum(tally.values())}</span></a>')
     return f'<div class="patch-strip">{"".join(tiles)}</div>'
@@ -140,7 +154,7 @@ def patch_strip(items: list[tuple]) -> str:
 def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str,
             area_labels: tuple[tuple[str, str], ...] = AREAS) -> str:
     """Tags present (multi-select), the eye (only hidden), parts of a hero, its abilities as icons (the
-    current ones in slot order, removed ones grey after a divider), "In development"."""
+    current ones in slot order, removed ones grey after a divider), "Before release"."""
     from .pixel_icons import tag_svg
     parts = []
     tags = [t for t in TAG_FILTERS if t in facts['tags']]
@@ -149,7 +163,7 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
             f'<button class="tag {t}" data-f-tag="{t}">{tag_svg(t)}{t.upper()}</button>' for t in tags) + '</span>')
     if facts['hidden']:
         parts.append(f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#history">'
-                     f'{mark("hidden")}Only hidden <span class="n">{facts["hidden"]}</span></button>')
+                     f'{mark("hidden")}Not in patch notes <span class="n">{facts["hidden"]}</span></button>')
     if areas and len(facts['areas']) > 1:
         parts.append('<span class="hf-areas">' + ''.join(
             f'<button class="px-btn" data-f-area="{a}">{esc(lbl)}</button>' for a, lbl in area_labels
@@ -181,7 +195,7 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
         parts.append('<span class="hf-abs">' + ''.join(chip(*c) for c in now) + gone_html + '</span>')
     if facts['dev'] and not in_dev:
         parts.append(f'<label class="switch"><input type="checkbox" data-toggle-class="show-dev" data-target="#history">'
-                     f'<span class="track"></span>In development <span class="n">{facts["dev"]}</span></label>')
+                     f'<span class="track"></span>Before release <span class="n">{facts["dev"]}</span></label>')
     if not parts:
         return ''
     return '<div class="toolbar hist-bar">' + '<span class="sep"></span>'.join(parts) + '</div>'
@@ -249,12 +263,12 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
             t = tag_of(c)[0]
             tally[t] = tally.get(t, 0) + 1
         if tally:
-            facts.setdefault('strip', []).append((pid, hdr, tally, any(c.get('status') == 'hidden' for c in counted_all)))
+            facts.setdefault('strip', []).append((pid, hdr, tally, sum(c.get('status') == 'hidden' for c in counted_all)))
     n_hidden = sum(1 for c in counted_all if c.get('status') == 'hidden')
     # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
     # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
-    text = f'all {n_hidden} hidden' if all_hidden else f'{n_hidden} hidden'
+    text = f'all {n_hidden} not in notes' if all_hidden else f'{n_hidden} not in notes'
     chips = f'<span class="chip eye-chip">{mark("hidden")}{text}</span>' if n_hidden else ''
     hidden_cls = ' has-hidden' + (' all-hidden' if all_hidden else '') if n_hidden else ''
     dev_cls = ' dev-only' if all_dev and not in_dev else ''

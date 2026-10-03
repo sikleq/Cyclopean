@@ -318,11 +318,11 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
   margin: 0 0 18px;
 }
 .toolbar .sep { width: 2px; height: 26px; background: var(--line); margin: 0 4px; }
-.toolbar input[type=search] {
+.toolbar input[type=search], .site-search input[type=search] {
   font: 15px var(--font-ui); color: var(--text-main);
   background: var(--bg-page); border: var(--px) solid var(--line); padding: 6px 10px; min-width: 220px;
 }
-.toolbar input[type=search]:focus { outline: none; border-color: var(--patina-dim); }
+.toolbar input[type=search]:focus, .site-search input[type=search]:focus { outline: none; border-color: var(--patina-dim); }
 
 .stat-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 20px; }
 .stat-box { padding: 10px 14px; min-width: 140px; }
@@ -433,7 +433,7 @@ details.collapsible > summary .chip { margin-left: 8px; }
 /* the pill's colour strength follows the size of the change (data-g 1..5): a 2% nudge is faint,
    a 60% swing is full colour */
 .pct { --c: var(--tag-changed); --mix: 16%; --ink: 80%; display: inline-block; min-width: 60px; margin-left: 8px; padding: 3px 6px 2px;
-  text-align: center; font: 600 11.5px/1.15 var(--font-ui); font-variant-numeric: tabular-nums;
+  text-align: center; font: 600 13px/1.15 var(--font-ui); font-variant-numeric: tabular-nums;
   color: color-mix(in srgb, var(--c) var(--ink), var(--text-dimmer));
   background: color-mix(in srgb, var(--c) var(--mix), var(--bg-panel));
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) calc(var(--mix) * 2 + 10%), transparent); }
@@ -443,8 +443,8 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .pct[data-g="4"] { --mix: 30%; --ink: 100%; }
 .pct[data-g="5"] { --mix: 44%; --ink: 100%; color: var(--text-bright); }
 .pct-pad { display: none; }
-.erow .vv .pct { width: 70px; min-width: 0; box-sizing: border-box; }
-.erow .vv .pct-pad { display: inline-block; width: 70px; margin-left: 8px; }
+.erow .vv .pct { width: 78px; min-width: 0; box-sizing: border-box; }
+.erow .vv .pct-pad { display: inline-block; width: 78px; margin-left: 8px; }
 .pct.dir-buff { --c: var(--tag-buff); }
 .pct.dir-nerf { --c: var(--tag-nerf); }
 
@@ -488,7 +488,8 @@ details.collapsible > summary .chip { margin-left: 8px; }
 .erow .st { padding-top: 1px; }
 .erow .tg { padding-top: 1px; }
 .erow .tx { color: var(--text-main); }
-.erow .vv { text-align: right; white-space: nowrap; color: var(--label); font-size: 14px; max-width: 340px; overflow: hidden; text-overflow: ellipsis; }
+.erow .vv { text-align: right; white-space: nowrap; color: var(--label); font-size: 14px; max-width: 460px; }
+.erow .vv .vals { white-space: normal; overflow-wrap: anywhere; }
 .erow .vv .proof { cursor: help; }
 .erow .vv .v { color: var(--text-bright); }
 .erow .vv details { white-space: normal; text-align: left; }
@@ -553,6 +554,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .pblock > summary .bt::before { content: "+"; display: inline-block; width: 16px; color: var(--patina); }
 .pblock[open] > summary .bt::before { content: "-"; }
 .pblock .bc .tsum { margin-left: 0; }
+.hblocks, .patch-strip, .hist-bar { max-width: 1120px; }
 .hblocks .pblock { margin-bottom: 6px; }
 .hblocks .pblock > .banner { margin: 0; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
@@ -566,12 +568,12 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hgroup { padding-bottom: 4px; }
 .h2row { display: flex; align-items: center; gap: 16px; }
 .h2row .px-btn { margin-top: 10px; }
-/* the entity's patch strip (history_view.patch_strip): its row of the change matrix, oldest → newest */
+/* the entity's patch strip (history_view.patch_strip): newest first, like the history below it */
 .patch-strip { display: flex; flex-wrap: wrap; gap: 4px; margin: 2px 0 10px; }
-.ps-tile { position: relative; display: block; width: 28px; height: 28px;
+.ps-tile { position: relative; display: block; width: 30px; height: 30px;
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
-.ps-tile .dn { position: absolute; right: 2px; bottom: 1px; font: 600 9px/1 var(--font-ui); color: var(--bg-page); }
-.ps-tile.hid::after { content: ""; position: absolute; left: 3px; top: 3px; width: 5px; height: 5px; background: var(--eye);
+.ps-tile .dn { position: absolute; right: 2px; bottom: 1px; font: 700 11px/1 var(--font-ui); color: var(--bg-page); }
+.ps-tile.hid::after { content: ""; position: absolute; left: 3px; top: 3px; width: 7px; height: 7px; background: var(--eye);
   box-shadow: 0 0 0 1px var(--bg-page); }
 .ps-tile:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
@@ -818,6 +820,14 @@ table.stats td.has-hist.recent::after { content: ""; position: absolute; right: 
 table.stats td.spirit { color: var(--tag-rework); }
 .table-tabs { margin-bottom: 12px; }
 .chip.legend-hist::before { content: ""; width: 0; height: 0; border-top: 7px solid var(--patina); border-left: 7px solid transparent; align-self: flex-start; }
+/* an index card the newest update changed (entities_pages.latest_changes): a notch in the top-left
+   corner (a pre-release ribbon holds the right one); the eye's colour when the notes left it out */
+.card.recent { position: relative; }
+.hgcard.recent::after, .card.recent::after, .gcard.recent::after { content: ""; position: absolute; left: 0; top: 0; z-index: 2;
+  width: 0; height: 0; border-top: 14px solid var(--patina); border-right: 14px solid transparent; pointer-events: none; }
+.recent.recent-hid::after { border-top-color: var(--eye); }
+.chip.legend-recent::before { content: ""; width: 0; height: 0; border-top: 10px solid var(--patina); border-right: 10px solid transparent; align-self: flex-start; }
+.chip.legend-recent.hid::before { border-top-color: var(--eye); }
 .chip.legend-spirit { color: var(--tag-rework); }
 table.stats td .dash, .dash { color: var(--text-dimmer); }
 table.stats td.hm-hi { background-color: var(--cell-hi); }
@@ -1088,6 +1098,18 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 /* home */
 .home-top { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; margin: 6px 0 16px; }
 .home-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+/* find any hero, ability, item or unit (builders/site_search.py, scripts.js site-search) */
+.site-search { position: relative; flex: 1 1 280px; max-width: 460px; }
+.site-search input { width: 100%; height: 44px; font-size: 16px; }
+.ss-list { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: var(--z-tooltip); max-height: 420px; overflow-y: auto;
+  background: var(--bg-panel); box-shadow: 0 0 0 2px var(--frame-line), 0 10px 24px var(--shadow-deep); }
+.ss-list a { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px;
+  color: var(--text-main); }
+.ss-list a:hover, .ss-list a.on { background: var(--bg-hover); color: var(--text-bright); }
+.ss-list img, .ss-list .ss-noimg { width: 32px; height: 32px; object-fit: contain; background: var(--bg-panel-4); }
+.ss-list .ss-nm { font: 600 15px/1.2 var(--font-ui); }
+.ss-list .ss-what { font: 12px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; }
+.ss-none { padding: 10px 12px; color: var(--text-dimmer); }
 .home-stats .hs { display: flex; flex-direction: column; gap: 4px; min-width: 140px; padding: 10px 14px 9px 16px;
   background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel)); box-shadow: inset 4px 0 0 var(--frame-hi),
   0 0 0 2px var(--frame-line); }
@@ -1129,6 +1151,11 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
   background: var(--shadow); }
 .lu-eye { position: absolute; left: 1px; top: 1px; display: flex; color: var(--eye); }
 .lu-eye .mark { width: 14px; height: 14px; }
+/* the newest update names its icons (two lines at most under each; round 4: names were tooltips only) */
+.lu-row.named { gap: 34px 30px; padding-bottom: 30px; }
+.lu-nm { position: absolute; left: -15px; top: 48px; width: 74px; font: 600 11px/1.15 var(--font-ui); color: var(--text-dim);
+  text-align: center; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.lu:hover .lu-nm { color: var(--text-bright); }
 @media (max-width: 860px) {
   .home-tiles { grid-template-columns: minmax(0, 1fr); }
   .home-stats { margin-left: 0; }

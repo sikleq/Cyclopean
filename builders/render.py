@@ -353,6 +353,8 @@ def vals_html(c: dict) -> str:
     op = c.get('op')
     if c.get('cat') in ('visual', 'audio', 'ui'):
         return f'<span class="vals muted">{esc(op)}</span>'
+    if str(c.get('path', '')).startswith('@'):
+        return ''                 # "Added to the game files": the event itself, no value (it read "· —")
     old_s = c.get('old_s', c.get('old'))
     new_s = c.get('new_s', c.get('new'))
     if op == 'rework':            # folded tier swap: bonus lists, may wrap

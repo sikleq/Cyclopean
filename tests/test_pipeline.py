@@ -979,9 +979,43 @@ def test_spawn_timers_say_minutes_without_the_word():
 def test_a_map_key_that_is_an_id_reads_as_words():
     """2026-10-03: 30 Walker rows read 'Intrinsic Modifiers npc_boss_intrinsic › Bullet Armor Damage Resist'."""
     from pipeline import semantics
-    label = semantics.context_label('m_vecIntrinsicModifiers{npc_boss_intrinsic}.m_flBulletArmor')
+    label = semantics.context_label('m_sModifer.m_mapThings{npc_boss_intrinsic}.m_flSize')
     assert 'npc_' not in label and 'boss intrinsic' in label
     assert semantics._key_text('EModTier_1') == 'EModTier_1' and semantics._key_text('Value') == 'Value'
+
+
+def test_labels_use_the_games_words():
+    """Advisor round 4 (2026-10-03): labels split from field names said "Tech Armor Damage Resist" (63
+    rows) and "Intrinsic Modifiers boss intrinsic › …" — the game says Spirit / Bullet Resist, and a
+    unit's intrinsic modifier is its passive."""
+    from pipeline import semantics
+    assert semantics.humanize('TechArmorDamageReduction') == 'Spirit Resist'
+    assert semantics.humanize('MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST_REDUCTION'.title().replace('_', '')) \
+        == 'Modifier Value Spirit Resist Reduction'
+    assert semantics.humanize('TechPowerPerKill') == 'Spirit Power Per Kill'
+    assert semantics.humanize('m_flTechnicalDelay') == 'Technical Delay'       # a word, not a prefix
+    path = 'm_vecIntrinsicModifiers{npc_boss_intrinsic}.m_vecScriptValues{MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST}.m_value'
+    assert semantics.context_label(path) == 'Passive › Bullet Resist'
+    assert semantics.context_label('m_mapItemSlotInfo.EItemSlotType_Tech.m_arMaxPurchasesForTier').startswith(
+        'Item Slot Info › Spirit')
+
+
+def test_times_carry_seconds_and_metre_speeds_read_per_second():
+    """Advisor round 4: Fire Interval / Reload Time / Bullet Lifetime had no unit (1,867 rows), and
+    "Channel Move Speed 20m" read as a length. A T1-T3 bonus keeps its own unit."""
+    from pipeline import semantics
+    assert semantics.describe('m_mapWeaponInfos.primary.m_flCycleTime', {})['unit'] == 's'
+    assert semantics.describe('m_mapWeaponInfos.primary.m_reloadDuration', {})['unit'] == 's'
+    assert semantics.describe('m_flStunDuration', {})['unit'] == 's'
+    assert semantics.describe('m_mapAbilityProperties.AbilityPostCastDuration.m_strValue', {})['unit'] == 's'
+    assert not semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus',
+                                  {}, kind='ability').get('unit')
+    assert not semantics.describe('m_mapWeaponInfos.primary.m_flBulletDamage', {}).get('unit')
+    d = semantics.describe('m_mapAbilityProperties.ChannelMoveSpeed.m_strValue', {})
+    assert d['speed_m'] and d['meters'] is False             # the matcher's transforms stay as they were
+    assert semantics.show('20m', semantics.M_SPEED) == '20m/s'
+    assert semantics.show('50', semantics.M_SPEED) == '50'
+    assert semantics.show(-1, semantics.M_SPEED) == '-1'
 
 
 def test_boon_rescale_is_nobodys_mistake():

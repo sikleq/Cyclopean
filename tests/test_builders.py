@@ -606,7 +606,7 @@ def test_home_feed_puts_changes_on_their_pages():
 def test_entity_history_rows_marks_filters_and_lazy_blocks(monkeypatch):
     """2026-10-03, the entity page is the history: rows are what the files changed (+ changes in the
     game's code), bug fixes / looks / unmatched lines and engine plumbing stay off; one toolbar; work on
-    an unreleased hero hides behind "In development"; blocks past EAGER_PATCHES wait in a <template>."""
+    an unreleased hero hides behind "Before release"; blocks past EAGER_PATCHES wait in a <template>."""
     from builders import history_view
     monkeypatch.setattr(history_view, 'EAGER_PATCHES', 1)
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
@@ -625,10 +625,10 @@ def test_entity_history_rows_marks_filters_and_lazy_blocks(monkeypatch):
     assert 'Technical' not in html and 'data-ab="ab_charge" data-area="abil"' in html
     # the toolbar: tags present, the eye, parts; the newest block in the page, the older one lazy
     assert 'data-f-tag="buff"' in html and 'data-f-tag="nerf"' in html and 'data-f-area="stats"' in html
-    assert 'Only hidden' in html and html.index('id="p-p2"') < html.index('id="p-p1"')
+    assert 'Not in patch notes' in html and html.index('id="p-p2"') < html.index('id="p-p1"')
     assert '<template class="hp-t">' in html.split('id="p-p1"')[1] and 'template' not in html.split('id="p-p1"')[0]
     # the old patch had only work on a hero in development: hidden behind the switch
-    assert 'pblock dev-only' in html and 'In development' in html
+    assert 'pblock dev-only' in html and 'Before release' in html
     released = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas, in_dev=True)
     assert 'dev-only' not in released and 'hblocks show-dev' in released
 
@@ -674,3 +674,60 @@ def test_two_fields_under_one_label_get_told_apart():
                          {'label': 'Healing Reduction', 'path': 'm_mapAbilityProperties.HealAmpRegenPenaltyPercent.m_strValue'},
                          {'label': 'Cooldown', 'path': 'm_mapAbilityProperties.AbilityCooldown.m_strValue'}])
     assert [r['label'] for r in rows] == ['Healing Reduction · receive', 'Healing Reduction · regen', 'Cooldown']
+
+
+def test_player_terms_and_the_strip_runs_newest_first():
+    """Advisor round 4, 2026-10-03: one wording for the eye ("Not in patch notes"), a date instead of
+    "build 6711", the patch strip in the history's order with the count left out of the notes."""
+    from builders.common import first_seen
+    from builders.history_view import history_table
+    assert first_seen([6711, '2026-09-29T21:00:00Z']) == '<div class="meta">First seen 2026-09-29</div>'
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
+    key = 'abilities.vdata:upgrade_x'
+    by_ent = {key: [(r1, [ch(key='a', status='documented')]), (r2, [ch(key='b'), ch(key='c', label='Range')])]}
+    html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../')
+    strip = html.split('class="patch-strip"')[1].split('</div>')[0]
+    assert strip.index('#p-p2') < strip.index('#p-p1')
+    assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in notes' in html
+
+
+def test_short_history_opens_the_current_fold_and_events_carry_no_value():
+    """Advisor round 4: Slum Shroom's page was one "Added to the game files · —" row under a closed
+    "Current stats"."""
+    from builders.history_view import now_fold
+    from builders.render import vals_html
+    one = '<div class="erow st-hidden"></div>'
+    assert '<details class="now px-frame" open>' in now_fold('Current stats', '<table></table>', one)
+    assert '<details class="now px-frame">' in now_fold('Current stats', '<table></table>', one * 4)
+    assert now_fold('Current stats', '', one) == ''
+    assert vals_html({'op': 'add', 'path': '@add', 'cat': 'balance', 'label': 'Added to the game files'}) == ''
+
+
+def test_index_cards_mark_what_the_newest_update_changed():
+    """Advisor round 4: the grids did not say what the last update touched; an ability marks its hero,
+    the eye's colour when the notes left something out."""
+    from builders.entities_pages import latest_changes
+    old = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    new = {'id': 'p2', 'date': '2026-02-01', 'title': 'City Never Sleeps · 02-01-2026'}
+    by_ent = {'abilities.vdata:ab_charge': [(new, [ch(status='documented')])],
+              'heroes.vdata:hero_atlas': [(new, [ch(status='hidden')])],
+              'abilities.vdata:upgrade_x': [(old, [ch()])],
+              'abilities.vdata:upgrade_y': [(new, [ch(status='documented')])]}
+    ents = {'abilities.vdata:ab_charge': {'owner': 'hero_atlas'}}
+    title, marks = latest_changes(by_ent, ents)
+    assert title.startswith('City Never Sleeps')
+    assert marks == {'heroes.vdata:hero_atlas': 'hid', 'abilities.vdata:upgrade_y': 'yes'}
+
+
+def test_site_search_lists_heroes_abilities_items_and_units():
+    """Advisor round 4: no way to jump to "what changed on X" from the home page."""
+    from builders.site_search import search_rows
+    hero = {'file': 'heroes.vdata', 'id': 'hero_atlas', 'name': 'Abrams', 'alive': True}
+    item = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'name': 'Extra Charge', 'alive': False, 'kind': 'item'}
+    unit = {'file': 'npc_units.vdata', 'id': 'npc_boss_tier2', 'kind': 'guardian', 'alive': True}
+    cards = {'ab_charge': {'id': 'ab_charge', 'owner': 'hero_atlas', 'name': 'Shoulder Charge', 'slot': 'Signature_1'}}
+    rows = search_rows([hero], [item], [('Walker', unit)], cards, lambda c, hid: list(c.values()))
+    by_name = {r[0]: r for r in rows}
+    assert by_name['Shoulder Charge'][1].endswith('#ab-ab_charge') and by_name['Shoulder Charge'][2] == 'Abrams · ability'
+    assert by_name['Extra Charge'][2] == 'Item · removed' and by_name['Walker'][2] == 'Unit'

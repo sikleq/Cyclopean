@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 
-from .common import entity_icon, esc, icon, pretty_id, slug
+from .common import entity_icon, esc, icon, pretty_id, recent_cls, slug
 from .hero_page import prop_rows
 
 BOARD = (1120, 960)
@@ -67,7 +67,7 @@ def card_html(e: dict, card: dict | None, rel: str, used_in: list[str], n: int, 
     active = info.get('activation') == 'Active'
     src = entity_icon(e['file'], e['id'], 'item', rel)
     img = f'<img src="{esc(src)}" alt="" loading="lazy">' if src else ''
-    cls = f'gcard p-{cat}{min(max(tier, 1), 4)}' + (' act' if active else f' m{n % 3 + 1}')
+    cls = f'gcard p-{cat}{min(max(tier, 1), 4)}' + (' act' if active else f' m{n % 3 + 1}') + recent_cls(e.get('recent'))
     imbue = '<span class="gc-imb">Imbue</span>' if info.get('imbue') else ''
     return (f'<a class="{cls}" href="{esc(href)}" data-id="{esc(e["id"])}" '
             f'data-comp="{esc(" ".join(info.get("components") or []))}" data-up="{esc(" ".join(used_in))}" '

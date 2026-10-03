@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from .common import (EYE_SVG, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
                      patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
+from .site_search import search_box
 
 LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
 SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'))
@@ -61,16 +62,18 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     return out
 
 
-def _chip(key: str, s: dict, pid: str, names: dict[str, str]) -> str:
-    """`names`: entity key -> its name today (common.display_name: never an id)."""
+def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = False) -> str:
+    """`names`: entity key -> its name today (common.display_name: never an id). `named`: the name under
+    the icon (the newest update; advisor round 4: names were in tooltips only)."""
     file, _, eid = key.partition(':')
     name = names.get(key) or pretty_id(eid)
     ic = hero_icon(eid, '') if file == 'heroes.vdata' else entity_icon(file, eid, s.get('kind') or '', '', name)
     net = 'buff' if s['buff'] > s['nerf'] else 'nerf' if s['nerf'] > s['buff'] else 'mix'
-    tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} hidden' if s['hidden'] else '')
+    tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
     eye = f'<span class="lu-eye">{mark("hidden")}</span>' if s['hidden'] else ''
+    label = f'<span class="lu-nm">{esc(name)}</span>' if named else ''
     return (f'<a class="lu net-{net}" href="{esc(slug(file, eid))}#p-{esc(pid)}" data-tooltip="{esc(tip)}">'
-            f'{visual(ic, glyph_for(file, eid))}<span class="lu-n">{s["n"]}</span>{eye}</a>')
+            f'{visual(ic, glyph_for(file, eid))}<span class="lu-n">{s["n"]}</span>{eye}{label}</a>')
 
 
 def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str]) -> str:
@@ -86,10 +89,12 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         for sec, title in SECTIONS:
             got = sorted(feed.get(sec, {}).items(), key=lambda kv: (-kv[1]['n'], kv[0]))
             if got:
+                named = not blocks
+                chips = ''.join(_chip(k, s, row['id'], names, named) for k, s in got)
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b></span>'
-                              f'<div class="lu-row">{"".join(_chip(k, s, row["id"], names) for k, s in got)}</div></div>')
+                              f'<div class="lu-row{" named" if named else ""}">{chips}</div></div>')
         hidden = sum(s['hidden'] for sec in feed.values() for s in sec.values())
-        eye = f'<span class="au au-hidden">{mark("hidden")}<b>{hidden}</b> hidden</span>' if hidden else ''
+        eye = f'<span class="au au-hidden">{mark("hidden")}<b>{hidden}</b> not in patch notes</span>' if hidden else ''
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
@@ -146,9 +151,10 @@ def build_all() -> int:
     body = f'''
 <div class="home-top">
   <div class="home-brand"><span class="mark hidden">{EYE_SVG}</span><h1>Cyclopean</h1></div>
+  {search_box()}
   <div class="home-stats">
     <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
-    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">not in the notes</span></div>
+    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">not in patch notes</span></div>
   </div>
 </div>
 {_tiles(counts, faces, unit_art)}

@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Find what changed, read it as the game says it",
+    "items": [
+      "The home page has a search: any hero, ability, item or unit by name; an ability opens its hero's history filtered to it.",
+      "Hero, item and unit cards carry a corner notch when the newest update changed them (eye-coloured when its notes left something out); the newest update on the home page names its icons.",
+      "One wording everywhere: \"not in patch notes\" for the eye, \"Before release\" for work on a hero before it came out, a date instead of a build number.",
+      "Labels use the game's words: Spirit, not \"Tech\"; Bullet / Spirit Resist, not \"Armor Damage Resist\"; a unit's built-in modifier is its \"Passive\". Times carry \"s\" (Fire Interval, Reload Time, Bullet Lifetime) and a speed in metres reads m/s.",
+      "History reads easier: the column stops at a reading width, % pills are bigger, long values wrap instead of \"…\", the patch strip runs newest first like the history and its tiles count what the notes left out.",
+      "A page with a short history opens today's stats above it; \"Added to the game files\" no longer ends in a dash; stats tables explain their corner notch."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Cleaner unit pages and values",
     "items": [
       "A neutral's AI wiring (attack range target, aiming spread, ability chances, weak-point respawns…) no longer fills its history; health, damage, range, speed, bounty, resists and abilities stay.",
