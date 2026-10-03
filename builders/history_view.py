@@ -115,7 +115,26 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                                    facts, merge, headless_own=enhanced))
     bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels)
     cls = 'hblocks' + (' show-dev' if in_dev else '')
-    return f'{heading}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
+    return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
+
+
+STRIP_MAX = 40            # the latest patches in the strip; older ones are a scroll away below
+
+
+def patch_strip(items: list[tuple]) -> str:
+    """The entity's patches as a row of tiles, oldest → newest (its row of the change matrix, Sloppy's
+    entity patch strip): stripes in tag colours, the number of changes, a dot when something was hidden;
+    a tile opens that patch below (#p-<patch>)."""
+    from .common import patch_title_text
+    from .dynamics_page import stripes
+    if len(items) < 2:
+        return ''
+    tiles = []
+    for pid, hdr, tally, hidden in reversed(items[:STRIP_MAX]):
+        tip = f'{patch_title_text(hdr)}: {sum(tally.values())} change{"s" if sum(tally.values()) != 1 else ""}'
+        tiles.append(f'<a class="ps-tile{" hid" if hidden else ""}" href="#p-{esc(pid)}" data-tooltip="{esc(tip)}" '
+                     f'style="background:{stripes(tally)}"><span class="dn">{sum(tally.values())}</span></a>')
+    return f'<div class="patch-strip">{"".join(tiles)}</div>'
 
 
 def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str,
@@ -223,6 +242,14 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         parts.append(f'<div class="{cls}" data-ab="{esc(eid)}" data-area="{esc(area)}">{head}{g["rows"]}</div>')
     if not parts:
         return ''
+    # the entity's patch strip above the toolbar: what this patch did, by tag (dev-only bands excluded)
+    if not (all_dev and not in_dev):
+        tally: dict[str, int] = {}
+        for c in counted_all:
+            t = tag_of(c)[0]
+            tally[t] = tally.get(t, 0) + 1
+        if tally:
+            facts.setdefault('strip', []).append((pid, hdr, tally, any(c.get('status') == 'hidden' for c in counted_all)))
     n_hidden = sum(1 for c in counted_all if c.get('status') == 'hidden')
     # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
     # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)

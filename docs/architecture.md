@@ -378,6 +378,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   drops a column that repeats another (Walk = Run), a glyph where there is no art; the history toolbar
   is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
   every patch).
+- Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as
+  tiles over the toolbar, oldest → newest, striped by tag (`dynamics_page.stripes`), the count, a dot
+  when something was hidden; a tile is `#p-<patch>` (the band opens and stamps).
 - Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).
