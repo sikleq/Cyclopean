@@ -585,6 +585,10 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hf-ab.on { box-shadow: 0 0 0 2px var(--patina), 0 0 10px var(--patina-25); }
 .hf-ab.gone { opacity: .45; filter: grayscale(1); box-shadow: 0 0 0 2px var(--frame-line), inset 0 0 0 1px var(--arrow); }
 .hf-ab.gone.on { opacity: 1; filter: none; }
+@media (max-width: 760px) {     /* a phone: each chip row scrolls sideways instead of stacking 300px high */
+  .hist-bar .hf-tags, .hist-bar .hf-abs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: 2px; }
+  .hist-bar .hf-abs .hf-ab, .hist-bar .hf-tags .tag { flex: none; }
+}
 /* what the hero / item / unit is today: one line above the history, open for the full picture */
 .now { margin: 0 3px 16px; }
 .now > summary { padding: 10px 14px; cursor: pointer; font: 18px/1 var(--font-label); color: var(--label);
