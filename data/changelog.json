@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Hero, item and unit pages are their history",
+    "items": [
+      "A hero, item or unit page opens on its history: what changed, patch by patch, with the eye on what the notes left out. Today's stats, weapon and ability cards fold into one line above it.",
+      "Filters over the history: tags (BUFF, NERF, NEW…), only hidden, Stats / Weapon / Abilities, and each ability by its icon — removed abilities in grey. A patch with a match opens, an empty one folds away.",
+      "Bug fixes, sound and look lines and engine plumbing no longer clutter these pages (they stay in the patch archive); work on a hero before its release hides behind \"In development\".",
+      "Pages load much lighter: older patches render when opened (Calico's page: 12,000 elements → 1,500)."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Heroes, Items, Units first",
     "items": [
       "The site is now organised around heroes, items and units: the top bar has just these three, each with the same three tabs — the list, its stats table and its change matrix. Hero Stats lives under Heroes.",

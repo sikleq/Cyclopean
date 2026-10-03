@@ -566,6 +566,34 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hgroup { padding-bottom: 4px; }
 .h2row { display: flex; align-items: center; gap: 16px; }
 .h2row .px-btn { margin-top: 10px; }
+/* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
+   what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
+.hblocks .erow:not(.is-hidden) .st .mark { visibility: hidden; }
+.hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
+.hblocks:not(.show-dev) .pblock.dev-only { display: none; }
+.hblocks .f-out { display: none !important; }
+.hist-bar { flex-wrap: wrap; row-gap: 8px; margin: 4px 0 14px; }
+.hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.hist-bar .hf-tags .tag { cursor: pointer; border: 0; }
+.hist-bar .hf-tags .tag.on { box-shadow: 0 0 0 2px var(--text-bright); }
+.hist-bar .hf-hidden .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
+.hist-bar .hf-hidden .n { color: var(--eye); margin-left: 4px; }
+.hf-ab { width: 34px; height: 34px; padding: 0; border: 0; cursor: pointer; background: var(--bg-panel-4);
+  box-shadow: 0 0 0 2px var(--frame-line); }
+.hf-ab img, .hf-ab .glyph { display: block; width: 34px; height: 34px; object-fit: cover; }
+.hf-ab:hover { box-shadow: 0 0 0 2px var(--patina-dim); }
+.hf-ab.on { box-shadow: 0 0 0 2px var(--patina), 0 0 10px var(--patina-25); }
+.hf-ab.gone { opacity: .45; filter: grayscale(1); box-shadow: 0 0 0 2px var(--frame-line), inset 0 0 0 1px var(--arrow); }
+.hf-ab.gone.on { opacity: 1; filter: none; }
+/* what the hero / item / unit is today: one line above the history, open for the full picture */
+.now { margin: 0 3px 16px; }
+.now > summary { padding: 10px 14px; cursor: pointer; font: 18px/1 var(--font-label); color: var(--label);
+  text-transform: uppercase; letter-spacing: .06em; list-style: none; }
+.now > summary::-webkit-details-marker { display: none; }
+.now > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--patina); }
+.now[open] > summary::before { content: "-"; }
+.now > summary:hover { color: var(--text-bright); }
+.now-body { padding: 0 14px 14px; }
 @media (max-width: 700px) {
   .erow { grid-template-columns: 22px 86px minmax(0, 1fr); }
   .erow .vv { grid-column: 3; text-align: left; white-space: normal; max-width: 100%; overflow-wrap: anywhere; }

@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections import defaultdict
 
 from .common import display_name, entity_icon, esc, glyph_for, hero_icon, img, load_json, page, pretty_id, slug, write
-from .hero_page import hero_page, history_heading, history_table, prop_icon, prop_rows, stat_tables
+from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
 from .render import KIND_LABEL
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -65,13 +65,12 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             hdr = '<div class="chips item-hdr">' + ''.join(
                 f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
                 f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
-        sections = ('<h2>Current values</h2>' + hdr + ''.join(blocks)) if blocks or hdr else ''
-    hist = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel)
-    history = history_heading() + f'<div id="history">{hist}</div>'
-    # current values beside the history (design review: the values sat above a screen of empty space)
-    body = head + (f'<div class="item-layout"><aside class="item-now">{sections}</aside><div>{history}</div></div>'
-                   if sections else history)
-    return page(name, body, rel, 'items')
+        sections = (hdr + ''.join(blocks)) if blocks or hdr else ''
+    history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel)
+    # the page is the history (owner, 2026-10-03): what the item does today folds under one line
+    now = (f'<details class="now px-frame"><summary>Current values</summary><div class="now-body">{sections}</div>'
+           f'</details>') if sections else ''
+    return page(name, head + now + history, rel, 'items')
 
 
 def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject, abilities: list[dict] = ()) -> str:
@@ -85,14 +84,16 @@ def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject, 
             f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])})</div></div></div>')
     stats = ''
     if trow:
-        stats = '<h2>Stats</h2>' + stat_tables(trow, cols, name, rel)
+        # the page is the history (owner, 2026-10-03): the unit's stats today fold under one line
+        stats = (f'<details class="now px-frame"><summary>Current stats</summary><div class="now-body">'
+                 f'{stat_tables(trow, cols, name, rel)}</div></details>')
     # the unit's own abilities and gun under it (B10: Walker's 120 ability rows were on no unit page);
     # their names don't pull note lines in — "Rocket Barrage" is also a hero's
     own = [(f'abilities.vdata:{a["id"]}', display_name(a), entity_icon(a['file'], a['id'], a['kind'], rel))
            for a in sorted(abilities, key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
     hist = history_table([(f'npc_units.vdata:{u["id"]}', name, ic)] + own, [name], by_ent, by_subject, rel,
-                         line_names=False)
-    return page(name, head + stats + history_heading() + f'<div id="history">{hist}</div>', rel, 'units')
+                         line_names=False, areas={f'npc_units.vdata:{u["id"]}': 'stats'})
+    return page(name, head + stats + hist, rel, 'units')
 
 
 _VARIANT_STOP = {'npc', 'neutral', 'citadel'}

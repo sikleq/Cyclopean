@@ -22,7 +22,6 @@ WEAPON_GROUP = 'Damage'
 # the six numbers a player compares first: one row of equal tiles with one-line labels
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
               'clip': 'Ammo', 'reload': 'Reload s'}
-LINE_STATUSES = ('documented', 'rounded', 'described', 'mismatch', 'fix')
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
     'dps': 'DPS', 'dps_max': 'DPS', 'bullet_dmg': 'BulletDamage', 'bullet_dmg_lvl': 'BulletDamage',
@@ -221,12 +220,6 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
 
 
-def history_heading() -> str:
-    """'History' with its filter on the same line (a sticky toolbar of one button covered rows)."""
-    return ('<div class="h2row"><h2>History</h2><button class="px-btn" data-toggle-class="only-hidden" '
-            'data-target="#history">Only hidden</button></div>')
-
-
 def _strip_subject(text: str, names: list[str]) -> str:
     """'Abrams: Melee damage per boon increased by 10%' -> 'Melee damage per boon …' on
     Abrams' own page: the subject is the page."""
@@ -287,7 +280,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div><h1>{esc(name)}</h1>'
             f'<div class="meta">First seen: build {h["first"][0]} ({esc(h["first"][1])})</div>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'{key_stats(table_row, cols, name, rel) + more_stats(table_row, cols, name, rel) if table_row else ""}'
+            f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
             f'</div></div>')
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
     weapon = weapon_block(weapon_card, table_row, cols, name, rel) if table_row else ''
@@ -295,7 +288,17 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     abil_cards = [ability_card(c, rel, SLOT_LABEL.get(c.get('slot', ''), c.get('slot', '')))
                   for c in mine if c.get('slot') != 'Weapon_Primary' or not table_row]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
+    # the page is the history (owner, 2026-10-03): what the hero is today folds under one line
+    now = more_stats(table_row, cols, name, rel) if table_row else ''
+    now = (f'<details class="now px-frame"><summary>Current stats, weapon and abilities</summary>'
+           f'<div class="now-body">{now}{weapon}{abil}</div></details>') if now or weapon or abil else ''
     keys = _owned_keys(hid, name, mine, ents_by_id, rel)
-    hist = history_table(keys, [name], by_ent, by_subject, rel)
-    body = head + weapon + abil + history_heading() + f'<div id="history">{hist}</div>'
-    return page(name, body, rel, 'heroes', description=f'Deadlock {name}: stats, abilities and every change')
+    from .dynamics_page import part_of
+    areas = {f'heroes.vdata:{hid}': 'stats'}
+    areas |= {f'abilities.vdata:{e["id"]}': part_of(e) for e in ents_by_id.values() if e.get('owner') == hid}
+    gone = {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
+            and e['id'] not in {c['id'] for c in mine}}
+    hist = history_table(keys, [name], by_ent, by_subject, rel, areas=areas, gone=gone,
+                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'))
+    body = head + now + hist
+    return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities')

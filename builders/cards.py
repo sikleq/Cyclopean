@@ -310,6 +310,20 @@ def _added_split(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     return keep, [c for c in rows if id(c) not in kept]
 
 
+def entity_rows(changes: list[dict]) -> str:
+    """The rows of one entity in one patch on its own page (owner, 2026-10-03): what a player reads —
+    no "Technical" fold (engine plumbing stays in data/, not on the page), and a newly added entity is
+    its NEW head and key fields only, without "All fields"."""
+    rows = [c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+            if not is_noop(c) and not is_engine(c)]
+    if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
+        keep, _ = _added_split(rows)
+        head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden'),
+                   '<span class="tag new" data-g="8">' + tag_svg('new') + 'NEW</span>', 'Added to the game')
+        return head + ''.join(change_row(c) for c in keep)
+    return family_rows(rows)
+
+
 def change_rows(changes: list[dict], added: bool = False) -> str:
     rows = sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
     if added:

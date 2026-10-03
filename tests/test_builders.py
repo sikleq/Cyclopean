@@ -590,3 +590,33 @@ def test_home_feed_puts_changes_on_their_pages():
     assert feed['heroes']['heroes.vdata:hero_atlas']['hidden'] == 1 and feed['items']['abilities.vdata:upgrade_x']['nerf'] == 1
     assert page_of({'file': 'npc_units.vdata', 'id': 'trooper_base', 'kind': 'trooper'},
                    frozenset({'npc_units.vdata:trooper_base'})) is None
+
+
+def test_entity_history_rows_marks_filters_and_lazy_blocks(monkeypatch):
+    """2026-10-03, the entity page is the history: rows are what the files changed (+ changes in the
+    game's code), bug fixes / looks / unmatched lines and engine plumbing stay off; one toolbar; work on
+    an unreleased hero hides behind "In development"; blocks past EAGER_PATCHES wait in a <template>."""
+    from builders import history_view
+    monkeypatch.setattr(history_view, 'EAGER_PATCHES', 1)
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
+    keys = [('heroes.vdata:hero_atlas', 'Base stats', None), ('abilities.vdata:ab_charge', 'Shoulder Charge', None)]
+    by_ent = {'heroes.vdata:hero_atlas': [(r2, [ch(key='c1', label='Health per boon', status='documented')]),
+                                          (r1, [ch(key='c3', label='Stamina', status='unreleased')])],
+              'abilities.vdata:ab_charge': [(r2, [ch(key='c2', label='T1: Move Speed', dir='buff'),
+                                                  ch(key='c4', label='Particle', path='m_strParticleFile',
+                                                     old_s='a.vpcf', new_s='b.vpcf', cat='balance')])]}
+    by_subject = {'abrams': [(r2, {'text': 'Abrams: Can now cancel Shoulder Charge', 'status': 'code', 'subject': 'Abrams'}),
+                             (r2, {'text': 'Abrams: Fixed a bug', 'status': 'fix', 'subject': 'Abrams'})]}
+    areas = {'heroes.vdata:hero_atlas': 'stats', 'abilities.vdata:ab_charge': 'abil'}
+    html = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas)
+    assert 'Can now cancel Shoulder Charge' in html and 'Fixed a bug' not in html
+    assert 'Technical' not in html and 'data-ab="ab_charge" data-area="abil"' in html
+    # the toolbar: tags present, the eye, parts; the newest block in the page, the older one lazy
+    assert 'data-f-tag="buff"' in html and 'data-f-tag="nerf"' in html and 'data-f-area="stats"' in html
+    assert 'Only hidden' in html and html.index('id="p-p2"') < html.index('id="p-p1"')
+    assert '<template class="hp-t">' in html.split('id="p-p1"')[1] and 'template' not in html.split('id="p-p1"')[0]
+    # the old patch had only work on a hero in development: hidden behind the switch
+    assert 'pblock dev-only' in html and 'In development' in html
+    released = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas, in_dev=True)
+    assert 'dev-only' not in released and 'hblocks show-dev' in released

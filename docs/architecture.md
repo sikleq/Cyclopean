@@ -345,14 +345,28 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Patch page first screen: tag tiles + proportion bar, released heroes hit (portrait, its two biggest
   counters of any tag below, all of them in the chip tooltip), one line of the notes check (zero items
   hidden), ◀ ▶ patch switcher.
-- Hero / item / unit history (`builders/history_view.py`): one collapsible band per patch (latest 3
-  open) over ONE full-width panel — an ability sub-header, its official lines (prefix dropped), then the
-  file changes no line spelled out exactly; a single-entity page (item, unit) has no sub-header. The
-  "Only hidden" filter sits in the History heading row (`hero_page.history_heading`).
+- Hero / item / unit pages ARE their history (owner, 2026-10-03: "closer to Sloppy"): head (portrait /
+  icon, name, chips; a hero's key stat tiles) → "Current …" folded in one line (all stats, the weapon
+  panel, ability cards; an item's values; a unit's stat tables) → History. One function for all three
+  (`history_view.history_table`): one band per patch, newest first (latest 3 open), over ONE panel — a
+  sub-header per part (base stats, gun, each ability; none on a single-entity page) and its rows: what
+  the files changed (`cards.entity_rows`: tag, field, old → new; no "Technical" fold, a new entity is
+  its NEW head + key fields) plus the note lines that live in the game's code (status `code`). Bug
+  fixes, sound / look lines, engine plumbing and unmatched lines stay in data/ and the patch archive.
+  One mark only: the eye on what the notes left out.
+- The history toolbar (`history_view.toolbar`, scripts.js `hist-filter`): the tags present (multi-
+  select), "Only hidden" (CSS on build-time `has-hidden` classes), the parts Stats / Weapon /
+  Abilities, the abilities as icons (current ones in slot order, removed ones grey after a divider),
+  "In development" (work on a hero before release: rows `st-unreleased`, groups / bands `dev-only`;
+  shown by default only while the hero itself is in development). A patch with a match opens; a band
+  left empty folds away.
+- Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
+  `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
+  elements at load).
 - Hero page head: every main non-gun stat as a tile (`hero_page.KEY_STATS`: health, regen, resists,
-  movement, melee, spirit growth), values centred; the secondary ones fold under "All stats". Weapon
-  panel: six headline tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload),
-  the rest under "All weapon stats" (units ride on the number). "Changed lately" is a corner notch.
+  movement, melee, spirit growth), values centred. Weapon panel (under "Current …"): six headline
+  tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload), the rest under
+  "All weapon stats" (units ride on the number). "Changed lately" is a corner notch.
 - Patch titles (`common.patch_title_html` / `patch_title_text`): the date once. A named update (City
   Never Sleeps, Matchmaking Update) shows its name in gold (`--gold`, no icon: it shifted the text) +
   the date and a gold banner bar; a dated one ("09-16-2026 Update") shows only its date + "update".

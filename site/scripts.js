@@ -669,13 +669,97 @@
   });
 
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
+  /* ---------- entity history: older patches render when opened; the toolbar filters rows ---------- */
+  /* (builders/history_view.py) tags are a multi-select, a part (Stats / Weapon / Abilities) and an
+     ability one at a time (click again to clear); "Only hidden" and "In development" are classes on
+     #history that CSS reads — the filter re-runs after them so a block left empty folds away */
+  safe('hist-filter', function () {
+    var box = document.getElementById('history');
+    if (!box || !box.classList.contains('hblocks')) return;
+    var TAGS = ['new', 'rework', 'buff', 'nerf', 'del', 'mech', 'up', 'down', 'changed', 'on', 'off'];
+    var state = { tags: [], area: null, ab: null };
+    function stamp(d) {
+      var t = d.querySelector('template.hp-t');
+      if (!t) return;
+      t.parentNode.replaceChild(t.content.cloneNode(true), t);
+    }
+    window.__histStamp = stamp;            // patch-anchor opens a lazy block too
+    // <details> fires "toggle" on itself only: listen in the capture phase
+    box.addEventListener('toggle', function (ev) {
+      if (ev.target.tagName === 'DETAILS' && ev.target.open) stamp(ev.target);
+    }, true);
+    function tagOf(r) {
+      if (r.__t === undefined) {
+        var t = r.querySelector('.tg .tag');
+        r.__t = '';
+        if (t) for (var i = 0; i < TAGS.length; i++) if (t.classList.contains(TAGS[i])) { r.__t = TAGS[i]; break; }
+      }
+      return r.__t;
+    }
+    function apply() {
+      var active = state.tags.length || state.area || state.ab;
+      var onlyHidden = box.classList.contains('only-hidden'), dev = box.classList.contains('show-dev');
+      box.classList.toggle('filtering', !!active);
+      var blocks = box.querySelectorAll('details.pblock');
+      if (active) blocks.forEach(stamp);
+      blocks.forEach(function (b) {
+        if (!active && !b.querySelector('.f-out')) { b.classList.remove('f-out'); return; }
+        var any = false;
+        b.querySelectorAll('.hgroup').forEach(function (g) {
+          var gok = (!state.area || g.getAttribute('data-area') === state.area) &&
+                    (!state.ab || g.getAttribute('data-ab') === state.ab);
+          var gany = false;
+          g.querySelectorAll('.erow').forEach(function (r) {
+            if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
+            var ok = gok && (!state.tags.length || state.tags.indexOf(tagOf(r)) >= 0) &&
+                     (!onlyHidden || r.classList.contains('is-hidden')) &&
+                     (dev || !r.classList.contains('st-unreleased'));
+            r.classList.toggle('f-out', !ok);
+            gany = gany || ok;
+          });
+          g.querySelectorAll('details.fam').forEach(function (f) {
+            f.classList.toggle('f-out', !f.querySelector(':scope > .erow:not(.f-out)'));
+          });
+          g.classList.toggle('f-out', !gany);
+          any = any || gany;
+        });
+        b.classList.toggle('f-out', !any);
+        if (active && any && !b.open) b.open = true;            // a patch with a match opens
+      });
+    }
+    var bar = document.querySelector('.hist-bar');
+    if (!bar) return;
+    bar.addEventListener('click', function (ev) {
+      var btn = ev.target.closest('button');
+      if (!btn) return;
+      var tag = btn.getAttribute('data-f-tag'), area = btn.getAttribute('data-f-area'), ab = btn.getAttribute('data-f-ab');
+      if (tag) {
+        var i = state.tags.indexOf(tag);
+        if (i >= 0) state.tags.splice(i, 1); else state.tags.push(tag);
+        btn.classList.toggle('on', i < 0);
+      } else if (area) {
+        state.area = state.area === area ? null : area;
+        bar.querySelectorAll('[data-f-area]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-area') === state.area); });
+      } else if (ab) {
+        state.ab = state.ab === ab ? null : ab;
+        bar.querySelectorAll('[data-f-ab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-ab') === state.ab); });
+      }
+      // "Only hidden" and "In development" toggle a class on #history first (the generic toggle)
+      setTimeout(apply, 0);
+    });
+    bar.addEventListener('change', function () { setTimeout(apply, 0); });
+  });
+
   /* ---------- #p-<patch>: a history block named in the address opens and comes into view ---------- */
   safe('patch-anchor', function () {
     function go() {
       if (location.hash.indexOf('#p-') !== 0) return;
       var el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
       if (!el) return;
-      if (el.tagName === 'DETAILS') el.open = true;
+      if (el.tagName === 'DETAILS') {
+        if (window.__histStamp) window.__histStamp(el);
+        el.open = true;
+      }
       el.scrollIntoView({ block: 'start' });
     }
     go();
