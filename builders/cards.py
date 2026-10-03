@@ -331,12 +331,41 @@ def _added_split(rows: list[dict]) -> tuple[list[dict], list[dict]]:
     return keep, [c for c in rows if id(c) not in kept]
 
 
+_PROP_KEY = re.compile(r'(?:m_mapAbilityProperties\.|PropertyUpgrades\{)(\w+)')
+_CAMEL = re.compile(r'[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+')
+_HINT_SKIP = {'percent', 'pct', 'value', 'bonus', 'amount', 'base', 'max', 'm', 'str', 'fl', 'amp', 'penalty', 'power'}
+
+
+def disambiguate(rows: list[dict]) -> list[dict]:
+    """Two fields of one entity under one label ("Healing Reduction" for both the receive and the regen
+    penalty, Puddle Punch's two "T3: Damage" with opposite tags — 104 pairs, advisor round 3): each gets
+    the words of its property name the label lacks, "Healing Reduction · receive"."""
+    count: dict[str, int] = {}
+    for c in rows:
+        count[str(c.get('label'))] = count.get(str(c.get('label')), 0) + 1
+    out = []
+    for c in rows:
+        lab = str(c.get('label'))
+        m = _PROP_KEY.search(str(c.get('path') or ''))
+        if count[lab] < 2 or not m:
+            out.append(c)
+            continue
+        have = {w.lower() for w in re.findall(r'[A-Za-z]+', lab)}
+
+        def said(w: str) -> bool:           # "heal" is in "Healing"
+            return w in have or any(len(w) >= 4 and (h.startswith(w) or w.startswith(h)) for h in have if len(h) >= 4)
+        words = [w.lower() for w in _CAMEL.findall(m.group(1))]
+        hint = ' '.join(w for w in words if not said(w) and w not in _HINT_SKIP)
+        out.append({**c, 'label': f'{lab} · {hint}'} if hint else c)
+    return out
+
+
 def entity_rows(changes: list[dict]) -> str:
     """The rows of one entity in one patch on its own page (owner, 2026-10-03): what a player reads —
     no "Technical" fold (engine plumbing stays in data/, not on the page), and a newly added entity is
     its NEW head and key fields only, without "All fields"."""
-    rows = [c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
-            if not is_noop(c) and not is_engine(c)]
+    rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+                         if not is_noop(c) and not is_engine(c)])
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
         keep, _ = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden'),

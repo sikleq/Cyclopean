@@ -665,3 +665,12 @@ def test_values_say_no_limit_and_carry_their_unit_on_both_sides():
     assert '>—<' in vals_html(ch(old_s='20%', new_s='', pct=None))
     assert '>50m<' in vals_html(ch(old_s='50', new_s='20m'))
     assert '>-1%<' in vals_html(ch(old_s='-2%', new_s='-1%'))           # a real penalty stays a number
+
+
+def test_two_fields_under_one_label_get_told_apart():
+    """Advisor round 3, 2026-10-03: 104 pairs like "Healing Reduction" (receive / regen penalty)."""
+    from builders.cards import disambiguate
+    rows = disambiguate([{'label': 'Healing Reduction', 'path': 'm_mapAbilityProperties.HealAmpReceivePenaltyPercent.m_strValue'},
+                         {'label': 'Healing Reduction', 'path': 'm_mapAbilityProperties.HealAmpRegenPenaltyPercent.m_strValue'},
+                         {'label': 'Cooldown', 'path': 'm_mapAbilityProperties.AbilityCooldown.m_strValue'}])
+    assert [r['label'] for r in rows] == ['Healing Reduction · receive', 'Healing Reduction · regen', 'Cooldown']
