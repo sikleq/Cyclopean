@@ -4,6 +4,7 @@
     "title": "Stats tables: fold groups, cleaner history",
     "items": [
       "Click a column group's header (Weapon, Vitality, …) to fold it to its first column; click again to open it.",
+      "An ability card's \"History\" link shows the hero's history of that ability alone.",
       "The heatmap follows the Boons number; zeros read quieter; search takes several names at once (\"haze, abrams\").",
       "A cell's history no longer lists steps too small to show at the column's rounding."
     ]
