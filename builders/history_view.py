@@ -102,7 +102,13 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     heading = '<div class="h2row"><h2>History</h2></div>'
     if not per_patch:
         return heading + '<p class="muted">No recorded changes.</p>'
-    from .cards import player_facing
+    from .cards import history_hints, player_facing
+    # two fields under one label read alike in every patch of the history (cards.history_hints)
+    every: dict[str, list[dict]] = {}
+    for slot in per_patch.values():
+        for key, ch in slot['ch'].items():
+            every.setdefault(key, []).extend(ch)
+    hints = {key: history_hints(ch) for key, ch in every.items()}
     blocks, facts = [], {'tags': set(), 'hidden': 0, 'dev': 0, 'areas': set(), 'abs': set()}
     opened = 0
     for i, pid in enumerate(sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True)):
@@ -112,7 +118,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         open_ = real and opened < OPEN_PATCHES
         opened += open_
         blocks.append(_patch_block(pid, slot, order, meta, names, rel, open_, i >= EAGER_PATCHES, areas, in_dev,
-                                   facts, merge, headless_own=enhanced))
+                                   facts, merge, headless_own=enhanced, hints=hints))
     bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels)
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
@@ -203,8 +209,9 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
 
 def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str], rel: str, open_: bool,
                  lazy: bool, areas: dict | None, in_dev: bool, facts: dict, merge=None,
-                 headless_own: bool = False) -> str:
-    """One patch = its banner + ONE full-width panel: a sub-header per part, rows below it."""
+                 headless_own: bool = False, hints: dict | None = None) -> str:
+    """One patch = its banner + ONE full-width panel: a sub-header per part, rows below it. `hints`:
+    part key -> its cards.history_hints."""
     from .cards import entity_rows, is_hidden, player_facing, row, sub_head
     from .render import tag_of, tag_summary
     hdr = slot['row']
@@ -214,7 +221,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         nm, ic = meta[key]
         changes = slot['ch'].get(key, [])
         lines = slot['lines'].get(key, [])
-        rows = entity_rows(changes)
+        rows = entity_rows(changes, (hints or {}).get(key))
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))

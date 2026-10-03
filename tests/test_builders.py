@@ -676,6 +676,41 @@ def test_two_fields_under_one_label_get_told_apart():
     assert [r['label'] for r in rows] == ['Healing Reduction · receive', 'Healing Reduction · regen', 'Cooldown']
 
 
+def test_a_bare_namesake_gets_a_word_too():
+    """Advisor round 4: Puddle Punch's T3 "Damage −50 → −40" beside "Damage · heavy melee 50 → 40" read as
+    one stat; "Spirit Power · tech" said nothing (Tech is Spirit); a scale function's switch is plumbing."""
+    from builders.cards import disambiguate, is_engine
+    up = 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{%s}.m_strBonus'
+    rows = disambiguate([{'label': 'T3: Damage', 'path': up % 'Damage'},
+                         {'label': 'T3: Damage', 'path': up % 'DamageHeavyMelee'}])
+    assert [r['label'] for r in rows] == ['T3: Damage · base', 'T3: Damage · heavy melee']
+    prop = 'm_mapAbilityProperties.%s.m_strValue'
+    rows = disambiguate([{'label': 'Spirit Power', 'path': prop % 'TechPower'},
+                         {'label': 'Spirit Power', 'path': prop % 'BonusSpirit'}])
+    assert [r['label'] for r in rows] == ['Spirit Power · base', 'Spirit Power · bonus']
+    rows = disambiguate([{'label': 'Spirit Power', 'path': prop % 'TechPower', 'op': 'change', 'new_s': '0'},
+                         {'label': 'Spirit Power', 'path': prop % 'SpiritPower', 'op': 'add', 'new_s': '8'}])
+    assert [r['label'] for r in rows] == ['Spirit Power · old field', 'Spirit Power · new field']
+    spread = 'm_mapWeaponInfos.primary.m_ShootSpreadPenaltyPerShotNormalization.%s'
+    rows = disambiguate([{'label': 'Spread Normalization', 'path': spread % 'm_SpreadPerShotFactor'},
+                         {'label': 'Spread Normalization', 'path': spread % 'm_FireRatePctRange'}])
+    assert [r['label'] for r in rows] == ['Spread Normalization · per shot factor', 'Spread Normalization · fire rate range']
+    # the same row reads alike in a patch where its namesake did not move
+    from builders.history_view import history_table
+    p1 = {'id': 'p1', 'date': '2026-03-21', 'title': '03-21-2026 Update'}
+    p2 = {'id': 'p2', 'date': '2025-07-04', 'title': '07-04-2025 Update'}
+    key = 'abilities.vdata:viscous_telepunch'
+    by_ent = {key: [(p1, [ch(key='a', label='T3: Damage', path=up % 'Damage'),
+                          ch(key='b', label='T3: Damage', path=up % 'DamageHeavyMelee')]),
+                    (p2, [ch(key='c', label='T3: Damage', path=up % 'Damage', old_s='-35', new_s='-30')])]}
+    html = history_table([(key, 'Puddle Punch', None)], ['Viscous'], by_ent, {}, '../')
+    assert html.count('T3: Damage · base') == 2 and html.count('T3: Damage · heavy melee') == 1
+    switch = {'cat': 'mechanic', 'label': 'Cooldown · Function Disabled', 'status': 'hidden', 'old_s': 'no', 'new_s': 'yes',
+              'path': 'm_mapAbilityProperties.AbilityCooldown.m_subclassScaleFunction.m_bFunctionDisabled'}
+    assert is_engine(switch)
+    assert not is_engine({**switch, 'path': 'm_mapAbilityProperties.AbilityCooldown.m_subclassScaleFunction.m_flStatScale'})
+
+
 def test_player_terms_and_the_strip_runs_newest_first():
     """Advisor round 4, 2026-10-03: one wording for the eye ("Not in patch notes"), a date instead of
     "build 6711", the patch strip in the history's order with the count left out of the notes."""

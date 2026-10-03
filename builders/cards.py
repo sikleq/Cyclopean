@@ -107,6 +107,13 @@ def _num(v) -> float | None:
 # names (advisor, 2026-10-03: 452 "Behaviour" rows, 97 pellet offsets, Walker's weak-point joints)
 _ENGINE_TOKENS = re.compile(r'^[A-Z][A-Z0-9_]+(?:\s*\|\s*[A-Z][A-Z0-9_]+)+$|\bPBF_\w+|\bk_e[A-Z]\w+|\bjoint_\w+')
 _ENGINE_PATH = re.compile(r'm_vecScatterOffsets|m_vecWeakPoints\{[^}]*\}\.m_strName')
+# a property's own wiring: its scale function's switches (not the coefficient m_flStatScale), how its
+# value is typed and registered ("Cooldown · Function Disabled", "Spirit Lifesteal · Automatically Deduce
+# Provided Property Type From Name" — 2026-10-03, the namesake audit). Never what a note line talks
+# about, even on a property the notes changed.
+_PROPERTY_WIRING = re.compile(r'\.m_subclassScaleFunction(?!\.m_flStatScale)(?:\.|$)'
+                              r'|\.m_(?:bAutomaticallyDeduceProvidedPropertyTypeFromName|eProvidedPropertyType|'
+                              r'eStatsUsageFlags)$')
 # a unit's AI wiring (advisor round 3, 2026-10-03: a new Gutter Ghoul's page was mostly these); its
 # health, damage, range, speed, bounty, resists and abilities stay
 _NPC_AI_LABEL = re.compile(r'^(?:Attack Range Target|Non Move Attack Duration|Cap Simultan|Face Enemy While Idle|'
@@ -121,6 +128,8 @@ def is_engine(c: dict) -> bool:
     vals = [str(c.get(k) or '').strip() for k in ('old_s', 'new_s')]
     vals = [v for v in vals if v and v != '—']
     if bool(vals) and all(_ENGINE_VALUE.match(v) for v in vals) or bool(_ENGINE_LABEL.search(str(c.get('label')))):
+        return True
+    if _PROPERTY_WIRING.search(str(c.get('path') or '')):
         return True
     # what the notes talked about stays, however it is spelled in the files ("No longer interrupts sliding")
     if c.get('status') in NOTED:
@@ -333,39 +342,89 @@ def _added_split(rows: list[dict]) -> tuple[list[dict], list[dict]]:
 
 _PROP_KEY = re.compile(r'(?:m_mapAbilityProperties\.|PropertyUpgrades\{)(\w+)')
 _CAMEL = re.compile(r'[A-Z]+(?![a-z])|[A-Z]?[a-z]+|\d+')
+_FIELD_PREFIX = re.compile(r'^(?:m_)?(?:fl|n|i|b|str|e|vec|map|un|s|v|h|ar|bits|sz)?(?=[A-Z])')
 _HINT_SKIP = {'percent', 'pct', 'value', 'bonus', 'amount', 'base', 'max', 'm', 'str', 'fl', 'amp', 'penalty', 'power'}
 
 
-def disambiguate(rows: list[dict]) -> list[dict]:
-    """Two fields of one entity under one label ("Healing Reduction" for both the receive and the regen
-    penalty, Puddle Punch's two "T3: Damage" with opposite tags — 104 pairs, advisor round 3): each gets
-    the words of its property name the label lacks, "Healing Reduction · receive"."""
-    count: dict[str, int] = {}
-    for c in rows:
-        count[str(c.get('label'))] = count.get(str(c.get('label')), 0) + 1
-    out = []
-    for c in rows:
-        lab = str(c.get('label'))
-        m = _PROP_KEY.search(str(c.get('path') or ''))
-        if count[lab] < 2 or not m:
-            out.append(c)
-            continue
-        have = {w.lower() for w in re.findall(r'[A-Za-z]+', lab)}
+def _prop_of(c: dict) -> str:
+    """The property a row is about; an engine field names itself by its last segment (a weapon's spread
+    struct: three rows under "Shoot Spread Penalty Per Shot Normalization")."""
+    path = str(c.get('path') or '')
+    m = _PROP_KEY.search(path)
+    return m.group(1) if m else _FIELD_PREFIX.sub('', re.sub(r'[\[{].*$', '', path.rsplit('.', 1)[-1]))
 
-        def said(w: str) -> bool:           # "heal" is in "Healing"
-            return w in have or any(len(w) >= 4 and (h.startswith(w) or w.startswith(h)) for h in have if len(h) >= 4)
-        words = [w.lower() for w in _CAMEL.findall(m.group(1))]
-        hint = ' '.join(w for w in words if not said(w) and w not in _HINT_SKIP)
-        out.append({**c, 'label': f'{lab} · {hint}'} if hint else c)
+
+def history_hints(changes: list[dict]) -> dict[tuple[str, str], str]:
+    """(label, property) -> its hint over an entity's WHOLE history, so a row reads the same in every
+    patch: Puddle Punch's T3 "Damage · base" also where the heavy-melee one did not move (2026-10-03)."""
+    props: dict[str, list[str]] = {}
+    for c in changes:
+        p = _prop_of(c)
+        if p and not is_noop(c) and not is_engine(c) and p not in props.setdefault(str(c.get('label')), []):
+            props[str(c.get('label'))].append(p)
+    out: dict[tuple[str, str], str] = {}
+    for lab, ps in props.items():
+        if len(ps) > 1:
+            out |= {(lab, p): h for p, h in zip(ps, _group_hints(lab, ps)) if h}
     return out
 
 
-def entity_rows(changes: list[dict]) -> str:
+def disambiguate(rows: list[dict], known: dict[tuple[str, str], str] | None = None) -> list[dict]:
+    """Two fields of one entity under one label ("Healing Reduction" for both the receive and the regen
+    penalty, Puddle Punch's two "T3: Damage" with opposite tags — 104 pairs, advisor round 3): each gets
+    the words of its property name the label lacks, "Healing Reduction · receive". `known`: the
+    entity's history_hints, which win so a row reads alike across patches."""
+    known = known or {}
+    groups: dict[str, list[tuple[int, str]]] = {}
+    for i, c in enumerate(rows):
+        prop = _prop_of(c)
+        if prop:
+            groups.setdefault(str(c.get('label')), []).append((i, prop))
+    hint_of: dict[int, str] = {}
+    for lab, members in groups.items():
+        if len(members) > 1:
+            hs = _group_hints(lab, [p for _, p in members])
+            if not any(hs):     # one stat under two names ("TechPower" 7 → 0 beside a new "SpiritPower" 8)
+                hs = [_moved_hint(rows[i]) for i, _ in members]
+            hint_of |= dict(zip((i for i, _ in members), hs))
+        hint_of |= {i: known[(lab, p)] for i, p in members if (lab, p) in known}
+    return [{**c, 'label': f'{c.get("label")} · {hint_of[i]}'} if hint_of.get(i) else c for i, c in enumerate(rows)]
+
+
+def _group_hints(label: str, props: list[str]) -> list[str]:
+    """One hint per namesake. A bare one beside hinted ones gets a word too (Puddle Punch's T3: "Damage
+    −50" beside "Damage · heavy melee +50" read as one stat twice, advisor round 4): its skipped words
+    ("bonus"), else "base"; two alike hints keep their skipped words too ("base attack" / "attack bonus")."""
+    hs = [_hint(label, p) for p in props]
+    hs = [h or _hint(label, p, skip=frozenset()) for p, h in zip(props, hs)]
+    hs = [_hint(label, p, skip=frozenset()) if hs.count(h) > 1 else h for p, h in zip(props, hs)]
+    return [h or 'base' for h in hs] if any(hs) else hs
+
+
+def _moved_hint(c: dict) -> str:
+    if c.get('op') == 'add':
+        return 'new field'
+    return 'old field' if c.get('op') == 'remove' or str(c.get('new_s')) in ('0', '—', '', 'None') else ''
+
+
+def _hint(label: str, prop: str, skip: frozenset[str] | set[str] = _HINT_SKIP) -> str:
+    """The words of a property name its label lacks: 'HealAmpRegenPenaltyPercent' under "Healing
+    Reduction" -> "regen"; Spirit is Tech in the files ("Spirit Power · tech" said nothing)."""
+    have = {w.lower() for w in re.findall(r'[A-Za-z]+', label)}
+    if 'spirit' in have:
+        have.add('tech')
+
+    def said(w: str) -> bool:               # "heal" is in "Healing"
+        return w in have or any(len(w) >= 4 and (h.startswith(w) or w.startswith(h)) for h in have if len(h) >= 4)
+    return ' '.join(w for w in (x.lower() for x in _CAMEL.findall(prop)) if not said(w) and w not in skip)
+
+
+def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = None) -> str:
     """The rows of one entity in one patch on its own page (owner, 2026-10-03): what a player reads —
     no "Technical" fold (engine plumbing stays in data/, not on the page), and a newly added entity is
-    its NEW head and key fields only, without "All fields"."""
+    its NEW head and key fields only, without "All fields". `known`: history_hints of the entity."""
     rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
-                         if not is_noop(c) and not is_engine(c)])
+                         if not is_noop(c) and not is_engine(c)], known)
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
         keep, _ = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden'),

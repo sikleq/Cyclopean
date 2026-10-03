@@ -394,6 +394,12 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   tables explain their notch. A "changed in the newest update" notch on index cards was tried and
   dropped (owner, 2026-10-03): the newest update marked 1 hero, two weeks would mark 102 items — it
   told nothing apart; the home feed and the search answer "what changed lately".
+- Namesakes (`cards.disambiguate`, `history_hints`): two fields under one label each get the words of
+  their property name the label lacks; a bare one beside a hinted one gets its skipped words or "base"
+  ("T3: Damage · base" / "· heavy melee"), a stat moved to a new name "old field" / "new field", an
+  engine field its last path segment. Hints are computed over the entity's whole history, so a row
+  reads alike in every patch. A property's wiring (scale-function switches, provided-type flags) is
+  plumbing even where the notes spoke (`cards._PROPERTY_WIRING`).
 - Home search (`builders/site_search.py`, scripts.js `site-search`): `search.json` = [name, page, what,
   icon] for every hero, its current abilities (`#ab-<id>` opens the hero filtered to it), item and
   named unit, fetched on the first keystroke; names that start with the query first.
