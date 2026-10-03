@@ -53,11 +53,17 @@ def _collect() -> dict:
     samples    {row key: {pid: [[what, field, old, new, tag, part], ...]}}"""
     from .cards import gameplay_entities, player_facing
     rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
+    ents = load_json('entities.json')['entities']
     # an NPC's own abilities count on its row (Walker's Stomp), as they do on its page
-    npc = {e['id']: e['units'] for e in load_json('entities.json')['entities'] if e.get('units')}
+    npc = {e['id']: e['units'] for e in ents if e.get('units')}
+    # a unit counts on its family's row; the same change on several members (five Gutter Ghouls, four
+    # Walkers) counts once (unit_families)
+    from .unit_families import main_of
+    fam = main_of([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
     cells: dict = {}
     parts: dict = {}
     raw: dict = {}
+    once: set = set()
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
         for e in gameplay_entities(p['entities']):
@@ -70,9 +76,9 @@ def _collect() -> dict:
             elif e.get('kind') == 'item':
                 keys = [f'item:{e["id"]}']
             elif e['file'] == 'npc_units.vdata':
-                keys = [f'unit:{e["id"]}']
+                keys = [f'unit:{fam.get(e["id"], e["id"])}']
             elif e['file'] == 'abilities.vdata' and e['id'] in npc:
-                keys = [f'unit:{u}' for u in npc[e['id']]]
+                keys = list(dict.fromkeys(f'unit:{fam.get(u, u)}' for u in npc[e['id']]))
             else:
                 continue
             part = part_of(e)
@@ -80,6 +86,12 @@ def _collect() -> dict:
                 cell = cells.setdefault(key, {}).setdefault(r['id'], {})
                 pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
                 for c in player_facing(e['changes']):
+                    if key.startswith('unit:'):
+                        sig = (key, r['id'], e['file'] == 'abilities.vdata' and e['id'], c.get('label'),
+                               c.get('old_s'), c.get('new_s'))
+                        if sig in once:
+                            continue
+                        once.add(sig)
                     t = tag_of(c)[0]
                     for d in (cell, pcell):
                         d[t] = d.get(t, 0) + 1
@@ -244,12 +256,16 @@ def hero_entries(heroes: list[dict], rel: str) -> list[tuple]:
 
 
 def unit_entries(units: list[dict], groups: tuple[tuple[str, str], ...], rel: str) -> list[tuple]:
-    """Units in the order of the Units index (buildings, troopers, neutrals, others); removed ones hide."""
+    """A row per unit FAMILY (unit_families: Slum Shroom I-III, the four Walkers) in the order of the Units
+    index (buildings, troopers, neutrals, others); removed ones and helpers hide."""
     from .common import slug
+    from .unit_families import families
     order = {k: i for i, (k, _) in enumerate(groups)}
     out = []
-    for u in sorted(units, key=lambda u: (order.get(u.get('kind'), len(order)), (u.get('name') or u['id']).lower())):
-        name = u['name'] if u.get('name') and u['name'] != u['id'] else pretty_id(u['id'])
+    fams = sorted(families(units).items(),
+                  key=lambda kv: (order.get(kv[1][0].get('kind'), len(order)), kv[0].lower()))
+    for name, members in fams:
+        u = members[0]
         hidden = not u.get('alive') or u.get('kind') == 'helper'      # removed, or Hideout / bots / effects
         out.append((f'unit:{u["id"]}', name, entity_icon(u['file'], u['id'], u.get('kind') or 'unit', rel),
                     slug(u['file'], u['id']).split('/', 1)[1], 'extra' if hidden else ''))

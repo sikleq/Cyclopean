@@ -976,6 +976,14 @@ def test_spawn_timers_say_minutes_without_the_word():
     assert semantics.context_label('m_sModifer.flCooldownOnBreak') == 'Effect › Cooldown On Break'
 
 
+def test_a_map_key_that_is_an_id_reads_as_words():
+    """2026-10-03: 30 Walker rows read 'Intrinsic Modifiers npc_boss_intrinsic › Bullet Armor Damage Resist'."""
+    from pipeline import semantics
+    label = semantics.context_label('m_vecIntrinsicModifiers{npc_boss_intrinsic}.m_flBulletArmor')
+    assert 'npc_' not in label and 'boss intrinsic' in label
+    assert semantics._key_text('EModTier_1') == 'EModTier_1' and semantics._key_text('Value') == 'Value'
+
+
 def test_boon_rescale_is_nobodys_mistake():
     """2024-09-26 "Boon count increased from 11 to 14" + "Non-Health boon bonuses rescaled …": the hero
     lines quote growth in the old scale (Kelvin 1.2 -> 0.9 is 1.2 -> 0.707 in the files) — a "mismatch"

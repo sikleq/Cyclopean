@@ -10,7 +10,8 @@ LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" 
 SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'))
 
 
-def page_of(e: dict, templates: frozenset[str] = frozenset()) -> tuple[str, str] | None:
+def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
+            ) -> tuple[str, str] | None:
     """The page a patch entity's changes live on: (entity key, section). A hero's abilities and gun are the
     hero's; the Hideout's toys, the bots and effects, templates ('trooper_base') and changes shared by
     many ('@shared') have no page here."""
@@ -26,22 +27,30 @@ def page_of(e: dict, templates: frozenset[str] = frozenset()) -> tuple[str, str]
             return f'heroes.vdata:{owner}', 'heroes'
         return None
     if file == 'npc_units.vdata' and e.get('kind') != 'helper':
-        return f'npc_units.vdata:{eid}', 'units'
+        # a unit's page is its family's (unit_families: the five Gutter Ghouls I are one page)
+        return f'npc_units.vdata:{(unit_main or {}).get(eid, eid)}', 'units'
     return None
 
 
-def update_feed(p: dict, templates: frozenset[str] = frozenset()) -> dict[str, dict[str, dict]]:
+def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
+                ) -> dict[str, dict[str, dict]]:
     """section -> page key -> {n, hidden, buff, nerf, kind}: what one update did to each page.
     Counts are the player-facing rows (cards.player_facing) a page shows; work on unreleased heroes
     waits for their release."""
     from .cards import gameplay_entities, player_facing
     out: dict[str, dict[str, dict]] = {}
+    once: set = set()
     for e in gameplay_entities(p['entities']):
-        where = page_of(e, templates)
+        where = page_of(e, templates, unit_main)
         rows = [c for c in player_facing(e['changes']) if c.get('status') != 'unreleased']
         if not where or not rows:
             continue
         key, section = where
+        if section == 'units':          # the same change on several members of a family counts once
+            rows = [c for c in rows if (key, c.get('label'), c.get('old_s'), c.get('new_s')) not in once]
+            once |= {(key, c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows}
+            if not rows:
+                continue
         slot = out.setdefault(section, {}).setdefault(key, {'n': 0, 'hidden': 0, 'buff': 0, 'nerf': 0,
                                                              'kind': e.get('kind')})
         slot['n'] += len(rows)
@@ -63,13 +72,13 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str]) -> str:
             f'{visual(ic, glyph_for(file, eid))}<span class="lu-n">{s["n"]}</span>{eye}</a>')
 
 
-def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str]) -> str:
+def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str]) -> str:
     blocks = []
     for row in reversed(patches):
         if len(blocks) == LATEST_UPDATES:
             break
         p = load_json(f'patches/{row["id"]}.json.gz')
-        feed = update_feed(p, templates)
+        feed = update_feed(p, templates, unit_main)
         if not feed:
             continue
         groups = []
@@ -105,6 +114,10 @@ def build_all() -> int:
     ents = load_json('entities.json')['entities']
     names = {f"{e['file']}:{e['id']}": display_name(e) for e in ents}
     templates = frozenset(f"{e['file']}:{e['id']}" for e in ents if e.get('template'))
+    from .unit_families import families
+    fams = families([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
+    unit_main = {m['id']: ms[0]['id'] for ms in fams.values() for m in ms}
+    names |= {f"npc_units.vdata:{ms[0]['id']}": name for name, ms in fams.items()}     # "Slum Shroom", not "… I"
     total_hidden = sum(p['counts'].get('hidden', 0) for p in patches)
     last_build = builds[-1] if builds else None
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
@@ -132,7 +145,7 @@ def build_all() -> int:
 </div>
 {_tiles(counts, faces, unit_art)}
 <h2 class="home-h">Latest changes</h2>
-{_feed(patches, names, templates)}
+{_feed(patches, names, templates, unit_main)}
 '''
     write('index.html', page('Deadlock change history', body, '', '', build=last_build['build'] if last_build else None,
                              description='What changed on every Deadlock hero, item and unit, from the game files: '

@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Unit families: one page per Slum Shroom, not three",
+    "items": [
+      "Units that are one thing to a player are one card and one page: Slum Shroom I-III, the five Gutter Ghouls of each tier, the four Walkers, the three Base Guardians. Inside, each tier or variant is a group; identical changes show once (\"Tier I\", \"All variants\"), and buttons filter by tier.",
+      "Unit Stats: the neutral camps are a tier table (health, damage and bounty every family shares) and a family table with only what differs (range, speed); units with no stats but a 1-HP placeholder are gone from it.",
+      "Unit changes counts a family once; old links to a single Walker or Gutter Ghoul land on the family page.",
+      "No more internal ids in change labels and values (\"npc_boss_intrinsic\", a neutral's attack ability)."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Hero, item and unit pages are their history",
     "items": [
       "A hero, item or unit page opens on its history: what changed, patch by patch, with the eye on what the notes left out. Today's stats, weapon and ability cards fold into one line above it.",

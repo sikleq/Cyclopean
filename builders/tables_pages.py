@@ -218,6 +218,50 @@ def unit_label(u: dict) -> str:
     return words.replace('_', ' ').strip().title()
 
 
+def has_stats(u: dict) -> bool:
+    """A row worth a line: a value besides a 1-HP placeholder (the Bug, the zipline container)."""
+    vals = {k: v for k, v in u['values'].items() if v is not None}
+    return bool(vals) and vals != {'hp': 1.0} and not (set(vals) == {'hp'} and vals['hp'] <= 1)
+
+
+def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple[str, str, list[dict]]]:
+    """Neutral camps (owner, 2026-10-03: "many identical units, only the tier changes"): every family's
+    tier I / II / III shares health, damage and bounty — one TIER table holds what all families share,
+    one FAMILY table a row per family with only what differs (speed, range, fire interval); the rest
+    (Mid-Boss, Sinner's Sacrifice) as before."""
+    from .unit_families import family_name, tier_of
+    tiered = [u for u in rows if tier_of(u)]
+    other = [u for u in rows if not tier_of(u)]
+    by_tier: dict[str, list[dict]] = {}
+    for u in tiered:
+        by_tier.setdefault(tier_of(u), []).append(u)
+    shared = [c['key'] for c in cols
+              if all(len({u['values'].get(c['key']) for u in us}) == 1 for us in by_tier.values())
+              and any(us[0]['values'].get(c['key']) is not None for us in by_tier.values())]
+    tier_rows = [{**us[0], 'name': f'Tier {t}', 'tier_row': True,
+                  'values': {k: us[0]['values'].get(k) for k in shared},
+                  'history': {k: v for k, v in (us[0].get('history') or {}).items() if k in shared}}
+                 for t, us in sorted(by_tier.items(), key=lambda kv: len(kv[0]))]
+    families: dict[str, list[dict]] = {}
+    for u in tiered:
+        families.setdefault(family_name(u), []).append(u)
+    fam_rows = []
+    for name, us in sorted(families.items()):
+        first = min(us, key=lambda u: (len(tier_of(u)), u['id']))
+        own = {k: v for k, v in first['values'].items() if k not in shared}
+        fam_rows.append({**first, 'name': name,
+                         'history': {k: v for k, v in (first.get('history') or {}).items() if k not in shared},
+                         'values': own})
+    out = []
+    if tier_rows:
+        out.append(('neutral', f'{esc(title)} · tiers', tier_rows))
+    if fam_rows:
+        out.append(('neutral', f'{esc(title)} · families', merge_copies(fam_rows)))
+    if other:
+        out.append(('neutral', f'{esc(title)} · others', merge_copies(sorted(other, key=lambda u: unit_label(u).lower()))))
+    return out
+
+
 def merge_copies(rows: list[dict]) -> list[dict]:
     """One unit kept under several ids with the same numbers (Walker x4, Guardian x2) is one row x N."""
     seen: dict[tuple, dict] = {}
@@ -251,17 +295,28 @@ def units_table() -> str:
     rel = '../'
     t = load_json('tables/units.json')
 
+    from .unit_families import main_of
+    ents = [e for e in load_json('entities.json')['entities'] if e['file'] == 'npc_units.vdata' and not e.get('template')]
+    main = main_of(ents)
+
     def name_cell(u):
         ic = entity_icon('npc_units.vdata', u['id'], u['kind'], rel)
         img_html = f'<img class="px" src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
         copies = f'<span class="copies">×{u["copies"]}</span>' if u.get('copies') else ''
         label = unit_label(u)
-        return (f'<td class="name" data-col="name" data-sort="{esc(label)}"><a href="{rel}units/{esc(u["id"])}.html">'
+        if u.get('tier_row'):                  # a row of the tier template: no page of its own
+            return f'<td class="name" data-col="name" data-sort="{esc(label)}"><span>{img_html}{esc(label)}</span></td>'
+        page_id = main.get(u['id'], u['id'])   # the unit family's page
+        return (f'<td class="name" data-col="name" data-sort="{esc(label)}"><a href="{rel}units/{esc(page_id)}.html">'
                 f'{img_html}{esc(label)}{copies}</a></td>')
 
     groups = []
     for kind, title in UNIT_SECTIONS:
-        rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind]
+        rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
+                and has_stats(u)]
+        if kind == 'neutral':
+            groups += neutral_groups(rows, t['columns'], title)
+            continue
         groups.append((kind, esc(title), merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
     body = ('<h1>Unit Stats</h1>' + section_tabs('units', 'stats') + _toolbar('Unit…')
             + _section_tables(groups, t['columns'], name_cell, 'Unit', t.get('date')))

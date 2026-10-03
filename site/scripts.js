@@ -8,6 +8,10 @@
     try { fn(); } catch (e) { console.error('[cyclopean] ' + name + ' failed', e); }
   }
 
+  /* a unit family's member page points to the family's page, keeping the #p-<patch> anchor */
+  var redirect = document.body && document.body.getAttribute('data-redirect');
+  if (redirect) { location.replace(redirect + location.hash); return; }
+
   function fmtNum(v, digits) {
     if (v === null || v === undefined || v === '') return '—';
     if (typeof v !== 'number') return String(v);
@@ -706,7 +710,8 @@
         if (!active && !b.querySelector('.f-out')) { b.classList.remove('f-out'); return; }
         var any = false;
         b.querySelectorAll('.hgroup').forEach(function (g) {
-          var gok = (!state.area || g.getAttribute('data-area') === state.area) &&
+          // a merged group belongs to several parts ("t1 t2 t3": the same change on every tier)
+          var gok = (!state.area || (' ' + g.getAttribute('data-area') + ' ').indexOf(' ' + state.area + ' ') >= 0) &&
                     (!state.ab || g.getAttribute('data-ab') === state.ab);
           var gany = false;
           g.querySelectorAll('.erow').forEach(function (r) {

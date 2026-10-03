@@ -38,16 +38,25 @@ def test_a_corrupted_version_is_one_row():
     assert fold_corrupted(rows[:2]) == rows[:2]
 
 
-def test_units_sharing_a_name_get_their_variant():
-    from builders.entities_pages import unit_variants
+def test_unit_families_tiers_and_variants():
+    """2026-10-03: Slum Shroom I-III, the four Walkers, the Barrel Mimics of two models are one family each."""
+    from builders.unit_families import families, member_label, merged_label
     walkers = [{'id': i, 'name': 'Walker', 'alive': True}
                for i in ('alt_npc_boss_tier2', 'alt_npc_boss_tier2_weak', 'npc_boss_tier2', 'npc_boss_tier2_weak')]
-    barrels = [{'id': 'neutral_barrel_01_weak', 'name': 'Barrel Mimic I', 'alive': True},
-               {'id': 'neutral_barrel_02_weak', 'name': 'Barrel Mimic I', 'alive': True}]
-    v = unit_variants(walkers + barrels + [{'id': 'npc_trooper', 'name': 'Trooper', 'alive': True}])
-    assert [v[w['id']] for w in walkers] == ['alt', 'alt weak', '', 'weak']
-    assert [v[b['id']] for b in barrels] == ['model 1', 'model 2']
-    assert 'npc_trooper' not in v                    # a unique name needs nothing
+    barrels = [{'id': f'neutral_barrel_0{m}_{t}', 'name': f'Barrel Mimic {r}', 'alive': True}
+               for m in (1, 2) for t, r in (('weak', 'I'), ('normal', 'II'), ('strong', 'III'))]
+    fams = families(walkers + barrels + [{'id': 'npc_trooper', 'name': 'Trooper', 'alive': True}])
+    assert set(fams) == {'Walker', 'Barrel Mimic', 'Trooper'}
+    # the main member: not an alt copy, not the weak copy of a boss; the lowest tier
+    assert fams['Walker'][0]['id'] == 'npc_boss_tier2' and fams['Barrel Mimic'][0]['id'] == 'neutral_barrel_01_weak'
+    w = fams['Walker']
+    assert [member_label(m, w) for m in w] == ['Walker', 'weak', 'alt', 'alt weak']
+    b = fams['Barrel Mimic']
+    assert member_label(b[0], b) == 'Tier I · model 1' and member_label(b[-1], b) == 'Tier III · model 2'
+    assert merged_label(['Tier I · model 1', 'Tier I · model 2']) == 'Tier I'
+    assert merged_label(['Tier I · model 1', 'Tier II · model 1']) == 'All tiers'
+    assert merged_label(['Walker', 'weak', 'alt', 'alt weak'], 4) == 'All variants'
+    assert merged_label(['Walker', 'alt'], 4) == 'Walker · alt'
 
 
 def test_zero_added_or_removed_is_no_change():

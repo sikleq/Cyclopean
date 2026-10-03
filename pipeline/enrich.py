@@ -19,7 +19,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 26       # 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
+ENRICH_VERSION = 27       # 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):

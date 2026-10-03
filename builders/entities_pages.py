@@ -73,49 +73,63 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     return page(name, head + now + history, rel, 'items')
 
 
-def unit_page(u: dict, trow: dict | None, cols: list[dict], by_ent, by_subject, abilities: list[dict] = ()) -> str:
+UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'Tier III'), ('abil', 'Abilities'))
+
+
+def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subject, bound: dict) -> str:
+    """A unit FAMILY's page (unit_families): Slum Shroom I-III, the four Walkers — one head, today's stats
+    per tier folded, one history where each member is a group (identical ones merged)."""
+    from .unit_families import TIER_RANK, family_name, member_label, merged_label, tier_of
     rel = '../'
-    name = u['name'] if u.get('name') and u['name'] != u['id'] else pretty_id(u['id'])
+    u = members[0]
+    name = family_name(u)
     ic = entity_icon(u['file'], u['id'], u['kind'], rel)
-    gone = '' if u.get('alive') else ' <span class="tag del">REMOVED</span>'
+    gone = '' if any(m.get('alive') for m in members) else ' <span class="tag del">REMOVED</span>'
+    tiers = list(dict.fromkeys(tier_of(m) for m in members if tier_of(m)))
+    chips = [f'<span class="chip">{esc(KIND_LABEL.get(u["kind"], u["kind"]))}</span>']
+    if tiers:
+        chips.append(f'<span class="chip">Tier {" · ".join(tiers)}</span>')
+    copies = len(members) // max(len(tiers), 1)
+    if copies > 1:
+        chips.append(f'<span class="chip">{copies} variants</span>')
     head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
-            f'<div class="chips"><span class="chip">{esc(KIND_LABEL.get(u["kind"], u["kind"]))}</span></div>'
+            f'<div class="chips">{"".join(chips)}</div>'
             f'<div class="meta">First seen: build {u["first"][0]} ({esc(u["first"][1])})</div></div></div>')
-    stats = ''
-    if trow:
-        # the page is the history (owner, 2026-10-03): the unit's stats today fold under one line
-        stats = (f'<details class="now px-frame"><summary>Current stats</summary><div class="now-body">'
-                 f'{stat_tables(trow, cols, name, rel)}</div></details>')
-    # the unit's own abilities and gun under it (B10: Walker's 120 ability rows were on no unit page);
-    # their names don't pull note lines in — "Rocket Barrage" is also a hero's
+    # today's stats: one table per tier (the variants of a tier share them), folded under one line
+    shown, tables = set(), []
+    for m in members:
+        row = urow.get(m['id'])
+        t = tier_of(m)
+        if row and t not in shown:
+            shown.add(t)
+            title = f'<h3 class="now-h">Tier {esc(t)}</h3>' if t else ''
+            tables.append(title + stat_tables(row, cols, display_name(m), rel))
+    stats = (f'<details class="now px-frame"><summary>Current stats</summary><div class="now-body">'
+             f'{"".join(tables)}</div></details>') if tables else ''
+    # the members, then their own abilities and guns (B10: Walker's 120 ability rows were on no unit
+    # page); ability names don't pull note lines in — "Rocket Barrage" is also a hero's
+    keys = [(f'npc_units.vdata:{m["id"]}', member_label(m, members) if len(members) > 1 else name,
+             entity_icon(m['file'], m['id'], m['kind'], rel)) for m in members]
+    areas = {k: (f't{TIER_RANK[tier_of(m)]}' if tier_of(m) in TIER_RANK and TIER_RANK[tier_of(m)] <= 3 else 'stats')
+             for (k, _, _), m in zip(keys, members)}
+    abilities = {a['id']: a for m in members for a in bound.get(m['id'], [])}
     own = [(f'abilities.vdata:{a["id"]}', display_name(a), entity_icon(a['file'], a['id'], a['kind'], rel))
-           for a in sorted(abilities, key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
-    hist = history_table([(f'npc_units.vdata:{u["id"]}', name, ic)] + own, [name], by_ent, by_subject, rel,
-                         line_names=False, areas={f'npc_units.vdata:{u["id"]}': 'stats'})
+           for a in sorted(abilities.values(), key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
+    hist = history_table(keys + own, [name] + [display_name(m) for m in members], by_ent, by_subject, rel,
+                         line_names=False, areas=areas, area_labels=UNIT_AREAS,
+                         merge=lambda labels: merged_label(labels, len(members)))
     return page(name, head + stats + hist, rel, 'units')
 
 
-_VARIANT_STOP = {'npc', 'neutral', 'citadel'}
-
-
-def unit_variants(units: list[dict]) -> dict[str, str]:
-    """Units that share a name (4 Walkers, 5 "Gutter Ghoul I") get what tells them apart: the words
-    of their id the namesakes do not share ('alt weak', 'amber', 'dock creature', 'model 2')."""
-    by_name: dict[str, list[dict]] = defaultdict(list)
-    for u in units:
-        if u.get('alive'):
-            by_name[u.get('name') or u['id']].append(u)
-    out = {}
-    for group in by_name.values():
-        if len(group) < 2:
-            continue
-        toks = {u['id']: u['id'].split('_') for u in group}
-        common = set.intersection(*(set(t) for t in toks.values()))
-        for uid, t in toks.items():
-            rest = [w for w in t if w not in common and w not in _VARIANT_STOP]
-            out[uid] = ' '.join(f'model {int(w)}' if w.isdigit() else w for w in rest)
-    return out
+def redirect_page(target: str, name: str) -> str:
+    """A member of a unit family points to the family's page (scripts.js keeps the #p-<patch> anchor;
+    the refresh is the fallback without scripts)."""
+    from .common import asset_version
+    return (f'<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>{esc(name)} · Cyclopean</title>'
+            f'<meta http-equiv="refresh" content="1; url={esc(target)}"><link rel="canonical" href="{esc(target)}">'
+            f'</head><body data-redirect="{esc(target)}"><p><a href="{esc(target)}">{esc(name)}</a></p>'
+            f'<script src="../scripts.js?v={asset_version()}"></script></body></html>')
 
 
 def sub_tabs(section: str, active: str) -> str:
@@ -193,23 +207,35 @@ def build_all() -> dict[str, int]:
     for e in by_id.values():
         for uid in e.get('units') or ():
             bound[uid].append(e)
-    for u in units:
-        write(slug(u['file'], u['id']), unit_page(u, urow.get(u['id']), units_t['columns'], by_ent, by_subject,
-                                                  bound.get(u['id'], [])))
+    # one page and one card per unit family (unit_families); the other members point to it
+    from .unit_families import families, tier_of
+    fams = families(units)
+    for name, members in fams.items():
+        main = members[0]
+        page_path = slug(main['file'], main['id'])
+        write(page_path, unit_page(members, urow, units_t['columns'], by_ent, by_subject, bound))
+        for m in members[1:]:
+            write(slug(m['file'], m['id']), redirect_page(page_path.split('/', 1)[1], name))
         counts['units'] += 1
     groups = []
-    variants = unit_variants(units)
     for kind, title in UNIT_GROUPS:
-        sel = sorted((u for u in units if u['kind'] == kind), key=lambda u: (not u.get('alive'), u.get('name') or ''))
-        if sel:
-            # the Hideout's toys, the bots' brain, effect-only entries: behind their own switch
-            wrap = ' class="helper-group"' if kind == 'helper' else ''
-            groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
-                          + ''.join(_card(u, entity_icon(u['file'], u['id'], kind, rel),
-                                          variants.get(u['id'], '') if u.get('alive') else 'removed')
-                                    for u in sel) + '</div></div>')
-    n_gone = sum(1 for u in units if not u.get('alive'))
-    n_helpers = sum(1 for u in units if u['kind'] == 'helper')
+        sel = sorted(((n, ms) for n, ms in fams.items() if ms[0]['kind'] == kind),
+                     key=lambda kv: (not kv[1][0].get('alive'), kv[0]))
+        if not sel:
+            continue
+        cards_html = []
+        for n, ms in sel:
+            tiers = list(dict.fromkeys(tier_of(m) for m in ms if tier_of(m)))
+            copies = len(ms) // max(len(tiers), 1)
+            sub = ('removed' if not ms[0].get('alive') else
+                   ' · '.join(([' '.join(tiers)] if tiers else []) + ([f'×{copies}'] if copies > 1 else [])))
+            cards_html.append(_card({**ms[0], 'name': n}, entity_icon(ms[0]['file'], ms[0]['id'], kind, rel), sub))
+        # the Hideout's toys, the bots' brain, effect-only entries: behind their own switch
+        wrap = ' class="helper-group"' if kind == 'helper' else ''
+        groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
+                      + ''.join(cards_html) + '</div></div>')
+    n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive'))
+    n_helpers = sum(1 for ms in fams.values() if ms[0]['kind'] == 'helper')
     gone_switch = ''.join(
         f'<label class="switch"><input type="checkbox" data-toggle-class="{cls}" data-target="#units-grid">'
         f'<span class="track"></span>{label} <span class="n">{n}</span></label>'

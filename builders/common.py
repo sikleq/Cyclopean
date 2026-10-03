@@ -132,7 +132,9 @@ def names_by_id() -> dict[str, str]:
 
 
 # lower-case only: 'CITADEL_ABILITY_BEHAVIOR_*' flags are not entity ids
-_ID_IN_TEXT = re.compile(r'\b(?:citadel_(?:ability|weapon)_|ability_|upgrade_|hero_)[a-z0-9_]+\b')
+# any citadel_ / npc_ id too: a neutral's attack ability 'citadel_neutral_attack_lobfire' sat raw on the
+# Gutter Ghoul page (2026-10-03)
+_ID_IN_TEXT = re.compile(r'\b(?:citadel_|ability_|upgrade_|hero_|npc_)[a-z0-9_]+\b')
 # any other snake_case word is an id only if the catalog knows it: a hero in development names its
 # abilities after itself ("Kit: Ultimate slork_ability_invis → fathom_reefdweller_harpoon", 2026-10-02)
 _SNAKE_WORD = re.compile(r'\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b')

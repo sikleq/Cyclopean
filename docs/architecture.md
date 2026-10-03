@@ -381,9 +381,19 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   owner's call), the name plate in the hero's colour from the game (`m_colorUI` as `--hero` in the
   card's style — the one approved exception to ":root tokens only") and a PRE-RELEASE ribbon; no role,
   complexity or last-patch line (owner's call, 2026-10-01).
-- Units index: units that share a name (4 Walkers, 5 "Gutter Ghoul I") carry what tells them apart —
-  the words of their id the namesakes do not share (`entities_pages.unit_variants`: "alt weak",
-  "amber", "dock creature", "model 2"); removed units hide behind a "Removed" switch. Helpers — the
+- Unit families (`builders/unit_families.py`, owner 2026-10-03: "many identical units, only the tier
+  changes"): units sharing a name once the tier numeral is dropped (Slum Shroom I-III, the five Gutter
+  Ghouls of each tier, the four Walkers, the Base Guardians) are ONE card on the Units index (tiers and
+  "×N" under the name), ONE page (the main member's: not an `alt_` copy, lowest tier, not the boss's
+  `weak` copy; the others are redirect stubs `body[data-redirect]` that keep the `#p-` anchor), ONE row
+  in Unit changes (the same change on several members counts once) and on the home feed. On the page a
+  member is a group named by its tier and what tells it apart ("Tier II · dock creature", "alt weak");
+  members whose rows in a patch are identical are one group ("Tier I", "All tiers", "All variants";
+  `history_view` `merge`); the part buttons are the tiers. Unit Stats: the neutral camps are a TIER
+  table (what every family shares per tier: health, damage, bounty) + a FAMILY table (a row per family,
+  only the columns that differ: range, speed) + the others (Mid-Boss, Sinner's Sacrifice); rows with no
+  stat but a 1-HP placeholder are dropped (`tables_pages.has_stats`). Removed units hide behind a
+  "Removed" switch. Helpers — the
   Hideout's toys, the bots' brain, entries with only a model / particles / sounds and not one gameplay
   field (`classify.unit_is_helper`, catalog kind `helper`; the code spawns them by class, abilities do
   not name them) — hide behind "Hideout, bots & effects" and with the removed rows in Unit changes.

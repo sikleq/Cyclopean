@@ -622,8 +622,20 @@ def _segment(seg: str) -> str:
     if idx is not None:
         text += f' #{int(idx) + 1}'
     if key:
-        text += f' {key.split("|")[0]}'
+        text += f' {_key_text(key.split("|")[0])}'
     return text
+
+
+_ID_KEY = re.compile(r'^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$')
+_ID_PREFIX = re.compile(r'^(?:npc_|citadel_|modifier_|ability_|upgrade_)+')
+
+
+def _key_text(key: str) -> str:
+    """A map key that is an internal id reads as words: 'Intrinsic Modifiers npc_boss_intrinsic' sat on
+    30 Walker rows (2026-10-03) -> 'Intrinsic Modifiers boss intrinsic'. Other keys stay as they are."""
+    if not _ID_KEY.match(key):
+        return key
+    return _ID_PREFIX.sub('', key).replace('_', ' ')
 
 
 # containers and flag fields a player knows by another name (audit 2026-10-01: 1,677 rows read

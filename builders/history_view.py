@@ -55,13 +55,16 @@ def _entity_of_line(ln: dict, key_set: set[str], names_by_key: dict[str, str], f
 
 def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_ent, by_subject, rel: str,
                   line_names: bool = True, areas: dict[str, str] | None = None, gone: set[str] = frozenset(),
-                  in_dev: bool = False) -> str:
+                  in_dev: bool = False, area_labels: tuple[tuple[str, str], ...] = AREAS,
+                  merge=None) -> str:
     """The History section: heading, toolbar, blocks. keys: [(entity key, display name, icon url)] in
     display order, the page's own entity first; names: subjects whose note lines belong here.
     `line_names`: the other keys' names pull note lines in too (a hero's abilities do; a boss's "Rocket
     Barrage" would drag in the hero ability of that name). `areas`: key -> stats / weapon / abil (a
     hero's page); `gone`: keys of abilities the entity no longer has; `in_dev`: the entity itself is in
-    development, so its development work shows by default."""
+    development, so its development work shows by default. `area_labels`: the part buttons (a unit
+    family: its tiers); `merge`: members whose rows in a patch are identical show as ONE group named by
+    merge(labels) (unit_families.merged_label) — the five Gutter Ghouls I, the four Walkers."""
     order = {k: i for i, (k, _, _) in enumerate(keys)}
     meta = {k: (nm, ic) for k, nm, ic in keys}
     names_by_key = {k: nm for k, nm, _ in keys}
@@ -93,13 +96,15 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         real = bool(slot['lines']) or bool(player_facing(shown))
         open_ = real and opened < OPEN_PATCHES
         opened += open_
-        blocks.append(_patch_block(pid, slot, order, meta, names, rel, open_, i >= EAGER_PATCHES, areas, in_dev, facts))
-    bar = toolbar(facts, keys, areas, gone, in_dev, rel)
+        blocks.append(_patch_block(pid, slot, order, meta, names, rel, open_, i >= EAGER_PATCHES, areas, in_dev,
+                                   facts, merge))
+    bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels)
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
 
 
-def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str) -> str:
+def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str,
+            area_labels: tuple[tuple[str, str], ...] = AREAS) -> str:
     """Tags present (multi-select), the eye (only hidden), parts of a hero, its abilities as icons (the
     current ones in slot order, removed ones grey after a divider), "In development"."""
     from .pixel_icons import tag_svg
@@ -113,8 +118,8 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
                      f'{mark("hidden")}Only hidden <span class="n">{facts["hidden"]}</span></button>')
     if areas and len(facts['areas']) > 1:
         parts.append('<span class="hf-areas">' + ''.join(
-            f'<button class="px-btn" data-f-area="{a}">{lbl}</button>' for a, lbl in AREAS if a in facts['areas'])
-            + '</span>')
+            f'<button class="px-btn" data-f-area="{a}">{esc(lbl)}</button>' for a, lbl in area_labels
+            if a in facts['areas']) + '</span>')
     chips = [(k, nm, ic) for k, nm, ic in keys[1:] if k in facts['abs']]
     if len(chips) > 1:
         now = [c for c in chips if c[0] not in gone]
@@ -136,42 +141,55 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
 
 
 def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str], rel: str, open_: bool,
-                 lazy: bool, areas: dict | None, in_dev: bool, facts: dict) -> str:
+                 lazy: bool, areas: dict | None, in_dev: bool, facts: dict, merge=None) -> str:
     """One patch = its banner + ONE full-width panel: a sub-header per part, rows below it."""
     from .cards import entity_rows, is_hidden, player_facing, row, sub_head
     from .render import tag_of, tag_summary
     hdr = slot['row']
-    parts, counted_all, all_dev = [], [], True
-    single = len(order) == 1                 # a page about one entity repeats no sub-header with its name
+    counted_all, all_dev = [], True
+    groups: list[dict] = []
     for key in sorted(set(slot['ch']) | set(slot['lines']), key=lambda k: order.get(k, 999)):
         nm, ic = meta[key]
-        file, _, eid = key.partition(':')
         changes = slot['ch'].get(key, [])
         lines = slot['lines'].get(key, [])
-        facing = player_facing(changes)
-        dev = [c for c in facing if c.get('status') == 'unreleased']
-        live = [c for c in facing if c.get('status') != 'unreleased']
         rows = entity_rows(changes)
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
         if not rows:
             continue
-        group_dev = bool(dev) and not live and not lines and not in_dev
+        same = next((g for g in groups if merge and g['rows'] == rows), None)
+        if same:                             # the same rows on another member: one group, both named
+            same['keys'].append(key)
+            continue
+        groups.append({'keys': [key], 'rows': rows, 'changes': changes, 'lines': lines})
+    single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
+    parts = []
+    for g in groups:
+        key = g['keys'][0]
+        nm, ic = meta[key]
+        if len(g['keys']) > 1:
+            nm = merge([meta[k][0] for k in g['keys']])
+        file, _, eid = key.partition(':')
+        facing = player_facing(g['changes'])
+        dev = [c for c in facing if c.get('status') == 'unreleased']
+        live = [c for c in facing if c.get('status') != 'unreleased']
+        group_dev = bool(dev) and not live and not g['lines'] and not in_dev
         all_dev = all_dev and group_dev
         counted = facing if in_dev else live
         counted_all += counted
         facts['tags'] |= {tag_of(c)[0] for c in facing}
         facts['hidden'] += sum(1 for c in counted if c.get('status') == 'hidden')
         facts['dev'] += len(dev)
-        area = (areas or {}).get(key, 'abil')
-        facts['areas'].add(area)
-        if not single and key != list(order)[0]:
+        area = ' '.join(dict.fromkeys((areas or {}).get(k, 'abil') for k in g['keys']))
+        facts['areas'] |= set(area.split())
+        # ability chips are abilities and guns (a family's tiers are parts, not chips)
+        if len(order) > 1 and key != list(order)[0] and (areas or {}).get(key, 'abil') in ('abil', 'weapon'):
             facts['abs'].add(key)
         hidden = is_hidden(counted)
         head = '' if single else sub_head(nm, ic, glyph_for(file, eid), counted, hidden)
         cls = 'hgroup' + (' has-hidden' if hidden else '') + (' dev-only' if group_dev else '')
-        parts.append(f'<div class="{cls}" data-ab="{esc(eid)}" data-area="{area}">{head}{rows}</div>')
+        parts.append(f'<div class="{cls}" data-ab="{esc(eid)}" data-area="{esc(area)}">{head}{g["rows"]}</div>')
     if not parts:
         return ''
     n_hidden = sum(1 for c in counted_all if c.get('status') == 'hidden')
