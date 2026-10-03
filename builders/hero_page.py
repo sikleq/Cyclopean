@@ -275,10 +275,11 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     if 'base body' in cosmetics()['heroes'].get(hid, ()):
         # the body a skin is put on is in the files (pipeline/cosmetics.py): skins are being made
         chips.append('<span class="chip">skin base in files</span>')
-    head = (f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
-            f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div><h1>{esc(name)}</h1>'
+    # the same head as an item's or a unit's: crumbs above, then name, chips, "First seen" (advisor 10-03)
+    head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
+            f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
+            f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
             f'<div class="meta">First seen: build {h["first"][0]} ({esc(h["first"][1])})</div>'
-            f'<div class="chips">{"".join(chips)}</div>'
             f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
             f'</div></div>')
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
