@@ -71,6 +71,8 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 - `-f` is a case-sensitive prefix; `heroes/` root is passed as a file list (the folder also has 1.7 GB of backgrounds).
 - **Never** pass `--vpk_cache`: it writes a manifest into the game folder.
 - Missing icons must be allow-listed with a reason in `data/overrides/missing_icons.json`, otherwise the tool exits 1.
+- The shop's look and sounds (page art, paper cards, tab shapes, `ui_shop_*` mp3) come the same way from
+  `tools/extract_shop_assets.py` → `icons/shop/`, `sounds/shop/` (see `docs/shop.md`).
 - The tool is run by hand (CI has no VPK): after a hero's release re-run it — the final art replaces the
   pre-release stand-in (Rat King kept his placeholder crop for two days, 2026-10-03). `validate_data.py`
   warns when a released hero still has its card art allow-listed as missing. Re-encoding gives new bytes

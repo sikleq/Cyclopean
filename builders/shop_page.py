@@ -1,7 +1,8 @@
-"""Items index laid out like the game's shop ("All Items" view): one row per tier with its price tag
-on the left, three columns Weapon → Spirit → Vitality (the game's order everywhere), item cards with
-ACTIVE / IMBUE labels; hovering a card lights up its components and what it upgrades into, the rest
-dims (the game does the same). Street Brawl's T5 draft items and removed items follow below."""
+"""Items index laid out like the game's shop. This module draws the "All Items" tab: one row per tier
+with its price tag on the left, three columns Weapon → Spirit → Vitality (the game's order everywhere),
+item cards with ACTIVE / IMBUE labels; hovering a card lights up its components and what it upgrades
+into, the rest dims (the game does the same). Street Brawl's T5 draft items and removed items follow
+below. The tabs and the three category catalogs are builders/game_shop.py."""
 from __future__ import annotations
 
 from .common import entity_icon, esc, icon, pretty_id, slug
@@ -90,10 +91,8 @@ def shop_html(items: list[dict], cards: dict, rel: str) -> str:
         f'<div class="shop-row t{t}"><div class="tier-tag"><span class="tally">{TALLY[t]}</span>'
         f'<span class="price">{souls}{price.get(t, "")}</span></div>{cells(shop, t)}</div>'
         for t in SHOP_TIERS)
-    filters = ('<div class="shop-filter"><button class="px-btn on" data-shop="all">All</button>' + ''.join(
-        f'<button class="px-btn" data-shop="{cat}">{_cat_icon(ik, rel)}{name}</button>'
-        for _, name, cat, ik in SHOP_COLUMNS) + '</div>')
-    out = [filters, f'<section class="shop px-frame">{head}{rows}</section>']
+    # one category alone is its own tab now (builders/game_shop.py): no filter buttons here
+    out = [f'<section class="shop px-frame">{head}{rows}</section>']
     if brawl:
         out.append('<div class="grid-group-title">Street Brawl legendaries <small>T5 · draft only</small></div>'
                    f'<section class="shop brawl px-frame">{head}<div class="shop-row t5">'
@@ -102,4 +101,5 @@ def shop_html(items: list[dict], cards: dict, rel: str) -> str:
         out.append('<div class="grid-group-title">Removed or disabled</div><div class="gone-grid">' + ''.join(
             item_card(e, cards.get(e['id']), rel, next((c for s, _, c, _ in SHOP_COLUMNS if s == slot(e)), 'w'),
                       tier(e) or 1, []) for e in sorted(gone, key=_name)) + '</div>')
-    return ''.join(out)
+    from .game_shop import game_shop_html
+    return game_shop_html(shop, cards, rel, used_in, tier, slot, ''.join(out))

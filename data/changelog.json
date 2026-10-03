@@ -1,6 +1,15 @@
 [
   {
     "date": "2026-10-03",
+    "title": "Items: the game's shop",
+    "items": [
+      "The Items page is the in-game shop: Weapon, Spirit and Vitality tabs open the Fairfax, Curiosity Catalog and MPS pages from the game files, with each tier where the game puts it, the price on its tape, paper cards per tier and round cards for active items.",
+      "Hovering an item works like in the game: the other cards dim, what it builds from lights up, what it builds into pulses, and its tooltip shows the stats, the active and passive parts and the components.",
+      "The shop's own sounds play on hover and on tab clicks (after the first click on the page); the speaker button under the tabs turns them off. All Items keeps the three-column view."
+    ]
+  },
+  {
+    "date": "2026-10-03",
     "title": "Rat King's final art; hero pages show current abilities",
     "items": [
       "Rat King has his release portrait, card art and ability icons instead of the pre-release stand-ins.",

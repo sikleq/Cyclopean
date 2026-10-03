@@ -103,6 +103,30 @@
   --value-old: #7f8a82;
   --empty-sq: #0b1413;
 
+  /* the game's shop (panorama citadel_base_styles.css): its own palette, kept apart from ours */
+  --gs-ink: #10130d;                         /* offBlack: card names */
+  --gs-price: #99ffd6;                       /* shardColor: souls, prices */
+  --gs-w: #ec9719;                           /* courageBright */
+  --gs-s: #ce90ff;                           /* spiritBright */
+  --gs-v: #7bba1d;                           /* fortitudeBright */
+  --gs-w-t4: #e4c5a1;                        /* tier 4 names on the dark cards */
+  --gs-s-t4: #e3d4f2;
+  --gs-v-t4: #c2e7cd;
+  --gs-imbue: #e7c8ff;                       /* spiritLight */
+  --gs-paper-w: #98896b;                     /* each page's paper (sampled from its art): narrow screens */
+  --gs-paper-s: #938386;
+  --gs-paper-v: #7f7e6a;
+  --gs-tab-all: #b2b2af;  --gs-tab-all-2: #9b957f;
+  --gs-tab-w: #e4b20c;    --gs-tab-w-2: #a37406;   --gs-tab-w-hi: #fdde6f;
+  --gs-tab-s: #b866de;    --gs-tab-s-2: #762f97;   --gs-tab-s-hi: #e59dff;
+  --gs-tab-v: #a5ce3c;    --gs-tab-v-2: #5e7b12;   --gs-tab-v-hi: #cbf85b;
+  --gs-card-shadow: rgba(0, 0, 0, 0.44);     /* box-shadow 2px 2px 12px #0007 */
+  --gs-imbue-bg: rgba(16, 19, 13, 0.72);
+  --gs-tip-bg: #1d1c1a;
+  --gs-tip-text: #cdcdcd;
+  --gs-tip-bar: rgba(16, 19, 13, 0.6);
+  --gs-outline: #ffffff;
+
   /* type: Jersey 20 headings / names / big numbers (weight 400 only), VT323 labels and
      badges (16px+), IBM Plex Sans body and table numbers */
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
@@ -1121,9 +1145,126 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
   .hero-head .portrait { width: 110px; }
 }
 
-/* ---------- 12. Items index: the game's shop ("All Items") ---------- */
-.shop-filter { display: flex; gap: 6px; margin: 0 0 12px; flex-wrap: wrap; }
-.shop-filter .cat-i { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
+/* ---------- 12a. Items index: the game's shop — tabs, Fairfax / Curiosity / MPS catalogs ----------
+   Geometry in the game's design px (catalog 1120 x 960, builders/game_shop.py); --u turns one into
+   css px at the board's width, so the page scales like the game's UI. Narrow boards stack the tiers. */
+.gshop { display: flex; align-items: flex-start; margin-top: 8px; }
+.gs-tabs { flex: 0 0 64px; display: flex; flex-direction: column; gap: 8px; padding-top: 6px;
+  position: sticky; top: calc(var(--nav-h) + 8px); z-index: 2; }
+.gs-tab { --t: var(--gs-tab-all); --t2: var(--gs-tab-all-2); --th: var(--name); position: relative; width: 60px; height: 75px;
+  padding: 10px 0 0; border: 0; cursor: pointer; display: flex; justify-content: center; align-items: flex-start;
+  background: linear-gradient(90deg, var(--t2), var(--t));
+  -webkit-mask: url(icons/shop/tab_shape.webp) 0 0 / 60px 185px no-repeat; mask: url(icons/shop/tab_shape.webp) 0 0 / 60px 185px no-repeat;
+  transition: height .2s ease-in-out, width .2s ease-in-out, filter .12s; }
+.gs-tab img { width: 46px; height: 46px; }
+.gs-tab:hover { background: linear-gradient(90deg, var(--t), var(--th)); }
+.gs-tab.on { width: 66px; height: 200px; background: var(--t); }
+.gs-tab.w { --t: var(--gs-tab-w); --t2: var(--gs-tab-w-2); --th: var(--gs-tab-w-hi); }
+.gs-tab.s { --t: var(--gs-tab-s); --t2: var(--gs-tab-s-2); --th: var(--gs-tab-s-hi); }
+.gs-tab.v { --t: var(--gs-tab-v); --t2: var(--gs-tab-v-2); --th: var(--gs-tab-v-hi); }
+.gs-sound { width: 40px; height: 40px; margin: 4px 0 0 10px; padding: 9px; border: 0; cursor: pointer;
+  background: var(--bg-panel-2); color: var(--text-dim); box-shadow: 0 0 0 2px var(--frame-line); }
+.gs-sound svg { width: 22px; height: 22px; fill: currentColor; stroke: currentColor; stroke-width: 0; }
+.gs-sound svg .w { fill: none; stroke-width: 1.4; stroke-linecap: round; opacity: 0; }
+.gs-sound.on { color: var(--text-bright); }
+.gs-sound.on svg .w { opacity: 1; }
+/* a size container has no width of its own content: it takes the row's (width 100%, flex shrinks it) */
+.gs-pages { flex: 1 1 auto; width: 100%; min-width: 0; max-width: 1120px; container: gshop / inline-size; }
+.gshop[data-gs-tab="all"] .gs-pages { max-width: none; }
+.gs-page { animation: gs-in .21s ease-out; }
+.gs-page[hidden] { display: none; }
+@keyframes gs-in { from { opacity: 0; transform: translateY(-20px); } }
+.gs-board { --u: calc(100cqw / 1120); position: relative; aspect-ratio: 1120 / 960; background: var(--bg-panel) 0 0 / 100% 100% no-repeat; }
+.gs-page.w .gs-board { background-image: url(icons/shop/bg_w.webp); }
+.gs-page.s .gs-board { background-image: url(icons/shop/bg_s.webp); }
+.gs-page.v .gs-board { background-image: url(icons/shop/bg_v.webp); }
+.gs-tier { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u));
+  width: calc(var(--n) * 82 * var(--u)); display: flex; flex-wrap: wrap; }
+/* the price on the black tape painted into the page (CostLabel: VALVEPulp in shardColor) */
+.gs-price { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u)); transform: translate(-50%, -50%);
+  font: 600 calc(var(--fs) * var(--u)) / 1 "Fredoka", var(--font-ui); color: var(--gs-price); pointer-events: none; }
+/* a card (CitadelShopMod 76 x 114): paper of its category and tier cut to the torn silhouette, the item's
+   art on top (passive: square, torn edge; active: round under an arched card), the name below */
+.gcard { position: relative; flex: none; width: calc(76 * var(--u)); height: calc(114 * var(--u));
+  margin: calc(3 * var(--u)); border-radius: calc(2 * var(--u));
+  box-shadow: calc(2 * var(--u)) calc(2 * var(--u)) calc(12 * var(--u)) var(--gs-card-shadow);
+  transition: opacity .1s, filter .1s, transform .05s; }
+.gcard::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--card) 0 0 / 100% 100%;
+  -webkit-mask: url(icons/shop/card_mask.webp) 0 0 / 100% 100%; mask: url(icons/shop/card_mask.webp) 0 0 / 100% 100%; }
+.gcard.act { border-radius: calc(50 * var(--u)) calc(50 * var(--u)) calc(2 * var(--u)) calc(2 * var(--u)); }
+.gs-page.w .t1 { --card: url(icons/shop/card_w_t1.webp); } .gs-page.w .t2 { --card: url(icons/shop/card_w_t2.webp); }
+.gs-page.w .t3 { --card: url(icons/shop/card_w_t3.webp); } .gs-page.w .t4 { --card: url(icons/shop/card_w_t4.webp); }
+.gs-page.s .t1 { --card: url(icons/shop/card_s_t1.webp); } .gs-page.s .t2 { --card: url(icons/shop/card_s_t2.webp); }
+.gs-page.s .t3 { --card: url(icons/shop/card_s_t3.webp); } .gs-page.s .t4 { --card: url(icons/shop/card_s_t4.webp); }
+.gs-page.v .t1 { --card: url(icons/shop/card_v_t1.webp); } .gs-page.v .t2 { --card: url(icons/shop/card_v_t2.webp); }
+.gs-page.v .t3 { --card: url(icons/shop/card_v_t3.webp); } .gs-page.v .t4 { --card: url(icons/shop/card_v_t4.webp); }
+.gc-ic { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); width: calc(70 * var(--u)); height: calc(70 * var(--u)); }
+.gc-ic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gcard.m1 .gc-ic img { -webkit-mask: url(icons/shop/mask_1.webp) 0 0 / 100% 100%; mask: url(icons/shop/mask_1.webp) 0 0 / 100% 100%; }
+.gcard.m2 .gc-ic img { -webkit-mask: url(icons/shop/mask_2.webp) 0 0 / 100% 100%; mask: url(icons/shop/mask_2.webp) 0 0 / 100% 100%; }
+.gcard.m3 .gc-ic img { -webkit-mask: url(icons/shop/mask_3.webp) 0 0 / 100% 100%; mask: url(icons/shop/mask_3.webp) 0 0 / 100% 100%; }
+.gcard.act .gc-ic img { border-radius: 50%; }
+.gc-nm { position: absolute; left: 0; right: 0; bottom: 0; height: calc(40 * var(--u)); padding: 0 calc(2 * var(--u)) calc(2 * var(--u));
+  display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden;
+  font: 700 calc(15 * var(--u)) / .92 "Archivo Narrow", var(--font-ui); color: var(--gs-ink); }
+.gs-page.w .t4 .gc-nm { color: var(--gs-w-t4); }
+.gs-page.s .t4 .gc-nm { color: var(--gs-s-t4); }
+.gs-page.v .t4 .gc-nm { color: var(--gs-v-t4); }
+.gc-imb { position: absolute; left: calc(3 * var(--u)); top: calc(57 * var(--u)); width: calc(70 * var(--u)); height: calc(16 * var(--u));
+  display: flex; align-items: center; justify-content: center; background: var(--gs-imbue-bg); color: var(--gs-imbue);
+  font: italic 700 calc(12 * var(--u)) / 1 "Archivo Narrow", var(--font-ui); letter-spacing: calc(1 * var(--u)); text-transform: uppercase; }
+/* hover (the game's HoveringItem): every other card dims; what the item builds from lights up, what it
+   builds into pulses (HoveredItemIsUpgrade / HoveredItemIsComponent) */
+.gs-board.hovering .gcard { opacity: .5; filter: brightness(.5); }
+.gs-board.hovering .gcard.is-me { opacity: 1; filter: none; }
+.gs-board.hovering .gcard.is-comp { opacity: 1; filter: brightness(1.35); transform: scale(1.05); z-index: 2;
+  outline: calc(2 * var(--u)) solid var(--gs-outline); }
+.gs-board.hovering .gcard.is-up { opacity: 1; filter: none; z-index: 2; outline: calc(2 * var(--u)) solid var(--gs-outline);
+  animation: gs-upgrade 2s infinite; }
+@keyframes gs-upgrade { 0%, 100% { transform: scale(1.1); filter: brightness(1); } 50% { transform: scale(1.25); filter: brightness(1.5); } }
+@media (prefers-reduced-motion: reduce) { .gs-board.hovering .gcard.is-up { animation: none; transform: scale(1.1); } .gs-page { animation: none; } }
+/* the item tooltip (citadel_tooltip_mod_details): the category's header strip, then stats and sections */
+.gs-tip { position: fixed; z-index: var(--z-tooltip); width: 340px; max-width: calc(100vw - 16px); pointer-events: none; }
+.gs-tip[hidden] { display: none; }
+.gtip { background: var(--gs-tip-bg); color: var(--gs-tip-text); box-shadow: 0 10px 28px var(--shadow); font: 14px/1.4 var(--font-ui); }
+.gt-head { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 80px; padding: 14px 18px;
+  background: var(--bg-panel-3) center / cover no-repeat; }
+.gtip.w .gt-head { background-image: url(icons/shop/tip_w.webp); }
+.gtip.s .gt-head { background-image: url(icons/shop/tip_s.webp); }
+.gtip.v .gt-head { background-image: url(icons/shop/tip_v.webp); }
+.gt-name { font: 700 27px/1 "Archivo Narrow", var(--font-ui); color: var(--text-bright); text-shadow: 2px 2px 0 var(--shadow-soft); }
+.gt-cost { display: flex; align-items: center; gap: 5px; font: 600 19px/1 "Fredoka", var(--font-ui); color: var(--gs-price); }
+.gt-cost img { width: 14px; height: 18px; }
+.gt-body { padding: 4px 14px 12px; }
+.gt-bar { display: flex; justify-content: space-between; margin: 8px -14px 6px; padding: 6px 14px; background: var(--gs-tip-bar);
+  font: 700 13px/1 var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: var(--text-bright); }
+.gt-bar.passive span:first-child { font-style: italic; opacity: .6; }
+.gt-cd { color: var(--gs-tip-text); }
+.gt-desc { margin: 4px 0 6px; white-space: pre-line; }     /* Valve's line breaks (Echo Shard) */
+.gtip table.kvt { width: 100%; font-size: 13px; }
+.gt-stats { margin-top: 8px; }
+.gt-comp { margin-top: 8px; font-size: 13px; }
+.gt-comp b { margin-right: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--label); }
+/* a narrow board (phones): no page art scaling, the tiers stack at the game's real card size */
+@container gshop (max-width: 820px) {     /* below this the names would drop under 11px */
+  .gs-board { --u: 1px; aspect-ratio: auto; display: flex; flex-direction: column; padding: 6px 0 14px; }
+  .gs-page.w .gs-board { background: var(--gs-paper-w); }
+  .gs-page.s .gs-board { background: var(--gs-paper-s); }
+  .gs-page.v .gs-board { background: var(--gs-paper-v); }
+  .gs-price { position: static; transform: none; align-self: flex-start; margin: 12px 0 2px 10px; padding: 4px 12px;
+    font-size: 22px; background: var(--gs-ink); }
+  .gs-tier { position: static; width: auto; padding: 0 6px; }
+  .gs-tier.t4 { margin: 0 6px; padding: 6px 0; background: var(--gs-ink); }
+}
+@media (max-width: 760px) {
+  .gshop { flex-direction: column; }
+  .gs-tabs { position: static; flex-direction: row; flex-basis: auto; align-items: flex-start; padding: 0 0 6px; }
+  .gs-tab { height: 56px; }
+  .gs-tab.on { width: 60px; height: 66px; }
+  .gs-sound { margin: 8px 0 0 4px; }
+}
+
+/* ---------- 12b. Items index: the "All Items" tab ---------- */
 .shop { --cw: var(--weapon); padding: 10px 12px 12px; background: var(--bg-panel); }
 .shop-head, .shop-row { display: grid; grid-template-columns: 84px repeat(3, minmax(0, 1fr)); gap: 10px; }
 .shop-head { margin-bottom: 8px; }
@@ -1171,10 +1312,6 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .shop.hovering .icard.is-me, .shop.hovering .icard.is-comp, .shop.hovering .icard.is-up { opacity: 1; }
 .shop.hovering .icard.is-comp { transform: scale(1.06); box-shadow: inset 0 0 0 2px var(--patina-strong); }
 .shop.hovering .icard.is-up { box-shadow: inset 0 0 0 2px var(--text-bright); }
-.shop.only-w .cell:not(.w), .shop.only-w .cat-h:not(.w), .shop.only-s .cell:not(.s), .shop.only-s .cat-h:not(.s),
-.shop.only-v .cell:not(.v), .shop.only-v .cat-h:not(.v) { display: none; }
-.shop.only-w .shop-head, .shop.only-w .shop-row, .shop.only-s .shop-head, .shop.only-s .shop-row,
-.shop.only-v .shop-head, .shop.only-v .shop-row { grid-template-columns: 84px minmax(0, 1fr); }
 .gone-grid { display: flex; flex-wrap: wrap; gap: 6px; opacity: .7; }
 @media (max-width: 760px) {
   .shop-head, .shop-row { grid-template-columns: 64px minmax(0, 1fr); }

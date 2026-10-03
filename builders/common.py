@@ -276,7 +276,8 @@ def asset_version() -> str:
 
 
 def page(title: str, body: str, rel: str = '', active: str = '', build: int | None = None,
-         description: str = '', wide: bool = False) -> str:
+         description: str = '', wide: bool = False, fonts: str = '') -> str:
+    """`fonts`: one more Google Fonts stylesheet for this page only (the shop's stand-ins)."""
     tabs = ''.join(
         f'<a class="nav-tab{" active" if key == active else ""}" href="{rel}{href}">{label}</a>'
         for key, label, href in NAV)
@@ -294,6 +295,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{FONTS}">
+{f'<link rel="stylesheet" href="{esc(fonts)}">' if fonts else ''}
 <link rel="stylesheet" href="{rel}styles.css?v={ver}">
 </head>
 <body>

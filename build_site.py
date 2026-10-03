@@ -74,6 +74,9 @@ def copy_assets() -> None:
     shutil.copyfile(SITE / 'favicon.svg', DIST / 'favicon.svg')
     if ICONS.exists():
         shutil.copytree(ICONS, DIST / 'icons', dirs_exist_ok=True)
+    # the shop's UI sounds from the game (tools/extract_shop_assets.py)
+    if (ICONS.parent / 'sounds').exists():
+        shutil.copytree(ICONS.parent / 'sounds', DIST / 'sounds', dirs_exist_ok=True)
     (DIST / '.nojekyll').write_text('', encoding='utf-8')
 
 

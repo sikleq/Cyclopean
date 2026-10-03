@@ -341,20 +341,159 @@
   });
 
   /* ---------- a clamped REWORK value line opens on click ---------- */
-  /* ---------- items shop: category filter; hover lights up components and upgrades ---------- */
+  /* ---------- the game's shop: tabs, hover (dim / light up / pulse), item tooltip, the game's UI sounds ---------- */
+  safe('gshop', function () {
+    var root = document.querySelector('.gshop');
+    if (!root) return;
+    var tabs = root.querySelectorAll('.gs-tab'), pages = root.querySelectorAll('.gs-page');
+    var HASH = { all: 'all', w: 'weapon', s: 'spirit', v: 'vitality' }, TAB_KEY = 'cyclopean.shopTab', SND_KEY = 'cyclopean.shopSound';
+    function store(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode: not remembered */ } }
+    function stored(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+    /* sounds: decoded on demand once the page got a click or a key (browsers allow audio only then) */
+    var base = root.getAttribute('data-sfx'), ctx = null, bufs = {}, unlocked = false;
+    var muted = stored(SND_KEY) === 'off';
+    var hoverN = {};
+    (root.getAttribute('data-hover') || '').split(' ').forEach(function (p) { var kv = p.split(':'); hoverN[kv[0]] = +kv[1]; });
+    // ui.vsndevts: hover -14 / -12 / -15 dB at pitch 1.2, tab clicks -6 dB plus a page flip -3 dB under it
+    var HOVER_GAIN = { w: 0.35, s: 0.44, v: 0.31 };
+    function audio() {
+      if (!ctx) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); }
+      return ctx;
+    }
+    function load(name) {
+      if (!bufs[name]) {
+        bufs[name] = fetch(base + name + '.mp3').then(function (r) { return r.arrayBuffer(); }).then(function (b) {
+          return new Promise(function (ok, bad) { audio().decodeAudioData(b, ok, bad); });
+        });
+      }
+      return bufs[name];
+    }
+    function play(name, gain, rate) {
+      if (muted || !unlocked || !audio()) return;
+      load(name).then(function (buf) {
+        var src = ctx.createBufferSource(), g = ctx.createGain();
+        src.buffer = buf;
+        src.playbackRate.value = rate || 1;
+        g.gain.value = gain;
+        src.connect(g);
+        g.connect(ctx.destination);
+        src.start();
+      }).catch(function () { /* a sound that fails to load stays silent */ });
+    }
+    function pick(n) { var i = 1 + Math.floor(Math.random() * n); return (i < 10 ? '0' : '') + i; }
+    // every gesture tries again: iOS Safari takes a touchend or a click, not a pointerdown
+    function unlock() {
+      unlocked = true;
+      if (audio() && ctx.state !== 'running') ctx.resume();
+    }
+    ['pointerup', 'touchend', 'click', 'keydown'].forEach(function (ev) {
+      document.addEventListener(ev, unlock, { passive: true });
+    });
+    var sound = root.querySelector('.gs-sound');
+    function soundState() {
+      sound.classList.toggle('on', !muted);
+      sound.setAttribute('aria-pressed', muted ? 'false' : 'true');
+    }
+    if (sound) {
+      soundState();
+      sound.addEventListener('click', function () { muted = !muted; store(SND_KEY, muted ? 'off' : 'on'); soundState(); });
+    }
+
+    // a name too long for its two lines shrinks until it fits (the game's text-overflow: shrink)
+    function fit(page) {
+      // a hidden page measures nothing: it fits when its tab opens
+      if (!page || page.hidden || page.getAttribute('data-fit')) return;
+      page.setAttribute('data-fit', '1');
+      page.querySelectorAll('.gc-nm').forEach(function (n) {
+        for (var k = 14.5; n.scrollHeight > n.clientHeight + 1 && k >= 10; k -= 0.5) {
+          n.style.fontSize = 'calc(' + k + ' * var(--u))';
+        }
+      });
+    }
+    function show(key, byUser) {
+      if (!HASH[key]) key = 'w';
+      pages.forEach(function (p) { p.hidden = p.getAttribute('data-page') !== key; });
+      var page = root.querySelector('.gs-page[data-page="' + key + '"]');
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { fit(page); });
+      else fit(page);
+      tabs.forEach(function (t) { t.classList.toggle('on', t.getAttribute('data-gs') === key); });
+      root.setAttribute('data-gs-tab', key);     // not data-tab: the site's generic tabs would take it
+      if (!byUser) return;
+      store(TAB_KEY, key);
+      if (history.replaceState) history.replaceState(null, '', '#' + HASH[key]);
+      var tab = root.querySelector('.gs-tab[data-gs="' + key + '"]');
+      unlock();
+      play('panel_' + tab.getAttribute('data-panel'), 0.5);
+      play('page_' + pick(6), 0.35);
+    }
+    tabs.forEach(function (t) { t.addEventListener('click', function () { show(t.getAttribute('data-gs'), true); }); });
+    function hashTab() { return Object.keys(HASH).filter(function (k) { return '#' + HASH[k] === location.hash; })[0]; }
+    show(hashTab() || stored(TAB_KEY) || 'w', false);
+    window.addEventListener('hashchange', function () { if (hashTab()) show(hashTab(), false); });
+
+    /* hover: the tooltip sits left of the card (the game's tooltip-position: left), right when no room */
+    var tip = document.createElement('div');
+    tip.className = 'gs-tip';
+    tip.hidden = true;
+    document.body.appendChild(tip);
+    var nav = document.querySelector('.top-nav');
+    function place(card) {
+      var r = card.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, gap = 10;
+      var left = r.left - w - gap;
+      if (left < 8) left = r.right + gap;
+      left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+      // below the sticky top bar (it sits above tooltips), else its name and price hide under it
+      var min = (nav ? nav.offsetHeight : 0) + 8;
+      var top = Math.max(min, Math.min(r.top + r.height / 2 - h / 2, window.innerHeight - h - 8));
+      tip.style.left = left + 'px';
+      tip.style.top = top + 'px';
+    }
+    root.querySelectorAll('.gs-board').forEach(function (board) {
+      var cat = board.closest('.gs-page').getAttribute('data-page');
+      var byId = {}, cur = null;
+      board.querySelectorAll('.gcard[data-id]').forEach(function (c) { byId[c.getAttribute('data-id')] = c; });
+      function mark(ids, cls) {
+        (ids || '').split(' ').forEach(function (id) { if (byId[id]) byId[id].classList.add(cls); });
+      }
+      function clear() {
+        cur = null;
+        tip.hidden = true;
+        board.classList.remove('hovering');
+        board.querySelectorAll('.is-me, .is-comp, .is-up').forEach(function (c) { c.classList.remove('is-me', 'is-comp', 'is-up'); });
+      }
+      board.addEventListener('mouseover', function (ev) {
+        var card = ev.target.closest('.gcard');
+        if (card === cur) return;
+        clear();
+        if (!card) return;
+        cur = card;
+        board.classList.add('hovering');
+        card.classList.add('is-me');
+        mark(card.getAttribute('data-comp'), 'is-comp');
+        mark(card.getAttribute('data-up'), 'is-up');
+        var tpl = document.getElementById('gt-' + card.getAttribute('data-id'));
+        if (tpl) {
+          tip.textContent = '';
+          tip.appendChild(tpl.content.cloneNode(true));
+          tip.hidden = false;
+          place(card);
+        }
+        play('hover_' + cat + '_' + pick(hoverN[cat] || 1), HOVER_GAIN[cat] || 0.35, 1.2);
+      });
+      board.addEventListener('mouseleave', clear);
+    });
+    // the card moves with the page: the tooltip follows it
+    window.addEventListener('scroll', function () {
+      var on = root.querySelector('.gcard.is-me');
+      if (on && !tip.hidden) place(on);
+    }, { passive: true });
+  });
+
+  /* ---------- items shop, All Items tab: hover lights up components and upgrades ---------- */
   safe('shop', function () {
     var shops = document.querySelectorAll('.shop');
     if (!shops.length) return;
-    document.querySelectorAll('[data-shop]').forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var cat = btn.getAttribute('data-shop');
-        shops.forEach(function (s) {
-          s.classList.remove('only-w', 'only-s', 'only-v');
-          if (cat !== 'all') s.classList.add('only-' + cat);
-        });
-        document.querySelectorAll('[data-shop]').forEach(function (b) { b.classList.toggle('on', b === btn); });
-      });
-    });
     shops.forEach(function (shop) {
       var byId = {};
       shop.querySelectorAll('.icard[data-id]').forEach(function (c) { byId[c.getAttribute('data-id')] = c; });

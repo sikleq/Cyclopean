@@ -392,6 +392,24 @@ def test_items_index_is_the_game_shop_matrix(monkeypatch):
     assert 'data-comp="upgrade_basic"' in html and 'data-up="upgrade_sharp"' in html
     assert 'it-act' in html and 'it-imb' in html
     assert 'Street Brawl legendaries' in html and 'Removed or disabled' in html
+    # the game's shop around it: tabs in the game's order, a catalog page per category, All Items last
+    assert html.index('data-gs="all"') < html.index('data-gs="w"') < html.index('data-gs="s"') < html.index('data-gs="v"')
+    assert 'class="gs-page w"' in html and 'class="gs-page all"' in html
+    # round card for an active item, the Imbue label, a tooltip with what it builds from
+    assert 'class="gcard act"' in html and 'class="gc-imb"' in html
+    assert '<template id="gt-upgrade_sharp">' in html and 'Upgrades from</b> Basic' in html
+    assert 'data-gs="brawl"' not in html and 'gt-upgrade_brawl' not in html and 'gt-upgrade_old' not in html
+
+
+def test_shop_catalog_geometry_is_the_games():
+    """citadel_shop_mods_filtered.css: the cards per row the game shows (Fairfax tier 3 seven wide,
+    tier 4 four; MPS and the Curiosity Catalog five and six), the first card where the art leaves room."""
+    from builders.game_shop import price_at, tier_box
+    per = {cat: [tier_box(cat, t)[2] for t in (1, 2, 3, 4)] for cat in 'wsv'}
+    assert per == {'w': [5, 6, 7, 4], 's': [5, 6, 5, 6], 'v': [5, 6, 5, 6]}
+    assert tier_box('w', 1)[:2] == (66, 185)            # card at 69, 188: under "TIER 1"
+    assert tier_box('v', 4)[:2] == (552, 545)           # tier 2 / 4 rows sit 20px further right
+    assert price_at('w', 4) != price_at('v', 4) and price_at('s', 4) == price_at('v', 4)
 
 
 def test_heroes_grid_sorts_like_the_game():

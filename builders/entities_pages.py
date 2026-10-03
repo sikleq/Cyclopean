@@ -182,14 +182,15 @@ def build_all() -> dict[str, int]:
     from .dynamics_page import item_entries
     from .shop_page import shop_html
     body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
-            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".icard"></div>'
+            '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".icard, .gcard"></div>'
             + shop_html(items, cards, rel))
     entries = item_entries(items, cards, rel)
     n_gone = sum(1 for e in entries if e[4])
     write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
                                      + toolbar('item', n_gone, 'Removed') + matrix_html(entries, 'item'),
                                      rel, 'items', wide=True))
-    write('items/index.html', page('Items', body, rel, 'items'))
+    from .game_shop import FONTS as SHOP_FONTS
+    write('items/index.html', page('Items', body, rel, 'items', fonts=SHOP_FONTS))
 
     units = [e for e in ents.values() if e['file'] == 'npc_units.vdata' and not e.get('template')]
     bound = defaultdict(list)                  # unit id -> the abilities it binds (Walker's Stomp…)
