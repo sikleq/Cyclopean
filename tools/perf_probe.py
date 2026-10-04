@@ -4,7 +4,9 @@ any change to a heavy page instead of guessing.
 Serves dist/ on a local port, loads each page in headless Chromium (1600 x 900) and records:
   - load: DOMContentLoaded, element count, max DOM depth, counts of box-shadow / filter / sticky elements;
   - a smooth scroll from top to bottom: per-frame times (requestAnimationFrame), long tasks, and the
-    layout / recalc-style / script time Chromium spent (CDP Performance metrics).
+    layout / recalc-style / script time Chromium spent (CDP Performance metrics);
+  - a scroll INSIDE each wide table box (.table-scroll: stats tables, change matrices), across and down:
+    its p95 frame and long tasks (columns in-p95 / in-long; reported, not part of the pass budget).
 
     python tools/perf_probe.py                       # the default pages
     python tools/perf_probe.py --urls heroes/nano.html items/changes.html
@@ -102,6 +104,38 @@ async () => {
 """
 
 
+# scrolling INSIDE the wide tables (stats tables, change matrices): the window scroll alone missed it, and the
+# matrices are heavy exactly there (frontend audit 2026-10-04: items/changes p95 217 ms headless). Each box that
+# overflows scrolls to its start, then across and down to its end in 90px steps, like the window
+INNER_SCROLL = """
+async () => {
+  const p = window.__perfProbe;
+  const boxes = [...document.querySelectorAll('.table-scroll')]
+    .filter(b => b.offsetParent !== null && (b.scrollWidth > b.clientWidth + 2 || b.scrollHeight > b.clientHeight + 2));
+  if (!boxes.length) return null;
+  p.frames = []; p.longTasks = [];
+  const frame = () => new Promise(r => requestAnimationFrame(() => setTimeout(r, 0)));
+  for (const b of boxes) {
+    b.scrollIntoView({ block: 'start' });
+    b.scrollLeft = 0; b.scrollTop = 0;
+    await new Promise(r => setTimeout(r, 80));
+    p.collecting = true;
+    for (const axis of ['scrollLeft', 'scrollTop']) {
+      const end = axis === 'scrollLeft' ? b.scrollWidth - b.clientWidth : b.scrollHeight - b.clientHeight;
+      for (let pos = 0; pos < end;) {
+        pos = Math.min(pos + 90, end);
+        b[axis] = pos;
+        await frame();
+      }
+    }
+    await new Promise(r => setTimeout(r, 150));
+    p.collecting = false;
+  }
+  return { boxes: boxes.length, frames: p.frames.slice(), longTasks: p.longTasks.slice() };
+}
+"""
+
+
 def percentile(values: list[float], pct: float) -> float:
     if not values:
         return 0.0
@@ -124,7 +158,7 @@ def serve() -> tuple[http.server.ThreadingHTTPServer, str]:
     return srv, f'http://127.0.0.1:{srv.server_address[1]}'
 
 
-def run_one(page, context, url: str, budget: float) -> dict:
+def run_one(page, context, url: str, budget: float, inner_scroll: bool = True) -> dict:
     cdp = context.new_cdp_session(page)
     cdp.send('Performance.enable')
     errors: list[str] = []                       # a script error fails the page too
@@ -141,15 +175,23 @@ def run_one(page, context, url: str, budget: float) -> dict:
     deltas = {n: round((after.get(n, 0) - before.get(n, 0)) * (1000 if 'Duration' in n else 1), 1) for n in CDP_METRICS}
     frames = res['frames']
     p95 = round(percentile(frames, 95), 1)
+    inner = page.evaluate(INNER_SCROLL) if inner_scroll else None
     page.remove_listener('console', on_console)
     page.remove_listener('pageerror', on_error)
     # Google Fonts may be unreachable offline: that is the network, not the page
     errors = [e for e in errors if 'fonts.g' not in e and 'ERR_' not in e]
+    inner_out = None
+    if inner and inner['frames']:
+        fr = inner['frames']
+        inner_out = {'boxes': inner['boxes'], 'count': len(fr), 'p95_ms': round(percentile(fr, 95), 1),
+                     'max_ms': round(max(fr), 1), 'long_tasks': len(inner['longTasks']),
+                     'long_ms': round(sum(t['duration'] for t in inner['longTasks']), 1)}
     return {'url': url, 'dom': dom, 'errors': errors,
             'frames': {'count': len(frames), 'p50_ms': round(percentile(frames, 50), 1), 'p95_ms': p95,
                        'max_ms': round(max(frames), 1) if frames else 0.0,
                        'pct_over_16_7': round(100 * sum(f > 16.7 for f in frames) / len(frames), 1) if frames else 0.0},
             'long_tasks': {'count': len(res['longTasks']), 'total_ms': round(sum(t['duration'] for t in res['longTasks']), 1)},
+            'inner': inner_out,
             'cdp_ms': deltas, 'pass': p95 <= budget and not errors}
 
 
@@ -159,6 +201,7 @@ def main() -> int:
     ap.add_argument('--urls', nargs='*', default=DEFAULT_URLS)
     ap.add_argument('--label', default=None)
     ap.add_argument('--budget-p95', type=float, default=25.0)
+    ap.add_argument('--no-inner', action='store_true', help='skip the scroll inside wide tables')
     args = ap.parse_args()
     if not DIST.exists():
         print('build the site first: python build_site.py')
@@ -176,7 +219,7 @@ def main() -> int:
             page = context.new_page()
             for rel in args.urls:
                 try:
-                    results.append(run_one(page, context, f'{base}/{rel}', args.budget_p95))
+                    results.append(run_one(page, context, f'{base}/{rel}', args.budget_p95, not args.no_inner))
                 except Exception as exc:                  # keep going, report it
                     results.append({'url': rel, 'error': str(exc), 'pass': False})
             browser.close()
@@ -184,7 +227,8 @@ def main() -> int:
         srv.shutdown()
     out_path.write_text(json.dumps({'date': stamp, 'budget_p95_ms': args.budget_p95, 'results': results}, indent=2),
                         encoding='utf-8')
-    head = f"{'page':40} {'elems':>6} {'DCL':>5} {'p95':>6} {'>16.7%':>7} {'long':>5} {'layout':>7} {'style':>7} {'script':>7}"
+    head = (f"{'page':40} {'elems':>6} {'DCL':>5} {'p95':>6} {'>16.7%':>7} {'long':>5} {'layout':>7} {'style':>7} "
+            f"{'script':>7} {'in-p95':>7} {'in-long':>7}")
     print(head)
     print('-' * len(head))
     for r in results:
@@ -192,9 +236,11 @@ def main() -> int:
             print(f"{r['url']:40} ERROR {r['error'][:60]}")
             continue
         u = r['url'].split('/', 3)[-1]
+        inner = r.get('inner') or {}
         print(f"{u:40} {r['dom']['elements']:>6} {r['dom']['dclMs'] or 0:>5} {r['frames']['p95_ms']:>6} "
               f"{r['frames']['pct_over_16_7']:>7} {r['long_tasks']['count']:>5} {r['cdp_ms']['LayoutDuration']:>7} "
-              f"{r['cdp_ms']['RecalcStyleDuration']:>7} {r['cdp_ms']['ScriptDuration']:>7}"
+              f"{r['cdp_ms']['RecalcStyleDuration']:>7} {r['cdp_ms']['ScriptDuration']:>7} "
+              f"{inner.get('p95_ms', '-'):>7} {inner.get('long_tasks', '-'):>7}"
               + ('' if r['pass'] else '  FAIL'))
         for e in r['errors'][:3]:
             print(f'    JS error: {e[:120]}')

@@ -6,7 +6,7 @@ import re
 from functools import lru_cache
 
 from .notes_view import notes_table
-from .common import (build_href, esc, ids_to_names, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
+from .common import (build_href, esc, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
                      patch_title_text, pretty_id, write)
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -131,7 +131,6 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     sub-headers), then one per item, unit and rule; each with its history strip."""
     from .cards import card, card_head, change_rows, is_hidden, sub_head
     from .common import entity_icon, glyph_for, hero_icon
-    from .render import KIND_LABEL
     from .trail import trail_html
     heroes = {e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
     by_owner: dict[str, list] = {}
@@ -265,7 +264,6 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01)
     n_changes = sum(len(player_facing(e['changes'])) for e in gameplay)
     parts.append(_summary(p, gameplay, rel))
-    ex = p.get('extras', {})
     tabs = []
     if p['sections']:
         from .notes_view import interface_table, split_sections
@@ -290,13 +288,12 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
                      'data-search-target="#changes .ecard[data-search]"></div>' + _changes_table(gameplay, rel, p['id']))
     tabs.append(('changes', 'All changes', n_changes, changes_panel))
     extra_parts = _extras_parts(p, rel)
-    for key, label, count, html in extra_parts:
-        tabs.append((key, label, count, html))
+    tabs += extra_parts
     parts.append('<div class="tabs toolbar">' + ''.join(
-        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}">{esc(lbl)}<span class="count">{n}</span></button>'
+        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}" aria-pressed="{"true" if i == 0 else "false"}">{esc(lbl)}<span class="count">{n}</span></button>'
         for i, (k, lbl, n, _) in enumerate(tabs)) + '</div>')
-    for i, (k, _, _, html) in enumerate(tabs):
-        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{html}</div>')
+    for i, (k, _, _, panel) in enumerate(tabs):
+        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{panel}</div>')
     nav = []
     if prev:
         nav.append(f'<a class="px-btn" href="{esc(prev["id"])}.html">← {esc(patch_title_text(prev))}</a>')

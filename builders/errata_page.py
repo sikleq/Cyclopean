@@ -11,7 +11,7 @@ import re
 from pipeline.match import parse_pairs
 
 from .common import entity_icon, esc, glyph_for, page, visual
-from .patches_pages import _display_name
+from .patches_pages import _display_name, hero_names
 from .render import shown_value
 
 _PARENS = re.compile(r'\([^)]*\)')
@@ -62,8 +62,11 @@ def table(items: list[dict], rel: str) -> str:
         ic = entity_icon(e.get('file', ''), e.get('id', ''), e.get('kind', ''), rel, e.get('name'), e.get('owner')) \
             if e else None
         name = _display_name(e) if e else ''
-        if e.get('owner_name') and name in ('Weapon', 'Alt weapon'):
-            name = f'{e["owner_name"]} · {name}'          # "Celeste · Weapon", not citadel_weapon_unicorn_set
+        # "Celeste · Weapon", not citadel_weapon_unicorn_set (it read e['owner_name'], which only the patch
+        # page's own copies carry: the hero's name never showed here)
+        owner = hero_names().get(e.get('owner') or '') if e else None
+        if owner and name in ('Weapon', 'Alt weapon'):
+            name = f'{owner} · {name}'
         trs.append(
             f'<tr><td class="d"><a href="{p["id"]}.html">{esc(p["date"])}</a></td>'
             f'<td class="nm">{visual(ic, glyph_for(e.get("file", ""), e.get("id", ""), e.get("kind", "")), "px si2")}'

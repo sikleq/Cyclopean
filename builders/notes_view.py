@@ -8,7 +8,7 @@ import re
 from functools import lru_cache
 
 from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark, visual
-from .render import shown_value, tag_badge, tag_html, tag_of, tag_summary
+from .render import shown_value, tag_badge, tag_html, tag_of
 
 LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated', 'code')
 TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
@@ -298,6 +298,7 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
         if e.get('name') and e.get('id') != '@shared':
             patch_ents.setdefault(e['name'].strip().lower(), e)
     out = []
+    anchors: set[str] = set()       # an entity named in two sections: its #n- anchor on the first card only
     for s in p['sections']:
         groups = _groups(s['lines'])
         n_lines = sum(len(ls) for _, ls in groups)
@@ -337,8 +338,9 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
             head = card_head(subject, _icon_src(ent, rel), _glyph(ent),
                              [c for cs in linked for c in cs[:1]],
                              trail=trail_html(src_key, p['id'], rel) if src_key else '')
-            cards.append(card(head, ''.join(rows), search=subject.lower(),
-                              anchor=f"n-{ent['id']}" if ent else ''))
+            anchor = f"n-{ent['id']}" if ent and f"n-{ent['id']}" not in anchors else ''
+            anchors.add(anchor)
+            cards.append(card(head, ''.join(rows), search=subject.lower(), anchor=anchor))
         out.append('<div class="ecards">' + ''.join(cards) + '</div>')
     return ''.join(out)
 

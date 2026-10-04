@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import (display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, img, load_json, page, pretty_id,
-                     slug, write)
-from .hero_page import hero_page, history_table, now_fold, prop_icon, prop_rows, stat_tables
+from .common import (display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, pretty_id, slug,
+                     write)
+from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
+from .history_view import now_fold
 from .render import KIND_LABEL, tag_badge
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')

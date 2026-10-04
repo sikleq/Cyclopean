@@ -1,7 +1,6 @@
 """Rendering helpers: tags, order, escaping."""
 import re
 
-from builders.hero_page import _strip_subject
 from builders.render import change_li, entity_rows, fold_tier_swaps, sort_changes, tag_of
 
 
@@ -198,10 +197,23 @@ def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
 
 
 def test_hero_page_lines_drop_the_hero_name():
-    assert _strip_subject('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
+    from builders.history_view import _drop_prefix          # (hero_page._strip_subject had no caller left)
+    assert _drop_prefix('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
         'Melee damage per boon increased by 10%'
     # another subject stays: the line is about the ability, not the hero
-    assert _strip_subject('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'
+    assert _drop_prefix('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'
+
+
+def test_ability_card_leaves_out_an_empty_tier(monkeypatch):
+    """97 bare "T1 / T2 / T3" lines (no text, no bonuses) sat on the cards of heroes in development."""
+    from builders import hero_page, trail
+    monkeypatch.setattr(trail, 'last_counts', lambda key: None)
+    monkeypatch.setattr(trail, 'trail_html', lambda *a, **k: '')
+    card = {'id': 'ability_zzz_x', 'kind': 'ability', 'name': 'Zap', 'owner': 'hero_zzz', 'slot': 'Signature_1',
+            'tiers': [{'tier': 1, 'text': '', 'bonuses': []}, {'tier': 2, 'text': '+1 Charge', 'bonuses': []},
+                      {'tier': 3, 'text': '', 'bonuses': [{'label': 'Damage', 'value': '+20'}]}]}
+    html = hero_page.ability_card(card, '../')
+    assert '>T1<' not in html and '>T2<' in html and 'Damage +20' in html
 
 
 def test_notes_name_without_leading_the(monkeypatch):
@@ -475,6 +487,12 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert 'Nothing' not in html                                   # a row with no changes is not listed
     # stripes as one gradient in tag order (buff before nerf), the nerf held at its 12% minimum share
     assert 'var(--tag-buff) 0% 66.7%,var(--tag-nerf) 66.7% 100%' in html and 'net-buff' in html
+    # a tile of one tag is a class (.dsq.s-new), no inline gradient
+    assert '<a class="dsq net-buff s-new" href="hero_x.html#p-p1" data-k="1">' in html
+    from pathlib import Path
+    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
+    for t in ('new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'mech', 'changed'):
+        assert f'.dsq.s-{t} {{ background: var(--tag-{t}); }}' in css, t
     # >1 year old column: hidden with its colgroup column; a run of empty cells is one cell
     assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
     assert '--n-all:2;--n-new:1' in html
@@ -589,6 +607,16 @@ def test_notes_vs_files_lists_valves_numbers_and_the_files(monkeypatch):
     finally:
         archive.clear()
     assert got[0]['valve'] == '20 → 28' and got[0]['files'] == '20 → 25' and got[0]['label'] == 'Spirit Power Steal'
+
+
+def test_notes_vs_files_names_the_hero_of_a_gun(monkeypatch):
+    """A gun reads "Celeste · Weapon": the row read e['owner_name'], which only the patch page's copies had."""
+    from builders import errata_page
+    monkeypatch.setattr(errata_page, 'hero_names', lambda: {'hero_zzz': 'Celeste'})
+    e = {'file': 'abilities.vdata', 'id': 'citadel_weapon_zzz_set', 'kind': 'weapon', 'owner': 'hero_zzz'}
+    row = {'patch': {'id': 'p', 'date': '2026-01-01'}, 'line': 'x', 'valve': '1 → 2', 'files': '1 → 3',
+           'entity': e, 'label': 'Damage'}
+    assert '<span>Celeste · Weapon</span>' in errata_page.table([row], '../')
 
 
 def test_home_feed_puts_changes_on_their_pages():

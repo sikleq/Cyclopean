@@ -156,9 +156,17 @@ def stripes(counts: dict[str, int]) -> str:
 
 
 def _cell(counts: dict[str, int], href: str, k: int | None, old: bool) -> str:
+    """A tile of one colour is a class (`.dsq.s-<tag>`), not an inline gradient: 78% of the item matrix's
+    tiles, ~95 KB of style attributes and a gradient to paint each (perf track 2026-10-05). scripts.js
+    redraws a filtered tile with the inline gradient and its own classes."""
     data_k = f' data-k="{k}"' if k is not None else ''
-    return (f'<td{" class=old" if old else ""}><a class="dsq {_net(counts)}" href="{esc(href)}"{data_k} '
-            f'style="background:{stripes(counts)}"><span class="dn">{sum(counts.values())}</span></a></td>')
+    tags = [t for t in counts if counts[t]]
+    if len(tags) == 1:
+        look = f'dsq {_net(counts)} s-{STRIPE_COLOUR.get(tags[0], tags[0])}"'
+    else:
+        look = f'dsq {_net(counts)}" style="background:{stripes(counts)}"'
+    return (f'<td{" class=old" if old else ""}><a class="{look} href="{esc(href)}"{data_k}>'
+            f'<span class="dn">{sum(counts.values())}</span></a></td>')
 
 
 def _gap(n: int, old: bool) -> str:
@@ -252,7 +260,7 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
     parts_filter = ''
     if kind == 'hero':
         parts_filter = ('<span class="sep"></span><span class="dyn-parts">' + ''.join(
-            f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}">{esc(lbl)}</button>'
+            f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
             for p, lbl in (('all', 'All'),) + PARTS) + '</span>')
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
             f'<span class="sep"></span>'

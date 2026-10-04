@@ -106,7 +106,7 @@ def calendar_page(sub_tabs: str) -> str:
     builds = Counter(b['date'][:10] for b in load_json('builds/index.json'))
     years = sorted({p['date'][:4] for p in patches}, reverse=True)
     switch = '<div class="flex cal-years">' + ''.join(
-        f'<button class="px-btn{" on" if i == 0 else ""}" data-year="{y}">{y}</button>' for i, y in enumerate(years)) + '</div>'
+        f'<button class="px-btn{" on" if i == 0 else ""}" data-year="{y}" aria-pressed="{"true" if i == 0 else "false"}">{y}</button>' for i, y in enumerate(years)) + '</div>'
     blocks = []
     for i, y in enumerate(years):
         yp = [p for p in patches if p['date'][:4] == y]

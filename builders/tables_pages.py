@@ -255,7 +255,7 @@ def heroes_table() -> str:
     boons = (f'<span class="sep"></span><label class="boons">Boons <input type="number" min="0" max="{MAX_BOONS}" '
              f'value="0" data-boons="#hero-stats"></label>')
     role_btns = '<span class="sep"></span>' + ''.join(
-        f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats">{esc(r)}</button>' for r in roles)
+        f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats" aria-pressed="false">{esc(r)}</button>' for r in roles)
     body = ('<h1>Hero Stats</h1>' + section_tabs('heroes', 'stats') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
             + table)
     return page('Hero Stats', body, rel, 'heroes', build=t['build'],
@@ -520,13 +520,13 @@ def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
     """Item Stats' toolbar: category / tier / kind chips, the "Stat columns" and "Souls per point" switches
     (scripts.js item-filter)."""
     return ('<span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}">{cat_icon(ik)}{esc(slot)}</button>'
+            + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}" aria-pressed="false">{cat_icon(ik)}{esc(slot)}</button>'
                       for slot, css, ik in ITEM_SECTIONS)
             + '</span><span class="sep"></span><span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}">Tier {r}</button>'
+            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}" aria-pressed="false">Tier {r}</button>'
                       for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
             + '</span><span class="sep"></span><span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}">{lbl}</button>'
+            + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}" aria-pressed="false">{lbl}</button>'
                       for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))
             + '</span><span class="sep"></span><label class="switch"><input type="checkbox" data-stat-cols '
               'data-toggle-class="cols-open" data-target="#items-table"><span class="track"></span>Stat columns</label>'

@@ -401,6 +401,10 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
   background: linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat, color-mix(in srgb, var(--c) 34%, var(--bg-panel));
   box-shadow: inset 0 0 0 1px var(--c), 0 0 0 2px var(--text-bright); }
 .tag:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
+/* reached with the keyboard (scripts.js gives them the tab order): a value with a history, a sortable or
+   foldable header */
+[data-hist]:focus-visible, table.stats thead th[tabindex]:focus-visible {
+  outline: 2px solid var(--text-bright); outline-offset: -2px; }
 /* the tag's own pixel icon (builders/pixel_icons.py): a badge and a counter (.pip) draw it as a mask in their
    own colour, so a page carries no SVG per badge (pixel_icons.tag_mask; tests keep these in sync). A tag
    without art (a topic) gets no ::before. 10px: the art is a 10x10 grid. */
@@ -1112,7 +1116,7 @@ table.errata td.nm, table.errata td.ln { text-align: left; }
 table.errata td.nm { white-space: nowrap; }
 table.errata td.nm .si2 { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
 table.errata td.nm .lb { display: block; color: var(--text-dim); font-size: 12px; margin-left: 30px; }
-table.errata td.ln { color: var(--text); min-width: 260px; }
+table.errata td.ln { color: var(--text-main); min-width: 260px; }
 table.errata td.v { white-space: nowrap; }
 table.errata td.v.f { color: var(--text-bright); }
 table.errata td.d { white-space: nowrap; }
@@ -1649,6 +1653,16 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 /* a tile: stripes in tag colours, a pixel bevel, the number of changes in the corner */
 .dsq { position: relative; width: 28px; height: 28px;
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
+/* a tile of one tag is a class, not an inline gradient (dynamics_page._cell) */
+.dsq.s-new { background: var(--tag-new); }
+.dsq.s-rework { background: var(--tag-rework); }
+.dsq.s-buff { background: var(--tag-buff); }
+.dsq.s-nerf { background: var(--tag-nerf); }
+.dsq.s-del { background: var(--tag-del); }
+.dsq.s-on { background: var(--tag-on); }
+.dsq.s-off { background: var(--tag-off); }
+.dsq.s-mech { background: var(--tag-mech); }
+.dsq.s-changed { background: var(--tag-changed); }
 .dsq .dn { position: absolute; right: 2px; bottom: 1px; font: 600 10px/1 var(--font-ui); color: var(--bg-page);
   text-shadow: 0 0 2px var(--bone-08); pointer-events: none; }
 .dsq:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; transform: translateY(-1px); }
