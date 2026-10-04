@@ -107,6 +107,23 @@ SUB_ID_FIELDS = ('m_eUpgradeType', 'm_eScaleStatFilter')
 NUMERIC_ID_FIELDS = ('nGoldThreshold', 'm_nTier')
 
 
+_ID_LOWER = {k.lower(): k for k in ID_FIELDS}
+
+
+def _id_case(item):
+    """An identifying field spelt with other capitals is that field: Valve's "m_StrPropertyNAme" in one
+    of Shadow Transformation's T2 upgrades (2026-03-06) made the whole list fall back to indexes —
+    "Ability Upgrades #2 › Property Upgrades #2 › Str Property N Ame", and its cooldown bonus read as a
+    BUFF when it shrank (audit 2026-10-04)."""
+    if not isinstance(item, dict):
+        return item
+    odd = {k: _ID_LOWER[k.lower()] for k in item
+           if isinstance(k, str) and k.lower() in _ID_LOWER and k != _ID_LOWER[k.lower()]}
+    if not odd:
+        return item
+    return {odd.get(k, k): v for k, v in item.items() if not (k in odd and odd[k] in item)}
+
+
 def _list_key(items: list):
     """Return a function item -> key string, or None to fall back to indexes."""
     if not items or not all(isinstance(x, dict) for x in items):
@@ -189,6 +206,7 @@ def _flatten(obj, prefix: str, out: dict, curve_wins: bool = True) -> dict:
                 # names / flags: a set, so Valve reordering them is not a change
                 out[prefix] = tuple(sorted(vals, key=lambda x: (str(type(x)), str(x))))
         else:
+            obj = [_id_case(x) for x in obj]
             keyfn = _list_key(obj)
             for i, item in enumerate(obj):
                 if keyfn:

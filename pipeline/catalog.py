@@ -14,17 +14,18 @@ import json
 import time
 
 from . import cache, loc, tracker
-from .classify import ability_kind, hero_bound_abilities, unit_bound_abilities, unit_is_helper, unit_kind
+from .classify import (ability_kind, hero_bound_abilities, shared_abilities, unit_bound_abilities, unit_is_helper,
+                       unit_kind)
 
 OUT = tracker.ROOT / 'data' / 'entities.json'
 FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata', 'misc.vdata', 'modifiers.vdata', 'generic_data.vdata')
 
 
-def _kind(file: str, eid: str, data: dict, owners: dict) -> str:
+def _kind(file: str, eid: str, data: dict, owners: dict, shared: set[str] = frozenset()) -> str:
     if file == 'heroes.vdata':
         return 'hero'
     if file == 'abilities.vdata':
-        return ability_kind(eid, data, owners)
+        return ability_kind(eid, data, owners, shared)
     if file == 'npc_units.vdata':
         kind = unit_kind(eid, data)
         # any kind: the Hideout's cat is "neutral" by its id, a zipline container "trooper"
@@ -43,9 +44,16 @@ def build() -> dict:
     abilities_now: dict = {}
     units_now: dict = {}
     by_units: dict[str, set[str]] = {}       # ability -> every NPC that ever bound it (Walker's Stomp)
-    head = tracker.builds()[-1]
+    head = tracker.head_build()
+    upkeep_files: set[str] = set()
     for b in tracker.builds():
-        touched = [f for f in FILES if tracker.SCRIPTS + f in b.files]
+        if not tracker.is_game_build(b):
+            # tracker upkeep: no build number to date an entity with; a file it touched is read
+            # with the next build
+            upkeep_files |= set(b.files)
+            continue
+        touched = [f for f in FILES if tracker.SCRIPTS + f in b.files or tracker.SCRIPTS + f in upkeep_files]
+        upkeep_files = set()
         if not touched and last_blobs:
             continue
         snap = {}
@@ -61,7 +69,8 @@ def build() -> dict:
         if 'npc_units.vdata' in snap:
             units_now = snap['npc_units.vdata'][1]
         owners = hero_bound_abilities(heroes, abilities_now)
-        for aid, uids in unit_bound_abilities(units_now, owners).items():
+        shared = shared_abilities(heroes)
+        for aid, uids in unit_bound_abilities(units_now, owners, shared).items():
             by_units.setdefault(aid, set()).update(uids)
         ability_slots = {}
         for h in heroes.values():
@@ -79,9 +88,12 @@ def build() -> dict:
                 if e is None:
                     e = ents[key] = {'file': f, 'id': eid, 'first': [b.build, b.date[:10]], 'owner': None}
                 e['last'] = [b.build, b.date[:10], b.commit]
-                e['kind'] = _kind(f, eid, val, owners)
+                e['kind'] = _kind(f, eid, val, owners, shared)
                 if eid in owners:
                     e['owner'] = owners[eid]
+                elif eid in shared:
+                    e['owner'] = None          # every hero's (jump, dash…): its last state wins
+                    by_units.pop(eid, None)
                 if eid in ability_slots:
                     e['ability_slot'] = ability_slots[eid]     # Signature_4 = ultimate
                 if val.get('_not_pickable'):
@@ -114,10 +126,23 @@ def build() -> dict:
                 e['name'] = loc.entity_name(tok, e['id'], e.get('owner'))
     for e in ents.values():
         e['last'] = e['last'][:2]
+    drop_unit_names(ents.values())
     data = {'build': head.build, 'entities': sorted(ents.values(), key=lambda e: (e['file'], e['id']))}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     print(f"{len(ents)} entities, {time.time() - t0:.0f}s -> {OUT}")
     return data
+
+
+def drop_unit_names(ents) -> None:
+    """An NPC's ability whose only text is its unit's name (the kill feed's "Patron" on three of the
+    Patron's abilities: one page, three groups named "Patron") has no name of its own: it keeps its
+    id, and the pages name it by its id words ("Aoe wave", `common.pretty_id`)."""
+    ents = list(ents)
+    unit_names = {e['id']: (e.get('name') or '').lower() for e in ents if e['file'] == 'npc_units.vdata'}
+    for e in ents:
+        if e['file'] == 'abilities.vdata' and e.get('units') and e.get('name') and \
+                e['name'].lower() in {unit_names.get(u) for u in e['units']}:
+            e['name'] = e['id']
 
 
 def load() -> dict[str, dict]:

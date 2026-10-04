@@ -166,6 +166,28 @@ def _is_num(v) -> bool:
 
 TEMPLATE_HEROES = ('hero_base', 'hero_genericperson', 'hero_targetdummy', 'hero_testhero')
 _OWN_PREFIX = re.compile(r'^(?:citadel_)?(?:ability|weapon)_(?:melee_)?([a-z0-9]+)_')
+# a shared ability needs at least this many heroes binding it, whatever the roster's size (a test
+# build with two heroes must not make each one's kit "everybody's")
+SHARED_MIN_BINDERS = 3
+
+
+def _real_heroes(heroes: dict) -> list[tuple[str, dict]]:
+    """Heroes a player can be, in file order: not the templates (hero_base…) nor `_not_pickable`."""
+    return [(hid, h) for hid, h in heroes.items() if isinstance(h, dict) and hid.startswith('hero_')
+            and hid not in TEMPLATE_HEROES and not h.get('_not_pickable')]
+
+
+def shared_abilities(heroes: dict) -> set[str]:
+    """Abilities more than half of the real heroes bind: jump, dash, mantle, slide, sprint, the zipline,
+    parry, the voting poster… They belong to every hero, so to none of them. The first real hero in the
+    file (Infernus) had taken all of them, and 135 of the 295 rows on his page were game-wide changes
+    (audit 2026-10-04). A hero's own gun or melee is bound by one hero, or a few stand-ins."""
+    real = _real_heroes(heroes)
+    binders: dict[str, int] = {}
+    for _, hero in real:
+        for ab in {a for a in (hero.get('m_mapBoundAbilities') or {}).values() if isinstance(a, str) and a}:
+            binders[ab] = binders.get(ab, 0) + 1
+    return {ab for ab, n in binders.items() if n >= SHARED_MIN_BINDERS and n * 2 > len(real)}
 
 
 def hero_bound_abilities(heroes: dict, abilities: dict | None = None) -> dict[str, str]:
@@ -173,42 +195,47 @@ def hero_bound_abilities(heroes: dict, abilities: dict | None = None) -> dict[st
     templates (hero_base…) bind defaults too, and hero_base, first in the file, had taken Infernus'
     gun and melee (audit 2026-10-01). With `abilities`, a sub-ability no hero binds (a recast, an
     ultimate's second part: 112 orphans of Silver, Venator, Drifter…) goes to the hero its id names
-    ('ability_werewolf_x' -> hero_werewolf)."""
+    ('ability_werewolf_x' -> hero_werewolf). A shared ability (`shared_abilities`) has no owner."""
     owner: dict[str, str] = {}
+    shared = shared_abilities(heroes)
     heroes_ = [(hid, h) for hid, h in heroes.items() if isinstance(h, dict) and hid.startswith('hero_')]
     template = lambda hid, h: hid in TEMPLATE_HEROES or bool(h.get('_not_pickable'))     # noqa: E731
     for hid, hero in sorted(heroes_, key=lambda kv: template(*kv)):       # stable: file order otherwise
         for ab in (hero.get('m_mapBoundAbilities') or {}).values():
-            if isinstance(ab, str) and ab:
+            if isinstance(ab, str) and ab and ab not in shared:
                 owner.setdefault(ab, hid)
     if abilities:
         codes = {hid[5:]: hid for hid, h in heroes_ if not template(hid, h)}
         for aid in abilities:
             m = _OWN_PREFIX.match(aid)
-            if aid not in owner and m and m.group(1) in codes:
+            if aid not in owner and aid not in shared and m and m.group(1) in codes:
                 owner[aid] = codes[m.group(1)]
     return owner
 
 
-def unit_bound_abilities(units: dict, owners: dict[str, str] | None = None) -> dict[str, list[str]]:
+def unit_bound_abilities(units: dict, owners: dict[str, str] | None = None,
+                         shared: set[str] | frozenset[str] = frozenset()) -> dict[str, list[str]]:
     """{ability_id: [unit ids]} from the NPCs' m_mapBoundAbilities: Walker's Stomp / Laser Beam /
     Rocket Barrage, Patron's gun. They are the unit's, not a player's: UP/DOWN like the unit, shown on
     its page (audit B10: 120 rows tagged BUFF/NERF from the boss's side, on no unit page). An ability a
-    hero binds too (the zipline a container lends) stays the hero's."""
+    hero binds too (the zipline a container lends) stays the hero's — or every hero's (`shared`)."""
     out: dict[str, set[str]] = {}
     for uid, unit in units.items():
         if not isinstance(unit, dict):
             continue
         for ab in (unit.get('m_mapBoundAbilities') or {}).values():
-            if isinstance(ab, str) and ab and ab not in (owners or {}):
+            if isinstance(ab, str) and ab and ab not in (owners or {}) and ab not in shared:
                 out.setdefault(ab, set()).add(uid)
     return {ab: sorted(us) for ab, us in out.items()}
 
 
-def ability_kind(aid: str, data: dict, owners: dict[str, str]) -> str:
+def ability_kind(aid: str, data: dict, owners: dict[str, str],
+                 shared: set[str] | frozenset[str] = frozenset()) -> str:
     cls = str(data.get('_class', '')) if isinstance(data, dict) else ''
     if aid.startswith('upgrade_') or cls == 'citadel_item' or 'm_iItemTier' in (data or {}):
         return 'item'
+    if aid in shared:
+        return 'shared'          # every hero's: jump, dash, mantle, slide, zipline, parry (no owner)
     if 'weapon' in cls or aid.startswith('citadel_weapon_'):
         return 'weapon'
     if aid.startswith('ability_melee') or 'melee' in cls:

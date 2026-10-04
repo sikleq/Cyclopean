@@ -69,8 +69,15 @@ def merge_renames(changes: list[dict]) -> list[dict]:
             adds.setdefault(_rename_key(c.get('label')), []).append(c)
     out, used = [], set()
     for c in changes:
-        if c.get('op') == 'remove' and adds.get(_rename_key(c.get('label'))):
-            a = adds[_rename_key(c['label'])].pop(0)
+        pool = adds.get(_rename_key(c.get('label'))) if c.get('op') == 'remove' else None
+        # another property with another unit is a replaced bonus, not a re-key: Shoulder Charge's T1 lost
+        # "+25% weapon damage" and gained a flat "+2.2" — one row "25% → 2.2" read as a −91% nerf
+        # (Sloppy reference audit 2026-10-04)
+        pool = [a for a in pool or ()
+                if _prop_of(a) == _prop_of(c) or _unit_of(a.get('new_s')) == _unit_of(c.get('old_s'))]
+        if pool:
+            a = pool[0]
+            adds[_rename_key(c['label'])].remove(a)
             used.add(id(a))
             x, y = _num(c.get('old_s', c.get('old'))), _num(a.get('new_s', a.get('new')))
             if x is not None and y is not None and (x == y or abs(x / UNITS_PER_METER - y) < 0.01):
@@ -96,6 +103,13 @@ def _rename_key(label) -> str:
 
 UNITS_PER_METER = 39.37
 _NUM = re.compile(r'^\s*([-+]?\d*\.?\d+)\s*(m|s|%)?\s*$')
+_UNIT_OF = re.compile(r'^\s*[-+−]?\d*\.?\d+\s*(m/s|m|s|%)?\s*$')
+
+
+def _unit_of(v) -> str | None:
+    """'25%' -> '%', '2.2' -> '', 'yes' -> None (not a number)."""
+    m = _UNIT_OF.match(str(v)) if v is not None else None
+    return (m.group(1) or '') if m else None
 
 
 def _num(v) -> float | None:
@@ -190,12 +204,16 @@ def player_facing(changes: list[dict]) -> list[dict]:
 
 
 _ZERO_RE = re.compile(r'^[+-]?0(?:\.0+)?\s*(?:m|s|%|m/s|x|u)?$')
-_NOT_WORD = re.compile(r'[^a-z0-9.]')
+# signs are kept: "−22% → 22%" is a change (11 sign flips were dropped from every page and counter,
+# python audit 2026-10-04); a flip that is only the value written the other way round arrives with
+# 'same' from the pipeline (match.mark_retyped)
+_NOT_WORD = re.compile(r'[^a-z0-9.+\-]')
 
 
 def _same(a: str, b: str) -> bool:
     """Equal up to case, spaces and underscores: 'Head Ignore Obscure Blockers' is
-    'Head_IgnoreObscureBlockers' (one enum spelled two ways across builds)."""
+    'Head_IgnoreObscureBlockers' (one enum spelled two ways across builds). Not up to the sign."""
+    a, b = a.replace('−', '-'), b.replace('−', '-')
     return a == b or _NOT_WORD.sub('', a.lower()) == _NOT_WORD.sub('', b.lower())
 
 

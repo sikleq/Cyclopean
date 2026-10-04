@@ -21,6 +21,7 @@ WEAPON_GROUP = 'Damage'
 # the six numbers a player compares first: one row of equal tiles with one-line labels
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
               'clip': 'Ammo', 'reload': 'Reload s'}
+WEAPON_DIGITS = 2
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
     'dps': 'DPS', 'dps_max': 'DPS', 'bullet_dmg': 'BulletDamage', 'bullet_dmg_lvl': 'BulletDamage',
@@ -148,8 +149,11 @@ def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel:
         cls, attrs = _hist_attrs(row, c, name)
         is_top = c['key'] in WEAPON_TOP
         label, unit = (WEAPON_TOP[c['key']], '') if is_top else _split_unit(c['label'])
+        # two decimals at most, like the game's panel: "Reload 1.0575" was a sum no screen prints (external
+        # audit 2026-10-04); the full value stays in the cell's history
         cell = (f'<div class="wcell{" top" if is_top else ""} {cls}"{attrs}>{_stat_icon(c["key"], rel)}'
-                f'<span class="v">{_fmt(v, c["digits"])}{_unit_html(unit)}</span><span class="l">{esc(label)}</span></div>')
+                f'<span class="v">{_fmt(v, min(c["digits"], WEAPON_DIGITS))}{_unit_html(unit)}</span>'
+                f'<span class="l">{esc(label)}</span></div>')
         (top if is_top else rest).append(cell)
     wname = (card or {}).get('name') or row.get('weapon_name') or ''
     # heroes in development often have no localized gun name yet: never show the internal id

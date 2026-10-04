@@ -213,8 +213,15 @@ LEVEL_UP_LABELS = {
 # SPEED a speed (units/s -> m/s)
 SPEED = 'speed'
 _NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|Delay|Rate|Chance|Factor|Alpha|Angle|'
-                           r'Yaw|Pitch|Degree|Interval|Cooldown|Damage|Health|DPS|Resist|Reward|Bounty|Gold|Fov|Count)',
+                           r'Yaw|Pitch|Degree|Interval|Cooldown|Damage|Health|DPS|Resist|Reward|Bounty|Gold|Fov|Count|'
+                           # recoil, turning, spin, a decay or a blend bias are not travel (audit 2026-10-04: "Recoil
+                           # Speed 0.127m/s", "Hover Speed Decay 0.02286m/s", "Initial Offset Lerp Bias 0.0127m")
+                           r'Recoil|Turn|Spin|Accel|Rotat|Punch|Kick|Decay|Bias|Lerp|Penalty)',
                            re.I)
+# a field that ENDS in a length word is a length whatever it measures from ("Nearby Enemy Resist Range
+# 2000" stayed engine units: "Resist" said not a length)
+_ENDS_LENGTH = re.compile(r'(Range|Radius|Distance|Height|Width|Length)$')
+_RATIO_WORD = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Factor)', re.I)
 
 
 METRES = 'metres'          # already metres: shown as is with "m"
@@ -247,6 +254,35 @@ def prop_speed(prop: str, unit: str = '') -> bool:
     return not unit and bool(_PROP_SPEED.search(prop)) and not _PROP_NOT_TRAVEL.search(prop)
 
 
+# a property that is a speed wherever "speed" sits in its name: its "4.5m" is m/s ("Active Movespeed
+# Penalty 4.5m → 6.5m", "Invis Move Speed Mod +4m"; audit 2026-10-04)
+_SPEED_NAME = re.compile(r'Speed$|(?:Move|Sprint|Movement|Run|Walk|Air|Dash)speed', re.I)
+
+
+def speed_prop(prop: str) -> bool:
+    return bool(_SPEED_NAME.search(prop))
+
+
+# a property named like a length with no unit in any build is engine units when its numbers are big
+# ("Lift Height 120 → 200", "Follow Distance 120 → 60", Stomp "Activation Distance 600"): 1 m = 39.37
+_PROP_LENGTH = re.compile(r'(Range|Radius|Distance|Dist|Height|Width|Length|Offset)', re.I)
+_PROP_NOT_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Factor|Time|Duration|Delay|Count|Speed|Chance|'
+                              r'Angle|Degree|Pitch|Yaw|Damage|Bonus$)', re.I)
+ENGINE_LENGTH_MIN = 20          # 20 engine units = 0.5 m: below it a bare number is more likely metres
+
+
+def length_in_units(path: str, unit: str, values) -> bool:
+    """Show this ability property's numbers as metres converted from engine units (display only)."""
+    if unit or not (_PROP_RE.match(path) or _TIER_RE.match(path)):
+        return False
+    prop = property_name(path).split('|')[0]
+    if not _PROP_LENGTH.search(prop) or _PROP_NOT_LENGTH.search(prop):
+        return False
+    nums = [abs(float(m.group(1))) for v in values if v is not None and not isinstance(v, bool)
+            for m in [_RAW_NUM.match(str(v))] if m and not m.group(2)]
+    return bool(nums) and max(nums) > ENGINE_LENGTH_MIN
+
+
 def engine_unit(leaf: str) -> bool | str:
     """An engine float named like a length or a speed is in engine units: Walker 'Invul Modifier Range
     1338.58 → 866.14' is 34 → 22 m, a projectile 'Speed 1050 → 400' is 26.7 → 10.2 m/s (audit
@@ -254,10 +290,13 @@ def engine_unit(leaf: str) -> bool | str:
     ("Dash Jump Distance In Meters 18 → 19" was divided into 0.46 m)."""
     if _FRACTION_FIELD.match(leaf):
         return FRACTION
-    if 'Meters' in leaf:
+    if re.search(r'Meters?(?:PerSecond)?$|InMeters|Meters', leaf):
+        # "…MeterPerSecond" is m/s already (the Rejuvenator's speed read 0.0254 m/s, divided twice)
         return MPS if re.search(r'(PerSecond|Speed)', leaf) else METRES
     if _ALREADY_MPS.search(leaf):
         return MPS
+    if leaf.startswith('m_fl') and _ENDS_LENGTH.search(leaf) and not _RATIO_WORD.search(leaf[4:]):
+        return True
     if not leaf.startswith('m_fl') or _NOT_A_LENGTH.search(leaf[4:]):
         return False
     if re.search(r'(Speed|Velocity)', leaf):
@@ -347,7 +386,8 @@ _GAME_WORDS = ((re.compile(r'\bBullet Armor Damage (Resist|Reduction)\b'), 'Bull
                (re.compile(r'\bTech Armor Damage (Resist|Reduction)\b'), 'Spirit Resist'),
                (re.compile(r'\bBullet Armor\b'), 'Bullet Resist'),
                (re.compile(r'\bTech Armor\b'), 'Spirit Resist'),
-               (re.compile(r'\bTech\b'), 'Spirit'))
+               (re.compile(r'\bTech\b'), 'Spirit'),
+               (re.compile(r'\bVerticall\b'), 'Vertical'))          # Valve's typo in a weapon field (12 rows)
 
 
 def game_words(text: str) -> str:
@@ -376,11 +416,18 @@ def _loc_label(tok: dict[str, str], name: str, ability: str | None = None) -> st
 
 
 def stat_label(tok: dict[str, str], stat: str) -> str:
+    return stat_label_src(tok, stat)[0]
+
+
+def stat_label_src(tok: dict[str, str], stat: str) -> tuple[str, str]:
+    """(label, 'loc' | 'curated' | 'fallback') of a hero stat."""
     base = stat[1:] if stat.startswith('E') and stat[1:2].isupper() else stat
     key = 'StatDesc_' + STAT_DESC_EXCEPTIONS.get(base, base)
     if key.lower() in tok and base not in CUSTOM_FIRST:
-        return re.sub(r'<[^>]+>', '', tok[key.lower()]).strip()
-    return CUSTOM_STAT_LABELS.get(base) or humanize(base)
+        return re.sub(r'<[^>]+>', '', tok[key.lower()]).strip(), 'loc'
+    if base in CUSTOM_STAT_LABELS:
+        return CUSTOM_STAT_LABELS[base], 'curated'
+    return humanize(base), 'fallback'
 
 
 def override_label(tok: dict[str, str], token: str | None, entity: str = '') -> str | None:
@@ -404,6 +451,45 @@ def prop_unit(tok: dict[str, str], prop: str, token: str | None = None) -> str:
             if post and '{' not in post and len(post) <= 4:
                 return post
     return ''
+
+
+def prop_sign(tok: dict[str, str], prop: str, token: str | None = None) -> str | None:
+    """'-' when the tooltip prints a minus the value does not carry: an enemy slow is stored 30 and
+    shown "-30% Move Speed" (`<prop>_prefix` = "-"). '' when the loc has another prefix ("+",
+    "{s:sign}"), None when it has none for the property (audit 2026-10-04: 185 slows read as the
+    hero's own "Move Speed 30% → 24%")."""
+    found = None
+    for name in (token, prop):
+        if name and not name.startswith('#'):
+            key = f'{name}_prefix'.lower()
+            if key in tok:
+                if tok[key].strip() == '-':
+                    return '-'
+                found = ''
+    return found
+
+
+# an enemy-facing value the tooltip prints with a minus (prop_sign): what it does to the enemy, by name
+# ("Move Speed" -> "Movement Slow", "Fire Rate" -> "Fire Rate Slow", "Bullet Resist (Heavy)" ->
+# "Bullet Resist reduction (Heavy)"); a label that already says so stays
+_SAYS_LESS = re.compile(r'(slow|reduc|decreas|penalt|less\b|lower)', re.I)
+_MOVE_SPEED = re.compile(r'\bMove ?[Ss]peed\b|\bMovespeed\b|\bMovement Speed\b')
+_TIER_PREFIX = re.compile(r'^((?:T\d|Enhanced|Upgrade): )')
+
+
+def enemy_label(label: str, prop: str) -> str:
+    """The label of a value the game shows with a minus it does not store (prop_sign '-'): the
+    magnitude is shown (`magnitude` in show()), so the label says what shrinks."""
+    m = _TIER_PREFIX.match(label)
+    head, body = (m.group(1), label[m.end():]) if m else ('', label)
+    if not body or _SAYS_LESS.search(body):
+        return label
+    if 'slow' in prop.lower():
+        body = _MOVE_SPEED.sub('Movement Slow', body, count=1) if _MOVE_SPEED.search(body) else body + ' Slow'
+    else:
+        paren = re.search(r'\s*\([^()]*\)$', body)
+        body = f'{body[:paren.start()]} reduction{body[paren.start():]}' if paren else f'{body} reduction'
+    return head + body
 
 
 _PLAIN_NUMBER = re.compile(r'^[-+]?\d+(\.\d+)?$')
@@ -466,6 +552,11 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', s
         name = d.get('prop') or re.sub(r'\{.*\}|\[\d+\]', '', path.rsplit('.', 1)[-1])
         if _TIME_FIELD.search(name):
             d = {**d, 'unit': 's'}
+    # "Dash Jump Distance (m) 18m → 19m": the value carries the unit, the label need not say it
+    if ' (m)' in d['label'] and (d.get('meters') in (METRES, True) or d.get('unit') == 'm'):
+        d = {**d, 'label': d['label'].replace(' (m)', '')}
+    if ' (s)' in d['label'] and d.get('unit') == 's':
+        d = {**d, 'label': d['label'].replace(' (s)', '')}
     return d
 
 
@@ -475,33 +566,52 @@ _TIME_FIELD = re.compile(r'(Time|Duration|Delay|Interval|Cooldown|Lifetime|InSec
 _TIMED_GROUPS = ('weapon', 'unit', 'other', 'property', 'powerup')
 
 
+def _prop_label(tok: dict[str, str], prop: str, entity: str = '', token: str | None = None) -> tuple[str, str]:
+    """(label, 'loc' | 'fallback'): the tooltip's label of a property, else its name split into words."""
+    label = override_label(tok, token, entity) or _loc_label(tok, prop, entity)
+    return (label, 'loc') if label else (humanize(prop), 'fallback')
+
+
 def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None) -> dict:
+    """See describe(); 'src' says where the label came from: 'loc' (the game's text of that build),
+    'curated' (our words for a field the game never labels) or 'fallback' (the field's name)."""
+    d = _describe_raw(path, tok, entity, kind, token)
+    d.setdefault('src', 'curated')
+    return d
+
+
+def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None) -> dict:
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]
-        label = _loc_label(tok, prop, entity) or humanize(prop)
-        return {'label': f'Corrupted: {label}', 'meters': False, 'group': 'corrupted', 'prop': prop}
+        label, src = _prop_label(tok, prop, entity)
+        # a corrupted bonus carries its property's unit like any bonus ("Incoming Healing -25" had none)
+        return {'label': f'Corrupted: {label}', 'meters': False, 'group': 'corrupted', 'prop': prop, 'src': src,
+                'unit': prop_unit(tok, prop)}
     if path.startswith('m_CorruptedItemInfo.'):
-        return {'label': 'Corrupted: ' + context_label(path.split('.', 1)[1], 2), 'meters': False, 'group': 'corrupted'}
+        return {'label': 'Corrupted: ' + context_label(path.split('.', 1)[1], 2, tok), 'meters': False, 'group': 'corrupted',
+                'src': 'fallback'}
     m = _PROP_RE.match(path)
     if m:
         prop, rest = m.group(1), m.group(2)
-        label = override_label(tok, token, entity) or _loc_label(tok, prop, entity) or humanize(prop)
+        label, src = _prop_label(tok, prop, entity, token)
         if rest == 'm_strValue':
             unit = prop_unit(tok, prop, token)
             return {'label': label, 'meters': SPEED if prop_speed(prop, unit) else False, 'group': 'property',
-                    'prop': prop, 'unit': unit, 'speed_m': prop.endswith('Speed')}
+                    'prop': prop, 'unit': unit, 'speed_m': speed_prop(prop), 'src': src,
+                    'sign': prop_sign(tok, prop, token)}
         if rest == 'm_strStreetBrawlValue':
-            return {'label': f'{label} (Street Brawl)', 'meters': False, 'group': 'streetbrawl', 'prop': prop}
+            return {'label': f'{label} (Street Brawl)', 'meters': False, 'group': 'streetbrawl', 'prop': prop, 'src': src}
         if rest.endswith('m_flStatScale'):
-            return {'label': f'{label} (spirit scaling)', 'meters': False, 'group': 'scaling', 'prop': prop}
-        return {'label': f'{label} · {humanize(rest.rsplit(".", 1)[-1])}', 'meters': False, 'group': 'property-meta', 'prop': prop}
+            return {'label': f'{label} (spirit scaling)', 'meters': False, 'group': 'scaling', 'prop': prop, 'src': src}
+        return {'label': f'{label} · {humanize(rest.rsplit(".", 1)[-1])}', 'meters': False, 'group': 'property-meta',
+                'prop': prop, 'src': src}
     m = _TIER_RE.match(path)
     if m:
         tier, key, field = int(m.group(1)) + 1, m.group(2), m.group(3)
         parts = key.split('|')
         prop = parts[0]
-        label = override_label(tok, token, entity) or _loc_label(tok, prop, entity) or humanize(prop)
+        label, src = _prop_label(tok, prop, entity, token)
         scaling = 'EAddToScale' in parts or 'EMultiplyScale' in parts
         if scaling:
             label += scaling_suffix(parts)
@@ -513,13 +623,17 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
             label += ' (% of base)'                 # Ground Strike T3 "+120%", not a flat +120
         # an item's only upgrade entry is its Enhanced version (Street Brawl's draft): "Enhanced
         # Escalating Exposure: shred +8 → +10" in the notes, "Upgrade:" on 646 rows until 2026-10-01
-        prefix = (f'T{tier}' if kind in ('ability', 'ability_other', '')
+        # a hero's ability filed as a weapon by its class (Venator's ultimate) has T1-T3 too: "Upgrade: Bonus
+        # Damage 150 → 65" where the notes say "T2" (audit 2026-10-04)
+        prefix = (f'T{tier}' if kind in ('ability', 'ability_other', '', 'weapon', 'melee', 'shared')
                   else 'Enhanced' if kind == 'item' else 'Upgrade')
         unit = '%' if 'EMultiplyBase' in parts else '' if scaling or field != 'm_strBonus' else prop_unit(tok, prop, token)
         # a flat bonus to a travel speed is engine units/s like the speed (Lunge's T3 Dash Speed +550)
-        speed = field == 'm_strBonus' and not scaling and 'EMultiplyBase' not in parts and prop_speed(prop, unit)
+        plain = field == 'm_strBonus' and not scaling and 'EMultiplyBase' not in parts
+        speed = plain and prop_speed(prop, unit)
         return {'label': f'{prefix}: {label}', 'meters': SPEED if speed else False, 'group': 'tier', 'prop': prop,
-                'tier': tier, 'unit': unit, 'speed_m': prop.endswith('Speed')}
+                'tier': tier, 'unit': unit, 'speed_m': speed_prop(prop), 'src': src,
+                'sign': prop_sign(tok, prop, token) if plain else None}
     if path.startswith('m_mapStartingStats.'):
         stat = path.split('.')[1]
         if stat == 'EStaminaRegenPerSecond':
@@ -534,25 +648,30 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
             unit = 's'
         elif unit == '%' and re.search(r'(Scale|Regen|PerSecond|Rate)', stat):
             unit = ''
-        return {'label': stat_label(tok, stat), 'meters': False, 'group': 'stat',
+        label, src = stat_label_src(tok, stat)
+        return {'label': label, 'meters': False, 'group': 'stat', 'src': src,
                 'unit': unit if unit in ('m', 'm/s', 's', '%') else ''}
     if path.startswith('m_mapStandardLevelUpUpgrades.'):
         mod = path.split('.')[1]
-        label = LEVEL_UP_LABELS.get(mod) or _loc_label(tok, mod) or humanize(mod.replace('MODIFIER_VALUE_', '').lower())
+        loc_label = None if mod in LEVEL_UP_LABELS else _loc_label(tok, mod)
+        label = LEVEL_UP_LABELS.get(mod) or loc_label or humanize(mod.replace('MODIFIER_VALUE_', '').lower())
+        src = 'curated' if mod in LEVEL_UP_LABELS else 'loc' if loc_label else 'fallback'
         # range per boon is engine units (48 -> 59 is 1.22 -> 1.5 m, as the 2025-09-04 notes say)
         meters = mod == 'MODIFIER_VALUE_BONUS_ATTACK_RANGE'
         unit = '%' if 'RESIST' in mod else ''
-        return {'label': label, 'meters': meters, 'group': 'levelup', 'unit': unit}
+        return {'label': label, 'meters': meters, 'group': 'levelup', 'unit': unit, 'src': src}
     if path.startswith('m_mapScalingStats.'):
         stat = path.split('.')[1]
-        return {'label': f'{stat_label(tok, stat)} per Spirit', 'meters': False, 'group': 'scaling'}
+        label, src = stat_label_src(tok, stat)
+        return {'label': f'{label} per Spirit', 'meters': False, 'group': 'scaling', 'src': src}
     if path.startswith('m_mapWeaponInfos.'):
         field = path.split('.')[2] if path.count('.') >= 2 else path
+        src = 'curated' if field in WEAPON_FIELDS else 'fallback'
         label, meters = WEAPON_FIELDS.get(field, (humanize(field), engine_unit(field)))
         slot = path.split('.')[1]
         if slot != 'primary':
             label = f'{label} ({humanize(slot)})'
-        return {'label': label, 'meters': meters, 'group': 'weapon'}
+        return {'label': label, 'meters': meters, 'group': 'weapon', 'src': src}
     plain = plain_label(path)
     if plain:
         return plain
@@ -570,7 +689,7 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
         if m:
             label = f'Weak point ({m.group(1)}): {label[:1].lower() + label[1:]}'
         return {'label': label, 'meters': meters, 'group': 'unit'}
-    return {'label': context_label(path), 'meters': engine_unit(leaf), 'group': 'other'}
+    return {'label': context_label(path, tok=tok), 'meters': engine_unit(leaf), 'group': 'other', 'src': 'fallback'}
 
 
 # ---- plain words for structures the game never labels (audit 2026-10-01) ----------------------
@@ -640,19 +759,22 @@ _ENUM_PREFIX_RE = re.compile(r'^(EItemSlotType_|MODIFIER_VALUE_|ESlot_|EModTier_
 _TYPED_FIELD = re.compile(r'^(?:fl|n|i|b|str|vec|map|un|s|v|h|bits|sz|e)[A-Z][a-z]')
 
 
-def _segment(seg: str) -> str:
+def _segment(seg: str, tok: dict[str, str] | None = None) -> str:
     m = re.match(r'^([^\[{]+)(?:\[(\d+)\]|\{([^}]*)\})?$', seg)
     if not m:
         return humanize(seg)
     name, idx, key = m.group(1), m.group(2), m.group(3)
     # a field name with a type prefix but no "m_" ("flCooldownOnBreak" of the shield trackers sat raw)
     field = name.startswith(('m_', '_')) or bool(_TYPED_FIELD.match(name))
-    text = humanize(_ENUM_PREFIX_RE.sub('', name)) if field else \
-        game_words(_ENUM_PREFIX_RE.sub('', name).replace('_', ' ').strip())
+    if not field and _ID_KEY.match(name) and _id_name(name, tok):
+        text = _id_name(name, tok)            # an item / ability id as a segment: its name
+    else:
+        text = humanize(_ENUM_PREFIX_RE.sub('', name)) if field else \
+            game_words(_ENUM_PREFIX_RE.sub('', name).replace('_', ' ').strip())
     if idx is not None:
         text += f' #{int(idx) + 1}'
     if key:
-        text += f' {_key_text(key.split("|")[0])}'
+        text += f' {_key_text(key.split("|")[0], tok)}'
     return text
 
 
@@ -660,12 +782,24 @@ _ID_KEY = re.compile(r'^[a-z][a-z0-9]*(?:_[a-z0-9]+)+$')
 _ID_PREFIX = re.compile(r'^(?:npc_|citadel_|modifier_|ability_|upgrade_)+')
 
 
-def _key_text(key: str) -> str:
+def _id_name(key: str, tok: dict[str, str] | None) -> str | None:
+    """The game's name of an item / ability / hero id ("upgrade_deflecting_armor" -> its shop name),
+    from the same build's text; None when it has none."""
+    if not tok:
+        return None
+    name = tok.get(key) or tok.get(f'{key}:n')
+    name = html.unescape(re.sub(r'<[^>]+>', '', name)).strip() if name else ''
+    return name if name and '{' not in name else None
+
+
+def _key_text(key: str, tok: dict[str, str] | None = None) -> str:
     """A map key that is an internal id reads as words: 'Intrinsic Modifiers npc_boss_intrinsic' sat on
-    30 Walker rows (2026-10-03) -> 'Intrinsic Modifiers boss intrinsic'. Other keys stay as they are."""
+    30 Walker rows (2026-10-03) -> 'Intrinsic Modifiers boss intrinsic'; an id the game names reads as
+    that name ('Item Draft Weights › upgrade deflecting armor' -> the item's shop name, audit
+    2026-10-04). Other keys stay as they are."""
     if not _ID_KEY.match(key):
         return key
-    return _ID_PREFIX.sub('', key).replace('_', ' ')
+    return _id_name(key, tok) or _ID_PREFIX.sub('', key).replace('_', ' ')
 
 
 # containers and flag fields a player knows by another name (audit 2026-10-01: 1,677 rows read
@@ -687,7 +821,7 @@ _SCRIPT_VALUE = re.compile(r'^m_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_
 _VALUE_LEAF = re.compile(r'^m_(?:fl)?(?:[mM]odifier)?[vV]alue$')
 
 
-def _context_segment(seg: str) -> str:
+def _context_segment(seg: str, tok: dict[str, str] | None = None) -> str:
     m = _SCRIPT_VALUE.match(seg)
     if m:                                    # what the modifier changes: "Cooldown Reduction Percentage"
         return game_words(m.group(1).replace('_', ' ').title())
@@ -696,20 +830,21 @@ def _context_segment(seg: str) -> str:
         return FLAG_FIELDS[base]
     if base in CONTAINER_WORDS:
         return CONTAINER_WORDS[base]
-    return _segment(seg)
+    return _segment(seg, tok)
 
 
-def context_label(path: str, depth: int = 3) -> str:
+def context_label(path: str, depth: int = 3, tok: dict[str, str] | None = None) -> str:
     """'m_mapPurchaseBonuses.EItemSlotType_WeaponMod[2].m_flValue'
     -> 'Purchase Bonuses › WeaponMod #3 › Value' (a bare leaf name is meaningless);
     'm_projectileInfo.m_flSpeed' -> 'Projectile › Speed'; a modifier's script value is named by what
-    it changes, its trailing '.m_value' dropped; a word repeated by the path once."""
+    it changes, its trailing '.m_value' dropped; a word repeated by the path once. `tok`: the build's
+    text, so an id the game names reads as its name."""
     parts = [p for p in path.split('.') if p]
     if len(parts) > 1 and _VALUE_LEAF.match(parts[-1]) and _SCRIPT_VALUE.match(parts[-2]):
         parts = parts[:-1]
     shown = []
     for p in parts[-depth:]:
-        s = _context_segment(p)
+        s = _context_segment(p, tok)
         if s and (not shown or shown[-1] != s):
             shown.append(s)
     return ' › '.join(shown)
@@ -743,6 +878,21 @@ def reencoded(old, new, path: str = '') -> bool:
     return 0 < abs(a) <= 1 and near(a * 100, b) or 0 < abs(b) <= 1 and near(b * 100, a)
 
 
+def sign_flip(old, new) -> bool:
+    """−22% → 22%: the same size, the other sign. Alone it is a change; with the property's provided
+    type flipped in the same window (REDUCTION_PERCENT → INCREASE_PERCENT, Riposte 2026-03-06) it is
+    one value written the other way round (match `retyped`)."""
+    def parse(v):
+        if isinstance(v, bool) or v is None:
+            return None
+        if isinstance(v, (int, float)):
+            return float(v)
+        m = _RAW_NUM.match(str(v))
+        return float(m.group(1)) if m else None
+    a, b = parse(old), parse(new)
+    return a is not None and b is not None and a != 0 and a == -b
+
+
 def display_raw(v, meters: bool | str = False) -> str:
     """A value as the records keep it (a number, or a string such as "12.19m"): a number written
     in metres is not divided again, engine units are."""
@@ -758,13 +908,17 @@ def display_raw(v, meters: bool | str = False) -> str:
     return display_value(v, False if meters == M_SPEED else meters)
 
 
-def show(v, meters: bool | str = False, unit: str = '', invert: bool = False) -> str:
+def show(v, meters: bool | str = False, unit: str = '', invert: bool = False, magnitude: bool = False) -> str:
     """A record value as a change row prints it: units as the field says, the tooltip's unit, and a
-    rate shown the way the game does (stamina per second 0.2 -> a 5s cooldown)."""
-    if invert and v is not None and not isinstance(v, bool):
+    rate shown the way the game does (stamina per second 0.2 -> a 5s cooldown). `magnitude`: the
+    tooltip prints the minus itself (prop_sign '-', an enemy slow): the label says "Slow", the value
+    is its size (Card Trick's slow stored −30 one build and 30 the next reads 30% both times)."""
+    if v is not None and not isinstance(v, bool):
         m = _RAW_NUM.match(str(v))
-        if m and float(m.group(1)):
+        if invert and m and float(m.group(1)):
             v = round(1 / float(m.group(1)), 4)
+        elif magnitude and m and float(m.group(1)) < 0:
+            v = str(v).replace('-', '', 1) if isinstance(v, str) else abs(v)
     return with_unit(display_raw(v, meters), unit)
 
 
@@ -776,6 +930,8 @@ def display_value(v, meters: bool | str = False) -> str:
     if isinstance(v, (int, float)):
         if meters == FRACTION:
             return display_value(round(float(v) * 100, 6)) + '%'
+        if meters and float(v) == -1.0:
+            return '-1'           # the game's "no limit / default", not −0.0254 m (37 rows, audit 2026-10-04)
         x = float(v) / UNITS_PER_METER if meters and meters not in (METRES, MPS) else float(v)
         if x.is_integer():
             s = str(int(x))

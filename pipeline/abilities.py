@@ -17,9 +17,10 @@ import html
 import json
 import re
 
-from . import cache, loc, tracker
-from .classify import ability_kind, hero_bound_abilities
-from .semantics import SCALE_STAT_WORDS, humanize, scale_stat, scaling_suffix
+from . import cache, labels, loc, tracker
+from .classify import ability_kind, hero_bound_abilities, shared_abilities
+from .flatten import _id_case, _list_key
+from .semantics import SCALE_STAT_WORDS, describe, humanize, scale_stat, scaling_suffix
 
 OUT = tracker.ROOT / 'data' / 'abilities.json'
 HEADER_PROPS = (
@@ -75,25 +76,38 @@ def _tokens(vals: dict[str, str], alias: dict[str, str]) -> dict[str, str]:
     return {**vals, **{o: vals[p] for p, o in alias.items() if p in vals and o not in vals}}
 
 
-def _label(tok, prop, aid, alias: str | None = None):
-    keys = [f'{aid}_{prop}_label', f'{prop}_label']
-    if alias:
-        keys += [f'{aid}_{alias}_label', f'{alias}_label']
-    for key in keys:
-        v = tok.get(key.lower())
-        if v and '{' not in v:
-            return html.unescape(_HTML_RE.sub('', v)).strip()      # "Bullet &amp; Spirit Lifesteal"
-    return humanize(prop)
+def _label(tok, prop, aid, kind: str = '', alias: str | None = None, path: str | None = None,
+           fmap: dict | None = None) -> dict:
+    """{label, unit, sign, src} of a card property — the resolver the history rows use
+    (`pipeline.labels`): the card and the newest history row of a field say the same (26 items read
+    "Incoming Healing" on the card and "Healing Reduction" in the history, audit 2026-10-04).
+    `path`: a tier bonus's own path; its "T1: " goes, the card shows it under its tier."""
+    path = path or f'm_mapAbilityProperties.{prop}.m_strValue'
+    d = describe(path, tok, aid, kind, None, alias)
+    cn = labels.canonical(labels.field_key('abilities.vdata', aid, path), d, fmap if fmap is not None else {})
+    return {**cn, 'label': re.sub(r'^(?:T\d|Enhanced|Upgrade): ', '', cn['label'])}
+
+
+def _tier_paths(i: int, ups: list) -> dict[int, str]:
+    """{index in the tier: the path the build records keep its bonus under} (flatten's list keys)."""
+    items = [_id_case(u) for u in ups]
+    keyfn = _list_key(items)
+    return {j: f'm_vecAbilityUpgrades[{i - 1}].m_vecPropertyUpgrades'
+               + (f'{{{keyfn(u)}}}' if keyfn else f'[{j}]') + '.m_strBonus'
+            for j, u in enumerate(items)}
 
 
 def _affix(tok, prop, which):
     return tok.get(f'{prop}_{which}'.lower(), '')
 
 
-def fmt_prop(tok, prop, value, aid, bonus=False) -> str:
-    """'-28%' / '20m' / '+80' the way the tooltip writes it."""
+def fmt_prop(tok, prop, value, aid, bonus=False, magnitude=False) -> str:
+    """'-28%' / '20m' / '+80' the way the tooltip writes it. `magnitude`: the tooltip's own minus goes
+    (prop_sign '-': the label already says "Movement Slow")."""
     v = _num_s(value)
     pre, post = _affix(tok, prop, 'prefix'), _affix(tok, prop, 'postfix')
+    if magnitude and pre.strip() == '-':
+        pre, v = '', v.lstrip('-')
     if '{s:sign}' in pre:                  # the game prints the value's own sign
         pre = pre.replace('{s:sign}', '' if v.startswith('-') else '+')
     # the value already carries the unit the postfix adds ("3m" + " m" printed "+3m m" on 47 rows)
@@ -143,7 +157,9 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
     return '\n'.join(ln.strip() for ln in t.splitlines() if ln.strip())
 
 
-def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -> dict:
+def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None, fmap: dict | None = None) -> dict:
+    """`fmap`: pipeline.labels' map (the field's label over its whole history); without it the
+    newest build's text alone names the properties."""
     props = a.get('m_mapAbilityProperties') or {}
     alias = {p: str(d['m_strLocTokenOverride']) for p, d in props.items()
              if isinstance(d, dict) and d.get('m_strLocTokenOverride')}
@@ -171,10 +187,11 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
             return None
         scale = (d.get('m_subclassScaleFunction') or {}).get('m_flStatScale')
         stat = scale_stat(a, p)
-        value = fmt_prop(tok, p, d['m_strValue'], aid)
+        name = _label(tok, p, aid, kind, alias.get(p), fmap=fmap)
+        value = fmt_prop(tok, p, d['m_strValue'], aid, magnitude=name['sign'] == '-')
         if d.get('m_eDisplayUnits') == 'EDisplayUnit_MetersPerSecond' and value.endswith('m'):
             value += '/s'                     # a speed: "Sleep Movespeed 1.5m/s", not "1.5m"
-        return {'prop': p, 'label': _label(tok, p, aid, alias.get(p)), 'value': value,
+        return {'prop': p, 'label': name['label'], 'value': value,
                 'scale': float(scale) if isinstance(scale, (int, float)) and scale else None,
                 # what the coefficient multiplies: "+4×Boon" on Headhunter, not "×Spirit" (34 rows)
                 'scale_by': SCALE_STAT_WORDS[stat].title() if stat in SCALE_STAT_WORDS else None,
@@ -192,7 +209,9 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
         ups = t.get('m_vecPropertyUpgrades') or []
         vals = dict(base_vals)
         bonuses = []
-        for u in ups:
+        paths = _tier_paths(i, ups)
+        for j, u in enumerate(ups):
+            u = _id_case(u)
             p, b = u.get('m_strPropertyName'), u.get('m_strBonus')
             if not p or b is None or _num_s(b).rstrip('ms%') in ('0', '-0'):
                 continue                       # a zero bonus ("Cooldown +0s" on 103 rows) is no bonus
@@ -202,9 +221,12 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
                 vals[f'{p}_scale'] = _num_s(b)
             else:
                 vals[p] = _num_s(b).lstrip('-') if _affix(tok, p, 'prefix') == '-' else _num_s(b)
+            # the tier's own path: its label carries "(spirit scaling)", "(% of base)" like the history row;
+            # a bonus keyed by its property alone hides its scaling there, the card adds it
+            name = _label(tok, p, aid, kind, alias.get(p), paths[j], fmap)
             suffix = scaling_suffix([u.get('m_eUpgradeType'), u.get('m_eScaleStatFilter')]) if scale else ''
-            bonuses.append({'label': _label(tok, p, aid, alias.get(p)) + suffix,
-                            'value': fmt_prop(tok, p, b, aid, bonus=True)})
+            bonuses.append({'label': name['label'] + (suffix if suffix and 'scaling' not in name['label'] else ''),
+                            'value': fmt_prop(tok, p, b, aid, bonus=True, magnitude=name['sign'] == '-')})
         vals.update({o: vals[p] for p, o in alias.items() if p in vals and o not in props})
         text = fill(tok.get(f'{aid}_t{i}_desc'.lower()), vals, tok)
         tiers.append({'tier': i, 'text': text, 'bonuses': bonuses})
@@ -216,8 +238,12 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
             rows = [row(p) for p in list(attr.get('m_vecElevatedAbilityProperties') or []) + imp
                     + list(attr.get('m_vecAbilityProperties') or []) if p]
             key = str(attr.get('m_strLocString') or '').lstrip('#').lower()
+            # a property listed twice in one block (elevated and plain: Decay's "Cast Range 20m" twice)
+            # once — the first, the important one
+            seen_props: set[str] = set()
+            props_ = [r for r in rows if r and not (r['prop'] in seen_props or seen_props.add(r['prop']))]
             sections.append({'type': kind_s, 'desc': fill(tok.get(key), base_vals, tok) if key else '',
-                             'props': [r for r in rows if r]})
+                             'props': props_})
     base = loc.loc_base(tok, aid, owner)
     return {
         'id': aid, 'kind': kind, 'owner': owner,
@@ -245,13 +271,15 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None) -
 
 
 def build() -> dict:
-    head = tracker.builds()[-1]
+    head = tracker.head_build()
     tok = loc.tokens(head.commit)
     heroes = cache.vdata(head.commit, tracker.SCRIPTS + 'heroes.vdata')
     abilities = cache.vdata(head.commit, tracker.SCRIPTS + 'abilities.vdata')
     generic = cache.vdata(head.commit, tracker.SCRIPTS + 'generic_data.vdata')
     prices = generic.get('m_nItemPricePerTier') or []
     owners = hero_bound_abilities(heroes, abilities)
+    shared = shared_abilities(heroes)
+    fmap = labels.field_map()
     slots = {}
     for hid, h in heroes.items():
         for slot, aid in (h.get('m_mapBoundAbilities') or {}).items() if isinstance(h, dict) else []:
@@ -260,10 +288,11 @@ def build() -> dict:
     for aid, a in abilities.items():
         if not isinstance(a, dict) or a.get('_not_pickable'):
             continue
-        kind = ability_kind(aid, a, owners)
-        if kind not in ('ability', 'weapon', 'item'):
+        kind = ability_kind(aid, a, owners, shared)
+        # 'shared': every hero's jump / dash / parry… — a card without an owner
+        if kind not in ('ability', 'weapon', 'item', 'shared'):
             continue
-        c = card(aid, a, tok, kind, owners.get(aid))
+        c = card(aid, a, tok, kind, owners.get(aid), fmap)
         c['slot'] = slots.get(aid, '').replace('ESlot_', '')
         if c['item'] and c['item']['tier'].isdigit() and int(c['item']['tier']) < len(prices):
             c['item']['cost'] = prices[int(c['item']['tier'])]

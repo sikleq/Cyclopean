@@ -331,12 +331,26 @@ _UNIT_TAIL = re.compile(r'^([-−+]?\d+(?:\.\d+)?)(m/s|m|s|%)$')
 _BARE_NUM = re.compile(r'^[-−+]?\d+(?:\.\d+)?$')
 
 
-def _sentinel(s: str) -> str:
+_BONUS_PATH = re.compile(r'\.m_strBonus$')
+_NEG_NUM = re.compile(r'^[-−](\d+(?:\.\d+)?)')
+
+
+def _sentinel(s: str, c: dict | None = None, other: str | None = None) -> str:
     """The game's "-1" (no cap, no charge limit, the default) and an empty value, as a reader says them
-    (advisor round 3: "Channel Move Speed 8m → −1" on 29 rows, "Weapon Damage 20% →")."""
+    (advisor round 3: "Channel Move Speed 8m → −1" on 29 rows, "Weapon Damage 20% →"). Not a T1-T3 /
+    Enhanced / Corrupted bonus (`c`'s path ends .m_strBonus: "−1s" there is a second off the cooldown,
+    Djinn's Mark T3 −0.75s → −1s read "no limit"), nor a value whose other side is another negative
+    number (Sharpshooter's move speed penalty −0.5 → −1 m/s; python audit 2026-10-04)."""
     if s is None or str(s).strip() == '':
         return '—'
-    return 'no limit' if _MINUS_ONE.match(str(s).strip()) else s
+    if not _MINUS_ONE.match(str(s).strip()):
+        return s
+    if c is not None and _BONUS_PATH.search(str(c.get('path') or '')):
+        return s
+    m = _NEG_NUM.match(str(other or '').strip())
+    if m and float(m.group(1)) != 1.0:
+        return s
+    return 'no limit'
 
 
 def _same_unit(old: str, new: str) -> tuple[str, str]:
@@ -366,7 +380,7 @@ def vals_html(c: dict) -> str:
     if fl:
         return fl
     old_s, new_s = _clip(old_s), _clip(new_s)
-    old_s, new_s = _same_unit(_sentinel(old_s), _sentinel(new_s))
+    old_s, new_s = _same_unit(_sentinel(old_s, c, new_s), _sentinel(new_s, c, old_s))
     # rows without a % pill keep its slot (.pct-pad, shown only in change rows), so the new
     # values of every row end on one vertical line
     if op == 'add':

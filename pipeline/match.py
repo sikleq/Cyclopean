@@ -23,7 +23,7 @@ import json
 import re
 from dataclasses import dataclass, field
 
-from . import cache, catalog, jsonio, loc, semantics, tracker
+from . import cache, catalog, jsonio, labels, loc, semantics, tracker
 from . import match_rules as rules
 from . import patches as patches_mod
 from .classify import category
@@ -100,6 +100,11 @@ class MChange:
     invert: bool = False                          # a rate the game shows as a time (stamina per second -> cooldown)
     scale: float = 1.0                            # the patch's boon rescale for this per-boon field (old / new count)
     speed_m: bool = False                         # a speed written "20m": shown m/s (semantics.M_SPEED), display only
+    # what the page prints (pipeline.labels: one label / unit / sign per field over its history); `label`
+    # stays the window's own wording, which the note lines of that time are matched against
+    shown: str = ''
+    sign: str = ''                                # '-': the tooltip's own minus (an enemy slow), shown as a size
+    retyped: bool = False                         # the property's provided type flipped with its sign (Riposte)
 
     @property
     def key(self) -> str:
@@ -302,6 +307,22 @@ def merge_ops(first: str, then: str) -> str:
     return 'remove' if then == 'remove' else 'change'
 
 
+_PROVIDED_TYPE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.m_eProvidedPropertyType$')
+
+
+def mark_retyped(changes: list[MChange]) -> None:
+    """A property whose provided type flipped in the window (REDUCTION_PERCENT → INCREASE_PERCENT) flips
+    the sign of its numbers with it: Riposte's "Melee Resist −22% → 22%" is the same resist written the
+    other way round (`retyped` -> change_json 'same'). A sign flip without it stays a change."""
+    retyped = {(c.file, c.eid, m.group(1)) for c in changes if c.op == 'change'
+               for m in [_PROVIDED_TYPE.match(c.path)] if m}
+    if not retyped:
+        return
+    for c in changes:
+        if (c.file, c.eid, semantics.property_name(c.path)) in retyped and not _PROVIDED_TYPE.match(c.path):
+            c.retyped = True
+
+
 def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple[list[MChange], dict]:
     """Merge the builds of a window. Entities added inside the window are not
     diffed field by field (their whole data is "new"): they become one
@@ -337,13 +358,15 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                     if mc is None:
                         d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'),
                                                c.get('loc_token'))
+                        cn = labels.canonical(key, d)
                         merged[key] = MChange(
                             e['file'], tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
                             # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
                             'unit' if ce.get('units') else ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
                             [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
                             drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
-                            unit=d.get('unit', ''), invert=bool(d.get('invert')), speed_m=bool(d.get('speed_m')))
+                            unit=labels.display_unit(d, cn), invert=bool(d.get('invert')),
+                            speed_m=bool(d.get('speed_m')), shown=cn['label'], sign=cn['sign'])
                     else:
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
@@ -354,6 +377,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
         if rec.get('assets'):
             extras['assets'].append({'build': rec['build'], **rec['assets']})
     changes = [c for c in merged.values() if not (c.op == 'change' and c.old == c.new)]
+    mark_retyped(changes)
     # console variables take part in matching ("Respawn time … from 35s to 38s")
     for cv in extras['convars']:
         if cv.get('op') != 'change' or num(cv.get('old')) is None or num(cv.get('new')) is None:
@@ -1035,18 +1059,22 @@ def change_json(c: MChange) -> dict:
     kind = c.kind or ''
     dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback, c.neg_base)
     shown = semantics.M_SPEED if c.speed_m and not c.meters else c.meters
+    if not c.meters and semantics.length_in_units(c.path, c.unit, (c.old, c.new)):
+        shown = True                  # a property length no build gave a unit: engine units, shown in metres
+    magnitude = c.sign == '-'
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
-        'label': c.label,
-        'old_s': semantics.show(c.old, shown, c.unit, c.invert),
-        'new_s': semantics.show(c.new, shown, c.unit, c.invert),
+        'label': c.shown or c.label,
+        'old_s': semantics.show(c.old, shown, c.unit, c.invert, magnitude),
+        'new_s': semantics.show(c.new, shown, c.unit, c.invert, magnitude),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
-        'same': semantics.reencoded(c.old, c.new, c.path),
+        'same': semantics.reencoded(c.old, c.new, c.path) or (c.retyped and semantics.sign_flip(c.old, c.new)),
     }
 
 
-ENTITY_EVENT_KINDS = {'hero', 'item', 'ability', 'weapon', 'trooper', 'building', 'neutral', 'unit'}
+# 'shared': every hero's ability (jump, dash…), ownerless since 2026-10-04 — still an event of its own
+ENTITY_EVENT_KINDS = {'hero', 'item', 'ability', 'weapon', 'trooper', 'building', 'neutral', 'unit', 'shared'}
 # kinds that count only with proof they matter (audit B12, 2026-10-02: 102 removed abilities such
 # as Splatapult, 85 new pickups such as the permanent ammo powerup and game-rule blocks such as
 # m_RejuvParams were on no patch page): an ability with a name or an NPC that binds it; a rules
@@ -1243,7 +1271,7 @@ def unreleased_heroes(commit: str) -> set[str]:
     return out
 SHARED_NAMES = {'heroes.vdata': 'All heroes', 'abilities.vdata': 'Many abilities & items',
                 'npc_units.vdata': 'Many units', 'misc.vdata': 'Many map objects', 'modifiers.vdata': 'Many modifiers'}
-KEY_KINDS = {'hero', 'ability', 'weapon', 'item', 'building', 'trooper', 'neutral'}
+KEY_KINDS = {'hero', 'ability', 'weapon', 'item', 'building', 'trooper', 'neutral', 'shared'}
 KEY_LIMIT = 24
 
 
@@ -1276,7 +1304,7 @@ def key_changes(ents: list[dict]) -> list[dict]:
     """The biggest balance moves of the window (by |percent|) for a summary."""
     rows = []
     for e in ents:
-        if e.get('kind') not in KEY_KINDS or _TEST_ENTITY.search(e.get('id', '')) \
+        if e.get('kind') not in KEY_KINDS or e.get('id') == '@shared' or _TEST_ENTITY.search(e.get('id', '')) \
                 or _TEST_ENTITY.search(e.get('name') or ''):
             continue
         for c in e['changes']:

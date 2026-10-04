@@ -156,7 +156,8 @@ SCOPES: tuple[tuple[re.Pattern, object], ...] = (
     (re.compile(r'\bultimates?\b'), lambda e, c: e.get('ability_slot') == 'Signature_4'),
     (re.compile(r'\b(items?|upgrades?)\b'), lambda e, c: e.get('kind') == 'item'),
     (re.compile(r'\babilit(y|ies)\b'), lambda e, c: e.get('kind') == 'ability'),
-    (re.compile(r'\bheroes\b'), lambda e, c: e.get('kind') in ('hero', 'ability', 'weapon')),
+    # every hero's jump / dash / slide (kind 'shared' since 2026-10-04) is a hero thing too
+    (re.compile(r'\bheroes\b'), lambda e, c: e.get('kind') in ('hero', 'ability', 'weapon', 'shared')),
 )
 _PCT = re.compile(r'(increased|reduced|decreased|lowered|raised|by)\D{0,12}?~?(\d+(?:\.\d+)?)\s*%', re.I)
 _GLOBAL = re.compile(r'\b(all|every|global(ly)?|across the board)\b', re.I)
