@@ -1,0 +1,333 @@
+{
+  "_why": "Coverage audit 2026-10-05 (owner: 'I want to see ALL changes to everything in the game'): 2,040 gameplay changes (1,340 not in the patch notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04, crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables). They are the Game section (builders/game_systems.py): a system is a page like a unit family's, its parts are groups of entries. Every rule is a regex tried from the start of a subject, systems and parts in this order, the first match wins. Subjects: an entry 'file:id#kind' ('misc.vdata:citadel_breakable_item_container#global'), a row of a rule for every hero or ability 'file:@all:path' ('heroes.vdata:@all:m_mapLevelInfo.10…'), a console variable 'convar:name'. Whatever no system names falls to 'other' (nothing is lost); a console variable only shows when a part names it (UI, bots and debug switches stay in the patch archive). Names: the game's files give most of these entries no text, so the site names them here (never their ids); icons come from the game files (icons/…) or the site's pixel glyphs ('glyph:…'), never invented art.",
+  "_why_display": "The order the pages list the systems in (the 'systems' order below is the regexes' precedence: the Urn's soul orbs before every soul orb).",
+  "display": ["souls", "respawn", "progression", "urn", "pickups", "breakables", "troopers", "camps", "shop", "combat", "modes", "other"],
+  "systems": [
+    {
+      "id": "urn",
+      "name": "Urn & Unstable Rift",
+      "icon": "abilities/ability_golden_idol.webp",
+      "subjects": ["Soul Urn", "Urn", "Unstable Rift", "Rift", "Idol"],
+      "parts": [
+        {"id": "urn", "name": "Soul Urn", "match": [
+          "abilities[.]vdata:ability_golden_idol#",
+          "misc[.]vdata:(citadel_idol_cashin|xp_orb_idol_dropoff|citadel_item_pickup_idol)#",
+          "modifiers[.]vdata:modifier_(idol_|citadel_idol_|citadel_holding_golden_idol)",
+          "generic_data[.]vdata:m_IdolParams#",
+          "convar:citadel_(idol_|golden_idol_|allow_biased_urn)"]},
+        {"id": "rift", "name": "Unstable Rift", "match": [
+          "misc[.]vdata:(citadel_koth_cashin|citadel_item_koth_spawner|xp_orb_koth_giveup)#",
+          "generic_data[.]vdata:m_KothParams#",
+          "convar:citadel_koth_"]}
+      ]
+    },
+    {
+      "id": "respawn",
+      "name": "Respawn",
+      "icon": "stats/prop/duration.svg",
+      "subjects": ["Respawn", "Respawn time", "Respawn times"],
+      "parts": [
+        {"id": "respawn", "name": "Respawn", "match": [
+          "convar:citadel_(player_spawn_time|death_return_to_spawn)",
+          "modifiers[.]vdata:modifier_citadel_respawn_credit#"]}
+      ]
+    },
+    {
+      "id": "breakables",
+      "name": "Breakables & crates",
+      "icon": "glyph:loot",
+      "subjects": ["Crate", "Crates", "Breakables", "Breakable", "Buff Containers"],
+      "parts": [
+        {"id": "crates", "name": "Crates & breakables", "match": [
+          "misc[.]vdata:(citadel_breakable_|citadel_punchable_powerup_base#)",
+          "generic_data[.]vdata:m_Breakable",
+          "loot_tables[.]vdata:",
+          "convar:citadel_crate_"]}
+      ]
+    },
+    {
+      "id": "souls",
+      "name": "Souls & economy",
+      "icon": "stats/prop/souls.svg",
+      "subjects": ["Souls", "Soul", "Bounty", "Comeback"],
+      "parts": [
+        {"id": "objectives", "name": "Objective bounties", "match": ["generic_data[.]vdata:m_ObjectiveParams#"]},
+        {"id": "share", "name": "Soul sharing", "match": [
+          "generic_data[.]vdata:m_fl[A-Za-z]*GoldShareFrac#",
+          "convar:citadel_(trooper_instant_gold_ratio|comeback_redirect|secure_souls|trigger_secure_souls)"]},
+        {"id": "orbs", "name": "Soul orbs & gold", "match": [
+          "misc[.]vdata:(xp_orb|dropped_soul_orb|small_gold_pickup|big_gold_pickup|extra_gold_pickup|citadel_item_punchable_gold|souls_powerup_pickup|citadel_herotest_orbspawner)"]},
+        {"id": "rewards", "name": "Soul rewards", "match": [
+          "convar:citadel_[a-z0-9_]*(gold|comeback|bounty|reward|soul)"]}
+      ]
+    },
+    {
+      "id": "pickups",
+      "name": "Pickups & powerups",
+      "icon": "misc/gun_powerup_pickup.svg",
+      "subjects": ["Powerup", "Powerups", "Rejuvenator", "Golden Statue", "Golden Statues"],
+      "parts": [
+        {"id": "powerups", "name": "Powerups", "match": [
+          "misc[.]vdata:[a-z_]*powerup",
+          "misc[.]vdata:citadel_(change_team|refresh)_spawner#",
+          "misc[.]vdata:(fire_rate|move_speed|extra_stamina|health_regen|clip_size|cooldown_reduction|double_jump|zipline_speed)_pickup#",
+          "convar:citadel_pickup_spawner"]},
+        {"id": "buffs", "name": "Permanent buffs", "match": [
+          "misc[.]vdata:[a-z]+_permanent_pickup",
+          "misc[.]vdata:permanent_pickup_base#"]},
+        {"id": "rejuv", "name": "Rejuvenator", "match": [
+          "generic_data[.]vdata:m_RejuvParams#",
+          "misc[.]vdata:citadel_item_pickup_rejuv",
+          "modifiers[.]vdata:modifier_rejuv"]},
+        {"id": "health", "name": "Health & item pickups", "match": [
+          "misc[.]vdata:(medic_trooper_aoe_health_pickup|street_brawl_health_pickup|small_health_pickup|citadel_pickup_|floating_apple_pickup|dropped_necro_pickup|citadel_item_pickup#|item_pickup#)"]}
+      ]
+    },
+    {
+      "id": "progression",
+      "name": "Hero progression",
+      "icon": "glyph:heroes",
+      "subjects": ["Boon", "Boons", "Level", "Levels"],
+      "parts": [
+        {"id": "levels", "name": "Level curve", "match": ["heroes[.]vdata:@all:(m_mapLevelInfo|level:)"]},
+        {"id": "invest", "name": "Investment bonuses", "match": ["heroes[.]vdata:@all:m_MapModCostBonuses"]},
+        {"id": "purchase", "name": "Purchase bonuses", "match": ["heroes[.]vdata:@all:m_mapPurchaseBonuses"]},
+        {"id": "boons", "name": "Boon upgrades", "match": ["heroes[.]vdata:@all:m_mapStandardLevelUpUpgrades"]},
+        {"id": "every", "name": "Every hero", "match": [
+          "heroes[.]vdata:@all:",
+          "heroes[.]vdata:",
+          "generic_data[.]vdata:m_HeroTestingTargetDummyUpgrades#"]}
+      ]
+    },
+    {
+      "id": "troopers",
+      "name": "Troopers & lanes",
+      "icon": "units/_class/trooper.webp",
+      "subjects": ["Trooper", "Troopers", "Lane", "Lanes"],
+      "parts": [
+        {"id": "troopers", "name": "Troopers", "match": [
+          "npc_units[.]vdata:trooper",
+          "abilities[.]vdata:(trooper_grenade|ability_medic_trooper_heal|citadel_ability_trooper_zip_line)#",
+          "convar:citadel_(npc_)?trooper_"]},
+        {"id": "lanes", "name": "Lanes & ziplines", "match": [
+          "generic_data[.]vdata:(m_LaneInfo|m_NoLaneZip)#",
+          "convar:citadel_(lane_|zipline_)"]}
+      ]
+    },
+    {
+      "id": "camps",
+      "name": "Neutral camps & Mid-Boss",
+      "icon": "units/neutral_lantern_normal.webp",
+      "subjects": ["Neutrals", "Neutral", "Camps", "Mid Boss", "Mid-Boss", "Midboss"],
+      "parts": [
+        {"id": "camps", "name": "Neutral camps", "match": [
+          "npc_units[.]vdata:neutral",
+          "misc[.]vdata:neutral_camp",
+          "abilities[.]vdata:(super_neutral_|trooper_neutral_)",
+          "convar:citadel_(neutral_|super_neutral_)"]},
+        {"id": "midboss", "name": "Mid-Boss", "match": ["modifiers[.]vdata:midboss"]}
+      ]
+    },
+    {
+      "id": "shop",
+      "name": "Shop & item rules",
+      "icon": "shop/tab_all.webp",
+      "subjects": ["Shop", "Corrupted items", "Corrupted Item Shop"],
+      "parts": [
+        {"id": "prices", "name": "Prices & slots", "match": [
+          "generic_data[.]vdata:(m_nItemPricePerTier|m_vecArmorGroups|m_vecWeaponGroups|m_vecSpiritGroups)#",
+          "abilities[.]vdata:@all:m_nUpgradeSlotCost",
+          "abilities[.]vdata:(tier5_base|armor_upgrade_t5|tech_upgrade_t5|weapon_upgrade_t5|item_projectile_test_[0-9]+)#"]},
+        {"id": "corrupted", "name": "Corrupted items", "match": [
+          "generic_data[.]vdata:(m_nItemCorruptionPricePerTier|m_vecCorruptedPenaltyDefs)#",
+          "misc[.]vdata:citadel_trigger_corrupted_item_shop#",
+          "convar:citadel_(corrupted_|item_purchases_force_corrupted|allow_purchasing_corrupted)"]}
+      ]
+    },
+    {
+      "id": "combat",
+      "name": "Movement & combat",
+      "icon": "stats/StatDesc/DashSpeedInMeters.svg",
+      "subjects": ["Movement", "Dash", "Jump", "Slide", "Mantle", "Zipline", "Zip Line", "Parry", "Melee", "Heavy Melee", "Jump Pad"],
+      "parts": [
+        {"id": "moves", "name": "Every hero's abilities", "match": ["abilities[.]vdata:[a-z0-9_]+#shared$"]},
+        {"id": "melee", "name": "Every melee attack", "match": [
+          "abilities[.]vdata:@all:(m_mapAttacks|m_HeavyAttackData|m_HeavyAirAttackData|m_flHeavyMeleeMaxTurnRate|m_AirMeleeUpScale|m_flBackDashDodgeDist|m_flSideDashDodgeDist|m_mapAbilityProperties)"]},
+        {"id": "guns", "name": "Every gun", "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
+        {"id": "rules", "name": "Combat rules", "match": [
+          "abilities[.]vdata:@all:",
+          "modifiers[.]vdata:(modifier_crowd_control_diminish_watcher|modifier_citadel_catapult_damage_watcher|modifier_zipline_|modifier_citadel_knockdown|modifier_speed_boost|modifier_citadel_unstick|modifier_combat_status|citadel_modifier_teleport|modifier_obscured_by_steam|modifier_bullet_shield_tracker|modifier_magic_shield_tracker|modifier_shield_tracker_base)#",
+          "convar:citadel_(movement_|movespeed_|stamina_|ability_damage_falloff|damage_falloff)"]}
+      ]
+    },
+    {
+      "id": "modes",
+      "name": "Modes",
+      "icon": "glyph:rules",
+      "subjects": ["Street Brawl"],
+      "parts": [
+        {"id": "brawl", "name": "Street Brawl", "match": [
+          "generic_data[.]vdata:m_StreetBrawl#",
+          "misc[.]vdata:street_brawl",
+          "modifiers[.]vdata:modifier_streetbrawl",
+          "convar:citadel_street_brawl"]}
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Other rules & objects",
+      "icon": "glyph:map",
+      "subjects": [],
+      "parts": [
+        {"id": "abilities", "name": "Abilities with no hero", "match": ["abilities[.]vdata:"]},
+        {"id": "objects", "name": "Map objects", "match": ["misc[.]vdata:"]},
+        {"id": "modifiers", "name": "Effects", "match": ["modifiers[.]vdata:"]},
+        {"id": "rules", "name": "Game rules", "match": ["generic_data[.]vdata:"]},
+        {"id": "units", "name": "Units", "match": ["npc_units[.]vdata:"]},
+        {"id": "rest", "name": "Other", "match": ["[a-z_]+[.]vdata:"]}
+      ]
+    }
+  ],
+  "_why_convars": "Console variables show only when a part names them, the game server reads them ('gamedll' in their flags) and their name is no test or display switch (`hide`): crate respawn times are flagged 'cheat' and are the real values, so flags alone cannot tell. The first build with console variables (6395, 2026-03-10) is where tracking starts: its 1,365 entries are a snapshot, not changes.",
+  "convar_hide": "(debug|_log|log_|bot_|_bot|test|_wip|wip_|experiment|cache|query|validate|audit|anim|nav|hitbox|motor|glow|celebration|visibility|_text|offset|status|stuck|waypoint|think|per_tick|tick_limit|hero_demo|release_vote|forced_hero|model|observer|stateful|pipeline|use_new|_v2|override|biased)",
+  "_why_polarity": "A console variable's side for whoever takes it, from its snake_case name (the vdata polarity rules read CamelCase fields): more souls is better for the taker, a shorter respawn or spawn timer too (semantics.PLAYER_SIDE); a ramp's time, comeback scales and warnings have no side (UP / DOWN). First match wins; no match = no side.",
+  "convar_polarity": [
+    ["spawn_time_[a-z0-9_]*_time$", 0],
+    ["(spawn_time|death_return_to_spawn)", -1],
+    ["(comeback|difficulty|redirect|ratio|fraction)", 0],
+    ["(gold_reward|gold_drop|reward_base|reward_time_multiplier|bounty|gold_amount|reward_buff_count|buff_count|orbs_to_spawn)", 1],
+    ["(respawn_interval|spawn_initial_delay|initial_delay)", -1]
+  ],
+  "names": {
+    "abilities.vdata:ability_golden_idol": "Drop Soul Urn",
+    "misc.vdata:citadel_idol_cashin": "Soul Urn delivery",
+    "misc.vdata:xp_orb_idol_dropoff": "Soul Urn souls",
+    "misc.vdata:citadel_item_pickup_idol": "Soul Urn pickup",
+    "modifiers.vdata:modifier_idol_pickup_aura": "Soul Urn pickup aura",
+    "modifiers.vdata:modifier_citadel_idol_walkback": "Soul Urn carrier",
+    "modifiers.vdata:modifier_citadel_holding_golden_idol": "Holding the Soul Urn",
+    "modifiers.vdata:modifier_idol_comeback": "Soul Urn comeback bonus",
+    "modifiers.vdata:modifier_citadel_idol_return": "Soul Urn return",
+    "generic_data.vdata:m_IdolParams": "Soul Urn rules",
+    "misc.vdata:citadel_koth_cashin": "Unstable Rift",
+    "misc.vdata:citadel_item_koth_spawner": "Unstable Rift spawner",
+    "misc.vdata:xp_orb_koth_giveup": "Unstable Rift souls",
+    "generic_data.vdata:m_KothParams": "Unstable Rift rules",
+    "modifiers.vdata:modifier_citadel_respawn_credit": "Respawn credit",
+    "misc.vdata:citadel_breakable_item_container": "Crate",
+    "misc.vdata:citadel_breakable_prop_drop_powerups": "Breakable (powerups)",
+    "misc.vdata:citadel_breakable_prop_drop_gold": "Breakable (souls)",
+    "misc.vdata:citadel_breakable_prop_base": "Breakable template",
+    "misc.vdata:citadel_breakable_prop_tough_crate": "Tough Crate",
+    "misc.vdata:citadel_breakable_bell_chinatown": "Chinatown bell",
+    "misc.vdata:citadel_breakable_prop_car": "Breakable car",
+    "generic_data.vdata:m_BreakableSpawnTimeDesc": "Breakable spawn times",
+    "generic_data.vdata:m_BreakablePowerupLootParams": "Breakable powerup loot",
+    "generic_data.vdata:m_ObjectiveParams": "Objective bounties",
+    "generic_data.vdata:m_flLanePhaseGoldShareFrac": "Soul share in the laning phase",
+    "generic_data.vdata:m_flPostLanePhaseGoldShareFrac": "Soul share after the laning phase",
+    "generic_data.vdata:m_flHeroKillGoldShareFrac": "Soul share of a hero kill",
+    "generic_data.vdata:m_flTrooperKillGoldShareFrac": "Soul share of a trooper kill",
+    "misc.vdata:xp_orb": "Soul orb",
+    "misc.vdata:xp_orb_trooper": "Soul orb (trooper)",
+    "misc.vdata:xp_orb_siege_trooper": "Soul orb (siege trooper)",
+    "misc.vdata:xp_orb_neutral": "Soul orb (neutral)",
+    "misc.vdata:xp_orb_objective": "Soul orb (objective)",
+    "misc.vdata:xp_orb_player_kill": "Soul orb (hero kill)",
+    "misc.vdata:xp_orb_vault": "Soul orb (vault)",
+    "misc.vdata:xp_orb_spawner": "Soul orb spawner",
+    "misc.vdata:dropped_soul_orb": "Dropped soul orb",
+    "misc.vdata:small_gold_pickup": "Small soul pickup",
+    "misc.vdata:big_gold_pickup": "Big soul pickup",
+    "misc.vdata:extra_gold_pickup": "Extra soul pickup",
+    "misc.vdata:citadel_item_punchable_gold": "Punchable soul pickup",
+    "misc.vdata:souls_powerup_pickup": "Souls powerup",
+    "misc.vdata:gun_powerup_pickup": "Weapon powerup",
+    "misc.vdata:survival_powerup_pickup": "Vitality powerup",
+    "misc.vdata:movement_powerup_pickup": "Movement powerup",
+    "misc.vdata:casting_powerup_pickup": "Spirit powerup",
+    "misc.vdata:citadel_item_powerup_spawner": "Powerup spawner",
+    "misc.vdata:citadel_item_powerup_spawner_bounty_runes": "Bounty powerup spawner",
+    "misc.vdata:fire_rate_pickup": "Fire rate powerup",
+    "misc.vdata:move_speed_pickup": "Move speed powerup",
+    "misc.vdata:extra_stamina_pickup": "Stamina powerup",
+    "misc.vdata:health_regen_pickup": "Health regen powerup",
+    "misc.vdata:clip_size_pickup": "Ammo powerup",
+    "misc.vdata:cooldown_reduction_pickup": "Cooldown powerup",
+    "misc.vdata:double_jump_pickup": "Double jump powerup",
+    "misc.vdata:zipline_speed_pickup": "Zipline speed powerup",
+    "misc.vdata:permanent_pickup_base": "Permanent buff template",
+    "misc.vdata:hp_permanent_pickup": "Permanent buff: health",
+    "misc.vdata:hp_permanent_pickup_lv2": "Permanent buff: health II",
+    "misc.vdata:hp_permanent_pickup_lv3": "Permanent buff: health III",
+    "misc.vdata:wp_permanent_pickup": "Permanent buff: weapon damage",
+    "misc.vdata:wp_permanent_pickup_lv2": "Permanent buff: weapon damage II",
+    "misc.vdata:wp_permanent_pickup_lv3": "Permanent buff: weapon damage III",
+    "misc.vdata:spirit_permanent_pickup": "Permanent buff: spirit power",
+    "misc.vdata:spirit_permanent_pickup_lv2": "Permanent buff: spirit power II",
+    "misc.vdata:spirit_permanent_pickup_lv3": "Permanent buff: spirit power III",
+    "misc.vdata:cd_permanent_pickup": "Permanent buff: cooldown",
+    "misc.vdata:cd_permanent_pickup_lv2": "Permanent buff: cooldown II",
+    "misc.vdata:cd_permanent_pickup_lv3": "Permanent buff: cooldown III",
+    "misc.vdata:ammo_permanent_pickup": "Permanent buff: ammo",
+    "misc.vdata:ammo_permanent_pickup_lv2": "Permanent buff: ammo II",
+    "misc.vdata:ammo_permanent_pickup_lv3": "Permanent buff: ammo III",
+    "misc.vdata:firerate_permanent_pickup": "Permanent buff: fire rate",
+    "misc.vdata:firerate_permanent_pickup_lv2": "Permanent buff: fire rate II",
+    "misc.vdata:firerate_permanent_pickup_lv3": "Permanent buff: fire rate III",
+    "misc.vdata:bulletresist_permanent_pickup": "Permanent buff: bullet resist",
+    "misc.vdata:bulletresist_permanent_pickup_lv2": "Permanent buff: bullet resist II",
+    "misc.vdata:bulletresist_permanent_pickup_lv3": "Permanent buff: bullet resist III",
+    "misc.vdata:spiritresist_permanent_pickup": "Permanent buff: spirit resist",
+    "misc.vdata:spiritresist_permanent_pickup_lv2": "Permanent buff: spirit resist II",
+    "misc.vdata:spiritresist_permanent_pickup_lv3": "Permanent buff: spirit resist III",
+    "misc.vdata:movespeed_permanent_pickup": "Permanent buff: move speed",
+    "misc.vdata:movespeed_permanent_pickup_lv2": "Permanent buff: move speed II",
+    "misc.vdata:movespeed_permanent_pickup_lv3": "Permanent buff: move speed III",
+    "misc.vdata:range_permanent_pickup": "Permanent buff: ability range",
+    "misc.vdata:range_permanent_pickup_lv2": "Permanent buff: ability range II",
+    "misc.vdata:range_permanent_pickup_lv3": "Permanent buff: ability range III",
+    "generic_data.vdata:m_RejuvParams": "Rejuvenator rules",
+    "misc.vdata:citadel_item_pickup_rejuv": "Rejuvenator",
+    "misc.vdata:citadel_item_pickup_rejuv_herotest": "Rejuvenator (Hero Labs)",
+    "modifiers.vdata:modifier_rejuv_pickup_aura": "Rejuvenator pickup aura",
+    "misc.vdata:medic_trooper_aoe_health_pickup_amber": "Medic Trooper heal (Amber)",
+    "misc.vdata:medic_trooper_aoe_health_pickup_sapphire": "Medic Trooper heal (Sapphire)",
+    "misc.vdata:street_brawl_health_pickup": "Street Brawl health pickup",
+    "misc.vdata:small_health_pickup": "Small health pickup",
+    "misc.vdata:dropped_necro_pickup": "Dropped pickup (Necro)",
+    "generic_data.vdata:m_HeroTestingTargetDummyUpgrades": "Hero Labs target dummy",
+    "generic_data.vdata:m_LaneInfo": "Lanes",
+    "generic_data.vdata:m_NoLaneZip": "Ziplines outside the lanes",
+    "generic_data.vdata:m_nItemPricePerTier": "Item price per tier",
+    "generic_data.vdata:m_nItemCorruptionPricePerTier": "Corrupted item price per tier",
+    "generic_data.vdata:m_vecCorruptedPenaltyDefs": "Corrupted item penalties",
+    "generic_data.vdata:m_vecArmorGroups": "Vitality item groups",
+    "generic_data.vdata:m_vecWeaponGroups": "Weapon item groups",
+    "generic_data.vdata:m_vecSpiritGroups": "Spirit item groups",
+    "misc.vdata:citadel_trigger_corrupted_item_shop": "Corrupted item shop",
+    "modifiers.vdata:modifier_crowd_control_diminish_watcher": "Crowd control diminishing returns",
+    "modifiers.vdata:modifier_citadel_catapult_damage_watcher": "Jump pad",
+    "modifiers.vdata:modifier_zipline_speed_player_generator_kill": "Zipline speed bonus",
+    "modifiers.vdata:modifier_citadel_knockdown": "Knockdown",
+    "modifiers.vdata:modifier_citadel_unstick": "Unstuck",
+    "modifiers.vdata:modifier_combat_status": "In combat",
+    "modifiers.vdata:modifier_combat_status_bullet_hit": "In combat (bullet hit)",
+    "modifiers.vdata:citadel_modifier_teleport": "Teleport",
+    "modifiers.vdata:modifier_obscured_by_steam": "Obscured by steam",
+    "modifiers.vdata:modifier_bullet_shield_tracker": "Bullet shield",
+    "modifiers.vdata:modifier_magic_shield_tracker": "Spirit shield",
+    "modifiers.vdata:modifier_shield_tracker_base": "Shield template",
+    "modifiers.vdata:midboss_modifier_damage_resistance": "Mid-Boss damage resistance",
+    "generic_data.vdata:m_StreetBrawl": "Street Brawl rules",
+    "modifiers.vdata:modifier_streetbrawl_buyphase_drafting": "Street Brawl draft",
+    "misc.vdata:neutral_camp_weak": "Neutral camp (tier I)",
+    "misc.vdata:neutral_camp_medium": "Neutral camp (tier II)",
+    "misc.vdata:neutral_camp_strong": "Neutral camp (tier III)",
+    "misc.vdata:neutral_camp_vaults": "Vault camp",
+    "misc.vdata:neutral_camp_midboss": "Mid-Boss camp",
+    "npc_units.vdata:neutral_base": "Neutral template",
+    "npc_units.vdata:trooper_base": "Trooper template",
+    "heroes.vdata:hero_base": "Hero template"
+  }
+}

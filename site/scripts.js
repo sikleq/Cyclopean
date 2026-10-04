@@ -320,13 +320,14 @@
       }
       // a hero's changes are grouped by part (base stats, weapon, abilities) and name the ability — an
       // item's or unit's are about the row itself
-      var hero = !!c[3], lastPart = null, rows = '';
+      // a Game system's row names the entry each change is about too (the Soul Urn's pickup, its aura…)
+      var hero = !!c[3], what = hero || table.hasAttribute('data-what'), lastPart = null, rows = '';
       samples.forEach(function (s) {
         if (hero && s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
           lastPart = s[5];
           rows += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
         }
-        rows += '<tr>' + (hero ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
+        rows += '<tr>' + (what ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
           '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
       });
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
@@ -1203,8 +1204,9 @@
       b.__rc = true;
       var counts = {}, hidden = 0;
       b.querySelectorAll('.erow').forEach(function (r) {
-        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.parentNode.tagName === 'SUMMARY' ||
-            inAll(r)) return;
+        // a code line and a name / description change (text_rows) are no counted change
+        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.classList.contains('st-text') ||
+            r.parentNode.tagName === 'SUMMARY' || inAll(r)) return;
         var bs = behind(r);
         if (bs) {
           bs.forEach(function (e) {
@@ -1235,6 +1237,8 @@
       var onlyHidden = box.classList.contains('only-hidden'), dev = box.classList.contains('show-dev');
       var active = !!(state.tags.length || state.area || state.ab || onlyHidden);
       box.classList.toggle('filtering', active);
+      // a tag or the eye picks rows: a name / description change is none (text_rows); a part or ability keeps it
+      box.classList.toggle('filtering-rows', !!(state.tags.length || onlyHidden));
       var blocks = box.querySelectorAll('details.pblock');
       // a band still in its <template> says what it holds (data-tags / -abs / -areas, has-hidden): one that
       // cannot match is folded away unstamped (the first filter stamped all 33 of Calico's)
@@ -1269,6 +1273,8 @@
             fams[fi].classList.toggle('f-out',
               !fams[fi].querySelector(':scope > .erow:not(.f-out), :scope > details.fam:not(.f-out)'));
           }
+          // a description change (a fold of its own, text_rows) keeps its group under a part or ability filter
+          if (!gany && gok && !state.tags.length && !onlyHidden && g.querySelector('details.txt')) gany = true;
           g.classList.toggle('f-out', !gany);
           any = any || gany;
         });

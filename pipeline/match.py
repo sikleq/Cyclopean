@@ -1325,7 +1325,7 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         'sections': sections,
         'entities': ents,
         'key_changes': key_changes(ents),
-        'extras': slim_extras(extras),
+        'extras': slim_extras(extras, cat),
         'counts': counts,
         'line_counts': line_counts,
     }
@@ -1401,12 +1401,17 @@ def key_changes(ents: list[dict]) -> list[dict]:
 LOC_GROUPS = ('citadel_heroes', 'citadel_mods', 'citadel_attributes', 'citadel_main',
               'citadel_gc_mod_names', 'citadel_gc_hero_names')
 LOC_LIMIT = 400
-CONVAR_LIMIT = 300
+# console variables are kept whole (coverage audit 2026-10-05: the list stopped at 300 of City Never Sleeps' 510
+# without a word, and the Game section reads respawn times and soul rewards from them); the noted ones first
+_CONVAR_ORDER = {'documented': 0, 'described': 0, 'rounded': 0, 'mismatch': 0}
+_CONVAR_OP = {'change': 0, 'desc': 1, 'remove': 2, 'add': 3}
 
 
-def slim_extras(extras: dict) -> dict:
-    """Patch pages show a capped list of text/convar changes and asset totals;
-    the full per-build detail stays on the build pages."""
+def slim_extras(extras: dict, cat: dict[str, dict] | None = None) -> dict:
+    """Patch pages show a capped list of text changes, every console variable and asset totals; the full
+    per-build detail stays on the build pages. `texts`: the name / description changes of the abilities, items
+    and heroes a page shows, uncapped (`pipeline/entity_texts.py`)."""
+    from .entity_texts import entity_texts
     loc_rows = [x for x in extras['loc'] if x.get('group') in LOC_GROUPS]
     totals: dict[str, dict[str, int]] = {}
     hero_models: set[str] = set()
@@ -1418,7 +1423,10 @@ def slim_extras(extras: dict) -> dict:
         hero_models |= set(a.get('hero_models', {}))
     return {
         'loc': loc_rows[:LOC_LIMIT], 'loc_total': len(loc_rows),
-        'convars': extras['convars'][:CONVAR_LIMIT], 'convars_total': len(extras['convars']),
+        'texts': entity_texts(extras['loc'], cat or {}),
+        'convars': sorted(extras['convars'], key=lambda x: (_CONVAR_ORDER.get(x.get('status'), 1),
+                                                            _CONVAR_OP.get(x.get('op'), 4), x.get('build') or 0)),
+        'convars_total': len(extras['convars']),
         'assets': {'counts': dict(sorted(totals.items())), 'hero_models': sorted(hero_models)},
     }
 

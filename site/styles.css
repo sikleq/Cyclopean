@@ -655,6 +655,23 @@ details.shr-all > summary .erow .vv { font-size: 13px; }
 .hblocks .erow .vv .pct, .hblocks .erow .vv .pct-pad { order: 2; flex: none; margin-left: 0; }
 /* a line from the notes about the game's code has no values: its text takes the whole row */
 .hblocks .erow.st-code { grid-template-columns: 22px var(--tag-w) minmax(0, 1fr) auto; }
+/* a name / description change (builders/text_rows.py): no tag, never counted; a description opens on the old text
+   and the new one, the words that went struck through, the words that came lit; a filter hides them */
+.hblocks .erow.st-text .tx { color: var(--label); }
+details.txt > summary { list-style: none; cursor: pointer; }
+details.txt > summary::-webkit-details-marker { display: none; }
+details.txt > summary .erow .tx::after { content: " +"; color: var(--patina); }
+details.txt[open] > summary .erow .tx::after { content: " -"; }
+.txt-diff { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 18px; margin: 0 14px 8px 48px;
+  font-size: 13px; line-height: 1.45; }
+.txt-diff p { margin: 0; padding: 6px 10px; background: var(--bg-panel-2); }
+.txt-diff .txt-old { color: var(--text-dim); }
+.txt-diff del { color: var(--tag-del); text-decoration-color: var(--arrow); }
+.txt-diff ins { color: var(--text-bright); text-decoration: none; box-shadow: inset 0 -2px 0 var(--patina); }
+.hblocks.filtering-rows details.txt, .hblocks.filtering-rows .erow.st-text { display: none; }
+@media (max-width: 700px) {
+  .txt-diff { grid-template-columns: minmax(0, 1fr); margin-left: 12px; }
+}
 /* a removed value (DEL: the old value alone) reads struck through */
 .hblocks .erow .vals > .old:first-child:nth-last-child(2) { text-decoration: line-through; text-decoration-color: var(--arrow); }
 /* the entity's patch strip (history_view.patch_strip): newest first like the history below it, ONE row —
@@ -1224,8 +1241,8 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 .home-stats .hs.hidden .n { color: var(--eye); text-shadow: 0 0 12px var(--eye-glow); }
 .home-stats .hs.mismatch { box-shadow: inset 4px 0 0 var(--tag-mismatch), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.mismatch .n { color: var(--tag-mismatch); }
-/* the three sections as tiles; their art is the section's own icons */
-.home-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin: 0 3px 26px; }
+/* the four sections as tiles; their art is the section's own icons */
+.home-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 3px 26px; }
 .htile { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 6px 14px; min-height: 120px;
   padding: 16px 18px; overflow: hidden; color: var(--text-bright); transition: transform 120ms steps(3); }
 .htile:hover { --frame: var(--patina); transform: translateY(-2px); }
@@ -1234,6 +1251,28 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 .htile .ht-art { grid-column: 1 / -1; display: flex; gap: 6px; }
 .htile .ht-art img { width: 40px; height: 40px; object-fit: cover; background: var(--bg-panel-4); }
 .htile.items .ht-art img { background: none; }
+/* the Game systems' icons are glyphs and small paintings from the game files: whole, not cropped */
+.htile.game .ht-art img { object-fit: contain; padding: 5px; }
+/* the Game section (builders/game_pages.py): a system's card holds its icon, glyph or painting, at one size */
+.game-card img, .game-card .glyph { width: 72px; height: 72px; object-fit: contain; }
+.game-card .glyph { color: var(--label); }
+.dyn td.name .mx-g { display: inline-block; width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; color: var(--label); }
+/* Game rules: one table, a band row per system; centred cells and translucent lines both ways, names left */
+table.game-rules { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 560px; }
+table.game-rules th, table.game-rules td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
+table.game-rules thead th { font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
+table.game-rules td.nm { text-align: left; color: var(--text-main); }
+table.game-rules td.v { color: var(--text-bright); white-space: nowrap; }
+table.game-rules td.has-hist { cursor: help; text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
+table.game-rules tr.sec td { text-align: left; background: var(--bg-panel-2); border-color: var(--grid-strong);
+  font: 18px/1 var(--font-label); text-transform: uppercase; letter-spacing: .05em; }
+table.game-rules tr.sec a { color: var(--label); display: inline-flex; align-items: center; gap: 8px; }
+table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; color: var(--label); }
+@media (max-width: 700px) {
+  table.game-rules { min-width: 0; width: 100%; }
+  table.game-rules th, table.game-rules td { padding: 5px 6px; }
+  table.game-rules td.nm code { word-break: break-all; }
+}
 .home-h { margin: 6px 3px 12px; }
 /* what each of the latest updates changed: a strip of icons per section, each opens that page at that update */
 .update { margin: 0 3px 16px; padding: 0 0 12px; }
@@ -1249,6 +1288,7 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 .lu.net-buff { --lu-c: var(--tag-buff); }
 .lu.net-nerf { --lu-c: var(--tag-nerf); }
 .lu img, .lu .glyph { display: block; width: 44px; height: 44px; object-fit: cover; }
+.lu.lu-game img, .lu.lu-game .glyph { object-fit: contain; padding: 7px; color: var(--label); }
 .lu:hover { box-shadow: 0 0 0 2px var(--patina), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
 .lu-n { position: absolute; right: 1px; bottom: 3px; padding: 0 3px; font: 600 11px/14px var(--font-ui); color: var(--text-bright);
   background: var(--shadow); }
@@ -1259,6 +1299,9 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 .lu-nm { position: absolute; left: -15px; top: 48px; width: 74px; font: 600 11px/1.15 var(--font-ui); color: var(--text-dim);
   text-align: center; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 .lu:hover .lu-nm { color: var(--text-bright); }
+@media (max-width: 1180px) {
+  .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 860px) {
   .home-tiles { grid-template-columns: minmax(0, 1fr); }
   .home-stats { margin-left: 0; }

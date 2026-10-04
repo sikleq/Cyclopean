@@ -408,6 +408,8 @@ def shared_chip(c: dict) -> str:
     for all of them sits in its own fold instead (`every_rows`)."""
     if not c.get('shared_n') or is_every(c):
         return ''
+    if c.get('shared_every'):        # the Game section lists a rule for all of them as its own row
+        return f' <span class="chip shr">all {c["shared_n"]} {esc(c.get("shared_what") or "")}</span>'
     return f' <span class="chip shr">shared ×{c["shared_n"]} {esc(c.get("shared_what") or "")}</span>'
 
 

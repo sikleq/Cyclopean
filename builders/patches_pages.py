@@ -79,7 +79,9 @@ def _audit_line(p: dict) -> str:
         if n:
             html += f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>'
         if k == 'hidden' and n and off:
-            html += f'<span class="au au-off"><b>{off}</b> of them in game rules &amp; map objects</span>'
+            # their pages are the Game section's (the patch page and the list both live in patches/)
+            html += (f'<a class="au au-off" href="../game/index.html"><b>{off}</b> of them in game rules '
+                     f'&amp; map objects</a>')
     return html
 
 
@@ -132,6 +134,11 @@ def _display_name(e: dict) -> str:
     if name != e['id']:
         return name + (f' · {len(e["variants"])} variants' if e.get('variants') else '')
     known = catalog_names().get(f"{e['file']}:{e['id']}")
+    if not known and e['file'] not in ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata'):
+        # a map object or rule the files give no text: the Game section's name ("Soul Urn delivery", not
+        # "Idol cashin"; coverage audit 2026-10-05, finding 4)
+        from .game_systems import name_of
+        return name_of(f"{e['file']}:{e['id']}", e)
     # a hero in development has no name in any build: the catalog keeps its id ('hero_airheart')
     return known if known and known != e['id'] else pretty_id(e['id'], e.get('owner'))
 
@@ -345,8 +352,14 @@ def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
                     f'<ul class="change-list px-frame">{"".join(_loc_li(x) for x in loc_rows)}</ul>{more_s}'))
     cv = ex.get('convars', [])
     if cv:
+        # every one (coverage audit 2026-10-05: City Never Sleeps' tab said 510 and listed 300 without a word); data
+        # written before the list was whole says how many more the build pages hold
+        more = ex.get('convars_total', len(cv)) - len(cv)
+        more_s = (f'<p class="muted">+{more} more on the build pages: '
+                  + ', '.join(f'<a href="{build_href(b["file"], rel)}">{b["build"]}</a>' for b in p.get('builds', [])
+                              if b.get('build') is not None) + '.</p>') if more > 0 else ''
         out.append(('console', 'Console variables', ex.get('convars_total', len(cv)),
-                    f'<ul class="change-list px-frame">{"".join(convar_li(x) for x in cv)}</ul>'))
+                    f'<ul class="change-list px-frame">{"".join(convar_li(x) for x in cv)}</ul>{more_s}'))
     assets = ex.get('assets') or {}
     totals = assets.get('counts', {})
     if totals:
@@ -368,7 +381,7 @@ _GLOSSARY = re.compile(r"\{g:[\w]+:'?([^}']*)'?\}")
 _PRINTF = re.compile(r'%s\d')
 
 
-def _plain(s) -> str:
+def _plain(s, limit: int | None = 400) -> str:
     """Loc text for display: no markup or entities ("&amp;" printed as "&amp;amp;"); key bindings
     as [Attack]; a value the game fills in as [Enemy Health Percent], a glossary word as words
     (1677 lines showed "{s:Damage}" / "{g:citadel_inline_attribute:'SpiritDamage'}")."""
@@ -379,7 +392,8 @@ def _plain(s) -> str:
     t = _VALUE_TOKEN.sub(lambda m: f'[{humanize(m.group(1))}]', t)
     t = _GLOSSARY.sub(lambda m: humanize(m.group(1)).lower(), t)
     t = _PRINTF.sub('…', t)
-    return re.sub(r'\s{2,}', ' ', t).strip()[:400]
+    t = re.sub(r'\s{2,}', ' ', t).strip()
+    return t[:limit] if limit else t
 
 
 _LOC_SUFFIX = re.compile(r'^(?P<base>.+?)(?P<suf>(?:_t(?P<tier>[1-3]))?_(?P<kind>desc|quip|header|lore|name|label|'
@@ -454,7 +468,7 @@ def convar_li(x: dict) -> str:
     else:
         vals = f'<span class="new">{esc(new if new is not None else old)}</span>'
     st = x.get('status')
-    m = mark(st) if st in ('documented', 'hidden') else ''
+    m = mark(st) if st in ('documented', 'described', 'hidden') else ''
     return (f'<li class="st-{esc(st or "")}">{m}<span class="chip">{esc(x["op"])}</span><span class="lbl"><code>{esc(x["name"])}</code>{desc}</span>'
             f'<span class="vals">{vals}</span></li>')
 

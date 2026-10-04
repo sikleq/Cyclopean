@@ -37,6 +37,6 @@ def search_json(rows: list[list[str]]) -> str:
 
 
 def search_box(rel: str = '') -> str:
-    return (f'<div class="site-search"><input type="search" placeholder="Hero, ability, item or unit…" '
-            f'aria-label="Find a hero, ability, item or unit" autocomplete="off" '
+    return (f'<div class="site-search"><input type="search" placeholder="Hero, ability, item, unit or rule…" '
+            f'aria-label="Find a hero, ability, item, unit or game rule" autocomplete="off" '
             f'data-site-search="{rel}{INDEX_FILE}" data-rel="{rel}"><div class="ss-list" hidden></div></div>')

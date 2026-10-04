@@ -95,8 +95,11 @@ TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHul
 # and glass panes in misc.vdata, the team colours, minimap offsets, district names and timer placement in
 # generic_data (coverage audit 9, 2026-10-04: 97 of City Never Sleeps' 226 "REMOVED" were these, and the
 # colours / minimap rows came in as hidden NEW)
-DECOR_ID_RE = re.compile(r'^(?:vehicle_|citadel_base_glass_)|^m_(?:Color[A-Z]|MiniMap)|Localization$|'
-                         r'TimerHeight$|TimerShowDistance$|TextDuration$|EffectStaggerInterval$')
+# (coverage audit, Game section 2026-10-05: the outline and objective colours, the healing sounds and the damage
+# indicator's look were "Other rules" on the Game pages)
+DECOR_ID_RE = re.compile(r'^(?:vehicle_|citadel_base_glass_)|^m_(?:Color[A-Z]|MiniMap|OutlineColor)|'
+                         r'^m_enemy[A-Za-z]*Color$|^m_HealingReceivedSounds$|^m_mapDamageIndicatorParamSets$|'
+                         r'Localization$|TimerHeight$|TimerShowDistance$|TextDuration$|EffectStaggerInterval$')
 
 
 def decor_entity(eid: str) -> bool:

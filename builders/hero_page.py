@@ -283,6 +283,10 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     if 'base body' in cosmetics()['heroes'].get(hid, ()):
         # the body a skin is put on is in the files (pipeline/cosmetics.py): skins are being made
         chips.append('<span class="chip">skin base in files</span>')
+    from .text_rows import former_names
+    was = former_names(by_ent, f'heroes.vdata:{hid}', name)
+    if was:          # renamed in development (Slork → Fathom): the names its history uses
+        chips.append(f'<span class="chip">was {esc(" · ".join(was))}</span>')
     # the same head as an item's or a unit's: crumbs above, then name, chips, "First seen" (advisor 10-03)
     head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
             f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'

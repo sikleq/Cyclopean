@@ -26,6 +26,8 @@ NAV = (
     ('heroes', 'Heroes', 'heroes/index.html'),
     ('items', 'Items', 'items/index.html'),
     ('units', 'Units', 'units/index.html'),
+    # everything that is not one hero, item or unit: the Soul Urn, crates, souls, respawn (coverage audit 2026-10-05)
+    ('game', 'Game', 'game/index.html'),
 )
 # each section: its index, its stats table, its change matrix (Sloppy's Materials / Dynamics)
 SECTION_TABS = {
@@ -35,6 +37,8 @@ SECTION_TABS = {
               ('changes', 'Item changes', 'items/changes.html')),
     'units': (('index', 'Units', 'units/index.html'), ('stats', 'Unit Stats', 'tables/units.html'),
               ('changes', 'Unit changes', 'units/changes.html')),
+    'game': (('index', 'Game', 'game/index.html'), ('stats', 'Game rules', 'game/rules.html'),
+             ('changes', 'Game changes', 'game/changes.html')),
 }
 
 

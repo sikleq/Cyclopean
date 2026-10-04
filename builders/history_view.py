@@ -21,6 +21,7 @@ import re
 
 from .common import EYE_SVG, esc, glyph_for, mark, patch_name, patch_title_html, patch_title_text, visual
 from .notes_view import _highlight, text_tag
+from .text_rows import TEXT_PREFIX, text_rows
 
 OPEN_PATCHES = 3          # the latest patches with rows open; the rest fold to their banner
 EAGER_PATCHES = 6         # blocks rendered in the page; older ones wait in a <template>
@@ -99,6 +100,10 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                         {**c, 'label': str(c['label'])[len(_ENHANCED):]} for c in ups)
                 ch = [c for c in ch if not str(c.get('label') or '').startswith(_ENHANCED)]
             slot['ch'].setdefault(key, []).extend(ch)
+        # its name / description changes (text_rows): rows of its group, never counted
+        for row, ts in by_ent.get(TEXT_PREFIX + key, []):
+            slot = per_patch.setdefault(row['id'], {'row': row, 'ch': {}, 'lines': {}})
+            slot.setdefault('texts', {}).setdefault(key, []).extend(ts)
     seen: set[tuple[str, str]] = set()
     for n in subjects:
         for row, ln in by_subject.get(n.lower(), []):
@@ -299,7 +304,8 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
     the same merge into one group (unit families)."""
     from .cards import entity_rows, row
     groups: list[dict] = []
-    for key in sorted(set(slot['ch']) | set(slot['lines']), key=lambda k: order.get(k, 999)):
+    texts = slot.get('texts', {})
+    for key in sorted(set(slot['ch']) | set(slot['lines']) | set(texts), key=lambda k: order.get(k, 999)):
         nm, _ = meta[key]
         changes = slot['ch'].get(key, [])
         lines = slot['lines'].get(key, [])
@@ -307,6 +313,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
+        rows += text_rows(texts.get(key, []))
         if not rows:
             continue
         same = next((g for g in groups if merge and g['rows'] == rows), None)
@@ -315,6 +322,14 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
             continue
         groups.append({'keys': [key], 'rows': rows, 'changes': changes, 'lines': lines})
     return groups
+
+
+def _dev_only(g: dict, in_dev: bool) -> bool:
+    """Every counted row of the group is work on a hero still in development (and the page is not that hero's)."""
+    from .cards import player_facing
+    rows = player_facing(g['changes'])
+    return (any(c.get('status') == 'unreleased' for c in rows) and all(c.get('status') == 'unreleased' for c in rows)
+            and not g['lines'] and not in_dev)
 
 
 def every_name(rows: list[dict]) -> str:
@@ -365,8 +380,13 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     groups = _groups(slot, order, meta, names, hints, merge)
     counted_all, every_all, all_dev, card = [], [], True, []
     single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
+    # a group of text changes only (a rename) is work before release when every other group of the band is
+    # (heroes in development rename their abilities): it waits behind "Before release" with them
+    pre = [None if not g['changes'] and not g['lines'] else _dev_only(g, in_dev) for g in groups]
+    others = [x for x in pre if x is not None]
+    text_dev = bool(others) and all(others)
     parts = []
-    for g in groups:
+    for gi, g in enumerate(groups):
         key = g['keys'][0]
         nm, ic = meta[key]
         if len(g['keys']) > 1:
@@ -375,7 +395,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         rows = player_facing(g['changes'])
         dev = [c for c in rows if c.get('status') == 'unreleased']
         live = [c for c in rows if c.get('status') != 'unreleased']
-        group_dev = bool(dev) and not live and not g['lines'] and not in_dev
+        group_dev = text_dev if pre[gi] is None else pre[gi]
         all_dev = all_dev and group_dev
         # a rule for every hero (shared_rows.is_every) is counted apart: the band's own counters, its eye and the
         # strip tile count what changed on THIS entity
