@@ -14,7 +14,7 @@ from functools import lru_cache
 
 from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
 from .pixel_icons import tag_svg
-from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_of
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
@@ -226,7 +226,8 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
     target = f'#dyn-{kind}'
     # a tag chip SELECTS (only these tags), the same as on a hero / item / unit page (advisor 10-03: here
     # "on" used to hide the tag)
-    tags = ''.join(f'<button class="tag {t}" data-dyn-tag="{t}" data-target="{target}">{t.upper()}</button>'
+    # selected = aria-pressed, never the class "on" (that is the ON tag's colour: a chosen NERF turned green)
+    tags = ''.join(tag_badge(t, t.upper(), 'button', f' data-dyn-tag="{t}" data-target="{target}" aria-pressed="false"')
                    for t in ('buff', 'nerf', 'new', 'del', 'rework', 'mech', 'up', 'down'))
     rows_switch = (f'<label class="switch"><input type="checkbox" data-toggle-class="show-extra" data-target="{target}">'
                    f'<span class="track"></span>{esc(hidden_label)} <span class="n">{n_hidden_rows}</span></label>'

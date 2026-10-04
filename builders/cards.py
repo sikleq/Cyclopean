@@ -7,9 +7,8 @@ from __future__ import annotations
 import re
 
 from .common import esc, mark, visual
-from .pixel_icons import tag_svg
-from .render import (HIDDEN_LIKE, fold_corrupted, fold_tier_swaps, shown_value, sort_changes, tag_html, tag_summary,
-                     vals_html)
+from .render import (HIDDEN_LIKE, fold_corrupted, fold_tier_swaps, shown_value, sort_changes, tag_badge, tag_html,
+                     tag_summary, vals_html)
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
@@ -39,12 +38,22 @@ def card(head: str, body: str, *, hidden: bool = False, dev: bool = False, searc
     return f'<article class="{cls}"{aid}{ds}>{head}<div class="eb">{body}</div></article>'
 
 
-def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], hidden: bool = False) -> str:
-    """An ability inside its hero's card."""
+def ability_plate(icon_url: str | None, glyph: str, ult: bool = False) -> str:
+    """An ability's icon on a framed dark plate (the game's white glyphs read bare on the panel, owner
+    2026-10-04), drawn smooth — no pixelated downscale of the 128px art; the ultimate gets a corner mark."""
+    tip = ' data-tooltip="Ultimate"' if ult else ''
+    return f'<span class="ab-ic{" ult" if ult else ""}"{tip}>{visual(icon_url, glyph, "si2")}</span>'
+
+
+def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], hidden: bool = False,
+             icon: bool = True) -> str:
+    """An ability inside its hero's card. `icon=False`: the caller puts the plate in its own column (an
+    entity page's history: the icon anchors all of the ability's rows, like Sloppy's)."""
     counted = player_facing(counted)
     counters = tag_summary(counted) if counted else ''
     cls = 'esub' + (' has-hidden' if hidden else '')
-    return f'<div class="{cls}">{visual(icon_url, glyph, "px si2")}<span class="nm">{esc(name)}</span>{counters}</div>'
+    plate = ability_plate(icon_url, glyph) if icon else ''
+    return f'<div class="{cls}">{plate}<span class="nm">{esc(name)}</span>{counters}</div>'
 
 
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '') -> str:
@@ -428,7 +437,7 @@ def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = 
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
         keep, _ = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden'),
-                   '<span class="tag new" data-g="8">' + tag_svg('new') + 'NEW</span>', 'Added to the game')
+                   tag_badge('new', 'NEW'), 'Added to the game')
         return head + ''.join(change_row(c) for c in keep)
     return family_rows(rows)
 
@@ -438,7 +447,7 @@ def change_rows(changes: list[dict], added: bool = False) -> str:
     if added:
         keep, rest = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden') if rows else 'hidden',
-                   '<span class="tag new" data-g="8">' + tag_svg('new') + 'NEW</span>',
+                   tag_badge('new', 'NEW'),
                    f'Added to the game files · {len(rows)} fields')
         html = head + ''.join(change_row(c) for c in keep)
         if rest:

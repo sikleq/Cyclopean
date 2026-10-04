@@ -405,6 +405,7 @@ def loc_key_label(key: str) -> str:
 
 
 def _loc_li(x: dict) -> str:
+    from .render import tag_badge
     key = f'<span class="chip">{esc(loc_key_label(x["key"]))}</span>'     # the raw key is an internal id: not shown
     old, new = x.get('old'), x.get('new')
     if old and new and _plain(old) == _plain(new):
@@ -413,9 +414,9 @@ def _loc_li(x: dict) -> str:
         body = (f'<span class="old">{esc(_plain(old))}</span><span class="arrow">→</span>'
                 f'<span class="new">{esc(_plain(new))}</span>')
     elif new:
-        body = f'<span class="tag new">NEW</span> {esc(_plain(new))}'
+        body = f'{tag_badge("new", "NEW")} {esc(_plain(new))}'
     else:
-        body = f'<span class="tag del">DEL</span> <span class="old">{esc(_plain(old))}</span>'
+        body = f'{tag_badge("del", "DEL")} <span class="old">{esc(_plain(old))}</span>'
     return f'<li>{key}<span class="lbl">{body}</span></li>'
 
 
