@@ -156,11 +156,26 @@ def _catalog_owners() -> dict[str, str | None]:
             if e['file'] in ('abilities.vdata', 'heroes.vdata', 'npc_units.vdata') and not e.get('template')}
 
 
+# ids_to_names memo, tied to the catalogs it read (a test that swaps names_by_id gets a fresh one): every value
+# on every page goes through it — 577k calls on ~6k distinct strings a build (python audit 2026-10-04)
+_IDS_MEMO: dict = {'src': None, 'out': {}}
+
+
 def ids_to_names(s: str) -> str:
     """'ability_blood_bomb, ability_blood_shards' -> 'Blood Bomb, Blood Shards' in shown values."""
-    names = names_by_id()
+    names, known = names_by_id(), _catalog_owners()
+    memo = _IDS_MEMO
+    src = memo['src']
+    if src is None or src[0] is not names or src[1] is not known:
+        memo['src'], memo['out'] = (names, known), {}     # holds the catalogs: their ids stay theirs
+    out = memo['out'].get(s)
+    if out is None:
+        out = memo['out'][s] = _ids_to_names(s, names, known)
+    return out
+
+
+def _ids_to_names(s: str, names: dict[str, str], known: dict[str, str | None]) -> str:
     s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
-    known = _catalog_owners()
 
     def other(m: re.Match) -> str:
         w = m.group(0)

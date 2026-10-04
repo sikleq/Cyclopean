@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
                      patch_title_text, pretty_id, slug, write)
+from .cards import facing_scope
 from .patches_pages import _changes_table, _loc_li, convar_li
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
@@ -12,10 +13,10 @@ ENTITY_LIMIT = 400          # huge builds (new heroes) are truncated with a note
 
 def _patch_of_build() -> dict[str, dict]:
     """{build record file name: patch index row}."""
+    from . import archive
     out = {}
-    for row in load_json('patches/index.json'):
-        p = load_json(f'patches/{row["id"]}.json.gz')
-        for b in p['builds']:
+    for row in archive.index():
+        for b in archive.patch(row['id'])['builds']:
             out[b['file']] = row
     return out
 
@@ -165,7 +166,8 @@ def build_all() -> int:
         rec = load_json(f'builds/{r["file"]}')
         prev_b = pages[i - 1] if i > 0 else None
         next_b = pages[i + 1] if i + 1 < len(pages) else None
-        write(f'builds/{pages[i]}.html', build_page(rec, patch_of.get(r['file']), prev_b, next_b))
+        with facing_scope():                 # a record is read once: its rows leave the memo with the page
+            write(f'builds/{pages[i]}.html', build_page(rec, patch_of.get(r['file']), prev_b, next_b))
         n += 1
     write('builds/index.html', index_page(index, patch_of))
     return n

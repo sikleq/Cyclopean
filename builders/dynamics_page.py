@@ -66,8 +66,9 @@ def _collect() -> dict:
     cells      {row key: {pid: {tag: n}}}
     parts      {row key: {pid: {part: {tag: n}}}}           (heroes: stats / weapon / abil)
     samples    {row key: {pid: [[what, field, old, new, tag, part], ...]}}"""
-    from .cards import gameplay_entities, player_facing
-    rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
+    from . import archive
+    from .cards import player_facing
+    rows = list(archive.by_date())
     ents = load_json('entities.json')['entities']
     # an NPC's own abilities count on its row (Walker's Stomp), as they do on its page
     npc = {e['id']: e['units'] for e in ents if e.get('units')}
@@ -80,8 +81,7 @@ def _collect() -> dict:
     raw: dict = {}
     once: set = set()
     for r in rows:
-        p = load_json(f'patches/{r["id"]}.json.gz')
-        for e in gameplay_entities(p['entities']):
+        for e in archive.gameplay(r['id']):
             if e.get('id') == '@shared':
                 continue
             if e['file'] == 'heroes.vdata':

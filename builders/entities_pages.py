@@ -16,10 +16,11 @@ SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vital
 
 def _history() -> tuple[dict, dict]:
     """entity key -> [(patch row, changes)], note subject -> [(patch row, line)]."""
+    from . import archive
     by_ent: dict[str, list] = defaultdict(list)
     by_subject: dict[str, list] = defaultdict(list)
-    for row in load_json('patches/index.json'):
-        p = load_json(f'patches/{row["id"]}.json.gz')
+    for row in archive.index():
+        p = archive.patch(row['id'])
         for e in p['entities']:
             ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
             if ch and e.get('id') != '@shared':

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from .common import (EYE_SVG, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
                      patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
+from . import archive
 from .site_search import search_box
 
 LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
@@ -111,8 +112,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     for row in reversed(patches):
         if len(blocks) == LATEST_UPDATES:
             break
-        p = load_json(f'patches/{row["id"]}.json.gz')
-        feed = update_feed(p, templates, unit_main)
+        feed = update_feed(archive.patch(row['id']), templates, unit_main)
         if not feed:
             continue
         updates.append([patch_title_text(row), bool(patch_name(row['title']))])
@@ -153,7 +153,7 @@ def _tiles(counts: dict[str, int], faces: list[str], units: list[str]) -> str:
 
 
 def build_all() -> int:
-    patches = load_json('patches/index.json')
+    patches = archive.index()
     builds = load_json('builds/index.json')
     heroes = load_json('tables/heroes.json')['heroes']
     ents = load_json('entities.json')['entities']
@@ -167,7 +167,7 @@ def build_all() -> int:
     # plumbing and work on unreleased heroes too)
     total, total_hidden = 0, 0
     for row in patches:
-        for sec in update_feed(load_json(f'patches/{row["id"]}.json.gz'), templates, unit_main).values():
+        for sec in update_feed(archive.patch(row['id']), templates, unit_main).values():
             total += sum(s['n'] for s in sec.values())
             total_hidden += sum(s['hidden'] for s in sec.values())
     last_build = builds[-1] if builds else None

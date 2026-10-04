@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from pipeline import flags as flag_rules
 from pipeline.semantics import SHOP_SLOT
@@ -321,6 +322,7 @@ _FILE_VALUE = re.compile(r'^file://\{[a-z]+\}/(?:.*/)?([^/]+?)(?:\.[a-z0-9]+)?$'
 _CAMEL = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|_')
 
 
+@lru_cache(maxsize=None)
 def readable_value(s: str) -> str:
     """Engine spellings a player cannot read, as words: 'EHeroDevState_PreRelease' -> 'Pre Release',
     'CITADEL_UNIT_TARGET_NEUTRAL' -> 'Neutral', 'file://{images}/…/sticker_baba.psd' -> 'sticker_baba'.

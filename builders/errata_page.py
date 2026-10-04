@@ -10,7 +10,7 @@ import re
 
 from pipeline.match import parse_pairs
 
-from .common import entity_icon, esc, glyph_for, load_json, page, visual
+from .common import entity_icon, esc, glyph_for, page, visual
 from .patches_pages import _display_name
 from .render import shown_value
 
@@ -23,11 +23,12 @@ def _num(x: float) -> str:
 
 def rows() -> list[dict]:
     """Newest patch first: {patch, line, valve, files, entity, label, icon args}."""
+    from . import archive
     out = []
-    for row in reversed(load_json('patches/index.json')):
+    for row in reversed(archive.index()):
         if not row['line_counts'].get('mismatch'):
             continue
-        p = load_json(f'patches/{row["id"]}.json.gz')
+        p = archive.patch(row['id'])
         by_key = {c['key']: (e, c) for e in p['entities'] for c in e['changes']}
         for s in p['sections']:
             for ln in s['lines']:

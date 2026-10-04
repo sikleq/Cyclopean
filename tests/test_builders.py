@@ -282,20 +282,30 @@ def test_hero_chip_shows_two_counters_tooltip_has_all():
     assert 'data-tooltip="Abrams: 9 new, 8 buffs, 9 nerfs, 8 removed"' in html
 
 
-def test_hero_last_skips_engine_only_patches(monkeypatch):
-    from builders import trail
+def test_last_change_skips_engine_only_patches(monkeypatch):
+    """The history squares and an ability card's "last change" count what a player reads: a patch that only
+    moved engine plumbing is not the entity's last change. The archive is read once per build
+    (builders/archive.py)."""
+    from builders import archive, trail
     patches = {
         'patches/index.json': [{'id': 'p1', 'date': '2026-09-16'}, {'id': 'p2', 'date': '2026-09-29'}],
-        'patches/p1.json.gz': {'entities': [{'file': 'abilities.vdata', 'id': 'a', 'owner': 'hero_atlas',
-                                             'changes': [ch(key='abilities.vdata:a:x', dir='buff')]}]},
-        'patches/p2.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'changes': [
-            ch(key='heroes.vdata:hero_atlas:m_x', label='Roster Background Layout', old_s='A', new_s='B')]}]},
+        'patches/p1.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'key': 'heroes.vdata:hero_atlas',
+                                             'changes': [ch(key='heroes.vdata:hero_atlas:x', dir='buff')]}]},
+        'patches/p2.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'key': 'heroes.vdata:hero_atlas',
+                                             'changes': [ch(key='heroes.vdata:hero_atlas:m_x',
+                                                            label='Roster Background Layout', old_s='A', new_s='B')]}]},
     }
-    monkeypatch.setattr(trail, 'load_json', lambda name: patches[name])
-    trail._hero_changes.cache_clear()
-    row, changes = trail.hero_last('hero_atlas')
-    assert row['id'] == 'p1' and len(changes) == 1
-    trail._hero_changes.cache_clear()
+    monkeypatch.setattr(archive, 'load_json', lambda name: patches[name])
+    archive.clear()
+    trail._index.cache_clear()
+    trail._positions.cache_clear()
+    try:
+        row, counts = trail.last_counts('heroes.vdata:hero_atlas')
+        assert row['id'] == 'p1' and counts == {'buff': 1}
+    finally:
+        archive.clear()
+        trail._index.cache_clear()
+        trail._positions.cache_clear()
 
 
 def test_patch_titles_show_the_date_once():
@@ -577,8 +587,13 @@ def test_notes_vs_files_lists_valves_numbers_and_the_files(monkeypatch):
            'changes': [ch]}
     patch = {'entities': [ent], 'sections': [{'lines': [
         {'text': 'Spirit Snatch: Spirit Power Steal increased from 20 to 28', 'status': 'mismatch', 'changes': ['k']}]}]}
-    monkeypatch.setattr(errata_page, 'load_json', lambda rel: [row] if rel == 'patches/index.json' else patch)
-    got = errata_page.rows()
+    from builders import archive
+    monkeypatch.setattr(archive, 'load_json', lambda rel: [row] if rel == 'patches/index.json' else patch)
+    archive.clear()
+    try:
+        got = errata_page.rows()
+    finally:
+        archive.clear()
     assert got[0]['valve'] == '20 → 28' and got[0]['files'] == '20 → 25' and got[0]['label'] == 'Spirit Power Steal'
 
 

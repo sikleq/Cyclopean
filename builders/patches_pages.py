@@ -228,11 +228,12 @@ def _bar(c: dict) -> str:
 
 def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     rel = '../'
+    # copies: the patch record is the build's shared archive (builders/archive.py), never written into
     change_by_key = {}
     for e in p['entities']:
+        name = _display_name(e)
         for c in e['changes']:
-            c['ent_name'] = _display_name(e)
-            change_by_key[c['key']] = c
+            change_by_key[c['key']] = {**c, 'ent_name': name}
     # patch switcher next to the title (players step through patches)
     step = ''
     if prev:
@@ -256,14 +257,13 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
     from .cards import gameplay_entities, player_facing
-    gameplay = gameplay_entities(p['entities'])
+    names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
+    # gameplay_entities copies each entity, so the owner's name is not written into the shared record
+    gameplay = [{**e, 'owner_name': names.get(e['owner'])} if e.get('owner') else e
+                for e in gameplay_entities(p['entities'])]
     # the tab counts what the tiles count (cards.player_facing), not raw rows: City Never Sleeps
     # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01)
     n_changes = sum(len(player_facing(e['changes'])) for e in gameplay)
-    names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
-    for e in gameplay:
-        if e.get('owner'):
-            e['owner_name'] = names.get(e['owner'])
     parts.append(_summary(p, gameplay, rel))
     ex = p.get('extras', {})
     tabs = []
@@ -512,9 +512,10 @@ def index_page(index: list[dict]) -> str:
 
 
 def build_all() -> int:
-    index = load_json('patches/index.json')
+    from . import archive
+    index = archive.index()
     for i, row in enumerate(index):
-        p = load_json(f'patches/{row["id"]}.json.gz')
+        p = archive.patch(row['id'])
         prev = index[i - 1] if i > 0 else None
         nxt = index[i + 1] if i + 1 < len(index) else None
         write(f'patches/{row["id"]}.html', patch_page(p, prev, nxt))

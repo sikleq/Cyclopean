@@ -175,7 +175,8 @@ def test_trail_squares_open_the_band_on_the_page(monkeypatch):
     hits = {'abilities.vdata:ab_x': {'p2': {'buff': 1, 'nerf': 2}, 'p4': {'nerf': 1}}}
     monkeypatch.setattr(trail, '_index', lambda: (rows, hits))
     trail._positions.cache_clear()
-    local = trail.trail_html('abilities.vdata:ab_x', None, '../', local=True)
+    trail.trail_html.cache_clear()
+    local =trail.trail_html('abilities.vdata:ab_x', None, '../', local=True)
     assert 'href="#p-p2" data-p="p2" data-ab="ab_x"' in local and 'data-tooltip' not in local
     assert 'aria-label="2026-02-01 update · 1 buff, 2 nerfs"' in local
     assert 'style="background:linear-gradient(' in local                  # striped, not REWORK purple
@@ -185,6 +186,7 @@ def test_trail_squares_open_the_band_on_the_page(monkeypatch):
     assert trail.last_change('abilities.vdata:ab_x') == (rows[3], 'nerf')
     assert trail.dominant_of({'buff': 1, 'nerf': 1}) == 'rework'            # the shop card's one-colour pip
     trail._positions.cache_clear()
+    trail.trail_html.cache_clear()
 
 
 def test_hero_page_is_one_open_column(monkeypatch):
