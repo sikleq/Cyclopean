@@ -1,7 +1,7 @@
 """Rendering helpers: tags, order, escaping."""
 import re
 
-from builders.render import change_li, entity_rows, fold_tier_swaps, sort_changes, tag_of
+from builders.render import fold_tier_swaps, sort_changes, tag_of
 
 
 def ch(**kw):
@@ -105,19 +105,26 @@ def test_tier_swap_folds_into_one_rework_row():
 
 
 def test_entity_rows_name_once_with_counters():
-    html = ''.join(entity_rows('Seismic Impact', None, [ch(label='a'), ch(label='b', dir='buff'), ch(label='c')]))
+    """The ability's header (cards.sub_head) names it once with its counters; its rows do not repeat it.
+    (render.entity_rows, the table version, had no caller left besides these tests.)"""
+    from builders.cards import entity_rows, sub_head
+    rows = [ch(label='a', key='abilities.vdata:x:a'), ch(label='b', dir='buff', key='abilities.vdata:x:b'),
+            ch(label='c', key='abilities.vdata:x:c')]
+    html = sub_head('Seismic Impact', None, 'abilities', rows, hidden=True) + entity_rows(rows)
     assert html.count('Seismic Impact') == 1
     assert '<span class="pip nerf">2</span>' in html and '<span class="pip buff">1</span>' in html
-    assert 'eh has-hidden' in html
+    assert 'esub has-hidden' in html
 
 
 def test_unreleased_rows_marked_and_kept_in_hidden_view():
-    html = ''.join(entity_rows('Test', None, [ch(status='unreleased')]))
-    assert 'mark unreleased' in html and ' dev' in html and 'has-hidden' in html
+    from builders.cards import change_row
+    html = change_row(ch(status='unreleased'))
+    assert 'mark unreleased' in html and 'st-unreleased is-hidden' in html
 
 
-def test_change_li_escapes_and_marks_hidden():
-    html = change_li(ch(label='<b>x</b>'))
+def test_change_row_escapes_and_marks_hidden():
+    from builders.cards import change_row
+    html = change_row(ch(label='<b>x</b>'))
     assert '&lt;b&gt;' in html and 'mark hidden' in html and 'st-hidden' in html
 
 

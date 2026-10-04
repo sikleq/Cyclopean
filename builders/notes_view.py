@@ -7,12 +7,9 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark, visual
+from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark
 from .render import shown_value, tag_badge, tag_html, tag_of
 
-LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated', 'code')
-TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
-               'map': 'map', 'bots': 'bots', 'performance': 'performance'}
 _FILE_ORDER = {'heroes.vdata': 0, 'abilities.vdata': 1, 'npc_units.vdata': 2}
 INLINE_VALUES = 2       # a general line backed by this few values prints them instead of a toggle
 
@@ -51,14 +48,6 @@ def _abilities_of() -> dict[str, list[tuple[str, dict]]]:
 def _subject_entity(subject: str, patch_ents: dict[str, dict]) -> dict | None:
     key = subject.strip().lower()
     return patch_ents.get(key) or _by_name().get(key)
-
-
-def _icon_of(e: dict | None, rel: str) -> str:
-    if e is None:
-        return visual(None, 'units')                     # Walker, Guardian… named by alias
-    src = (hero_icon(e['id'], rel) if e['file'] == 'heroes.vdata'
-           else entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner')))
-    return visual(src, glyph_for(e['file'], e['id'], e.get('kind', '')))
 
 
 _PREFIX = re.compile(r'^\s*([^:]{1,48}):\s*')
@@ -208,10 +197,6 @@ def _groups(lines: list[dict]) -> list[tuple[str | None, list[dict]]]:
         if ln['status'] != 'heading':
             out[-1][1].append(ln)
     return [(s, ls) for s, ls in out if ls]
-
-
-KIND_SUB = {'hero': 'Hero', 'ability': 'Ability', 'weapon': 'Weapon', 'item': 'Item', 'trooper': 'Trooper',
-            'building': 'Building', 'neutral': 'Neutral', 'unit': 'Unit', 'ability_other': 'Ability'}
 
 
 # A section about the interface, sound or settings is not balance: it gets its own tab, laid out as

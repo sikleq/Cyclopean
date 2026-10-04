@@ -281,11 +281,6 @@ GLYPHS = {
     'rules': 'M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z'
              'M5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5zM7 7h2v2H7z',
     'loot': 'M3 3h10v3H3zM2 6h12v8H2zM7 8h2v3H7z',
-    # home navigation tiles
-    'book': 'M1 3h6v10H1zM9 3h6v10H9zM2 4h4v1H2zM10 4h4v1h-4zM2 6h4v1H2zM10 6h4v1h-4zM2 8h4v1H2zM10 8h4v1h-4z'
-            'M7 13h2v1H7z',
-    'table': 'M1 2h14v12H1zM2 5h3v2H2zM6 5h3v2H6zM10 5h4v2h-4zM2 8h3v2H2zM6 8h3v2H6zM10 8h4v2h-4zM2 11h3v2H2z'
-             'M6 11h3v2H6zM10 11h4v2h-4z',
 }
 _SHARED_GLYPH = {'heroes.vdata': 'heroes', 'abilities.vdata': 'abilities', 'npc_units.vdata': 'units',
                  'misc.vdata': 'map', 'modifiers.vdata': 'modifier'}

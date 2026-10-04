@@ -3,10 +3,9 @@ from __future__ import annotations
 
 from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
                      patch_title_text, pretty_id, slug, write)
-from .cards import facing_scope
+from .cards import GAMEPLAY, facing_scope
 from .patches_pages import _changes_table, _loc_li, convar_li
 
-GAMEPLAY = ('balance', 'mechanic', 'availability')
 COSMETIC = ('visual', 'audio', 'ui', 'meta')
 ENTITY_LIMIT = 400          # huge builds (new heroes) are truncated with a note
 
@@ -119,9 +118,9 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     body.append('</div>')
     nav = []
     if prev_b:
-        nav.append(f'<a class="px-btn" href="{prev_b}.html">← {prev_b}</a>')
+        nav.append(f'<a class="px-btn" href="{esc(prev_b)}.html">← {esc(prev_b)}</a>')
     if next_b:
-        nav.append(f'<a class="px-btn" href="{next_b}.html">{next_b} →</a>')
+        nav.append(f'<a class="px-btn" href="{esc(next_b)}.html">{esc(next_b)} →</a>')
     body.append('<div class="flex">' + ''.join(nav) + '</div>')
     return page(build_label(rec['build']), ''.join(body), rel, 'builds')
 
@@ -148,7 +147,7 @@ def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
         if r.get('convars'):
             chips.append(f'<span class="chip">{plural(r["convars"], "cvar")}</span>')
         rows.append(f'<li data-search="{r["build"]} {esc(r["date"][:10])}"><span class="date">{esc(r["date"][:10])}</span>'
-                    f'<span><a class="ttl" href="{stems[r["file"]]}.html">{esc(_row_label(r, stems))}</a>{ptxt}</span>'
+                    f'<span><a class="ttl" href="{esc(stems[r["file"]])}.html">{esc(_row_label(r, stems))}</a>{ptxt}</span>'
                     f'<span class="nums">{"".join(chips)}</span></li>')
     body = ('<h1>Builds</h1>'
             '<div class="toolbar"><input type="search" placeholder="Build number or date…" data-search-target=".timeline > li"></div>'

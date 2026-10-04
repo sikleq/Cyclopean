@@ -5,11 +5,11 @@ import html
 import re
 from functools import lru_cache
 
+from .cards import GAMEPLAY
 from .notes_view import notes_table
 from .common import (build_href, esc, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
                      patch_title_text, pretty_id, write)
 
-GAMEPLAY = ('balance', 'mechanic', 'availability')
 FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
 
 
@@ -249,7 +249,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         seen[b['build']] = seen.get(b['build'], 0) + 1
         nth = f' (#{seen[b["build"]]})' if seen[b['build']] > 1 else ''
         num = b['build'] if b['build'] is not None else 'text update'
-        links.append(f'<a href="{build_href(b["file"], rel)}">{num}{nth}</a>')
+        links.append(f'<a href="{esc(build_href(b["file"], rel))}">{esc(num)}{nth}</a>')
     builds = ', '.join(links)
     link_text = 'official notes' if p.get('source') != 'announcement' else 'official announcement'
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''

@@ -6,8 +6,7 @@ from __future__ import annotations
 from functools import lru_cache
 import re
 
-from .common import (cosmetics, display_name, entity_icon, esc, first_seen, hero_icon, icon, img, load_json, mark, page,
-                     pretty_id)
+from .common import cosmetics, display_name, entity_icon, esc, first_seen, hero_icon, icon, img, load_json, mark, page
 from .history_view import history_table
 from .render import tag_badge
 from .tables_pages import _fmt, hist_attrs
@@ -196,7 +195,7 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         f'<div class="tier"><span class="tn">T{t["tier"]}</span><span class="tt">'
         f'{esc(t["text"] or ", ".join(b["label"] + " " + b["value"] for b in t["bonuses"]))}</span></div>'
         for t in c.get('tiers', []) if t.get('text') or t.get('bonuses'))
-    name = c['name'] if c.get('name') and c['name'] != c['id'] else pretty_id(c['id'], c.get('owner'))
+    name = display_name(c)
     # what happened to it lately: the last patch that touched it, and its 12-patch strip — both open that
     # patch's band in the history below, not the patch archive (owner 2026-10-04)
     from .cards import ability_plate
@@ -229,9 +228,7 @@ def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str) -> list[
         s = slot_of.get(e['id'])
         return (SLOT_ORDER.index(s) if s in SLOT_ORDER else len(SLOT_ORDER), e.get('name') or '')
     for e in sorted(owned, key=rank):
-        nm = e.get('name') or e['id']
-        if nm == e['id']:
-            nm = pretty_id(e['id'], hid)
+        nm = display_name(e)                 # its owner is this hero
         keys.append((f'abilities.vdata:{e["id"]}', nm,
                      entity_icon('abilities.vdata', e['id'], e.get('kind', ''), rel, nm, hid)))
     return keys

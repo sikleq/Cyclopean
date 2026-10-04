@@ -13,10 +13,9 @@ from __future__ import annotations
 
 import json
 
-from .common import entity_icon, esc, icon, pretty_id, slug
+from .common import display_name, entity_icon, esc, icon, slug
 from .hero_page import prop_rows
 
-BOARD = (1120, 960)
 CARD_W, CARD_H, CARD_GAP = 76, 114, 3          # CitadelShopMod: 76 x 114, margin 3 -> pitch 82 x 120
 PITCH_X, PITCH_Y = CARD_W + 2 * CARD_GAP, CARD_H + 2 * CARD_GAP
 # (css key, slot in the data, tab name, tab icon art, tab click sound ui_shop_panel_<x>), game order
@@ -55,7 +54,7 @@ def price_at(cat: str, tier: int) -> tuple[int, int]:
 
 
 def _name(e: dict) -> str:
-    return e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'])
+    return display_name(e)
 
 
 def card_html(e: dict, card: dict | None, rel: str, used_in: list[str], n: int, cat: str, tier: int) -> str:

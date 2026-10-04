@@ -164,7 +164,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             cls = cell_cls(c)
             if extra_cls:
                 cls += extra_cls(r, c)
-            attrs = f' data-col="{c["key"]}" data-sort="{"" if v is None else v}" data-pol="{c["pol"]}" data-digits="{c["digits"]}"'
+            attrs = (f' data-col="{esc(c["key"])}" data-sort="{"" if v is None else esc(v)}" data-pol="{int(c["pol"])}"'
+                     f' data-digits="{int(c["digits"])}"')
             if cell_attrs:
                 attrs += cell_attrs(r, c)
             tint = COLUMN_TINT.get(c['key'])
@@ -347,11 +348,11 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
         fam_rows.append({**first, 'name': name, 'values': values, 'history': history})
     out = []
     if tier_rows:
-        out.append(('neutral', f'{esc(title)} · tiers', tier_rows))
+        out.append(('neutral', f'{title} · tiers', tier_rows))
     if fam_rows:
-        out.append(('neutral', f'{esc(title)} · families', merge_copies(fam_rows), fam_cols))
+        out.append(('neutral', f'{title} · families', merge_copies(fam_rows), fam_cols))
     if other:
-        out.append(('neutral', f'{esc(title)} · others', merge_copies(sorted(other, key=lambda u: unit_label(u).lower()))))
+        out.append(('neutral', f'{title} · others', merge_copies(sorted(other, key=lambda u: unit_label(u).lower()))))
     return out
 
 
@@ -373,14 +374,14 @@ def merge_copies(rows: list[dict]) -> list[dict]:
 def _section_tables(groups: list[tuple[str, str, list[dict]]], cols: list[dict], name_cell, name_title: str,
                     as_of: str | None, section_of=None) -> str:
     """One banner + table per group, each with only the columns its rows fill; a group may bring its own
-    columns as a 4th element (the neutral families' per-tier speeds)."""
+    columns as a 4th element (the neutral families' per-tier speeds). Titles are plain text (escaped here)."""
     out = []
     for group in groups:
         key, title, rows = group[:3]
         own_cols = group[3] if len(group) > 3 else cols
         if not rows:
             continue
-        out.append(f'<div class="banner sub tbl-sec {esc(key)}"><span class="bt">{title}</span>'
+        out.append(f'<div class="banner sub tbl-sec {esc(key)}"><span class="bt">{esc(title)}</span>'
                    f'<span class="bc">{len(rows)}</span></div>'
                    + render_table(non_empty(own_cols, rows), rows, name_cell, name_title, as_of=as_of,
                                   section_of=section_of))
@@ -416,7 +417,7 @@ def units_table() -> str:
         if kind == 'neutral':
             groups += neutral_groups(rows, t['columns'], title)
             continue
-        groups.append((kind, esc(title), merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
+        groups.append((kind, title, merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
     body = ('<h1>Unit Stats</h1>' + section_tabs('units', 'stats') + _toolbar('Unit…')
             + _section_tables(groups, t['columns'], name_cell, 'Unit', t.get('date')))
     return page('Unit Stats', body, rel, 'units', build=t['build'],

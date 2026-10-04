@@ -12,11 +12,10 @@ import json
 from datetime import date, timedelta
 from functools import lru_cache
 
-from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
+from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
-MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
 SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
 SAMPLES_ONE = 3           # … and of an item or unit (one part: the row itself)
 PARTS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
@@ -47,15 +46,7 @@ def _sample_values(c: dict) -> tuple[str, str]:
 def _display(e: dict) -> str:
     if e['file'] == 'heroes.vdata':
         return 'Base stats'
-    return e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
-
-
-@lru_cache(maxsize=1)
-def _cells() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]]]:
-    """(patch rows oldest first, {row key: {patch id: {tag: count}}}). A hero's row counts its own
-    stats and every ability it owns; an item's row is the item. Same counting rule as everywhere."""
-    d = _collect()
-    return d['rows'], d['cells']
+    return display_name(e)
 
 
 @lru_cache(maxsize=1)
@@ -306,7 +297,7 @@ def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:
     for it in sorted(items, key=lambda e: (e.get('name') or e['id']).lower()):
         info = (cards.get(it['id']) or {}).get('item') or {}
         gone = not it.get('alive') or it.get('disabled') or info.get('disabled')
-        name = it['name'] if it.get('name') and it['name'] != it['id'] else pretty_id(it['id'])
+        name = display_name(it)
         out.append((f'item:{it["id"]}', name, entity_icon(it['file'], it['id'], 'item', rel),
                     slug(it['file'], it['id']).split('/', 1)[1], 'extra' if gone else ''))
     return out
