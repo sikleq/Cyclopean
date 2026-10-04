@@ -654,13 +654,17 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hblocks .f-out { display: none !important; }
 /* the history toolbar scrolls away like Sloppy's (only the site bar stays): stuck, it took 82-102px of a
    900px window (advisor round 3). ONE compact row: every control badge-high (owner 2026-10-04) */
-.hist-bar { position: static; flex-wrap: wrap; gap: 6px; padding: 6px 8px; margin: 0 0 14px; }
-.hist-bar .sep { height: 20px; margin: 0 1px; }
+.hist-bar { position: static; flex-wrap: wrap; gap: 5px; padding: 6px; margin: 0 0 14px; }
+.hist-bar .sep { height: 20px; margin: 0; }
+.hist-bar .px-btn { margin: 0; }
+.hist-bar .px-btn .mark, .hist-bar .px-btn .mark svg { width: 14px; height: 14px; }
 .hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.hist-bar .hf-tags .tag { min-width: 0; padding: 5px 5px 4px 7px; letter-spacing: 0; }
+.hist-bar .hf-tags .tag { min-width: 0; padding: 5px 4px 4px 6px; letter-spacing: 0; }
 .hist-bar .px-btn { padding: 5px 8px 6px; font-size: 13px; }
 .hist-bar .hf-hidden .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
 .hist-bar .hf-hidden .n { color: var(--eye); margin-left: 4px; }
+.hist-bar .hf-dev .mark { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
+.hist-bar .hf-dev .n { color: var(--dev); margin-left: 4px; }
 .hist-bar .switch { font-size: 13px; }
 /* an ability chip: its icon on the plate (smooth), the ultimate's corner mark */
 .hf-ab { position: relative; width: 26px; height: 26px; padding: 3px; border: 0; cursor: pointer; background: var(--bg-panel-4);

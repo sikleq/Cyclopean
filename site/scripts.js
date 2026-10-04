@@ -207,6 +207,7 @@
         var on = !target.classList.contains(cls);
         target.classList.toggle(cls, on);
         btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
     });
   });
@@ -1116,8 +1117,8 @@
       var hist = el.closest('.hblocks');
       if (el.offsetParent === null && hist && el.classList.contains('dev-only')) {
         hist.classList.add('show-dev');
-        var sw = document.querySelector('input[data-toggle-class="show-dev"]');
-        if (sw) sw.checked = true;
+        var sw = document.querySelector('.hf-dev');
+        if (sw) { sw.classList.add('on'); sw.setAttribute('aria-pressed', 'true'); }
       }
     }
     function go(ab) {

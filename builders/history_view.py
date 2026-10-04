@@ -265,8 +265,9 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
                          f'Removed <span class="n">{len(old)}</span></button>' + ''.join(chip(*c, ' gone') for c in old))
         parts.append('<span class="hf-abs">' + ''.join(chip(*c) for c in now) + gone_html + '</span>')
     if facts['dev'] and not in_dev:
-        parts.append(f'<label class="switch"><input type="checkbox" data-toggle-class="show-dev" data-target="#history">'
-                     f'<span class="track"></span>Before release <span class="n">{facts["dev"]}</span></label>')
+        # a toggle button like the eye's, not a switch with a track: the bar fits one row (owner 2026-10-04)
+        parts.append(f'<button class="px-btn hf-dev" data-toggle-class="show-dev" data-target="#history" '
+                     f'aria-pressed="false">{mark("unreleased")}Before release <span class="n">{facts["dev"]}</span></button>')
     if not parts:
         return ''
     return '<div class="toolbar hist-bar">' + '<span class="sep"></span>'.join(parts) + '</div>'
