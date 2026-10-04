@@ -25,14 +25,17 @@ def dominant_of(counts: dict[str, int]) -> str:
 
 @lru_cache(maxsize=1)
 def _index() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]]]:
-    """(patches oldest first, {entity key: {patch id: {tag: count}}})"""
+    """(patches oldest first, {entity key: {patch id: {tag: count}}}). A change one edit made in some entities
+    counts on each of them; a rule for every one of a kind (the level curve) is not an entity's own "last change"
+    (shared_rows)."""
+    from .shared_rows import entities as spread_all, own
     rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
     by_ent: dict[str, dict[str, dict[str, int]]] = {}
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
-        for e in p['entities']:
-            ch = player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY])
-            if ch and e.get('id') != '@shared':
+        for e in spread_all(p['entities']):
+            ch = player_facing(own([c for c in e['changes'] if c['cat'] in GAMEPLAY]))
+            if ch:
                 counts = by_ent.setdefault(e['key'], {}).setdefault(r['id'], {})
                 for c in ch:
                     counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
@@ -77,14 +80,16 @@ def patch_stats() -> dict[str, dict]:
 @lru_cache(maxsize=1)
 def _hero_changes() -> dict[str, tuple[dict, list[dict]]]:
     """hero id -> (newest patch row that touched the hero or one of its abilities, its changes)."""
+    from .shared_rows import entities as spread_all, own
     out: dict[str, tuple[dict, list[dict]]] = {}
     for r in sorted(load_json('patches/index.json'), key=lambda r: r['date'], reverse=True):
         p = load_json(f'patches/{r["id"]}.json.gz')
         found: dict[str, list[dict]] = {}
-        for e in p['entities']:
-            owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
+        for e in spread_all(p['entities']):
+            owner = e['id'] if e['file'] == 'heroes.vdata' else e.get('owner')
             if owner and owner not in out:
-                found.setdefault(owner, []).extend(player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY]))
+                found.setdefault(owner, []).extend(
+                    player_facing(own([c for c in e['changes'] if c['cat'] in GAMEPLAY])))
         for hid, ch in found.items():
             if ch:
                 out[hid] = (r, ch)

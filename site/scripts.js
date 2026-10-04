@@ -1174,6 +1174,12 @@
       }
       return r.__b;
     }
+    // a row of a rule for every hero (builders/shared_rows.py: the "All heroes: N changes" fold) is counted
+    // apart: no band counter and no "Not in patch notes" count holds it
+    function inAll(r) {
+      if (r.__all === undefined) r.__all = !!r.closest('.shr-all');
+      return r.__all;
+    }
     function tagOk(r) {
       if (!state.tags.length) return true;
       var bs = behind(r);
@@ -1197,7 +1203,8 @@
       b.__rc = true;
       var counts = {}, hidden = 0;
       b.querySelectorAll('.erow').forEach(function (r) {
-        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.parentNode.tagName === 'SUMMARY') return;
+        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.parentNode.tagName === 'SUMMARY' ||
+            inAll(r)) return;
         var bs = behind(r);
         if (bs) {
           bs.forEach(function (e) {
@@ -1251,14 +1258,17 @@
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
             var ok = gok && tagOk(r) &&
-                     (!onlyHidden || r.classList.contains('is-hidden')) &&
+                     (!onlyHidden || (r.classList.contains('is-hidden') && !inAll(r))) &&
                      (dev || !r.classList.contains('st-unreleased'));
             r.classList.toggle('f-out', !ok);
             gany = gany || ok;
           });
-          g.querySelectorAll('details.fam').forEach(function (f) {
-            f.classList.toggle('f-out', !f.querySelector(':scope > .erow:not(.f-out)'));
-          });
+          // innermost first: a rule-for-all fold holds family folds of its own
+          var fams = g.querySelectorAll('details.fam');
+          for (var fi = fams.length - 1; fi >= 0; fi--) {
+            fams[fi].classList.toggle('f-out',
+              !fams[fi].querySelector(':scope > .erow:not(.f-out), :scope > details.fam:not(.f-out)'));
+          }
           g.classList.toggle('f-out', !gany);
           any = any || gany;
         });

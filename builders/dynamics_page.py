@@ -79,10 +79,14 @@ def _collect() -> dict:
     parts: dict = {}
     raw: dict = {}
     once: set = set()
+    from .shared_rows import entities as spread_all, own
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
-        for e in gameplay_entities(p['entities']):
-            if e.get('id') == '@shared':
+        # a change one edit made in some heroes counts in each one's cell; a rule for every hero (the level
+        # curve) in none — it would fill a whole column (shared_rows)
+        for e in spread_all(gameplay_entities(p['entities'])):
+            e = {**e, 'changes': own(e['changes'])}
+            if not e['changes']:
                 continue
             if e['file'] == 'heroes.vdata':
                 keys = [f'hero:{e["id"]}']

@@ -29,6 +29,7 @@ from . import match_rules as rules
 from . import patches as patches_mod
 from .classify import category, decor_entity
 from .patches import Patch, group
+from .shared_groups import SharedGroups, window_of
 
 OUT = tracker.ROOT / 'data' / 'patches'
 BUILDS = tracker.ROOT / 'data' / 'builds'
@@ -1279,7 +1280,7 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}
     for cv in extras['convars']:
         cv['status'] = cv_status.get(cv['name'], 'unannounced' if not p.notes else 'hidden')
-    shared_groups: dict[tuple, dict] = {}
+    shared = SharedGroups()
     for c in changes:
         if c.file == 'convars':
             continue
@@ -1287,18 +1288,10 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
                           else loc.entity_name(tok, c.eid, cat.get(ent_key(c), {}).get('owner')))
                 if c.eid else c.eid)
         if c.shared:
-            # one edit copied into many entities (a global rule): one block, not N
+            # one edit copied into many entities (a global rule): one block, not N — with the keys of the
+            # entities it hit, so their pages show it (pipeline/shared_groups.py)
             sig = (c.file, c.path, repr(c.old), repr(c.new))
-            grp = shared_groups.get(sig)
-            if grp is None:
-                grp = shared_groups[sig] = {'change': change_json(c), 'targets': []}
-            grp['targets'].append(name)
-            cur = grp['change']['status']
-            # a rule for all heroes is "unreleased" only if every hero it touches is: a dev hero listed
-            # first had made 41 "All heroes" rows unreleased (audit 2026-10-01)
-            if STATUS_RANK[c.status] > STATUS_RANK[cur] or (cur == 'unreleased' and c.status != 'unreleased'
-                                                             and STATUS_RANK[c.status] == STATUS_RANK[cur]):
-                grp['change']['status'] = c.status
+            shared.add(sig, change_json(c) if sig not in shared else None, name, ent_key(c), c.status)
             continue
         k = ent_key(c)
         e = cat.get(k, {})
@@ -1312,14 +1305,8 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         ent = entities.setdefault(k, {'key': k, 'file': ev['file'], 'id': ev['id'], 'kind': ev.get('kind'),
                                       'owner': ev.get('owner'), 'name': ev['name'], 'changes': []})
         ent['changes'].insert(0, ev['change'])
-    for (file, *_), grp in shared_groups.items():
-        targets = sorted(set(grp['targets']))
-        label = SHARED_NAMES.get(file, 'Many entries')
-        key = f"@shared:{file}:{len(targets)}:{','.join(targets[:3])}"
-        ent = entities.setdefault(key, {'key': key, 'file': file, 'id': '@shared', 'kind': 'shared',
-                                        'owner': None, 'name': f'{label} ({len(targets)})',
-                                        'targets': targets, 'changes': []})
-        ent['changes'].append(grp['change'])
+    for ent in shared.entities(cat, window_of(p.builds), SHARED_NAMES):
+        entities[ent['key']] = ent
     for ent in entities.values():
         for c in ent['changes']:
             c['sentence'] = sentence(ent['name'], c)
@@ -1344,7 +1331,6 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     }
 
 
-STATUS_RANK = {'hidden': 0, 'unannounced': 0, 'unreleased': 0, 'described': 1, 'documented': 2}
 RELEASED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
 
 

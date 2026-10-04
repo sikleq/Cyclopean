@@ -111,6 +111,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     if not per_patch:
         return heading + '<p class="muted">No recorded changes.</p>'
     from .cards import history_hints, player_facing
+    from .shared_rows import is_every
     # two fields under one label read alike in every patch of the history (cards.history_hints)
     every: dict[str, list[dict]] = {}
     for slot in per_patch.values():
@@ -121,7 +122,9 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     opened = 0
     for i, pid in enumerate(sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True)):
         slot = per_patch[pid]
-        shown = [c for ch in slot['ch'].values() for c in ch if in_dev or c.get('status') != 'unreleased']
+        # a rule for every hero (the level curve) does not take one of the open bands: the hero's own changes do
+        shown = [c for ch in slot['ch'].values() for c in ch
+                 if (in_dev or c.get('status') != 'unreleased') and not is_every(c)]
         real = bool(slot['lines']) or bool(player_facing(shown))
         open_ = real and opened < OPEN_PATCHES
         opened += open_
@@ -167,8 +170,10 @@ def tile_card(groups: list[tuple[tuple, list[dict]]]) -> list[list]:
     sample = [label, old, new, tag, hidden 0/1, rank in the patch]. A group keeps its GROUP_SAMPLES biggest
     rows and any row among the patch's TILE_SAMPLES biggest, so the strip card (top rows across the patch)
     and a trail square's card (one ability) both come from it. `groups`: [(ref, its counted rows)]."""
-    from .render import tag_of, vals_text
-    flat = sorted((c for _, cs in groups for c in cs), key=_rank)
+    from .render import not_in_notes, tag_of, vals_text
+    from .shared_rows import is_every
+    # a rule for every hero ranks after the entity's own changes: the card is about what changed on THIS one
+    flat = sorted((c for _, cs in groups for c in cs), key=lambda c: (is_every(c), *_rank(c)))
     rank = {id(c): r for r, c in enumerate(flat)}
     out = []
     for ref, cs in groups:
@@ -179,9 +184,9 @@ def tile_card(groups: list[tuple[tuple, list[dict]]]) -> list[list]:
         counts: dict[str, int] = {}
         for c in cs:
             counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
-        hidden = sum(1 for c in cs if c.get('status') == 'hidden')
+        hidden = sum(1 for c in cs if not_in_notes(c))
         out.append([ref, counts, hidden, [[str(c.get('label') or ''), *vals_text(c), tag_of(c)[0],
-                                           int(c.get('status') == 'hidden'), rank[id(c)]] for c in keep]])
+                                           int(not_in_notes(c)), rank[id(c)]] for c in keep]])
     return out
 
 
@@ -194,7 +199,7 @@ def strip_data(items: list[tuple]) -> dict:
     from .render import TAG_WORD_ONE, TAG_WORDS
     refs: dict[tuple, int] = {}
     tiles, used = [], set()
-    for pid, hdr, tally, hidden, card in items[:STRIP_MAX]:
+    for pid, hdr, tally, hidden, card, *_ in items[:STRIP_MAX]:
         groups = []
         for ref, counts, hid, samples in card:
             groups.append([refs.setdefault(ref, len(refs)), counts, hid, samples])
@@ -214,12 +219,17 @@ def patch_strip(items: list[tuple]) -> str:
     if not items:
         return ''
     tiles = []
-    for k, (pid, hdr, tally, hidden, _) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
+    for k, (pid, hdr, tally, hidden, _, *rest) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
+        every_only = rest[0] if rest else ''         # 'All heroes': the tile counts only such a rule
         text = f'{patch_title_text(hdr)}: {plural(sum(tally.values()), "change")}'
+        if every_only:
+            text += f' for {every_only.lower()}'
         if hidden:
             text += f', {hidden} not in patch notes'
-        # the eye is CSS (a mask on ::after): one inline SVG per tile cost 13 KB on a unit page
-        tiles.append(f'<a class="ps-tile{" hid" if hidden else ""}" href="#p-{esc(pid)}" data-k="{k}" '
+        # the eye is CSS (a mask on ::after): one inline SVG per tile cost 13 KB on a unit page; a tile of a
+        # patch that only changed a rule for every hero is muted (`shr`)
+        cls = (' hid' if hidden else '') + (' shr' if every_only else '')
+        tiles.append(f'<a class="ps-tile{cls}" href="#p-{esc(pid)}" data-k="{k}" '
                      f'aria-label="{esc(text)}" style="background:{stripes(tally)}">'
                      f'<span class="dn">{sum(tally.values())}</span></a>')
     # JSON inside a script element: "</" would end it early
@@ -307,17 +317,34 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
     return groups
 
 
-def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str) -> tuple[str, str]:
+def every_name(rows: list[dict]) -> str:
+    """'All heroes' for the rows of a rule for every entity of a kind (shared_rows)."""
+    return f'All {rows[0].get("shared_what") or "entities"}' if rows else ''
+
+
+def every_groups(rows: list[dict]) -> dict[str, list[dict]]:
+    """The rows of rules for every entity of a kind, by kind: {'All heroes': rows, 'All melee attacks': rows}."""
+    out: dict[str, list[dict]] = {}
+    for c in rows:
+        out.setdefault(every_name([c]), []).append(c)
+    return out
+
+
+def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = ()) -> tuple[str, str]:
     """(the band's <summary>, its has-hidden classes). The title is plain text, so a click opens the band in
     place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose. The counters
-    and the eye count are what scripts.js recounts while a filter is on."""
-    from .render import tag_summary
-    n_hidden = sum(1 for c in counted_all if c.get('status') == 'hidden')
+    and the eye count are what scripts.js recounts while a filter is on. `every`: the rows of rules for every
+    hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
+    from .render import not_in_notes, tag_summary
+    n_hidden = sum(1 for c in counted_all if not_in_notes(c))
     # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
     # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
     text = f'all {n_hidden} not in notes' if all_hidden else f'{n_hidden} not in notes'
     chips = f'<span class="chip eye-chip">{mark("hidden")}<span class="ec-n">{text}</span></span>' if n_hidden else ''
+    # one short chip per kind: they wrap under the title on a phone (one long chip ran 145px off a 390px screen)
+    chips += ''.join(f'<span class="chip shr-chip">+{len(rows)} for {esc(name.lower())}</span>'
+                     for name, rows in every_groups(list(every)).items())
     hidden_cls = ' has-hidden' + (' all-hidden' if all_hidden else '') if n_hidden else ''
     cls = ' named' if patch_name(hdr['title']) else ''
     summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
@@ -332,10 +359,11 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     """One patch = its banner + ONE full-width panel: per part its icon on a plate in a column of its own,
     then its name and rows (Sloppy's ability block). `hints`: part key -> its cards.history_hints."""
     from .cards import ability_plate, disambiguate, is_hidden, player_facing, sub_head
-    from .render import tag_of
+    from .render import not_in_notes, tag_of
+    from .shared_rows import is_every
     hdr = slot['row']
     groups = _groups(slot, order, meta, names, hints, merge)
-    counted_all, all_dev, card = [], True, []
+    counted_all, every_all, all_dev, card = [], [], True, []
     single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
     parts = []
     for g in groups:
@@ -344,15 +372,18 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         if len(g['keys']) > 1:
             nm = merge([meta[k][0] for k in g['keys']])
         file, _, eid = key.partition(':')
-        facing = player_facing(g['changes'])
-        dev = [c for c in facing if c.get('status') == 'unreleased']
-        live = [c for c in facing if c.get('status') != 'unreleased']
+        rows = player_facing(g['changes'])
+        dev = [c for c in rows if c.get('status') == 'unreleased']
+        live = [c for c in rows if c.get('status') != 'unreleased']
         group_dev = bool(dev) and not live and not g['lines'] and not in_dev
         all_dev = all_dev and group_dev
-        counted = facing if in_dev else live
+        # a rule for every hero (shared_rows.is_every) is counted apart: the band's own counters, its eye and the
+        # strip tile count what changed on THIS entity
+        every_all += [c for c in (rows if in_dev else live) if is_every(c)]
+        counted = [c for c in (rows if in_dev else live) if not is_every(c)]
         counted_all += counted
-        facts['tags'] |= {tag_of(c)[0] for c in facing}
-        facts['hidden'] += sum(1 for c in counted if c.get('status') == 'hidden')
+        facts['tags'] |= {tag_of(c)[0] for c in rows}
+        facts['hidden'] += sum(1 for c in counted if not_in_notes(c))
         facts['dev'] += len(dev)
         area = ' '.join(dict.fromkeys((areas or {}).get(k, 'abil') for k in g['keys']))
         facts['areas'] |= set(area.split())
@@ -376,12 +407,15 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     # bands excluded)
     if not (all_dev and not in_dev):
         tally: dict[str, int] = {}
-        for c in counted_all:
+        # a band with only a rule for every hero still gets a tile — a muted one (`every_only`)
+        for c in counted_all or every_all:
             tally[tag_of(c)[0]] = tally.get(tag_of(c)[0], 0) + 1
+        for name, rows in every_groups(every_all).items():
+            card.append(((name, '', '', 0), rows))
         if tally:
-            facts.setdefault('strip', []).append((pid, hdr, tally, sum(c.get('status') == 'hidden' for c in counted_all),
-                                                  tile_card(card)))
-    summary, hidden_cls = _banner(pid, hdr, counted_all, rel)
+            facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
+                                                  tile_card(card), '' if counted_all else every_name(every_all)))
+    summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all)
     dev_cls = ' dev-only' if all_dev and not in_dev else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'
     meta_attrs = ''

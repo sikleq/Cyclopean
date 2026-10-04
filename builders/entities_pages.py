@@ -15,14 +15,16 @@ SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vital
 
 
 def _history() -> tuple[dict, dict]:
-    """entity key -> [(patch row, changes)], note subject -> [(patch row, line)]."""
+    """entity key -> [(patch row, changes)], note subject -> [(patch row, line)]. A change one edit made in many
+    entities ('@shared') is on each of them (shared_rows.spread)."""
+    from .shared_rows import entities as spread_all
     by_ent: dict[str, list] = defaultdict(list)
     by_subject: dict[str, list] = defaultdict(list)
     for row in load_json('patches/index.json'):
         p = load_json(f'patches/{row["id"]}.json.gz')
-        for e in p['entities']:
+        for e in spread_all(p['entities']):
             ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
-            if ch and e.get('id') != '@shared':
+            if ch:
                 by_ent[e['key']].append((row, ch))
         for s in p['sections']:
             for ln in s['lines']:
@@ -162,10 +164,18 @@ def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
             f'<span class="sub">{esc(sub)}</span>{foot}</a>')
 
 
+def changed(by_ent: dict) -> set[str]:
+    """The keys with a change of their own (or shared with some others): a rule for every hero (the level curve)
+    alone gives no hero or item a page."""
+    from .shared_rows import is_every
+    return {k for k, hist in by_ent.items() if any(not is_every(c) for _, ch in hist for c in ch)}
+
+
 def build_all() -> dict[str, int]:
     data = load_json('entities.json')
     ents = {f"{e['file']}:{e['id']}": e for e in data['entities']}
     by_ent, by_subject = _history()
+    own = changed(by_ent)
     table = load_json('tables/heroes.json')
     trow = {r['id']: r for r in table['heroes']}
     units_t = load_json('tables/units.json')
@@ -176,7 +186,7 @@ def build_all() -> dict[str, int]:
 
     heroes = [e for e in ents.values() if e['file'] == 'heroes.vdata' and not e.get('template')
               and (e.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease') or e['id'] in trow
-                   or f"heroes.vdata:{e['id']}" in by_ent)]
+                   or f"heroes.vdata:{e['id']}" in own)]
     by_id = {e['id']: e for e in ents.values() if e['file'] == 'abilities.vdata'}
     for h in heroes:
         write(slug(h['file'], h['id']), hero_page(h, cards, trow.get(h['id']), table['columns'], by_id, by_ent, by_subject))
@@ -203,7 +213,7 @@ def build_all() -> dict[str, int]:
 
     items = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e['kind'] == 'item'
              and e['id'].startswith('upgrade_') and not e.get('template')
-             and (e.get('tier') or f"abilities.vdata:{e['id']}" in by_ent)]
+             and (e.get('tier') or f"abilities.vdata:{e['id']}" in own)]
     for it in items:
         write(slug(it['file'], it['id']), item_page(it, cards.get(it['id']), by_ent, by_subject))
         counts['items'] += 1

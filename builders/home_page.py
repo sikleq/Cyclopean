@@ -40,14 +40,17 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     """section -> page key -> {n, hidden, buff, nerf, kind, rows}: what one update did to each page (rows:
     (what, change) for the icon's hover card).
     Counts are the player-facing rows (cards.player_facing) a page shows; work on unreleased heroes
-    waits for their release."""
+    waits for their release. A change one edit made in some heroes counts on each of them; a rule for every hero
+    (the level curve) on none of the icons — it is no one's own change (shared_rows)."""
     from .cards import gameplay_entities, player_facing
     from .dynamics_page import _display
+    from .render import not_in_notes
+    from .shared_rows import entities as spread_all, own
     out: dict[str, dict[str, dict]] = {}
     once: set = set()
-    for e in gameplay_entities(p['entities']):
+    for e in spread_all(gameplay_entities(p['entities'])):
         where = page_of(e, templates, unit_main)
-        rows = [c for c in player_facing(e['changes']) if c.get('status') != 'unreleased']
+        rows = [c for c in player_facing(own(e['changes'])) if c.get('status') != 'unreleased']
         if not where or not rows:
             continue
         key, section = where
@@ -62,7 +65,7 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
         what = _display(e) if section == 'heroes' else ''
         slot['rows'] += [(what, c) for c in rows]
         slot['n'] += len(rows)
-        slot['hidden'] += sum(1 for c in rows if c.get('status') == 'hidden')
+        slot['hidden'] += sum(1 for c in rows if not_in_notes(c))
         slot['buff'] += sum(1 for c in rows if c.get('dir') == 'buff')
         slot['nerf'] += sum(1 for c in rows if c.get('dir') == 'nerf')
     return out
@@ -91,13 +94,13 @@ def chip_card(s: dict) -> list:
     """[{tag: n}, hidden, samples] for a feed icon's hover card: its CHIP_SAMPLES biggest changes as
     [what (a hero's ability; '' for an item's / unit's own rows), label, old, new, tag, hidden 0/1]."""
     from .history_view import _rank
-    from .render import tag_of, vals_text
+    from .render import not_in_notes, tag_of, vals_text
     counts: dict[str, int] = {}
     for _, c in s['rows']:
         counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
     top = sorted(s['rows'], key=lambda wc: _rank(wc[1]))[:CHIP_SAMPLES]
     return [counts, s['hidden'], [[w, str(c.get('label') or ''), *vals_text(c), tag_of(c)[0],
-                                   int(c.get('status') == 'hidden')] for w, c in top]]
+                                   int(not_in_notes(c))] for w, c in top]]
 
 
 def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str]) -> str:
@@ -105,6 +108,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed)."""
     import json
     from .common import patch_title_text
+    from .patch_counts import for_id, off_pages
     from .pixel_icons import tag_svg
     from .render import TAG_WORD_ONE, TAG_WORDS
     blocks, updates, cards = [], [], []
@@ -127,8 +131,14 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                     cards.append([len(updates) - 1, *chip_card(s)])
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b></span>'
                               f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}</div></div>')
-        hidden = sum(s['hidden'] for sec in feed.values() for s in sec.values())
-        eye = f'<span class="au au-hidden">{mark("hidden")}<b>{hidden}</b> not in patch notes</span>' if hidden else ''
+        # the update's one count (patch_counts: as its patch page and the patch list); what no icon below carries is
+        # named apart — the game's rules and map objects only the patch page lists
+        pc = for_id(row['id'])
+        eye = ''
+        if pc['hidden']:
+            eye = f'<span class="au au-hidden">{mark("hidden")}<b>{pc["hidden"]}</b> not in patch notes</span>'
+            if off_pages(pc):
+                eye += f'<span class="au au-off"><b>{off_pages(pc)}</b> of them in game rules &amp; map objects</span>'
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
@@ -163,13 +173,11 @@ def build_all() -> int:
     fams = families([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
     unit_main = {m['id']: ms[0]['id'] for ms in fams.values() for m in ms}
     names |= {f"npc_units.vdata:{ms[0]['id']}": name for name, ms in fams.items()}     # "Slum Shroom", not "… I"
-    # the counters count what the hero / item / unit pages show (round 3: "8620 hidden" counted engine
-    # plumbing and work on unreleased heroes too)
-    total, total_hidden = 0, 0
-    for row in patches:
-        for sec in update_feed(load_json(f'patches/{row["id"]}.json.gz'), templates, unit_main).values():
-            total += sum(s['n'] for s in sec.values())
-            total_hidden += sum(s['hidden'] for s in sec.values())
+    # the one count of every patch (patch_counts: the patch pages and the list say the same) — no engine plumbing,
+    # no work on unreleased heroes (round 3: "8620 hidden" counted both)
+    from .patch_counts import for_id
+    total = sum(for_id(row['id'])['changes'] - for_id(row['id']).get('unreleased', 0) for row in patches)
+    total_hidden = sum(for_id(row['id'])['hidden'] for row in patches)
     last_build = builds[-1] if builds else None
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
     counts = {'heroes': len(heroes),

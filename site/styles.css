@@ -564,8 +564,9 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .erow.rw .vals .new { color: var(--text-main); font-weight: 600; }
 .tag.topic-tag { --c: var(--text-dimmer); }
 .eye-chip { color: var(--eye); }
+/* the eye filter keeps what its number counts (builders/patch_counts.py): plumbing ("Technical") is not counted */
 .only-hidden .erow:not(.is-hidden), .only-hidden .ecard:not(.has-hidden), .only-hidden .esub:not(.has-hidden),
-.only-hidden details.tech:not(.has-hidden), .only-hidden .hgroup:not(.has-hidden),
+.only-hidden details.tech, .only-hidden .hgroup:not(.has-hidden),
 .only-hidden .pblock:not(.has-hidden) { display: none; }
 
 /* engine plumbing rows fold away */
@@ -584,6 +585,14 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .fam-n { color: var(--text-dimmer); }
 .vals.fam-span { color: var(--label); font: 17px/1 var(--font-label); }
 .only-hidden details.fam:not(.has-hidden) { display: none; }
+/* one edit made in several entities at once (builders/shared_rows.py): a chip on the row; a rule for every one of
+   a kind folds into "All heroes: N changes", counted apart */
+.erow .chip.shr { font-size: 14px; padding: 1px 6px 0; margin-left: 6px; color: var(--text-dimmer); vertical-align: 1px;
+  white-space: normal; }
+.erow .shr-t { color: var(--label); }
+details.shr-all > summary .erow .vv { font-size: 13px; }
+.banner .shr-chip { color: var(--text-dimmer); }
+.ps-tile.shr { opacity: .55; }
 
 /* history strip: the last 12 patches, filled where the entity changed */
 .trail { display: inline-flex; flex-wrap: wrap; gap: 3px; max-width: 100%; }   /* a long history wraps on phones */
@@ -662,7 +671,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .ps-tile:hover, .ps-tile:focus-visible { z-index: 2; transform: scale(1.18); outline: 2px solid var(--text-bright); outline-offset: 1px; }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
-.hblocks .erow:not(.is-hidden) .st .mark { visibility: hidden; }
+.hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
 /* a patch the notes never mentioned: one eye on its banner, none on its rows */
 .hblocks .pblock.all-hidden .erow .st .mark { visibility: hidden; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
@@ -677,8 +686,9 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hist-bar .hf-tags .tag { min-width: 0; padding: 5px 4px 4px 6px; letter-spacing: 0; }
 .hist-bar .px-btn { padding: 5px 8px 6px; font-size: 13px; }
-.hist-bar .hf-hidden .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
-.hist-bar .hf-hidden .n { color: var(--eye); margin-left: 4px; }
+.hf-hidden .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
+.hf-hidden .mark svg { width: 14px; height: 14px; }
+.hf-hidden .n { color: var(--eye); margin-left: 4px; }
 .hist-bar .hf-dev .mark { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
 .hist-bar .hf-dev .n { color: var(--dev); margin-left: 4px; }
 /* an ability chip: its icon on the plate (smooth), the ultimate's corner mark */
@@ -781,6 +791,8 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
 .sum-audit .au { display: inline-flex; align-items: center; gap: 5px; }
 .sum-audit .au b { color: var(--text-bright); font-weight: 600; }
 .sum-audit .au-hidden b { color: var(--eye); }
+.sum-audit .au-off, .update .bc .au.au-off { color: var(--text-dimmer); }
+.sum-audit .au-off b, .update .bc .au.au-off b { color: var(--text-dim); }
 .sum-audit .au-mismatch b { color: var(--tag-mismatch); }
 
 /* ---------- 07. Change lists ---------- */

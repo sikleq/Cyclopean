@@ -9,9 +9,10 @@ import re
 
 from pipeline import flags as flag_rules
 
-from .common import esc, mark, visual
-from .render import (HIDDEN_LIKE, _sentinel, fold_corrupted, fold_tier_swaps, shown_value, sort_changes, tag_badge,
-                     tag_html, tag_of, tag_summary, vals_html)
+from .common import esc, mark, plural, visual
+from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_corrupted, fold_tier_swaps, not_in_notes, shown_value,
+                     sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
+from .shared_rows import is_every
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
@@ -19,7 +20,8 @@ ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', '
 
 
 def is_hidden(changes: list[dict]) -> bool:
-    return any(c.get('status', 'hidden') in HIDDEN_LIKE for c in changes)
+    """Something here was not in the patch notes (the eye; `render.NOT_IN_NOTES`)."""
+    return any(c.get('status', 'hidden') in NOT_IN_NOTES for c in changes)
 
 
 def card_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], sub: str = '', trail: str = '',
@@ -61,7 +63,7 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
 
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '') -> str:
     m = mark(status) if status in ROW_MARKS else ''
-    hid = ' is-hidden' if status in HIDDEN_LIKE else ''
+    hid = ' is-hidden' if status in NOT_IN_NOTES else ''
     return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
             f'<span class="tg">{tag}</span><span class="tx">{text_html}</span><span class="vv">{values_html}</span></div>')
 
@@ -398,7 +400,15 @@ def change_row(c: dict) -> str:
     # a replaced tier lists both bonus sets: they go on their own full-width line under the
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
-    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')), vals_html(c), extra)
+    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra)
+
+
+def shared_chip(c: dict) -> str:
+    """'shared ×9 heroes' after a row that one edit made in several entities at once (shared_rows.spread); a rule
+    for all of them sits in its own fold instead (`every_rows`)."""
+    if not c.get('shared_n') or is_every(c):
+        return ''
+    return f' <span class="chip shr">shared ×{c["shared_n"]} {esc(c.get("shared_what") or "")}</span>'
 
 
 # A table edited row by row (souls per level 19-36, investment steps, the shotgun's pellet offsets)
@@ -601,7 +611,12 @@ def _hint(label: str, prop: str, skip: frozenset[str] | set[str] = _HINT_SKIP) -
 def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = None) -> str:
     """The rows of one entity in one patch on its own page (owner, 2026-10-03): what a player reads —
     no "Technical" fold (engine plumbing stays in data/, not on the page), and a newly added entity is
-    its NEW head and key fields only, without "All fields". `known`: history_hints of the entity."""
+    its NEW head and key fields only, without "All fields". `known`: history_hints of the entity. A rule for every
+    entity of its kind (shared_rows.is_every) folds into one row after the entity's own (`every_rows`)."""
+    every = [c for c in changes if is_every(c)]
+    if every:
+        own = [c for c in changes if not is_every(c)]
+        return (entity_rows(own, known) if own else '') + every_rows(every, known)
     rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
                          if not is_noop(c) and not is_engine(c)], known)
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
@@ -610,6 +625,23 @@ def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = 
                    tag_badge('new', 'NEW'), 'Added to the game', attrs=behind_attr(changes, keep))
         return head + ''.join(change_row(c) for c in keep)
     return family_rows(rows)
+
+
+def every_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = None) -> str:
+    """A rule for (almost) every entity of a kind on one of them — the level curve, the investment bonuses, a
+    default of every melee attack — as ONE folded row "All heroes: 38 changes" with its tag counters; the rows open
+    in place (coverage audit 2026-10-05: spread over the heroes, 35 level-curve rows would drown a hero's own
+    patch). Counted apart from the entity's own changes (history_view)."""
+    rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+                         if not is_noop(c) and not is_engine(c)], known)
+    if not rows:
+        return ''
+    what = rows[0].get('shared_what') or 'entities'
+    status = min((c.get('status', 'hidden') for c in rows), key=lambda s: s not in NOT_IN_NOTES)
+    text = f'All {esc(what)}: {plural(len(rows), "change")}'
+    head = row(status, '', f'<span class="shr-t">{text}</span>', tag_summary(rows), 'fam-head shr-head')
+    hid = ' has-hidden' if is_hidden(rows) else ''
+    return f'<details class="fam shr-all{hid}"><summary>{head}</summary>{family_rows(rows)}</details>'
 
 
 def behind_attr(changes: list[dict], listed: list[dict]) -> str:
@@ -624,7 +656,7 @@ def behind_attr(changes: list[dict], listed: list[dict]) -> str:
             continue
         n = per.setdefault(tag_of(c)[0], [0, 0])
         n[0] += 1
-        n[1] += c.get('status') == 'hidden'
+        n[1] += not_in_notes(c)
     return ' data-n="' + (' '.join(f'{t}:{n}:{h}' for t, (n, h) in per.items()) or 'new:0:0') + '"'
 
 
