@@ -971,9 +971,25 @@
       }
       return r.__t;
     }
+    // a row that stands for changes it does not list (a new unit's "Added to the game" over its 12 key
+    // fields) says which in data-n: "tag:changes:hidden …" (cards.entity_rows)
+    function behind(r) {
+      if (r.__b === undefined) {
+        var n = r.getAttribute('data-n');
+        r.__b = n ? n.split(' ').map(function (e) { var p = e.split(':'); return [p[0], +p[1], +p[2]]; }) : null;
+      }
+      return r.__b;
+    }
+    function tagOk(r) {
+      if (!state.tags.length) return true;
+      var bs = behind(r);
+      if (!bs) return state.tags.indexOf(tagOf(r)) >= 0;
+      for (var i = 0; i < bs.length; i++) if (state.tags.indexOf(bs[i][0]) >= 0) return true;
+      return false;
+    }
     // the banner's counters while a filter is on: the shown rows by tag (a code line is no counted change),
     // the eye's count; the built numbers come back when the filters clear
-    function recount(b, active) {
+    function recount(b, active, onlyHidden) {
       var bc = b.querySelector('summary .bc');
       if (!bc) return;
       var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
@@ -988,6 +1004,15 @@
       var counts = {}, hidden = 0;
       b.querySelectorAll('.erow').forEach(function (r) {
         if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.parentNode.tagName === 'SUMMARY') return;
+        var bs = behind(r);
+        if (bs) {
+          bs.forEach(function (e) {
+            if (state.tags.length && state.tags.indexOf(e[0]) < 0) return;
+            counts[e[0]] = (counts[e[0]] || 0) + (onlyHidden ? e[2] : e[1]);
+            hidden += e[2];
+          });
+          return;
+        }
         var t = tagOf(r);
         counts[t] = (counts[t] || 0) + 1;
         if (r.classList.contains('st-hidden')) hidden++;
@@ -1031,7 +1056,7 @@
           var gany = false;
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
-            var ok = gok && (!state.tags.length || state.tags.indexOf(tagOf(r)) >= 0) &&
+            var ok = gok && tagOk(r) &&
                      (!onlyHidden || r.classList.contains('is-hidden')) &&
                      (dev || !r.classList.contains('st-unreleased'));
             r.classList.toggle('f-out', !ok);
@@ -1044,7 +1069,7 @@
           any = any || gany;
         });
         b.classList.toggle('f-out', !any);
-        recount(b, active);
+        recount(b, active, onlyHidden);
         if (active && any && !b.open) b.open = true;            // a patch with a match opens
       });
     }
@@ -1057,15 +1082,21 @@
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
     }
-    // patch-anchor: a tile or square names a band the filters hide — clear them all and show it
-    window.__histReset = function () {
+    // patch-anchor: a tile or square names a band or group the filters hide — clear them all and show it;
+    // dev = also show the work before release (a dev-only band or group)
+    window.__histReset = function (dev) {
       state.tags = []; state.area = null; state.ab = null;
       box.classList.remove('only-hidden');
       bar.querySelectorAll('[data-f-tag]').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
       pressAll('data-f-area', null);
       pressAll('data-f-ab', null);
       var eye = bar.querySelector('.hf-hidden');
-      if (eye) eye.classList.remove('on');
+      if (eye) { eye.classList.remove('on'); eye.setAttribute('aria-pressed', 'false'); }
+      if (dev) {
+        box.classList.add('show-dev');
+        var sw = bar.querySelector('.hf-dev');
+        if (sw) { sw.classList.add('on'); sw.setAttribute('aria-pressed', 'true'); }
+      }
       apply();
     };
     // #ab-<ability id> (an ability card's "History" link, Sloppy's ?ability=) filters to that ability
@@ -1078,7 +1109,11 @@
         return b.getAttribute('data-f-ab').split(' ').indexOf(id) >= 0;
       })[0];
       state.ab = chip ? chip.getAttribute('data-f-ab') : id;
-      if (chip && chip.classList.contains('gone')) chip.parentNode.classList.add('show-gone');
+      if (chip && chip.classList.contains('gone')) {
+        chip.parentNode.classList.add('show-gone');
+        var gb = chip.parentNode.querySelector('.hf-gone-btn');
+        if (gb) { gb.classList.add('on'); gb.setAttribute('aria-pressed', 'true'); }
+      }
       pressAll('data-f-ab', state.ab);
       apply();
       box.scrollIntoView({ block: 'start' });
@@ -1104,22 +1139,24 @@
       // "Not in patch notes" and "Before release" toggle a class on #history first (the generic toggle)
       setTimeout(apply, 0);
     });
-    bar.addEventListener('change', function () { setTimeout(apply, 0); });
   });
 
   /* ---------- #p-<patch>: a history band named in the address — or clicked on this page (a strip tile,
      an ability card's trail square or its last change) — opens and comes into view, even when a filter
      or "Before release" hid it and even when the address already names it ---------- */
   safe('patch-anchor', function () {
-    function reveal(el) {
-      if (el.offsetParent !== null) return;
-      if (window.__histReset) window.__histReset();
-      var hist = el.closest('.hblocks');
-      if (el.offsetParent === null && hist && el.classList.contains('dev-only')) {
-        hist.classList.add('show-dev');
-        var sw = document.querySelector('.hf-dev');
-        if (sw) { sw.classList.add('on'); sw.setAttribute('aria-pressed', 'true'); }
-      }
+    // a band or group a filter (or "Before release") hides: clear the filters; still hidden and work before
+    // release -> show that too. The band can show while the group is filtered out (another ability's rows
+    // kept it): the group is checked on its own, or the square scrolled nowhere and lit a hidden group
+    function reveal(x) {
+      if (!x || x.offsetParent !== null) return;
+      var reset = window.__histReset;
+      if (reset) reset();
+      if (x.offsetParent !== null || !(x.classList.contains('dev-only') || x.closest('.dev-only') ||
+          x.querySelector('.st-unreleased'))) return;
+      var hist = x.closest('.hblocks');
+      if (reset) reset(true);
+      else if (hist) hist.classList.add('show-dev');
     }
     function go(ab) {
       if (location.hash.indexOf('#p-') !== 0) return;
@@ -1137,6 +1174,7 @@
         return g.getAttribute('data-ab') === ab;
       })[0];
       if (group) {
+        reveal(group);
         group.classList.add('flash');
         setTimeout(function () { group.classList.remove('flash'); }, 1600);
       }

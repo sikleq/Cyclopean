@@ -146,11 +146,20 @@ def now_fold(summary: str, body: str) -> str:
             f'<div class="now-body">{body}</div></details>')
 
 
+WHOLE_TAGS = ('new', 'rework', 'del')   # a thing added, reworked or removed: no %, but as big as 100%
+WHOLE_PCT = 100.0
+
+
 def _rank(c: dict) -> tuple:
-    """The matrices' order of "biggest": the size of the change, then the tag order."""
+    """The hover cards' order of "biggest" (strip tile, trail square, home feed icon): the size of the change,
+    then the tag order. A NEW / REWORK / DEL row has no % and counts as 100%: a hero's release card listed two
+    small base-stat NERFs ahead of its 14 new things (Rat King, review 2026-10-04). The change matrices keep
+    their own order (dynamics_page._collect: the owner's call)."""
     from .render import TAG_ORDER, tag_of
+    tag = tag_of(c)[0]
     pct = c.get('pct')
-    return (-abs(pct) if isinstance(pct, (int, float)) else 0, TAG_ORDER.get(tag_of(c)[0], 9))
+    size = abs(pct) if isinstance(pct, (int, float)) else WHOLE_PCT if tag in WHOLE_TAGS else 0.0
+    return (-size, TAG_ORDER.get(tag, 9))
 
 
 def tile_card(groups: list[tuple[tuple, list[dict]]]) -> list[list]:
@@ -232,11 +241,12 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
         parts.append('<span class="hf-tags">' + ''.join(
             tag_badge(t, t.upper(), 'button', f' data-f-tag="{t}" aria-pressed="false"') for t in tags) + '</span>')
     if facts['hidden']:
-        parts.append(f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#history">'
+        parts.append(f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#history" '
+                     f'aria-pressed="false">'
                      f'{mark("hidden")}Not in patch notes <span class="n">{facts["hidden"]}</span></button>')
     if areas and len(facts['areas']) > 1:
         parts.append('<span class="hf-areas">' + ''.join(
-            f'<button class="px-btn" data-f-area="{a}">{esc(lbl)}</button>' for a, lbl in area_labels
+            f'<button class="px-btn" data-f-area="{a}" aria-pressed="false">{esc(lbl)}</button>' for a, lbl in area_labels
             if a in facts['areas']) + '</span>')
     chips = [(k, nm, ic) for k, nm, ic in keys[1:] if k in facts['abs']]
     if len(chips) > 1:
@@ -261,7 +271,8 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
                     f'data-tooltip="{esc(nm)}" aria-label="{esc(nm)}" aria-pressed="false">{inner}</button>')
         gone_html = ''
         if old:
-            gone_html = (f'<button class="px-btn hf-gone-btn" data-toggle-class="show-gone" data-target=".hf-abs">'
+            gone_html = (f'<button class="px-btn hf-gone-btn" data-toggle-class="show-gone" data-target=".hf-abs" '
+                         f'aria-pressed="false">'
                          f'Removed <span class="n">{len(old)}</span></button>' + ''.join(chip(*c, ' gone') for c in old))
         parts.append('<span class="hf-abs">' + ''.join(chip(*c) for c in now) + gone_html + '</span>')
     if facts['dev'] and not in_dev:

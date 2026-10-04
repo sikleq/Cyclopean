@@ -170,9 +170,10 @@ def art_path(rows: tuple[str, ...]) -> str:
 
 
 def tag_mask(tag: str) -> str:
-    """The icon as a CSS mask image for styles.css's :root (`--ti-<tag>`): a tag badge draws its icon with
-    ::before in currentColor, so a page carries no SVG per badge (Calico's page held ~600 copies of the same
-    ten shapes, owner 2026-10-04). tests/test_entity_page.py keeps the tokens in sync with TAG_ART."""
+    """The icon as a CSS mask image, written into styles.css as `.tag.<t> { --ti-content: ""; --ti: … }` (not
+    :root): a tag badge draws its icon with ::before in currentColor, so a page carries no SVG per badge
+    (Calico's page held ~600 copies of the same ten shapes, owner 2026-10-04). tests/test_entity_page.py
+    keeps those rules in sync with TAG_ART."""
     return ("url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' "
             f"shape-rendering='crispEdges'%3E%3Cpath d='{art_path(TAG_ART[tag])}'/%3E%3C/svg%3E\")")
 

@@ -104,7 +104,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     """The latest updates' icons + ONE JSON blob of their hover cards (scripts.js dyn-tip, parsed on the first
     hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed)."""
     import json
-    from .common import EYE_SVG, patch_title_text
+    from .common import patch_title_text
     from .pixel_icons import tag_svg
     from .render import TAG_WORD_ONE, TAG_WORDS
     blocks, updates, cards = [], [], []

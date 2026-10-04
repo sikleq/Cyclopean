@@ -316,8 +316,6 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 /* a hero / item / unit page: head, today's stats, strip, toolbar and every band share ONE centred column
    (the history sat in 1120px pinned left under a 1640px head: 134px of margin left, 666px right at 1920) */
 .page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
-/* a wide table narrower than the window sits in the middle, not against the left edge */
-.page.wide .table-fade { width: fit-content; max-width: 100%; margin-inline: auto; }
 .page-head { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
 .page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
 .page-head .meta { color: var(--text-dim); font-size: 14px; }
@@ -669,7 +667,6 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hist-bar .hf-hidden .n { color: var(--eye); margin-left: 4px; }
 .hist-bar .hf-dev .mark { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
 .hist-bar .hf-dev .n { color: var(--dev); margin-left: 4px; }
-.hist-bar .switch { font-size: 13px; }
 /* an ability chip: its icon on the plate (smooth), the ultimate's corner mark */
 .hf-ab { position: relative; width: 26px; height: 26px; padding: 3px; border: 0; cursor: pointer; background: var(--bg-panel-4);
   box-shadow: 0 0 0 2px var(--frame-line), inset 0 0 0 1px var(--bg-page); }
@@ -720,6 +717,10 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
   /* a banner's counters drop under its title instead of running off the screen */
   .banner { flex-wrap: wrap; row-gap: 6px; padding: 9px 14px; }
   .banner .bc { margin-left: 0; flex-wrap: wrap; }
+  /* a unit family's tiers fit a phone: the 420px floor pushed 45 neutral pages 67px sideways at 390px */
+  table.tier-grid { width: 100%; min-width: 0; }
+  table.tier-grid th, table.tier-grid td { padding: 5px 6px; }
+  table.tier-grid thead th { font-size: 15px; }
 }
 
 .ptitle { display: flex; align-items: center; gap: 16px; }
@@ -983,16 +984,6 @@ table.stats td.hm-lo { background-color: var(--cell-lo); }
 .keystat.has-hist, .wcell.has-hist { cursor: help; }
 .keystat.has-hist.recent::after, .wcell.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
   border-top: 7px solid var(--patina); border-left: 7px solid transparent; }
-/* secondary stats fold under a quiet "+ ALL STATS 12" line */
-details.more { margin-top: 8px; }
-details.more > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 8px; padding: 4px 0;
-  font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
-details.more > summary::-webkit-details-marker { display: none; }
-details.more > summary::before { content: "+"; color: var(--patina); }
-details.more[open] > summary::before { content: "-"; }
-details.more > summary:hover { color: var(--text-bright); }
-details.more > summary .n { color: var(--text-dimmer); }
-details.more[open] > .stat-flow, details.more[open] > .wb-cells { margin-top: 8px; }
 .si { display: inline-block; width: 16px; height: 16px; object-fit: contain; flex: none; }
 
 /* weapon: not an ability card — a wide band, first after the head */
@@ -1297,7 +1288,10 @@ h2.flush { margin-top: 0; }
 .flag.rem { color: var(--tag-nerf); }
 table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .item-hdr { margin-bottom: 10px; }
-.ability-grid.item-secs { grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+/* an item's sections fill the panel (auto-fill left Veil Walker's right third empty); a lone card stops at
+   half the panel, so a label and its value never sit a whole panel apart */
+.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
+.ability-grid.item-secs > .ability-card { max-width: 580px; }
 .no-notes { color: var(--eye); }
 /* item page: what it does now on the left, how it got there on the right */
 .item-layout { display: grid; grid-template-columns: 330px minmax(0, 1fr); gap: 22px; align-items: start; }

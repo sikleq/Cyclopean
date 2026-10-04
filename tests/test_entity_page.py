@@ -101,7 +101,8 @@ def test_band_title_stays_on_the_page_and_groups_have_a_plate():
     assert 'class="pnotes" href="../patches/p3.html"' in band          # the archive on purpose
     assert '<span class="ec-n">3 not in notes</span>' in band          # the eye count scripts.js recounts
     assert html.count('class="hgroup has-ic') >= 3 and '<div class="hg-b">' in html
-    assert 'class="ab-ic ult" data-tooltip="Ultimate"' in html
+    # the gold corner marks the ultimate; no tooltip beside its written name (AGENTS.md, review 2026-10-04)
+    assert '<span class="ab-ic ult"><' in html and 'data-tooltip="Ultimate"' not in html
     # the plate is smooth: no pixelated "px" class on the game's 128px art
     assert '<img class="si2" src="../icons/abilities/charge.webp"' in html
 
@@ -121,6 +122,23 @@ def test_toolbar_tags_are_aria_pressed_buttons_of_the_one_badge():
     assert "setAttribute('aria-pressed', i < 0 ? 'true' : 'false')" in hist
     # every filter (the eye too) opens what it matches and the counters follow it
     assert 'state.ab || onlyHidden' in hist and "b.classList.contains('has-hidden')" in hist and 'recount(b' in hist
+    # every toggle says its state from the start, and a reset by a strip tile clears it (the eye kept "true")
+    for cls in ('hf-hidden', 'hf-gone-btn', 'hf-dev'):
+        assert re.search(rf'<button class="px-btn {cls}"[^>]* aria-pressed="false">', _toolbar_with_all()), cls
+    assert 'data-f-area="stats" aria-pressed="false"' in _toolbar_with_all()
+    reset = hist.split('window.__histReset = function')[1].split('};')[0]
+    assert "eye.setAttribute('aria-pressed', 'false')" in reset
+    assert "bar.addEventListener('change'" not in hist          # no checkbox left in the bar
+
+
+def _toolbar_with_all() -> str:
+    """A bar with every control: tags, the eye, parts, abilities (one removed), "Before release"."""
+    from builders.history_view import toolbar
+    facts = {'tags': {'nerf', 'buff'}, 'hidden': 3, 'dev': 2, 'areas': {'stats', 'abil'},
+             'abs': {'abilities.vdata:a', 'abilities.vdata:b', 'abilities.vdata:c'}}
+    keys = [('heroes.vdata:h', 'Hero', None), ('abilities.vdata:a', 'A', 'a.webp'), ('abilities.vdata:b', 'B', 'b.webp'),
+            ('abilities.vdata:c', 'C', 'c.webp')]
+    return toolbar(facts, keys, {'heroes.vdata:h': 'stats'}, {'abilities.vdata:c'}, False, '../')
 
 
 def test_one_tag_badge_everywhere():
@@ -242,3 +260,70 @@ def test_colours_only_in_root_and_no_has():
     assert not re.findall(r'#[0-9a-fA-F]{3,8}\b', rest)
     assert not re.findall(r'\brgba?\(', rest)
     assert ':has(' not in css
+
+
+def _added_unit():
+    """A unit added to the game: 2 key fields, ADDED_KEY_LIMIT others (every second one hidden), an ON switch."""
+    from builders.cards import ADDED_KEY_LIMIT
+    new = {'op': 'add', 'old_s': None, 'pct': None, 'dir': None}
+    keys = [ch(**new, key=f'npc_units.vdata:u:{p}', path=p, label=lbl, new_s='500')
+            for p, lbl in (('m_iMaxHealth', 'Max Health'), ('m_nCost', 'Cost'))]
+    rest = [ch(**new, key=f'npc_units.vdata:u:r{i}', path=f'm_flThing{i}', label=f'Thing {i}', new_s=str(i + 1),
+               status='hidden' if i % 2 else 'documented') for i in range(ADDED_KEY_LIMIT)]
+    on = ch(**new, cat='availability', key='npc_units.vdata:u:on', path='m_bEnabled', label='Enabled', new_s='true')
+    return keys + rest + [on]
+
+
+def test_a_new_units_head_row_says_what_it_stands_for():
+    """Review 2026-10-04: a new unit's band showed "Added to the game" + its key fields, so a filter that kept
+    every row recounted NEW 60 where the band said 71. The head row carries tag:changes:hidden of the rest."""
+    from builders.cards import entity_rows, player_facing
+    from builders.render import tag_of
+    changes = _added_unit()
+    html = entity_rows(changes)
+    head = re.search(r'<div class="erow [^"]*" data-n="([^"]*)">', html)
+    assert head and 'Added to the game' in html.split('data-n=')[1].split('</div>')[0]
+    behind = {t: (int(n), int(h)) for t, n, h in (e.split(':') for e in head.group(1).split())}
+    assert behind == {'new': (12, 6), 'on': (1, 1)}
+    # the shown rows plus what the head stands for = what the band's counters count
+    shown = html.count('<div class="erow') - 1
+    built: dict[str, int] = {}
+    for c in player_facing(changes):
+        built[tag_of(c)[0]] = built.get(tag_of(c)[0], 0) + 1
+    assert shown + sum(n for n, _ in behind.values()) == sum(built.values())
+    # a patch's ordinary rows carry no such attribute
+    assert 'data-n=' not in entity_rows(changes[:3])
+    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    hist = js.split("safe('hist-filter'")[1].split("safe('patch-anchor'")[0]
+    assert "r.getAttribute('data-n')" in hist and 'onlyHidden ? e[2] : e[1]' in hist and 'tagOk(r)' in hist
+
+
+def test_cards_put_a_new_thing_ahead_of_a_small_number():
+    """Review 2026-10-04: Rat King's release card showed two small base-stat NERFs, not his 14 new things. A
+    NEW / REWORK / DEL row without a % ranks as 100% in the hover cards (strip, trail, home feed)."""
+    from builders.history_view import _rank, tile_card
+    from builders.home_page import chip_card
+    added = ch(op='add', label='Rat Swarm', old_s=None, new_s='1', pct=None, dir=None, key='a:1')
+    small = ch(label='Health', old_s='800', new_s='780', pct=-2.5, key='a:2')
+    big = ch(label='Bullet Speed', dir='buff', old_s='100', new_s='250', pct=150.0, key='a:3')
+    assert sorted([small, added, big], key=_rank) == [big, added, small]
+    samples = tile_card([(('', '', 'x', 0), [small, added])])[0][3]
+    assert [s[0] for s in sorted(samples, key=lambda s: s[5])] == ['Rat Swarm', 'Health']
+    assert chip_card({'rows': [('', small), ('', added)], 'hidden': 2})[2][0][1] == 'Rat Swarm'
+
+
+def test_phone_tier_table_matrices_and_item_cards_css():
+    """Review 2026-10-04: (1) the open "Current stats" put a 420px tier table on 45 neutral pages at 390px;
+    (2) centring every wide table gave the change matrices a 20px sideways scroll at 1700-1920px — the
+    stats tables' centring is the item-stats track's `.table-fade.center`; (3) auto-fill left a third of an
+    item's "Current values" empty; (4) dead rules (details.more, the bar's switch) went."""
+    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    phone = [b for b in css.split('@media (max-width: 700px) {')[1:] if 'table.tier-grid' in b.split('\n}')[0]]
+    assert phone and 'table.tier-grid { width: 100%; min-width: 0; }' in phone[0]
+    assert '.page.wide .table-fade' not in css
+    assert '.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }' in css
+    assert 'details.more' not in css and '.hist-bar .switch' not in css
+    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    anchor = js.split("safe('patch-anchor'")[1].split("safe('tabs'")[0]
+    # a square's group is unhidden on its own: the band can show (another ability's rows) while it is filtered out
+    assert 'reveal(group)' in anchor and 'reset(true)' in anchor

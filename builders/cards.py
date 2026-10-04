@@ -8,7 +8,7 @@ import re
 
 from .common import esc, mark, visual
 from .render import (HIDDEN_LIKE, fold_corrupted, fold_tier_swaps, shown_value, sort_changes, tag_badge, tag_html,
-                     tag_summary, vals_html)
+                     tag_of, tag_summary, vals_html)
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
@@ -40,9 +40,9 @@ def card(head: str, body: str, *, hidden: bool = False, dev: bool = False, searc
 
 def ability_plate(icon_url: str | None, glyph: str, ult: bool = False) -> str:
     """An ability's icon on a framed dark plate (the game's white glyphs read bare on the panel, owner
-    2026-10-04), drawn smooth — no pixelated downscale of the 128px art; the ultimate gets a corner mark."""
-    tip = ' data-tooltip="Ultimate"' if ult else ''
-    return f'<span class="ab-ic{" ult" if ult else ""}"{tip}>{visual(icon_url, glyph, "si2")}</span>'
+    2026-10-04), drawn smooth — no pixelated downscale of the 128px art; the ultimate gets a corner mark, no
+    tooltip (its name is written beside it; AGENTS.md: tooltips only on text-less chips)."""
+    return f'<span class="ab-ic{" ult" if ult else ""}">{visual(icon_url, glyph, "si2")}</span>'
 
 
 def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], hidden: bool = False,
@@ -56,10 +56,10 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
     return f'<div class="{cls}">{plate}<span class="nm">{esc(name)}</span>{counters}</div>'
 
 
-def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '') -> str:
+def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '') -> str:
     m = mark(status) if status in ROW_MARKS else ''
     hid = ' is-hidden' if status in HIDDEN_LIKE else ''
-    return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"><span class="st">{m}</span>'
+    return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
             f'<span class="tg">{tag}</span><span class="tx">{text_html}</span><span class="vv">{values_html}</span></div>')
 
 
@@ -437,9 +437,25 @@ def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = 
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
         keep, _ = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden'),
-                   tag_badge('new', 'NEW'), 'Added to the game')
+                   tag_badge('new', 'NEW'), 'Added to the game', attrs=behind_attr(changes, keep))
         return head + ''.join(change_row(c) for c in keep)
     return family_rows(rows)
+
+
+def behind_attr(changes: list[dict], listed: list[dict]) -> str:
+    """' data-n="new:57:40 on:1:1"' — the counted changes (player_facing, what the band's counters count) a
+    head row stands for without listing them, as tag:changes:hidden. A filter recounts a band from its shown
+    rows (scripts.js `hist-filter`); without this a new unit's band read NEW 71 built and 60 under a filter
+    that kept every row (Old Gods, 2026-10-04)."""
+    shown ={(c.get('key'), c.get('path')) for c in listed}
+    per: dict[str, list[int]] = {}
+    for c in player_facing(changes):
+        if (c.get('key'), c.get('path')) in shown:
+            continue
+        n = per.setdefault(tag_of(c)[0], [0, 0])
+        n[0] += 1
+        n[1] += c.get('status') == 'hidden'
+    return ' data-n="' + (' '.join(f'{t}:{n}:{h}' for t, (n, h) in per.items()) or 'new:0:0') + '"'
 
 
 def change_rows(changes: list[dict], added: bool = False) -> str:

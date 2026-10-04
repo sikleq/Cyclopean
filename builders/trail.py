@@ -23,13 +23,6 @@ def dominant_of(counts: dict[str, int]) -> str:
     return 'changed'
 
 
-def dominant(changes: list[dict]) -> str:
-    counts: dict[str, int] = {}
-    for c in changes:
-        counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
-    return dominant_of(counts)
-
-
 @lru_cache(maxsize=1)
 def _index() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]]]:
     """(patches oldest first, {entity key: {patch id: {tag: count}}})"""
