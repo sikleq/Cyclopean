@@ -715,9 +715,10 @@ def test_a_bare_namesake_gets_a_word_too():
     assert not is_engine({**switch, 'path': 'm_mapAbilityProperties.AbilityCooldown.m_subclassScaleFunction.m_flStatScale'})
 
 
-def test_player_terms_and_the_strip_runs_newest_first():
+def test_player_terms_and_the_strip_puts_the_newest_on_the_right():
     """Advisor round 4, 2026-10-03: one wording for the eye ("Not in patch notes"), a date instead of
-    "build 6711", the patch strip in the history's order with the count left out of the notes."""
+    "build 6711", the count left out of the notes on a strip tile. Owner 2026-10-05: the newest patch on
+    the right everywhere (the strip ran newest-left while the matrices ran newest-right)."""
     from builders.common import first_seen
     from builders.history_view import history_table
     assert first_seen([6711, '2026-09-29T21:00:00Z']) == '<div class="meta">First seen 2026-09-29</div>'
@@ -727,8 +728,20 @@ def test_player_terms_and_the_strip_runs_newest_first():
     by_ent = {key: [(r1, [ch(key='a', status='documented')]), (r2, [ch(key='b'), ch(key='c', label='Range')])]}
     html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../')
     strip = html.split('class="patch-strip"')[1].split('</div>')[0]
-    assert strip.index('#p-p2') < strip.index('#p-p1')
+    assert strip.index('#p-p1') < strip.index('#p-p2')
     assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in notes' in html
+
+
+def test_the_strip_never_scrolls():
+    """Owner 2026-10-05 (screenshot: a scrollbar under the strip): tiles shrink to fit, a phone keeps the
+    newest; no horizontal scrolling on the row."""
+    import re
+    from pathlib import Path
+    css = Path(__file__).resolve().parent.parent.joinpath('site', 'styles.css').read_text(encoding='utf-8')
+    rule = re.search(r'\.patch-strip \{[^}]*\}', css).group(0)
+    assert 'overflow: hidden' in rule and 'overflow-x: auto' not in rule
+    assert re.search(r'\.ps-tile \{[^}]*flex: 0 1 30px[^}]*min-width', css)
+    assert '.ps-tile:nth-last-child(n+16) { display: none; }' in css
 
 
 def test_current_fold_is_open_and_events_carry_no_value():

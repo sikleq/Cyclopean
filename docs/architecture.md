@@ -529,8 +529,10 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
   every patch).
 - Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as ONE
-  row of tiles over the toolbar, newest first like the history below (older tiles scroll in from the
-  right). Tiles are striped by tag (`dynamics_page.stripes`), show the count, and carry the site's eye (a
+  row of tiles over the toolbar, oldest → newest with the newest on the RIGHT, as in the change matrices
+  and the trail squares (owner 2026-10-05: "новые справа везде"). The row never scrolls: tiles are
+  `flex: 0 1 30px` (min 14px) and shrink to fit the column; below 760px only the newest 15 show
+  (`nth-last-child`). Tiles are striped by tag (`dynamics_page.stripes`), show the count, and carry the site's eye (a
   CSS mask, `--mask-eye`) when the notes left something out. A tile opens `#p-<patch>`. Hovering it
   shows the hover card (below).
 - Hover cards (scripts.js `dyn-tip`, ONE renderer `card()`): a change-matrix cell, an entity page's strip
