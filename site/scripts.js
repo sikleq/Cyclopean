@@ -26,8 +26,15 @@
     document.querySelectorAll('table.stats').forEach(function (table) {
       var tbody = table.tBodies[0];
       var original = Array.prototype.slice.call(tbody.rows);
+      // band rows (a category, a unit group) stand aside while the table is sorted by a column
+      var data = original.filter(function (r) { return !r.classList.contains('sec'); });
       var state = { col: null, dir: 0 };
+      function mark(col) {
+        table.querySelectorAll('tbody td.sorted-col').forEach(function (td) { td.classList.remove('sorted-col'); });
+        if (col) table.querySelectorAll('tbody td[data-col="' + col + '"]').forEach(function (td) { td.classList.add('sorted-col'); });
+      }
       table.querySelectorAll('thead tr.cols th[data-col]').forEach(function (th) {
+        if (th.hasAttribute('data-nosort')) return;
         th.addEventListener('click', function () {
           var col = th.getAttribute('data-col');
           if (state.col !== col) { state.col = col; state.dir = 1; }
@@ -39,25 +46,33 @@
           } else {
             th.classList.add('sorted');
             th.setAttribute('data-arrow', state.dir === 1 ? '▼' : '▲');
-            rows = original.slice().sort(function (a, b) {
-              var ca = a.querySelector('td[data-col="' + col + '"]');
-              var cb = b.querySelector('td[data-col="' + col + '"]');
-              var va = ca ? ca.getAttribute('data-sort') : '';
-              var vb = cb ? cb.getAttribute('data-sort') : '';
-              var na = parseFloat(va), nb = parseFloat(vb);
-              var ea = isNaN(na), eb = isNaN(nb);
-              if (ea && eb) return String(va).localeCompare(String(vb));
+            // each row's key read once, not by two cell lookups per comparison; the rows move in one fragment
+            var keyed = data.map(function (r) {
+              var td = r.querySelector('td[data-col="' + col + '"]');
+              var v = td ? td.getAttribute('data-sort') : '';
+              return [v === null ? '' : v, parseFloat(v), r];
+            });
+            keyed.sort(function (a, b) {
+              var ea = isNaN(a[1]), eb = isNaN(b[1]);
+              if (ea && eb) return String(a[0]).localeCompare(String(b[0]));
               if (ea) return 1;
               if (eb) return -1;
-              return state.dir === 1 ? nb - na : na - nb;
+              return state.dir === 1 ? b[1] - a[1] : a[1] - b[1];
             });
+            rows = keyed.map(function (k) { return k[2]; });
           }
-          rows.forEach(function (r) { tbody.appendChild(r); });
+          table.classList.toggle('is-sorted', state.dir !== 0);
+          var frag = document.createDocumentFragment();
+          rows.forEach(function (r) { frag.appendChild(r); });
+          tbody.appendChild(frag);
+          mark(state.dir !== 0 ? col : null);
         });
       });
+      // cells built later (Item Stats' stat columns) join the marked column
+      table.addEventListener('statcols', function () { mark(state.dir !== 0 ? state.col : null); });
       // row marking
       tbody.addEventListener('click', function (ev) {
-        if (ev.target.closest('a')) return;
+        if (ev.target.closest('a, .sc')) return;
         var tr = ev.target.closest('tr');
         if (tr) tr.classList.toggle('marked');
       });
@@ -193,6 +208,9 @@
     document.querySelectorAll('[data-toggle-class]').forEach(function (btn) {
       var target = document.querySelector(btn.getAttribute('data-target') || 'body');
       var cls = btn.getAttribute('data-toggle-class');
+      if (!target) return;
+      // a switch the browser restored as ticked on "back" gets its class too (they disagreed)
+      if (btn.type === 'checkbox' && btn.checked) target.classList.add(cls);
       btn.addEventListener('click', function () {
         var on = !target.classList.contains(cls);
         target.classList.toggle(cls, on);
@@ -355,13 +373,39 @@
   });
 
   /* ---------- change matrices open at the newest patches (the right end); older columns re-scroll ---------- */
+  /* the box is as wide as the name column + a whole number of patch columns, so at the right end the
+     first visible column starts exactly at the sticky names (it opened with half a column under them) */
   safe('dyn-scroll', function () {
     document.querySelectorAll('table.dyn').forEach(function (t) {
       var sc = t.closest('.table-scroll');
-      if (!sc) return;
+      var box = sc && sc.parentNode;
+      if (!sc || !box) return;
+      box.classList.add('center');
+      function fit() {
+        box.style.maxWidth = '';
+        var name = t.querySelector('thead tr.cols th.name');
+        var col = t.querySelector('thead tr.cols th.dd:not(.old)') || t.querySelector('thead tr.cols th.dd');
+        if (!name || !col || sc.scrollWidth <= sc.clientWidth) return;
+        var w = col.getBoundingClientRect().width, nw = name.getBoundingClientRect().width;
+        var chrome = sc.offsetWidth - sc.clientWidth;          // borders + the vertical scrollbar
+        var n = Math.floor((sc.clientWidth - nw) / w);
+        if (n > 0) box.style.maxWidth = Math.round(nw + n * w + chrome) + 'px';
+      }
       function toEnd() { sc.scrollLeft = sc.scrollWidth; }
+      fit();
       toEnd();
-      new MutationObserver(toEnd).observe(t, { attributes: true, attributeFilter: ['class'] });
+      // only "Older patches" changes the width; "Buff vs nerf" and the rest leave the scroll alone
+      var old = t.classList.contains('show-old');
+      new MutationObserver(function () {
+        var now = t.classList.contains('show-old');
+        if (now !== old) { old = now; fit(); toEnd(); }
+      }).observe(t, { attributes: true, attributeFilter: ['class'] });
+      var pending = false;
+      window.addEventListener('resize', function () {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(function () { pending = false; fit(); toEnd(); });
+      });
     });
   });
 
@@ -654,75 +698,100 @@
   safe('heatmap', function () {
     var btn = document.querySelector('[data-heatmap]');
     if (!btn) return;
-    // every table on the page (items and units come as one table per category), ranked within itself
-    btn.addEventListener('click', function () {
-      var on = !btn.classList.contains('on');
-      btn.classList.toggle('on', on);
-      document.querySelectorAll('table.stats').forEach(function (table) { heat(table, on); });
-    });
-    // values that change in place (Boons, "Souls per point") re-rank the heat if it is on
-    window.__reheat = function () {
-      if (!btn.classList.contains('on')) return;
-      document.querySelectorAll('table.stats').forEach(function (table) { heat(table, true); });
-    };
+    var CLS = ['hm-g1', 'hm-g2', 'hm-g3', 'hm-g4', 'hm-b1', 'hm-b2', 'hm-b3', 'hm-b4'];
+    // every table on the page (units come as one table per group), ranked within itself
+    function all() {
+      document.querySelectorAll('table.stats').forEach(function (table) { heat(table, btn.checked); });
+    }
+    btn.addEventListener('change', all);
+    // values that change in place (Boons, "Souls per point", new cells) re-rank the heat if it is on
+    window.__reheat = function () { if (btn.checked) all(); };
+    // on by default where the page says so (Item Stats); a box the browser restored on "back" counts too
+    if (btn.checked) all();
+    /* graded by rank (Sloppy's mana table): each column's distinct values ranked by size, the middle
+       fifth left plain, then 4 steps of green (better) or red (worse) — a binary +-14% hid the spread.
+       An item's stat chip ranks with its column; bonuses rank by size, so a -8% shred beats a -6% one. */
     function heat(table, on) {
-      table.querySelectorAll('td.hm-hi, td.hm-lo').forEach(function (td) { td.classList.remove('hm-hi', 'hm-lo'); });
+      table.querySelectorAll('.' + CLS.join(', .')).forEach(function (el) { el.classList.remove.apply(el.classList, CLS); });
       if (!on) return;
       var cols = {};
-      table.querySelectorAll('tbody td[data-col]').forEach(function (td) {
-        var v = parseFloat(td.getAttribute('data-sort'));
-        if (isNaN(v)) return;
-        (cols[td.getAttribute('data-col')] = cols[td.getAttribute('data-col')] || []).push([v, td]);
+      // the heat's direction: data-hpol when set ("Souls per point": cheaper per point is better; a
+      // price column: no heat), else the stat's own data-pol, which the history tooltip reads too
+      table.querySelectorAll('tbody td[data-col], tbody .sc[data-col]').forEach(function (el) {
+        var v = parseFloat(el.getAttribute('data-sort'));
+        var pol = parseInt(el.getAttribute('data-hpol') || el.getAttribute('data-pol') || '1', 10);
+        if (isNaN(v) || pol === 0) return;
+        (cols[el.getAttribute('data-col')] = cols[el.getAttribute('data-col')] || []).push([Math.abs(v), el, pol]);
       });
       Object.keys(cols).forEach(function (k) {
         var list = cols[k];
         var uniq = Array.from(new Set(list.map(function (x) { return x[0]; }))).sort(function (a, b) { return a - b; });
         if (uniq.length < 3) return;
+        var at = {};
+        uniq.forEach(function (v, i) { at[v] = i / (uniq.length - 1); });
         list.forEach(function (x) {
-          var td = x[1];
-          var pol = parseInt(td.getAttribute('data-pol') || '1', 10);
-          if (pol === 0) return;
-          var rank = uniq.indexOf(x[0]) / (uniq.length - 1);
-          if (pol < 0) rank = 1 - rank;
-          if (rank >= 0.6) td.classList.add('hm-hi');
-          else if (rank <= 0.4) td.classList.add('hm-lo');
+          var r = x[2] < 0 ? 1 - at[x[0]] : at[x[0]];
+          var off = Math.abs(r - 0.5) - 0.1;
+          if (off <= 0) return;
+          var step = Math.min(4, Math.ceil(off / 0.4 * 4));
+          x[1].classList.add((r > 0.5 ? 'hm-g' : 'hm-b') + step);
         });
       });
     }
   });
 
   /* ---------- stats tables: a click on a group header folds the group to its first column ---------- */
+  /* ONE recount for everything that hides columns (a folded group, the item filter's empty columns,
+     Details, Item Stats' stat columns): each group header spans exactly its visible columns, a group
+     with none left hides, and a folded group keeps its first column the filter left visible — the item
+     filter used to count folded columns too and shifted the headers by one (2026-10-04) */
   safe('col-groups', function () {
     document.querySelectorAll('table.stats').forEach(function (table) {
       var cats = Array.prototype.slice.call(table.querySelectorAll('thead tr.cats th.cat[data-group]'));
       var heads = Array.prototype.slice.call(table.querySelectorAll('thead tr.cols th[data-group]'));
-      if (cats.length < 2) return;
-      function recount() {
-        cats.forEach(function (th) {
-          var g = th.getAttribute('data-group');
-          var n = heads.filter(function (h) {
-            return h.getAttribute('data-group') === g && getComputedStyle(h).display !== 'none';
-          }).length;
-          if (n) th.colSpan = n;
+      var allHeads = Array.prototype.slice.call(table.querySelectorAll('thead tr.cols th'));
+      if (!cats.length) return;
+      function shown(el) { return getComputedStyle(el).display !== 'none'; }
+      function ofGroup(g) { return heads.filter(function (h) { return h.getAttribute('data-group') === g; }); }
+      function setOff(h, off) {
+        h.classList.toggle('grp-off', off);
+        table.querySelectorAll('td[data-col="' + h.getAttribute('data-col') + '"]').forEach(function (td) {
+          td.classList.toggle('grp-off', off);
         });
       }
+      function refold(th) {
+        var hs = ofGroup(th.getAttribute('data-group'));
+        hs.forEach(function (h) { setOff(h, false); });
+        if (!th.classList.contains('folded')) return;
+        var keep = hs.filter(function (h) { return !h.classList.contains('col-off') && shown(h); })[0];
+        hs.forEach(function (h) { if (h !== keep) setOff(h, true); });
+      }
+      function recount() {
+        cats.forEach(function (th) { if (th.classList.contains('folded')) refold(th); });
+        cats.forEach(function (th) {
+          var n = ofGroup(th.getAttribute('data-group')).filter(shown).length;
+          th.classList.toggle('col-gone', !n);
+          if (n) th.colSpan = n;
+        });
+        // a band row spans the visible columns
+        var width = allHeads.filter(shown).length;
+        table.querySelectorAll('tbody tr.sec td.sec-fill').forEach(function (td) { td.colSpan = Math.max(1, width - 1); });
+      }
+      table.__recount = recount;
       cats.forEach(function (th) {
+        if (ofGroup(th.getAttribute('data-group')).length < 2) return;      // nothing to fold
         th.classList.add('foldable');
         th.addEventListener('click', function () {
-          var g = th.getAttribute('data-group'), off = !th.classList.contains('folded');
-          th.classList.toggle('folded', off);
-          heads.filter(function (h) { return h.getAttribute('data-group') === g; }).slice(1).forEach(function (h) {
-            var key = h.getAttribute('data-col');
-            h.classList.toggle('grp-off', off);
-            table.querySelectorAll('td[data-col="' + key + '"]').forEach(function (td) { td.classList.toggle('grp-off', off); });
-          });
+          th.classList.toggle('folded');
           recount();
         });
       });
-      // the Details switch shows / hides a whole group: the spans follow
-      document.querySelectorAll('[data-toggle-class="show-details"]').forEach(function (b) {
+      // switches that show / hide columns (Details, Stat columns): the spans follow
+      document.querySelectorAll('[data-toggle-class]').forEach(function (b) {
         b.addEventListener('click', function () { setTimeout(recount, 0); });
       });
+      table.addEventListener('statcols', recount);
+      recount();
     });
   });
 
@@ -732,34 +801,36 @@
     if (!table) return;
     var bar = document.querySelector('.toolbar');
     var sel = { cat: [], tier: [], kind: [] };
-    var rows = Array.prototype.slice.call(table.tBodies[0].rows);
+    var all = Array.prototype.slice.call(table.tBodies[0].rows);
+    var rows = all.filter(function (r) { return !r.classList.contains('sec'); });
+    var bands = all.filter(function (r) { return r.classList.contains('sec'); });
     var heads = Array.prototype.slice.call(table.querySelectorAll('thead tr.cols th[data-col]'))
       .filter(function (th) { return th.getAttribute('data-col') !== 'name'; });
-    var cats = Array.prototype.slice.call(table.querySelectorAll('thead tr.cats th[data-group]'));
-    // td per (row, column), read once
-    var cells = rows.map(function (r) {
-      var m = {};
-      Array.prototype.forEach.call(r.querySelectorAll('td[data-col]'), function (td) { m[td.getAttribute('data-col')] = td; });
-      return m;
-    });
+    var lazy = heads.filter(function (th) { return th.hasAttribute('data-cell-cls'); });
+    var cells = [];
+    function readCells() {          // td per (row, column), read once per layout
+      cells = rows.map(function (r) {
+        var m = {};
+        Array.prototype.forEach.call(r.querySelectorAll('td[data-col]'), function (td) { m[td.getAttribute('data-col')] = td; });
+        return m;
+      });
+    }
+    readCells();
     function shown(r) { return !r.classList.contains('f-out') && !r.classList.contains('hidden-el'); }
+    function filled(td) { var s = td ? td.getAttribute('data-sort') : null; return s !== null && s !== ''; }
     function columns() {
-      var count = {};
       heads.forEach(function (th) {
         var key = th.getAttribute('data-col'), any = false;
-        for (var i = 0; i < rows.length && !any; i++) {
-          var td = cells[i][key];
-          any = shown(rows[i]) && td && td.getAttribute('data-sort') !== '';
-        }
+        for (var i = 0; i < rows.length && !any; i++) any = shown(rows[i]) && filled(cells[i][key]);
         th.classList.toggle('col-off', !any);
         cells.forEach(function (m) { if (m[key]) m[key].classList.toggle('col-off', !any); });
-        if (any) count[th.getAttribute('data-group')] = (count[th.getAttribute('data-group')] || 0) + 1;
       });
-      cats.forEach(function (th) {        // the group headers span what is left of them
-        var n = count[th.getAttribute('data-group')] || 0;
-        th.classList.toggle('col-off', !n);
-        if (n) th.colSpan = n;
+      // a category band with none of its items left goes too
+      bands.forEach(function (b) {
+        var cat = b.getAttribute('data-cat');
+        b.classList.toggle('f-out', !rows.some(function (r) { return r.getAttribute('data-cat') === cat && shown(r); }));
       });
+      if (table.__recount) table.__recount();        // the group headers span what is left of them
     }
     function apply() {
       rows.forEach(function (r) {
@@ -780,35 +851,108 @@
     });
     var search = bar.querySelector('input[type=search]');
     if (search) search.addEventListener('searched', columns);     // the search module ran
-    // what one point of a stat costs: cost / value (lower is better), back to the values when off
+
+    // what one point of a stat costs: cost / value (lower is better), back to the values when off; the
+    // heat ranks it lower-is-better (data-hpol) while the history colours keep the stat's own direction
     var per = bar.querySelector('[data-souls-per]');
+    function spp(el, on) {
+      var cost = parseFloat(el.closest('tr').getAttribute('data-cost'));
+      var tgt = el.classList.contains('sc') ? el.querySelector('b') : el;
+      if (on && !el.__orig) {
+        var v = parseFloat(el.getAttribute('data-sort'));
+        if (isNaN(v) || v <= 0 || isNaN(cost)) return;
+        el.__orig = [tgt.innerHTML, el.getAttribute('data-sort')];
+        var s = cost / v;
+        tgt.textContent = s >= 10 ? Math.round(s) : s.toFixed(1);
+        el.setAttribute('data-sort', s);
+        el.setAttribute('data-hpol', '-1');
+      } else if (!on && el.__orig) {
+        tgt.innerHTML = el.__orig[0];
+        el.setAttribute('data-sort', el.__orig[1]);
+        el.removeAttribute('data-hpol');
+        el.__orig = null;
+      }
+    }
+    function sppAll() {
+      var on = !!(per && per.checked);
+      table.querySelectorAll('[data-spp]').forEach(function (el) { spp(el, on); });
+    }
     if (per) per.addEventListener('change', function () {
-      var on = per.checked;
-      table.classList.toggle('per-soul', on);
-      rows.forEach(function (r, i) {
-        var cost = parseFloat(r.getAttribute('data-cost'));
-        heads.forEach(function (th) {
-          if (th.getAttribute('data-group') !== 'Stats') return;
-          var td = cells[i][th.getAttribute('data-col')];
-          if (!td) return;
-          if (on) {
-            var v = parseFloat(td.getAttribute('data-sort'));
-            if (isNaN(v) || v <= 0 || isNaN(cost)) return;
-            td.__orig = [td.innerHTML, td.getAttribute('data-sort'), td.getAttribute('data-pol')];
-            var s = cost / v;
-            td.textContent = s >= 10 ? Math.round(s) : s.toFixed(1);
-            td.setAttribute('data-sort', s);
-            td.setAttribute('data-pol', '-1');
-          } else if (td.__orig) {
-            td.innerHTML = td.__orig[0];
-            td.setAttribute('data-sort', td.__orig[1]);
-            td.setAttribute('data-pol', td.__orig[2]);
-            td.__orig = null;
-          }
-        });
-      });
+      table.classList.toggle('per-soul', per.checked);
+      sppAll();
       if (window.__reheat) window.__reheat();
     });
+
+    /* Stat columns: the always-on stats as one sortable column each (by family). Their cells are not in
+       the page — built here from each row's chips the first time the columns open. */
+    var sw = bar.querySelector('[data-stat-cols]');
+    var built = false;
+    function cellFrom(chip, key, cls) {
+      var td = document.createElement('td');
+      td.className = cls;
+      td.setAttribute('data-col', key);
+      if (!chip || chip.classList.contains('gone')) {
+        td.classList.add('dash');
+        td.textContent = '—';
+      }
+      if (!chip) return td;
+      ['data-pol', 'data-digits', 'data-hist', 'data-title'].forEach(function (a) {
+        var v = chip.getAttribute(a);
+        if (v !== null) td.setAttribute(a, v);
+      });
+      if (chip.classList.contains('has-hist')) td.classList.add('has-hist');
+      if (chip.classList.contains('recent')) td.classList.add('recent');
+      if (chip.classList.contains('gone')) return td;
+      var raw = chip.__orig ? chip.__orig[1] : chip.getAttribute('data-sort');
+      td.setAttribute('data-sort', raw);
+      td.setAttribute('data-spp', '');
+      td.textContent = fmtNum(parseFloat(raw), parseInt(chip.getAttribute('data-digits') || '0', 10));
+      return td;
+    }
+    function build() {
+      if (built) return;
+      built = true;
+      rows.forEach(function (r) {
+        var chips = {};
+        r.querySelectorAll('td.sumc .sc[data-col]').forEach(function (c) { chips[c.getAttribute('data-col')] = c; });
+        var frag = document.createDocumentFragment();
+        lazy.forEach(function (th) {
+          var key = th.getAttribute('data-col');
+          frag.appendChild(cellFrom(chips[key], key, th.getAttribute('data-cell-cls')));
+        });
+        r.insertBefore(frag, r.querySelector('td.fxc'));
+      });
+      readCells();
+      sppAll();
+      columns();
+      table.dispatchEvent(new CustomEvent('statcols'));
+      if (window.__reheat) window.__reheat();
+    }
+    if (sw) {
+      sw.addEventListener('change', function () { if (sw.checked) build(); });
+      if (sw.checked) {                          // the browser restored the box on "back"
+        table.classList.add('cols-open');
+        build();
+      }
+      // the Stats header opens the columns too
+      table.querySelectorAll('thead th.sumc').forEach(function (th) {
+        th.addEventListener('click', function () { if (!sw.checked) sw.click(); });
+      });
+      // a chip opens the columns sorted by its stat, biggest first, scrolled into view
+      table.addEventListener('click', function (ev) {
+        var chip = ev.target.closest('.sc[data-col]');
+        if (!chip) return;
+        if (!sw.checked) sw.click();
+        var th = table.querySelector('thead tr.cols th[data-col="' + chip.getAttribute('data-col') + '"]');
+        if (!th) return;
+        if (!(th.classList.contains('sorted') && th.getAttribute('data-arrow') === '▼')) {
+          th.click();
+          if (th.getAttribute('data-arrow') !== '▼') th.click();
+        }
+        var sc = table.closest('.table-scroll'), name = table.querySelector('thead th.name');
+        if (sc && name) sc.scrollLeft = Math.max(0, th.offsetLeft - name.offsetWidth - 40);
+      });
+    }
   });
 
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */

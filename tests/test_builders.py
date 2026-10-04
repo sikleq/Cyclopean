@@ -750,3 +750,94 @@ def test_site_search_lists_heroes_abilities_items_and_units():
     by_name = {r[0]: r for r in rows}
     assert by_name['Shoulder Charge'][1].endswith('#ab-ab_charge') and by_name['Shoulder Charge'][2] == 'Abrams · ability'
     assert by_name['Extra Charge'][2] == 'Item · removed' and by_name['Walker'][2] == 'Unit'
+
+
+ITEM_COLS = [{'key': 'tier', 'label': 'Tier', 'group': 'Shop', 'pol': 0, 'digits': 0, 'unit': ''},
+             {'key': 'cost', 'label': 'Cost', 'group': 'Shop', 'pol': -1, 'digits': 0, 'unit': '', 'css': 'souls'},
+             {'key': 'health_max', 'label': 'Bonus Health', 'group': 'Vitality', 'pol': 1, 'digits': 0, 'unit': '',
+              'css': 'health', 'stat': True},
+             {'key': 'bullet_armor_damage_resist', 'label': 'Bullet Resist', 'group': 'Vitality', 'pol': 1,
+              'digits': 0, 'unit': '%', 'css': 'bullet_armor_up', 'stat': True},
+             {'key': 'cooldown', 'label': 'Cooldown', 'group': 'Utility', 'pol': -1, 'digits': 2, 'unit': 's',
+              'css': 'cooldown'}]
+BOOSTER = {'id': 'upgrade_headshot_booster', 'name': 'Headshot Booster', 'slot': 'Weapon',
+           'values': {'tier': 1, 'cost': 800.0, 'health_max': 30.0, 'cooldown': 9.0},
+           'shown': {'health_max': '+30', 'cooldown': '9s'},
+           'effects': [{'key': 'fx:HeadShotBonusDamage', 'label': 'Head Shot Bonus Damage', 'value': '+45',
+                        'css': 'bullet_damage', 'pol': 1, 'digits': 0}],
+           'history': {'health_max': [[5554, '2025-05-08', 40.0, 30.0]],
+                       'bullet_armor_damage_resist': [[5554, '2025-05-08', 4.0, None]],
+                       'fx:HeadShotBonusDamage': [[6000, '2025-12-01', 40.0, 45.0]]}}
+
+
+def test_item_stats_show_what_an_item_does():
+    """Owner complaint 6 (2026-10-04): Item Stats was 67-84% dashes and never showed an item's own numbers.
+    The always-on stats are chips in one cell (one sortable column each on demand), every other card
+    number is an Effect chip with its label and unit, each with its own history."""
+    from builders.tables_pages import effects_cell, item_columns, stats_cell
+    cols = item_columns(ITEM_COLS)
+    assert [c['key'] for c in cols] == ['tier', 'cost', 'stats', 'health_max', 'bullet_armor_damage_resist',
+                                        'effect', 'cooldown', 'builds']
+    stat_cols = [c for c in cols if c.get('stat')]
+    assert all(c['lazy'] and c['cls'] == 'stc' for c in stat_cols)    # no per-stat cells in the page
+    html = stats_cell(BOOSTER, stat_cols, '2025-01-01')
+    assert 'class="sc f-v has-hist recent"' in html and 'data-col="health_max" data-sort="30.0"' in html
+    assert '<b>+30</b> <i>Bonus Health</i>' in html and 'data-spp' in html
+    assert 'data-hist=\'[[5554,"2025-05-08",40.0,30.0]]\'' in html
+    # a stat the item lost keeps its history for the column view, as an empty marker
+    assert 'class="sc gone has-hist recent" data-col="bullet_armor_damage_resist"' in html
+    assert 'data-sort="1"' in html                                       # one stat now
+    fx = effects_cell(BOOSTER, '2026-01-01')
+    assert '<b>+45</b> <i>Head Shot Bonus Damage</i>' in fx and 'Headshot Booster · Head Shot Bonus Damage' in fx
+    assert 'class="fx has-hist"' in fx and 'data-col="effect"' in fx and 'data-pol="0"' in fx
+    empty = {**BOOSTER, 'values': {}, 'effects': [], 'history': {}}
+    assert '<span class="dash">—</span>' in stats_cell(empty, stat_cols, '') and 'data-sort=""' in effects_cell(empty, '')
+
+
+def test_item_table_bands_tiers_and_lazy_columns():
+    from builders.tables_pages import item_columns, render_table, tier_starts
+    rows = [{**BOOSTER, 'id': f'i{n}', 'name': f'I{n}', 'slot': slot, 'values': {**BOOSTER['values'], 'tier': tier}}
+            for n, (slot, tier) in enumerate([('Weapon', 1), ('Weapon', 1), ('Weapon', 2), ('Spirit', 2)])]
+    assert tier_starts(rows) == {'i0', 'i2', 'i3'}
+    cols = item_columns(ITEM_COLS)
+    html = render_table(cols, rows, lambda r: f'<td class="name">{r["name"]}</td>', 'Item',
+                        section_of=lambda r: (r['slot'], f' data-cat="{r["slot"][0].lower()}"'),
+                        cells_by_key={'stats': lambda r, c, cut: '<td class="sumc"></td>',
+                                      'effect': lambda r, c, cut: '<td class="fxc"></td>',
+                                      'builds': lambda r, c, cut: '<td class="xcol"></td>'},
+                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'}, center=True)
+    # one band row per category, spanning the table; the box centred on the page
+    assert html.count('<tr class="sec"') == 2 and '<tr class="sec" data-cat="s">' in html
+    assert 'class="sec-fill"' in html and 'class="table-fade center"' in html
+    # a lazy column: its header says how to build its cells, the rows have none
+    assert re.search(r'data-col="health_max"[^>]*data-cell-cls="grp-start( g-odd)? stc"', html)
+    assert 'data-col="health_max" data-sort' not in html
+    # units in headers, the game's property icon before the label
+    assert 'Cooldown <span class="u">s</span>' in html and 'Bullet Resist <span class="u">%</span>' in html
+    assert 'stats/prop/cooldown.svg' in html
+    assert '<th colspan="2" class="cat stc" data-group="Vitality">' in html
+
+
+def test_table_bar_scrolls_away_and_its_legend_wraps():
+    """The sticky bar covered the column headers (a third of a phone); the 489px legend chip scrolled
+    the page sideways at 390px; the heatmap is on by default on Item Stats."""
+    from pathlib import Path
+    from builders.tables_pages import _toolbar
+    bar = _toolbar('Item…', heat_on=True)
+    assert 'class="toolbar tbl-bar"' in bar and 'data-heatmap checked' in bar
+    assert '<span class="lg-tail"> · hover a value for its history</span>' in bar
+    assert 'data-heatmap checked' not in _toolbar('Hero…')
+    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
+    assert '.toolbar.tbl-bar, .toolbar.dyn-bar { position: static; }' in css
+    assert '.chip.legend-hist { white-space: normal; max-width: 100%; }' in css
+    # a unit without art: the glyph gets the icon's fixed box (Shrine's grew to a 300x210 picture)
+    assert 'table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px;' in css
+
+
+def test_stylesheet_colours_live_in_root_only():
+    """AGENTS.md: every colour is a :root token; no hex / rgba literal in the rules."""
+    from pathlib import Path
+    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
+    rest = css[css.index('}', css.index(':root {')) + 1:]
+    assert [m.group(0) for m in re.finditer(r':[^;{}]*(#[0-9a-fA-F]{3,8}\b|rgba?\()', rest)] == []
