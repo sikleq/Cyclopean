@@ -209,6 +209,9 @@ def test_page_class_and_centred_column_css():
     assert 'clip-path' not in tag and 'var(--font-ui)' in tag and 'min-width: var(--tag-w)' in tag
     assert 'data-g' not in css.split('/* ---------- 06. Badges')[1].split('.tsum')[0]
     assert 'img.px' not in css.split('/* ---------- 03.')[0]       # the game's art is scaled smooth
+    # a row reads as a sentence: values right after the label (max-content), the % at the right edge
+    assert '.hblocks .erow { grid-template-columns: 22px var(--tag-w) minmax(0, max-content) minmax(150px, 1fr); }' in css
+    assert '.hblocks .erow .vals > .old:first-child:nth-last-child(2) { text-decoration: line-through' in css
 
 
 def test_home_feed_icons_carry_a_card():

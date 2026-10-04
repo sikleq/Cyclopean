@@ -632,6 +632,10 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
   margin: 0 6px 0 12px; align-self: center; border-bottom: 1px dashed transparent; }
 .hblocks .erow:hover .vv .vals:not(.wrap):not(.flags)::after { border-bottom-color: var(--grid-strong); }
 .hblocks .erow .vv .pct, .hblocks .erow .vv .pct-pad { order: 2; flex: none; margin-left: 0; }
+/* a line from the notes about the game's code has no values: its text takes the whole row */
+.hblocks .erow.st-code { grid-template-columns: 22px var(--tag-w) minmax(0, 1fr) auto; }
+/* a removed value (DEL: the old value alone) reads struck through */
+.hblocks .erow .vals > .old:first-child:nth-last-child(2) { text-decoration: line-through; text-decoration-color: var(--arrow); }
 /* the entity's patch strip (history_view.patch_strip): newest first like the history below it, ONE row —
    older tiles scroll in from the right; a tile lifts on hover and its card says what the patch did */
 .patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px; overflow-x: auto;
