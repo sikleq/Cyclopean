@@ -80,9 +80,23 @@
   --eye-53: rgba(255, 154, 60, 0.53);
   --bone-08: rgba(224, 216, 198, 0.08);
   --cell-odd: color-mix(in srgb, var(--patina) 6%, var(--bg-panel));   /* solid table tints (cheap to scroll) */
-  --cell-hover: color-mix(in srgb, var(--bone-08) 100%, var(--bg-panel-3));
-  --cell-hi: color-mix(in srgb, var(--tag-buff) 14%, var(--bg-panel));
-  --cell-lo: color-mix(in srgb, var(--tag-nerf) 14%, var(--bg-panel));
+  /* solid: a see-through hover let the cells scrolled under the sticky name column show through it */
+  --cell-hover: color-mix(in srgb, var(--text-main) 7%, var(--bg-panel-3));
+  /* stats-table heatmap: 4 steps each way by rank in the column (the middle fifth stays plain) */
+  --heat-g1: color-mix(in srgb, var(--tag-buff) 7%, var(--bg-panel));
+  --heat-g2: color-mix(in srgb, var(--tag-buff) 13%, var(--bg-panel));
+  --heat-g3: color-mix(in srgb, var(--tag-buff) 20%, var(--bg-panel));
+  --heat-g4: color-mix(in srgb, var(--tag-buff) 29%, var(--bg-panel));
+  --heat-b1: color-mix(in srgb, var(--tag-nerf) 7%, var(--bg-panel));
+  --heat-b2: color-mix(in srgb, var(--tag-nerf) 13%, var(--bg-panel));
+  --heat-b3: color-mix(in srgb, var(--tag-nerf) 20%, var(--bg-panel));
+  --heat-b4: color-mix(in srgb, var(--tag-nerf) 29%, var(--bg-panel));
+  --sorted-col: color-mix(in srgb, var(--gold) 9%, transparent);   /* the column the table is sorted by */
+  /* stat families' numbers on Item Stats (weapon / spirit / vitality / movement) */
+  --fam-w: color-mix(in srgb, var(--weapon) 75%, var(--text-bright));
+  --fam-s: color-mix(in srgb, var(--spirit) 75%, var(--text-bright));
+  --fam-v: color-mix(in srgb, var(--vitality) 75%, var(--text-bright));
+  --fam-m: color-mix(in srgb, var(--patina) 70%, var(--text-bright));
   --grid: rgba(224, 216, 198, 0.08);         /* table lines, both directions (owner: translucent) */
   --grid-strong: rgba(224, 216, 198, 0.18);  /* a column group's first line */
   --glow-top: rgba(31, 74, 64, 0.45);
@@ -705,6 +719,11 @@ table.tier-grid { width: auto; min-width: 420px; border-collapse: collapse; }
 table.tier-grid th, table.tier-grid td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
 table.tier-grid td:first-child { text-align: left; color: var(--label); }
 table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bright); text-transform: uppercase; }
+/* a phone: the grid fits its box (420px in a 332px box cut the third tier off, frontend-audit 9) */
+@media (max-width: 760px) {
+  table.tier-grid { min-width: 0; width: 100%; }
+  table.tier-grid th, table.tier-grid td { padding: 5px 6px; }
+}
 @media (max-width: 700px) {
   .erow, .hblocks .erow { grid-template-columns: 22px var(--tag-w) minmax(0, 1fr); }
   .erow .vv { grid-column: 3; text-align: left; white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
@@ -890,13 +909,15 @@ table.stats thead tr.cats th { top: 0; font: 600 12px/1 var(--font-ui); color: v
 table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: 11.5px; line-height: 1.2; white-space: nowrap; min-width: 40px; vertical-align: bottom; }
 .table-scroll:not(.show-details) .g-details { display: none; }
 table.stats thead tr.cols th:hover { color: var(--text-bright); }
-table.stats thead th.sorted { color: var(--patina-strong); }
+/* the sorted column: a gold header with its arrow, its cells under a faint gold wash (Sloppy) */
+table.stats thead th.sorted { color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
 table.stats thead th.sorted::after { content: attr(data-arrow); margin-left: 3px; font-family: var(--font-px-small); }
 table.stats th.name, table.stats td.name { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--bg-panel); }
 table.stats thead th.name { text-align: center; }
 table.stats thead th.name { z-index: 4; }
 table.stats td.name a { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 15px/1 var(--font-ui); }
-table.stats td.name img { width: 22px; height: 22px; object-fit: contain; }
+/* the icon box is fixed: a unit without art gets the glyph at the same size (Shrine's grew to 300x210) */
+table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px; object-fit: contain; }
 table.stats tbody td { background-color: var(--bg-panel); }
 table.stats td.g-odd { background-color: var(--cell-odd); }
 table.stats td.name .pre { font: 17px/1 var(--font-label); color: var(--eye); margin-left: 4px; }
@@ -912,8 +933,6 @@ table.stats td.spirit { color: var(--tag-rework); }
 .chip.legend-hist::before { content: ""; width: 0; height: 0; border-top: 7px solid var(--patina); border-left: 7px solid transparent; align-self: flex-start; }
 .chip.legend-spirit { color: var(--tag-rework); }
 table.stats td .dash, .dash { color: var(--text-dimmer); }
-table.stats td.hm-hi { background-color: var(--cell-hi); }
-table.stats td.hm-lo { background-color: var(--cell-lo); }
 
 .hist-tip {
   position: fixed; z-index: var(--z-tooltip);
@@ -1605,7 +1624,7 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 /* a tile: stripes in tag colours, a pixel bevel, the number of changes in the corner */
 .dsq { position: relative; width: 28px; height: 28px;
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
-.dsq .dn { position: absolute; right: 2px; bottom: 1px; font: 600 9px/1 var(--font-ui); color: var(--bg-page);
+.dsq .dn { position: absolute; right: 2px; bottom: 1px; font: 600 10px/1 var(--font-ui); color: var(--bg-page);
   text-shadow: 0 0 2px var(--bone-08); pointer-events: none; }
 .dsq:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; transform: translateY(-1px); }
 table.dyn th, table.dyn td { border-bottom: 1px solid var(--grid); }
@@ -1722,3 +1741,106 @@ table.stats td.has-hist { text-decoration: underline dotted color-mix(in srgb, v
 table.dt-rows tr.dt-part td { padding: 6px 6px 3px; text-align: left; font: 600 11px/1 var(--font-ui); text-transform: uppercase;
   letter-spacing: .08em; color: var(--label); border-right: 0; }
 table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 60%, var(--label)); }
+
+/* ---------- 21. stats tables: bars, heat, bands; Item Stats (tables_pages.items_table) ---------- */
+/* the table bars scroll away: stuck, they covered the table's own sticky header (a third of a phone) */
+.toolbar.tbl-bar, .toolbar.dyn-bar { position: static; }
+.chip.legend-hist { white-space: normal; max-width: 100%; }
+/* a table narrower than the page sits in the middle (Item Stats, the change matrices) */
+.table-fade.center { width: fit-content; max-width: 100%; margin-inline: auto; }
+/* a one-patch month's label ("2026-10" over 30px) spilled past the table and made the box scroll 25px
+   further than the last column, so the first column opened half under the sticky names */
+table.dyn thead tr.cats th { overflow: hidden; text-overflow: clip; }
+table.stats .col-gone { display: none; }
+/* heat by rank: cells and an item's stat chips (scripts.js heatmap) */
+table.stats td.hm-g1, table.stats .sc.hm-g1 { background-color: var(--heat-g1); }
+table.stats td.hm-g2, table.stats .sc.hm-g2 { background-color: var(--heat-g2); }
+table.stats td.hm-g3, table.stats .sc.hm-g3 { background-color: var(--heat-g3); }
+table.stats td.hm-g4, table.stats .sc.hm-g4 { background-color: var(--heat-g4); }
+table.stats td.hm-b1, table.stats .sc.hm-b1 { background-color: var(--heat-b1); }
+table.stats td.hm-b2, table.stats .sc.hm-b2 { background-color: var(--heat-b2); }
+table.stats td.hm-b3, table.stats .sc.hm-b3 { background-color: var(--heat-b3); }
+table.stats td.hm-b4, table.stats .sc.hm-b4 { background-color: var(--heat-b4); }
+table.stats td.sorted-col { background-image: linear-gradient(var(--sorted-col), var(--sorted-col)); }
+/* band rows (a category) and tier dividers stand aside while the table is sorted by a column */
+table.stats.is-sorted tr.sec { display: none; }
+table.stats th .pi { width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
+table.stats th .u { color: var(--text-dimmer); font-weight: 500; }
+
+#items-table { font-size: 13px; }
+#items-table th, #items-table td { padding: 4px 8px; }
+#items-table thead tr.cats th { padding: 7px 10px; letter-spacing: .08em; text-transform: uppercase; font-size: 11.5px; }
+#items-table thead tr.cols th { vertical-align: middle; }
+#items-table thead tr.cols th.stc { white-space: normal; width: 82px; line-height: 1.15; }
+#items-table td.name a { gap: 10px; font-size: 14px; }
+/* the shop's art at a readable size, smooth, on a framed plate in its category's colour */
+#items-table td.name .ti { flex: none; width: 28px; height: 28px; padding: 2px; object-fit: contain; border-radius: 3px;
+  background: var(--bg-panel-4); box-shadow: 0 0 0 1px var(--frame-line); }
+#items-table tr[data-cat="w"] td.name { box-shadow: inset 3px 0 0 var(--weapon); }
+#items-table tr[data-cat="s"] td.name { box-shadow: inset 3px 0 0 var(--spirit); }
+#items-table tr[data-cat="v"] td.name { box-shadow: inset 3px 0 0 var(--vitality); }
+#items-table tr[data-cat="w"] td.name .ti { box-shadow: 0 0 0 1px color-mix(in srgb, var(--weapon) 45%, var(--frame-line)); }
+#items-table tr[data-cat="s"] td.name .ti { box-shadow: 0 0 0 1px color-mix(in srgb, var(--spirit) 45%, var(--frame-line)); }
+#items-table tr[data-cat="v"] td.name .ti { box-shadow: 0 0 0 1px color-mix(in srgb, var(--vitality) 45%, var(--frame-line)); }
+#items-table:not(.is-sorted) tr.tier-start td { border-top: 2px solid var(--grid-strong); }
+#items-table tr.sec + tr.tier-start td { border-top: 0; }
+#items-table tr.sec td { padding: 9px 10px 7px; background: var(--bg-panel-3); border-top: 2px solid var(--grid-strong);
+  border-bottom: 1px solid var(--grid-strong); }
+#items-table tr.sec td.name { font: 600 12px/1 var(--font-ui); letter-spacing: .14em; text-transform: uppercase; }
+#items-table tr.sec[data-cat="w"] td { border-top-color: var(--weapon); }
+#items-table tr.sec[data-cat="s"] td { border-top-color: var(--spirit); }
+#items-table tr.sec[data-cat="v"] td { border-top-color: var(--vitality); }
+#items-table tr.sec[data-cat="w"] td.name { color: var(--weapon); }
+#items-table tr.sec[data-cat="s"] td.name { color: var(--spirit); }
+#items-table tr.sec[data-cat="v"] td.name { color: var(--vitality); }
+#items-table tr.sec td.name > span.band { display: flex; align-items: center; gap: 0; font: inherit; color: inherit; }
+#items-table tr.sec .cat-i { width: 18px; height: 18px; margin-right: 8px; }
+#items-table tr.sec .bn { margin-left: 10px; color: var(--text-dimmer); font-weight: 500; letter-spacing: 0; }
+/* Stats (always on) folded into chips, or one column per stat ("Stat columns") */
+table.stats:not(.cols-open) .stc { display: none; }
+table.stats.cols-open .sumc { display: none; }
+table.stats th.sumc { cursor: pointer; }
+table.stats thead tr.cols th.sumc::after { content: "  \25B8  columns"; color: var(--patina); font-weight: 500; }
+table.per-soul th.cat.sumc::after, table.per-soul th.cat.stc::after { content: " \B7  souls per point"; color: var(--patina); }
+#items-table td.sumc, #items-table td.fxc { white-space: normal; padding: 3px 8px; }
+.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-width: 250px; max-width: 560px; margin: 0 auto; }
+.sc, .fx { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 3px; position: relative;
+  font: 500 11px/1.25 var(--font-ui); color: var(--label); white-space: nowrap;
+  background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid); }
+.sc b, .fx b { font-weight: 700; font-size: 12px; color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.sc i, .fx i { font-style: normal; }
+.sc .pi, .fx .pi { width: 13px; height: 13px; margin: 0; }
+.sc { cursor: pointer; }
+.sc:hover { box-shadow: inset 0 0 0 1px var(--patina); }
+.sc.gone { display: none; }
+.sc.f-w b { color: var(--fam-w); }
+.sc.f-s b { color: var(--fam-s); }
+.sc.f-v b { color: var(--fam-v); }
+.sc.f-m b { color: var(--fam-m); }
+table.per-soul .sc b { color: var(--patina-strong); }
+.sc.has-hist i, .fx.has-hist i { text-decoration: underline dotted color-mix(in srgb, var(--text-dim) 60%, transparent);
+  text-underline-offset: 3px; }
+.sc.recent::after, .fx.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
+  border-top: 6px solid var(--patina); border-left: 6px solid transparent; }
+/* what the item's active gives: after an "Active" tag, framed dashed (not the always-on numbers) */
+.fx-tag { align-self: center; padding: 0 2px 0 4px; font: 13px/1 var(--font-label); color: var(--text-dimmer);
+  text-transform: uppercase; letter-spacing: .08em; }
+.fx.fx-act { box-shadow: none; outline: 1px dashed var(--grid-strong); outline-offset: -1px; }
+/* a number the item lost lately, struck through */
+.fx.fx-gone { opacity: .6; }
+.fx.fx-gone b { text-decoration: line-through; }
+@media (max-width: 600px) {
+  .chip.legend-hist .lg-tail { display: none; }
+  /* a phone sees the numbers first: no Builds column, names may wrap */
+  #items-table .xcol { display: none; }
+  #items-table td.name { white-space: normal; }
+  #items-table td.name .nm { max-width: 96px; }
+  #items-table td.name .it-act { display: none; }      /* the Active chip above still filters them */
+  #items-table td.name a { font-size: 12.5px; gap: 6px; }
+  #items-table tr.sec td.name { letter-spacing: .06em; }
+  #items-table tr.sec .cat-i { display: none; }
+  .chips { min-width: 200px; max-width: 260px; }
+  /* change matrices: the names shrink to their icons (they took 210 of 390px) */
+  table.dyn { --dyn-name: 44px; }
+  table.dyn td.name a { font-size: 0; gap: 0; }
+}

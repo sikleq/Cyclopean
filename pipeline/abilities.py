@@ -43,6 +43,18 @@ def css_class(d: dict) -> str | None:
     css = str(d.get('m_strCSSClass') or '').strip()
     return CSS_ALIASES.get(css, css) or None
 
+
+SPEED_DISPLAY = ('EMaxMoveSpeed', 'ESprintSpeed')
+
+
+def is_speed(d: dict) -> bool:
+    """A movement speed the game writes as metres ("2m" Sprint Speed is +2 m/s): it says so in its
+    display units, its display type, or the hero stat it gives (Item Stats' Sprint Speed column said
+    m/s while its chips said "+2m", 2026-10-04). A percent of a speed keeps its "%"."""
+    t = str(d.get('m_eProvidedPropertyType') or '')
+    return (d.get('m_eDisplayUnits') == 'EDisplayUnit_MetersPerSecond' or d.get('m_eDisplayType') in SPEED_DISPLAY
+            or ('SPEED' in t and 'PERCENT' not in t))
+
 _SUB_RE = re.compile(r'\{s:([A-Za-z0-9_]+)\}')
 _G_RE = re.compile(r"\{g:([^}:]*):'([^']*)'\}|\{g:([^}:]*):([^}:]*)\}")
 INLINE_ATTRIBUTE = 'citadel_inline_attribute'
@@ -189,7 +201,7 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None, f
         stat = scale_stat(a, p)
         name = _label(tok, p, aid, kind, alias.get(p), fmap=fmap)
         value = fmt_prop(tok, p, d['m_strValue'], aid, magnitude=name['sign'] == '-')
-        if d.get('m_eDisplayUnits') == 'EDisplayUnit_MetersPerSecond' and value.endswith('m'):
+        if is_speed(d) and value.endswith('m'):
             value += '/s'                     # a speed: "Sleep Movespeed 1.5m/s", not "1.5m"
         return {'prop': p, 'label': name['label'], 'value': value,
                 'scale': float(scale) if isinstance(scale, (int, float)) and scale else None,
