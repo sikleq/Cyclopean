@@ -12,6 +12,15 @@
   var redirect = document.body && document.body.getAttribute('data-redirect');
   if (redirect) { location.replace(redirect + location.hash); return; }
 
+  /* the fonts' stylesheet arrives as media="print" so it never holds the first paint (builders/common.page):
+     switched on once it has loaded */
+  safe('fonts', function () {
+    document.querySelectorAll('link[data-fonts]').forEach(function (l) {
+      function on() { l.media = 'all'; }
+      if (l.sheet) on(); else l.addEventListener('load', on);
+    });
+  });
+
   function fmtNum(v, digits) {
     if (v === null || v === undefined || v === '') return '—';
     if (typeof v !== 'number') return String(v);
@@ -279,7 +288,7 @@
     function countsHtml(counts, d) {
       return '<div class="dt-counts">' + ORDER.filter(function (t) { return counts[t]; }).map(function (t) {
         var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
-        return '<span class="pip ' + t + '">' + ((d.icons || {})[t] || '') + counts[t] + '<em>' + txt(word) + '</em></span>';
+        return '<span class="pip ' + t + '">' + counts[t] + '<em>' + txt(word) + '</em></span>';     // icon: CSS
       }).join('') + '</div>';
     }
     function valsHtml(old, now, tag) {
@@ -648,14 +657,19 @@
       var room = n.clientWidth - 2 * parseFloat(getComputedStyle(n).paddingLeft);
       return n.scrollHeight > n.clientHeight + 1 || probe.getBoundingClientRect().width > room * 0.98;
     }
+    // in rounds: every name that is still too big takes the next size, then all of them are measured — one
+    // layout a round instead of one a name a step (a tab switch was one 160 ms task, frontend audit 10-04)
     function fit(page) {
       // a hidden page measures nothing: it fits when its tab opens
       if (!page || page.hidden || page.getAttribute('data-fit')) return;
       page.setAttribute('data-fit', '1');
-      page.querySelectorAll('.gc-nm').forEach(function (n) {
-        n.style.fontSize = '';
-        for (var k = 14.5; tooBig(n) && k >= 9; k -= 0.5) n.style.fontSize = 'calc(' + k + ' * var(--u))';
-      });
+      var names = Array.prototype.slice.call(page.querySelectorAll('.gc-nm'));
+      names.forEach(function (n) { n.style.fontSize = ''; });
+      var todo = names.filter(tooBig);
+      for (var k = 14.5; todo.length && k >= 9; k -= 0.5) {
+        todo.forEach(function (n) { n.style.fontSize = 'calc(' + k + ' * var(--u))'; });
+        todo = todo.filter(tooBig);
+      }
     }
     function refit() {
       pages.forEach(function (p) { p.removeAttribute('data-fit'); });
@@ -668,6 +682,9 @@
       clearTimeout(fitT);
       fitT = setTimeout(refit, 200);
     });
+    // the fonts arrive after the first paint (their stylesheet does not block it): names fitted in the
+    // fallback font fit again in the real one
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refit);
     function show(key, byUser) {
       if (!HASH[key]) key = 'w';
       pages.forEach(function (p) { p.hidden = p.getAttribute('data-page') !== key; });

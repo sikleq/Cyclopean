@@ -7,7 +7,6 @@ from functools import lru_cache
 from pipeline import flags as flag_rules
 from pipeline.semantics import SHOP_SLOT
 
-from .pixel_icons import tag_svg
 from .common import esc, glyph_for, ids_to_names, mark, visual
 
 # The tag set, chosen from what the data actually contains (all patches, 2026-10-01):
@@ -166,8 +165,9 @@ def tag_word(tag: str, n: int) -> str:
 
 
 def pip(cls: str, n: int | str = '') -> str:
-    """One counter: the tag's pixel icon and a number, in the tag colour."""
-    return f'<span class="pip {cls}">{tag_svg(cls)}{n}</span>'
+    """One counter: the tag's pixel icon (CSS, `.pip.<tag>::before`, the badge's mask) and a number, in the tag
+    colour."""
+    return f'<span class="pip {cls}">{n}</span>'
 
 
 def counts_text(counts: dict[str, int]) -> str:
@@ -183,17 +183,6 @@ def tag_summary(changes: list[dict]) -> str:
         counts[cls] = counts.get(cls, 0) + 1
     return '<span class="tsum">' + ''.join(
         pip(cls, n) for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
-
-
-def top_pips(changes: list[dict], k: int) -> str:
-    """The k biggest counters only (a 50-110px tile fits two), in the usual tag order."""
-    counts: dict[str, int] = {}
-    for c in changes:
-        cls = tag_of(c)[0]
-        counts[cls] = counts.get(cls, 0) + 1
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], TAG_ORDER.get(kv[0], 9)))[:k]
-    return '<span class="tsum">' + ''.join(
-        pip(cls, n) for cls, n in sorted(ranked, key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
 
 
 def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | None = None) -> str:

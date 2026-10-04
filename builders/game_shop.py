@@ -39,7 +39,7 @@ PRICES = {1: 800, 2: 1600, 3: 3200, 4: 6400}    # generic_data m_nItemPricePerTi
 # All Items: the tier's price sticker (CostSticker: size, tilt) and the band it takes above the cards
 STICKERS = {1: (100, 45, -2), 2: (100, 45, 5), 3: (100, 55, -3), 4: (110, 110, 0)}
 # the game's fonts (VALVEOracle for names, VALVEPulp for prices) are not in the VPK: close free ones
-FONTS = 'https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Fredoka:wght@600&display=swap'
+FONTS = ('Archivo+Narrow:wght@600;700', 'Fredoka:wght@600')      # families, joined to the site's request
 TIPS_FILE = 'shop-tips.json'
 
 

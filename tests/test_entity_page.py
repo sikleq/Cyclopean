@@ -78,7 +78,8 @@ def test_strip_tiles_carry_a_card_of_what_the_patch_changed():
     assert biggest[:5] == ['Radius', '3m', '2m', 'nerf', 0]
     move = next(s for s in samples if s[0] == 'T1: Move Speed')
     assert move[1:5] == ['40%', '32%', 'nerf', 1]           # old, new as the row prints them; hidden
-    assert d['icons'].keys() >= {'buff', 'nerf'} and 'svg' in d['eye']
+    # the counters' icons are CSS (.pip.<tag>), the eye a mark: no SVG in the blob
+    assert 'icons' not in d and d['eye'] == '<span class="mark hidden"></span>'
 
 
 def test_one_patch_still_feeds_the_trail_cards():
@@ -153,8 +154,8 @@ def test_one_tag_badge_everywhere():
         src = (ROOT / 'builders' / f).read_text(encoding='utf-8')
         assert not re.search(r'<(span|button) class="tag [a-z{]', src), f
     css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    for t in TAG_ART:
-        assert f'.tag.{t} {{ --ti-content: ""; --ti: {tag_mask(t)}; }}' in css, t
+    for t in TAG_ART:            # the counters (.pip) draw the same mask
+        assert f'.tag.{t}, .pip.{t} {{ --ti-content: ""; --ti: {tag_mask(t)}; }}' in css, t
 
 
 def test_vals_text_reads_like_the_row():

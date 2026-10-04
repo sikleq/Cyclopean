@@ -3,7 +3,7 @@ a strip of icons per update, each opening that hero's, item's or unit's history 
 is about the entities, not the patch notes (owner, 2026-10-03: "closer to Sloppy")."""
 from __future__ import annotations
 
-from .common import (EYE_SVG, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
+from .common import (EYE_MARK, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
                      patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
 from . import archive
 from .site_search import search_box
@@ -79,7 +79,7 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
     net = 'buff' if s['buff'] > s['nerf'] else 'nerf' if s['nerf'] > s['buff'] else 'mix'
     tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
     # with a card the eye says nothing of its own (its tooltip stacked on the card)
-    eye_mark = mark('hidden') if k is None else f'<span class="mark hidden">{EYE_SVG}</span>'
+    eye_mark = mark('hidden') if k is None else EYE_MARK
     eye = f'<span class="lu-eye">{eye_mark}</span>' if s['hidden'] else ''
     label = f'<span class="lu-nm">{esc(name)}</span>' if named else ''
     hover = (f'aria-label="{esc(tip)}" data-name="{esc(name)}" data-k="{k}"' if k is not None
@@ -106,7 +106,6 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed)."""
     import json
     from .common import patch_title_text
-    from .pixel_icons import tag_svg
     from .render import TAG_WORD_ONE, TAG_WORDS
     blocks, updates, cards = [], [], []
     for row in reversed(patches):
@@ -132,9 +131,8 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
-    used = sorted({t for c in cards for t in c[1]})
-    data = {'u': updates, 'c': cards, 'icons': {t: tag_svg(t) for t in used}, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
-            'eye': EYE_SVG}
+    # the counters' icons are CSS (`.pip.<tag>`), the eye a mark
+    data = {'u': updates, 'c': cards, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_MARK}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     return ''.join(blocks) + f'<script type="application/json" class="feed-data">{blob}</script>'
@@ -189,7 +187,7 @@ def build_all() -> int:
     unit_art = list(dict.fromkeys(unit_art))       # the same icon on namesakes once
     body = f'''
 <div class="home-top">
-  <div class="home-brand"><span class="mark hidden">{EYE_SVG}</span><h1>Cyclopean</h1></div>
+  <div class="home-brand">{EYE_MARK}<h1>Cyclopean</h1></div>
   {search_box()}
   <div class="home-stats">
     <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>

@@ -63,6 +63,50 @@ def test_ids_to_names_memo_follows_the_catalog(monkeypatch):
     assert common.ids_to_names('ability_blood_bomb, x') == 'Bloodbomb, x'
 
 
+def test_marks_counters_and_glyphs_are_css_masks_in_sync():
+    """Nano's page carried 650 inline SVGs of 12 shapes (150 KB): status marks, tag counters and category
+    glyphs are empty spans now and styles.css draws each shape as a mask — kept in sync with the art here."""
+    import re
+    from builders.common import GLYPHS, MARK_ART, STATUS_MARK, esc, mark, visual
+    from builders.pixel_icons import svg_mask
+    from builders.render import pip
+    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    rules = {}
+    for sel, url in re.findall(r'([^{}\n]+)\{ --mk-on: ""; --mk: ([^;]+); \}', css):
+        for s in sel.split(','):
+            rules[s.strip()] = url
+    eye = re.search(r'--mask-eye: (url\("[^"]+"\));', css).group(1)
+    for status, (shape, _) in STATUS_MARK.items():
+        url = rules[f'.mark.{status}']
+        assert (eye if url == 'var(--mask-eye)' else url) == svg_mask(MARK_ART[shape]), status
+        assert mark(status) == f'<span class="mark {status}" data-tooltip="{esc(STATUS_MARK[status][1])}"></span>'
+    glyphs = dict(re.findall(r'\.glyph(?:\.g-([a-z]+))? \{ --gl: ([^;]+); \}', css))
+    assert glyphs[''] == svg_mask(GLYPHS['rules'], evenodd=True)        # an unknown name draws 'rules'
+    for name, d in GLYPHS.items():
+        if name != 'rules':
+            assert glyphs[name] == svg_mask(d, evenodd=True), name
+    assert '<svg' not in mark('hidden') + pip('buff', 3) + visual(None, 'map')
+
+
+def test_fonts_are_one_stylesheet_that_does_not_block_the_first_paint():
+    """Google Fonts held the first paint back (blocking CSS, 150-270 ms; a cold index.html waited ~3 s for its
+    DOMContentLoaded, since the script at the end of <body> waits for blocking stylesheets); the shop page
+    asked for a second stylesheet. One request, media="print" until scripts.js switches it on."""
+    import re
+    from builders.common import page
+    from builders.game_shop import FONTS as SHOP_FONTS
+    html = page('T', '<p>x</p>', '', fonts=SHOP_FONTS)
+    links = re.findall(r'<link rel="stylesheet" href="(https://fonts[^"]+)"([^>]*)>', html)
+    assert len(links) == 2                                  # the switchable one + its <noscript> copy
+    (url, attrs), (url2, attrs2) = links
+    assert url == url2 and 'family=Archivo+Narrow' in url and 'family=Jersey+20' in url and 'display=swap' in url
+    assert 'media="print"' in attrs and 'data-fonts' in attrs and attrs2 == ''
+    assert '<noscript><link rel="stylesheet" href="' + url + '"></noscript>' in html
+    assert 'Archivo' not in page('T', '<p>x</p>')
+    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    assert "link[data-fonts]" in js and "l.media = 'all'" in js
+
+
 def test_sync_tree_copies_only_what_changed(tmp_path):
     import build_site
     src, dst = tmp_path / 'icons', tmp_path / 'dist' / 'icons'

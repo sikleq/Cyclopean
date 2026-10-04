@@ -13,7 +13,6 @@ from datetime import date, timedelta
 from functools import lru_cache
 
 from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
-from .pixel_icons import tag_svg
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
@@ -228,7 +227,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
-            'cells': tips, 'icons': {t: tag_svg(t) for t in MATRIX_TAGS}, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
+            'cells': tips, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
             'parts': dict(PARTS)}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')

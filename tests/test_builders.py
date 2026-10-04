@@ -108,7 +108,7 @@ def test_tier_swap_folds_into_one_rework_row():
 def test_entity_rows_name_once_with_counters():
     html = ''.join(entity_rows('Seismic Impact', None, [ch(label='a'), ch(label='b', dir='buff'), ch(label='c')]))
     assert html.count('Seismic Impact') == 1
-    assert re.search(r'class="pip nerf"><svg[^>]*>.*?</svg>2<', html) and re.search(r'class="pip buff"><svg[^>]*>.*?</svg>1<', html)
+    assert '<span class="pip nerf">2</span>' in html and '<span class="pip buff">1</span>' in html
     assert 'eh has-hidden' in html
 
 
@@ -169,8 +169,8 @@ def test_rows_without_game_art_get_a_category_glyph():
     from builders.common import glyph_for, visual
     assert glyph_for('heroes.vdata', '@shared') == 'heroes'
     assert glyph_for('generic_data.vdata', 'm_IdolParams') == 'rules'
-    html = visual(None, 'map')
-    assert 'glyph g-map' in html and '<svg' in html and 'noimg' not in html
+    html = visual(None, 'map')        # the shape is CSS (.glyph.g-map, a mask)
+    assert html == '<span class="px glyph g-map"></span>' and 'noimg' not in html
 
 
 def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
@@ -233,13 +233,6 @@ def test_replaced_tier_row_gets_full_width_line():
     html = change_rows([ch(op='remove', label='T2: Fire Rate', old_s='14', new_s=None),
                         ch(op='add', label='T2: Stun Duration', old_s=None, new_s='0.6')])
     assert 'erow st-hidden is-hidden rw' in html and 'T2 upgrade' in html
-
-
-def test_top_pips_keeps_two_biggest_counters():
-    from builders.render import top_pips
-    html = top_pips([ch(dir='buff')] * 3 + [ch(dir='nerf')] * 2 + [ch(op='add', dir='changed')], 2)
-    assert re.search(r'pip buff"><svg.*?</svg>3<', html) and re.search(r'pip nerf"><svg.*?</svg>2<', html)
-    assert 'pip new' not in html
 
 
 def test_player_facing_is_the_one_counting_rule():
@@ -326,7 +319,7 @@ def test_pct_pill_strength_follows_size():
 
 
 def test_pixel_icons_are_10x10_without_lone_pixels():
-    from builders.pixel_icons import GRID, TAG_ART, art_path, tag_svg
+    from builders.pixel_icons import GRID, TAG_ART, art_path, svg_mask, tag_mask
     for tag, rows in TAG_ART.items():
         assert len(rows) == GRID and all(len(r) == GRID for r in rows), tag
         for y, line in enumerate(rows):
@@ -337,7 +330,8 @@ def test_pixel_icons_are_10x10_without_lone_pixels():
                           for i in range(max(0, x - 1), min(GRID, x + 2)) if (i, j) != (x, y)]
                 assert '#' in around, f'lone pixel in {tag} at {x},{y}'
     assert art_path(('#.#', '###')) == 'M0 0h1v1h-1zM2 0h1v1h-1zM0 1h3v1h-3z'
-    assert tag_svg('buff').startswith('<svg class="ti"') and tag_svg('nope') == ''
+    assert tag_mask('buff') == svg_mask(art_path(TAG_ART['buff']), GRID)
+    assert "viewBox='0 0 10 10'" in tag_mask('buff') and "fill-rule='evenodd'" in svg_mask('M0 0h1v1H0z', evenodd=True)
 
 
 def test_added_entity_shows_a_summary_not_every_field():

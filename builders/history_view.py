@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import re
 
-from .common import EYE_SVG, esc, glyph_for, mark, patch_name, patch_title_html, patch_title_text, visual
+from .common import EYE_MARK, esc, glyph_for, mark, patch_name, patch_title_html, patch_title_text, visual
 from .notes_view import _highlight, text_tag
 
 OPEN_PATCHES = 3          # the latest patches with rows open; the rest fold to their banner
@@ -189,19 +189,17 @@ def strip_data(items: list[tuple]) -> dict:
     """The page's hover-card data for its strip tiles and trail squares: t = tiles in strip order,
     [patch id, title, named?, {tag: n}, hidden, [[group, {tag: n}, hidden, samples], …]]; g = the groups
     [name ('' for the page's own rows), icon url, entity ids, ultimate 0/1]; the tags' icons and words; top /
-    per = how many rows the strip card / a trail card lists."""
-    from .pixel_icons import tag_svg
+    per = how many rows the strip card / a trail card lists. The counters' icons are CSS (`.pip.<tag>`)."""
     from .render import TAG_WORD_ONE, TAG_WORDS
     refs: dict[tuple, int] = {}
-    tiles, used = [], set()
+    tiles = []
     for pid, hdr, tally, hidden, card in items[:STRIP_MAX]:
         groups = []
         for ref, counts, hid, samples in card:
             groups.append([refs.setdefault(ref, len(refs)), counts, hid, samples])
-            used |= set(counts)
         tiles.append([pid, patch_title_text(hdr), bool(patch_name(hdr['title'])), tally, hidden, groups])
-    return {'t': tiles, 'g': [list(r) for r in refs], 'icons': {t: tag_svg(t) for t in sorted(used)},
-            'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_SVG, 'top': TILE_SAMPLES, 'per': GROUP_SAMPLES + 1}
+    return {'t': tiles, 'g': [list(r) for r in refs], 'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_MARK,
+            'top': TILE_SAMPLES, 'per': GROUP_SAMPLES + 1}
 
 
 def patch_strip(items: list[tuple]) -> str:

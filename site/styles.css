@@ -307,7 +307,7 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
   align-items: center; gap: 26px; padding: 0 var(--gutter); }
 .nav-inner > .nav-brand { justify-self: start; }
 .nav-brand { display: flex; align-items: center; gap: 10px; color: var(--text-bright); }
-.nav-brand .eye-logo { width: 30px; height: 30px; filter: drop-shadow(0 0 8px var(--eye-53)); }
+.nav-brand .eye-logo { width: 30px; height: 30px; filter: drop-shadow(0 0 4px var(--eye-glow)) drop-shadow(0 0 8px var(--eye-53)); }
 .nav-brand-text { font: 28px/1 var(--font-brand); letter-spacing: 1px; }
 .nav-brand-text small { font: 16px/1 var(--font-label); color: var(--text-dimmer); margin-left: 8px; letter-spacing: .1em; }
 .nav-tabs { display: flex; gap: 4px; flex-wrap: wrap; height: 100%; }
@@ -401,26 +401,27 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
   background: linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat, color-mix(in srgb, var(--c) 34%, var(--bg-panel));
   box-shadow: inset 0 0 0 1px var(--c), 0 0 0 2px var(--text-bright); }
 .tag:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
-/* the tag's own pixel icon (builders/pixel_icons.py): a badge draws it as a mask in its own colour, so a
-   page carries no SVG per badge (pixel_icons.tag_mask; tests keep these in sync); a counter (.pip) keeps
-   its inline SVG. A tag without art (a topic) gets no ::before. 10px: the art is a 10x10 grid. */
+/* the tag's own pixel icon (builders/pixel_icons.py): a badge and a counter (.pip) draw it as a mask in their
+   own colour, so a page carries no SVG per badge (pixel_icons.tag_mask; tests keep these in sync). A tag
+   without art (a topic) gets no ::before. 10px: the art is a 10x10 grid. */
 .ti { display: inline-block; width: 10px; height: 10px; flex: none; }
 .tag::before { content: var(--ti-content, none); width: 10px; height: 10px; flex: none; background: currentColor;
   -webkit-mask: var(--ti) center / 10px 10px no-repeat; mask: var(--ti) center / 10px 10px no-repeat; }
-.tag.buff { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM1 4h8v1h-8zM0 5h10v1h-10zM3 6h4v1h-4zM3 7h4v1h-4zM3 8h4v1h-4z'/%3E%3C/svg%3E"); }
-.tag.nerf { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h4v1h-4zM3 2h4v1h-4zM3 3h4v1h-4zM0 4h10v1h-10zM1 5h8v1h-8zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E"); }
-.tag.new { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 0h2v1h-2zM4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM0 4h10v1h-10zM0 5h10v1h-10zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2zM4 9h2v1h-2z'/%3E%3C/svg%3E"); }
-.tag.del { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h2v1h-2zM8 0h2v1h-2zM0 1h3v1h-3zM7 1h3v1h-3zM1 2h3v1h-3zM6 2h3v1h-3zM2 3h6v1h-6zM3 4h4v1h-4zM3 5h4v1h-4zM2 6h6v1h-6zM1 7h3v1h-3zM6 7h3v1h-3zM0 8h3v1h-3zM7 8h3v1h-3zM0 9h2v1h-2zM8 9h2v1h-2z'/%3E%3C/svg%3E"); }
-.tag.rework { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M5 0h2v1h-2zM5 1h3v1h-3zM0 2h9v1h-9zM5 3h3v1h-3zM5 4h2v1h-2zM3 5h2v1h-2zM2 6h3v1h-3zM1 7h9v1h-9zM2 8h3v1h-3zM3 9h2v1h-2z'/%3E%3C/svg%3E"); }
-.tag.mech { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h4v1h-4zM1 1h1v1h-1zM3 1h4v1h-4zM8 1h1v1h-1zM1 2h8v1h-8zM0 3h4v1h-4zM6 3h4v1h-4zM0 4h3v1h-3zM7 4h3v1h-3zM0 5h3v1h-3zM7 5h3v1h-3zM0 6h4v1h-4zM6 6h4v1h-4zM1 7h8v1h-8zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM3 9h4v1h-4z'/%3E%3C/svg%3E"); }
-.tag.changed { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M2 2h1v1h-1zM7 2h1v1h-1zM1 3h2v1h-2zM7 3h2v1h-2zM0 4h10v1h-10zM0 5h10v1h-10zM1 6h2v1h-2zM7 6h2v1h-2zM2 7h1v1h-1zM7 7h1v1h-1z'/%3E%3C/svg%3E"); }
-.tag.up { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 2h2v1h-2zM3 3h4v1h-4zM2 4h2v1h-2zM6 4h2v1h-2zM1 5h2v1h-2zM7 5h2v1h-2zM0 6h2v1h-2zM8 6h2v1h-2zM0 7h1v1h-1zM9 7h1v1h-1z'/%3E%3C/svg%3E"); }
-.tag.down { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M0 2h1v1h-1zM9 2h1v1h-1zM0 3h2v1h-2zM8 3h2v1h-2zM1 4h2v1h-2zM7 4h2v1h-2zM2 5h2v1h-2zM6 5h2v1h-2zM3 6h4v1h-4zM4 7h2v1h-2z'/%3E%3C/svg%3E"); }
-.tag.on { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h8v1h-8zM1 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM6 3h3v1h-3zM1 4h2v1h-2zM5 4h3v1h-3zM9 4h1v1h-1zM1 5h5v1h-5zM8 5h1v1h-1zM1 6h1v1h-1zM3 6h2v1h-2zM8 6h1v1h-1zM1 7h1v1h-1zM8 7h1v1h-1zM1 8h8v1h-8z'/%3E%3C/svg%3E"); }
-.tag.off { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h8v1h-8zM1 2h2v1h-2zM7 2h2v1h-2zM1 3h1v1h-1zM3 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM1 4h1v1h-1zM4 4h2v1h-2zM8 4h1v1h-1zM1 5h1v1h-1zM4 5h2v1h-2zM8 5h1v1h-1zM1 6h1v1h-1zM3 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM1 7h2v1h-2zM7 7h2v1h-2zM1 8h8v1h-8z'/%3E%3C/svg%3E"); }
+.pip::before { content: var(--ti-content, none); width: 11px; height: 11px; flex: none; background: currentColor;
+  -webkit-mask: var(--ti) center / 100% 100% no-repeat; mask: var(--ti) center / 100% 100% no-repeat; }
+.tag.buff, .pip.buff { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM1 4h8v1h-8zM0 5h10v1h-10zM3 6h4v1h-4zM3 7h4v1h-4zM3 8h4v1h-4z'/%3E%3C/svg%3E"); }
+.tag.nerf, .pip.nerf { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h4v1h-4zM3 2h4v1h-4zM3 3h4v1h-4zM0 4h10v1h-10zM1 5h8v1h-8zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.new, .pip.new { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 0h2v1h-2zM4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM0 4h10v1h-10zM0 5h10v1h-10zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2zM4 9h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.del, .pip.del { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h2v1h-2zM8 0h2v1h-2zM0 1h3v1h-3zM7 1h3v1h-3zM1 2h3v1h-3zM6 2h3v1h-3zM2 3h6v1h-6zM3 4h4v1h-4zM3 5h4v1h-4zM2 6h6v1h-6zM1 7h3v1h-3zM6 7h3v1h-3zM0 8h3v1h-3zM7 8h3v1h-3zM0 9h2v1h-2zM8 9h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.rework, .pip.rework { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M5 0h2v1h-2zM5 1h3v1h-3zM0 2h9v1h-9zM5 3h3v1h-3zM5 4h2v1h-2zM3 5h2v1h-2zM2 6h3v1h-3zM1 7h9v1h-9zM2 8h3v1h-3zM3 9h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.mech, .pip.mech { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h4v1h-4zM1 1h1v1h-1zM3 1h4v1h-4zM8 1h1v1h-1zM1 2h8v1h-8zM0 3h4v1h-4zM6 3h4v1h-4zM0 4h3v1h-3zM7 4h3v1h-3zM0 5h3v1h-3zM7 5h3v1h-3zM0 6h4v1h-4zM6 6h4v1h-4zM1 7h8v1h-8zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM3 9h4v1h-4z'/%3E%3C/svg%3E"); }
+.tag.changed, .pip.changed { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M2 2h1v1h-1zM7 2h1v1h-1zM1 3h2v1h-2zM7 3h2v1h-2zM0 4h10v1h-10zM0 5h10v1h-10zM1 6h2v1h-2zM7 6h2v1h-2zM2 7h1v1h-1zM7 7h1v1h-1z'/%3E%3C/svg%3E"); }
+.tag.up, .pip.up { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 2h2v1h-2zM3 3h4v1h-4zM2 4h2v1h-2zM6 4h2v1h-2zM1 5h2v1h-2zM7 5h2v1h-2zM0 6h2v1h-2zM8 6h2v1h-2zM0 7h1v1h-1zM9 7h1v1h-1z'/%3E%3C/svg%3E"); }
+.tag.down, .pip.down { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M0 2h1v1h-1zM9 2h1v1h-1zM0 3h2v1h-2zM8 3h2v1h-2zM1 4h2v1h-2zM7 4h2v1h-2zM2 5h2v1h-2zM6 5h2v1h-2zM3 6h4v1h-4zM4 7h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.on, .pip.on { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h8v1h-8zM1 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM6 3h3v1h-3zM1 4h2v1h-2zM5 4h3v1h-3zM9 4h1v1h-1zM1 5h5v1h-5zM8 5h1v1h-1zM1 6h1v1h-1zM3 6h2v1h-2zM8 6h1v1h-1zM1 7h1v1h-1zM8 7h1v1h-1zM1 8h8v1h-8z'/%3E%3C/svg%3E"); }
+.tag.off, .pip.off { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h8v1h-8zM1 2h2v1h-2zM7 2h2v1h-2zM1 3h1v1h-1zM3 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM1 4h1v1h-1zM4 4h2v1h-2zM8 4h1v1h-1zM1 5h1v1h-1zM4 5h2v1h-2zM8 5h1v1h-1zM1 6h1v1h-1zM3 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM1 7h2v1h-2zM7 7h2v1h-2zM1 8h8v1h-8z'/%3E%3C/svg%3E"); }
 .pip { display: inline-flex; align-items: center; gap: 3px; }
-.pip .ti { width: 11px; height: 11px; }
-.ixs .pip .ti { width: 12px; height: 12px; }
+.ixs .pip::before { width: 12px; height: 12px; }
 .tag.buff, .pip.buff { --c: var(--tag-buff); }
 .tag.nerf, .pip.nerf { --c: var(--tag-nerf); }
 .tag.new, .pip.new { --c: var(--tag-new); }
@@ -446,8 +447,20 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
   width: 20px; height: 20px; flex: none;
   font: 18px/1 var(--font-label);
 }
-.mark.hidden { color: var(--eye); }
-.mark.hidden svg { filter: drop-shadow(0 0 4px var(--eye-glow)); }
+/* the mark's pixel shape is a mask (common.MARK_ART; tests/test_perf.py keeps these in sync): a page carries
+   no SVG per mark. The eye's glow sits on the mark itself — a filter on the masked ::before is masked away. */
+.mark::before { content: var(--mk-on, none); width: 16px; height: 16px; flex: none; background: currentColor;
+  -webkit-mask: var(--mk) center / 100% 100% no-repeat; mask: var(--mk) center / 100% 100% no-repeat; }
+.mark.code { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M4 4h2v1H4zM3 5h2v1H3zM2 6h2v1H2zM1 7h2v2H1zM2 9h2v1H2zM3 10h2v1H3zM4 11h2v1H4zM10 4h2v1h-2zM11 5h2v1h-2zM12 6h2v1h-2zM13 7h2v2h-2zM12 9h2v1h-2zM11 10h2v1h-2zM10 11h2v1h-2zM9 2h1v3H9zM8 5h1v3H8zM7 8h1v3H7zM6 11h1v3H6z'/%3E%3C/svg%3E"); }
+.mark.untracked, .mark.nodata { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3zM12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7zM6 9h1v1H6zM5 10h1v1H5z'/%3E%3C/svg%3E"); }
+.mark.repeated, .mark.described { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M2 8h2v2H2zM4 6h3v2H4zM7 8h2v2H7zM9 8h3v2H9zM12 6h2v2h-2z'/%3E%3C/svg%3E"); }
+.mark.fix { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z'/%3E%3C/svg%3E"); }
+.mark.hidden { --mk-on: ""; --mk: var(--mask-eye); }
+.mark.unreleased { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3zM12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z'/%3E%3C/svg%3E"); }
+.mark.unannounced { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9zM6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z'/%3E%3C/svg%3E"); }
+.mark.documented, .mark.rounded { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M13 3h2v2h-2zM11 5h2v2h-2zM9 7h2v2H9zM7 9h2v2H7zM3 7h2v2H3zM5 9h2v2H5z'/%3E%3C/svg%3E"); }
+.mark.mismatch { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M7 2h2v8H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
+.mark.hidden { color: var(--eye); filter: drop-shadow(0 0 4px var(--eye-glow)); }
 .mark.documented { color: var(--patina); }
 .mark.described { color: var(--text-dim); }
 .mark.mismatch { color: var(--tag-mismatch); }
@@ -458,9 +471,8 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .mark.code { color: var(--patina-dim); }   /* a real change, in the game's code rather than its data files */
 .chip.dev { color: var(--dev); background: var(--dev-10); }
 .chip .mark { width: 16px; height: 16px; margin-right: 3px; }
-.chip .mark svg { width: 12px; height: 12px; }
+.chip .mark::before { width: 12px; height: 12px; }
 .note-lines li.st-rounded .data { color: var(--text-dim); }
-.mark svg { width: 16px; height: 16px; }
 
 .dir-buff { color: var(--tag-buff); }
 .dir-nerf { color: var(--tag-nerf); }
@@ -525,7 +537,6 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
   width: 40px; height: 40px; padding: 5px; background: var(--bg-panel-4);
   box-shadow: 0 0 0 2px var(--frame-line), inset 0 0 0 1px var(--bg-page), inset 0 3px 8px var(--shadow-soft); }
 .ab-ic img, .ab-ic .glyph { display: block; width: 100%; height: 100%; object-fit: contain; }
-.ab-ic .glyph svg { width: 70%; height: 70%; }
 .ab-ic.ult::before, .ab-ic.ult::after { content: ""; position: absolute; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .ab-ic.ult::before { right: -5px; bottom: -5px; width: 14px; height: 14px; background: var(--bg-page); }
 .ab-ic.ult::after { right: -3px; bottom: -3px; width: 10px; height: 10px; background: var(--gold); }
@@ -673,7 +684,7 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hist-bar { position: static; flex-wrap: wrap; gap: 5px; padding: 6px; margin: 0 0 14px; }
 .hist-bar .sep { height: 20px; margin: 0; }
 .hist-bar .px-btn { margin: 0; }
-.hist-bar .px-btn .mark, .hist-bar .px-btn .mark svg { width: 14px; height: 14px; }
+.hist-bar .px-btn .mark, .hist-bar .px-btn .mark::before { width: 14px; height: 14px; }
 .hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hist-bar .hf-tags .tag { min-width: 0; padding: 5px 4px 4px 6px; letter-spacing: 0; }
 .hist-bar .px-btn { padding: 5px 8px 6px; font-size: 13px; }
@@ -774,7 +785,7 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
 .hchip .hc { display: flex; justify-content: center; gap: 4px; height: 18px; align-items: center; font: 16px/1 var(--font-label); }
 .hchip .hc { gap: 3px; }
 .hchip .hc .pip { font-size: 15px; gap: 1px; }
-.hchip .hc .pip .ti { width: 8px; height: 8px; }
+.hchip .hc .pip::before { width: 8px; height: 8px; }
 .hdev { align-self: center; }
 .sum-audit { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 12px; padding-top: 10px;
   border-top: 1px solid var(--line-soft); font-size: 13.5px; color: var(--text-dim); }
@@ -1127,7 +1138,20 @@ table.hist tr.eh .en img, table.hist tr.eh .en .noimg, table.hist tr.eh .en .gly
 /* category glyph (a group or a rule, not one entity): same box as a game icon */
 .glyph { display: inline-flex; align-items: center; justify-content: center; flex: none;
   background: var(--bg-panel-3); color: var(--text-dim); vertical-align: middle; }
-.glyph svg { width: 70%; height: 70%; }
+.glyph::before { content: ""; display: block; width: 70%; height: 70%; margin: auto; background: currentColor;
+  -webkit-mask: var(--gl) center / 100% 100% no-repeat; mask: var(--gl) center / 100% 100% no-repeat; }
+/* a glyph in a box laid out as a block (a card head, a toolbar chip, a feed icon) centres its shape too */
+.ecard-h .ei .glyph, .hf-ab .glyph, .ab-ic .glyph, .lu .glyph.glyph { display: flex; }
+.glyph { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2zM5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5zM7 7h2v2H7z'/%3E%3C/svg%3E"); }
+.glyph.g-heroes { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M6 2h4v4H6zM2 4h3v3H2zM11 4h3v3h-3zM5 7h6v7H5zM1 8h3v5H1zM12 8h3v5h-3z'/%3E%3C/svg%3E"); }
+.glyph.g-hero { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M5 2h6v5H5zM3 8h10v6H3z'/%3E%3C/svg%3E"); }
+.glyph.g-abilities { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M7 1h2v4H7zM7 11h2v4H7zM1 7h4v2H1zM11 7h4v2h-4zM6 6h4v4H6zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z'/%3E%3C/svg%3E"); }
+.glyph.g-units { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M6 1h4v4H6zM4 6h8v5H4zM4 11h3v4H4zM9 11h3v4H9zM13 2h1v10h-1z'/%3E%3C/svg%3E"); }
+.glyph.g-map { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M2 3h12v11H2zM3 4h10v9H3zM4 5h2v2H4zM6 7h2v2H6zM8 9h2v2H8zM10 11h2v1h-2z'/%3E%3C/svg%3E"); }
+.glyph.g-modifier { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M7 1h2v1H7zM6 2h4v1H6zM5 3h6v1H5zM4 4h8v1H4zM3 5h10v1H3zM6 6h4v9H6z'/%3E%3C/svg%3E"); }
+.glyph.g-loot { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M3 3h10v3H3zM2 6h12v8H2zM7 8h2v3H7z'/%3E%3C/svg%3E"); }
+.glyph.g-book { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M1 3h6v10H1zM9 3h6v10H9zM2 4h4v1H2zM10 4h4v1h-4zM2 6h4v1H2zM10 6h4v1h-4zM2 8h4v1H2zM10 8h4v1h-4zM7 13h2v1H7z'/%3E%3C/svg%3E"); }
+.glyph.g-table { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M1 2h14v12H1zM2 5h3v2H2zM6 5h3v2H6zM10 5h4v2h-4zM2 8h3v2H2zM6 8h3v2H6zM10 8h4v2h-4zM2 11h3v2H2zM6 11h3v2H6zM10 11h4v2h-4z'/%3E%3C/svg%3E"); }
 table.hist td.sc .glyph, table.hist .gi.glyph { width: 22px; height: 22px; margin-right: 6px; vertical-align: -5px; }
 .glyph.g-heroes, .glyph.g-hero { color: var(--patina); }
 table.hist tr.eh .en a { color: inherit; }
@@ -1241,7 +1265,7 @@ table.notes tr.st-untracked td, table.notes tr.st-nodata td, table.notes tr.st-r
 .lu-n { position: absolute; right: 1px; bottom: 3px; padding: 0 3px; font: 600 11px/14px var(--font-ui); color: var(--text-bright);
   background: var(--shadow); }
 .lu-eye { position: absolute; left: 1px; top: 1px; display: flex; color: var(--eye); }
-.lu-eye .mark { width: 14px; height: 14px; }
+.lu-eye .mark, .lu-eye .mark::before { width: 14px; height: 14px; }
 /* the newest update names its icons (two lines at most under each; round 4: names were tooltips only) */
 .lu-row.named { gap: 34px 30px; padding-bottom: 30px; }
 .lu-nm { position: absolute; left: -15px; top: 48px; width: 74px; font: 600 11px/1.15 var(--font-ui); color: var(--text-dim);
@@ -1294,8 +1318,9 @@ ul.gen-notes li { margin: 2px 0; overflow-wrap: anywhere; }
   .erow .tx, .ability-card .ac-head { overflow-wrap: anywhere; }
 }
 .home-brand { display: flex; align-items: center; gap: 16px; }
-.home-brand .mark { width: 64px; height: 64px; filter: drop-shadow(0 0 10px var(--eye-53)); animation: blink 6s steps(1) infinite; }
-.home-brand .mark svg { width: 64px; height: 64px; }
+.home-brand .mark { width: 64px; height: 64px; filter: drop-shadow(0 0 4px var(--eye-glow)) drop-shadow(0 0 10px var(--eye-53));
+  animation: blink 6s steps(1) infinite; }
+.home-brand .mark::before { width: 64px; height: 64px; }
 .home-brand h1 { font: 58px/1 var(--font-brand); margin: 0; }
 /* the cyclops blinks: closed for one beat every 6 seconds */
 @keyframes blink { 0%, 96% { transform: scaleY(1); } 97%, 99% { transform: scaleY(.1); } }
@@ -1658,7 +1683,7 @@ table.dt-rows td:last-child { border-right: 0; }
 /* an entity page's card (a strip tile / a trail square): the eye's count, rows grouped by ability, each with
    its tag; a hidden row carries the eye. Label column left like every table's name column. */
 .dt-eye { display: flex; align-items: center; gap: 6px; margin: -2px 0 8px; font: 600 12px/1 var(--font-ui); color: var(--eye); }
-.dt-eye svg, .dt-e svg { width: 14px; height: 14px; flex: none; }
+.dt-eye .mark, .dt-e .mark, .dt-eye .mark::before, .dt-e .mark::before { width: 14px; height: 14px; flex: none; }
 .dt-e { display: inline-flex; vertical-align: -2px; margin-right: 4px; color: var(--eye); }
 table.dt-rows tr.dt-grp td { padding: 7px 6px 4px; text-align: left; font: 600 12.5px/1 var(--font-ui); color: var(--name); border-right: 0; }
 .dt-ic { display: inline-flex; position: relative; width: 22px; height: 22px; padding: 2px; margin-right: 7px; vertical-align: -6px;
