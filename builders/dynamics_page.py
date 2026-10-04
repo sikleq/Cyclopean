@@ -21,6 +21,7 @@ MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on
 SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
 SAMPLES_ONE = 3           # … and of an item or unit (one part: the row itself)
 PARTS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
+SHARED_KEY = 'hero:@shared'     # the abilities every hero has: one row of their own (shared_page.MATRIX_KEY)
 WEAPON_KINDS = ('weapon', 'melee')
 
 
@@ -28,6 +29,20 @@ def part_of(e: dict) -> str:
     if e['file'] == 'heroes.vdata':
         return 'stats'
     return 'weapon' if e.get('kind') in WEAPON_KINDS else 'abil'
+
+
+def _sample_values(c: dict) -> tuple[str, str]:
+    """(old, new) of a hover card's row: a flag field a player plays with reads as the bits that moved,
+    in words ("+neutrals −doesn't interrupt melee", like its row on the page), not as two whole masks
+    in engine words (review 2026-10-04); everything else as the page prints it."""
+    from pipeline.flags import enum_words
+
+    from .render import flag_moves
+    path = str(c.get('path') or '')
+    moved = flag_moves(path, c.get('old_s'), c.get('new_s'))
+    if moved:
+        return '', ' '.join(moved)
+    return tuple(enum_words(path, v) or shown_value(v) for v in (c.get('old_s'), c.get('new_s')))
 
 
 def _display(e: dict) -> str:
@@ -73,6 +88,8 @@ def _collect() -> dict:
                 keys = [f'hero:{e["id"]}']
             elif e.get('owner'):
                 keys = [f'hero:{e["owner"]}']
+            elif e.get('kind') == 'shared':          # jump, dash, parry…: every hero's (shared_page)
+                keys = [SHARED_KEY]
             elif e.get('kind') == 'item':
                 keys = [f'item:{e["id"]}']
             elif e['file'] == 'npc_units.vdata':
@@ -95,7 +112,7 @@ def _collect() -> dict:
                     t = tag_of(c)[0]
                     for d in (cell, pcell):
                         d[t] = d.get(t, 0) + 1
-                    s = (_display(e), c.get('label') or '', shown_value(c.get('old_s')), shown_value(c.get('new_s')),
+                    s = (_display(e), c.get('label') or '', *_sample_values(c),
                          t, part, abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0)
                     raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
     samples: dict = {}

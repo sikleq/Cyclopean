@@ -111,8 +111,14 @@ def _rename_key(label) -> str:
 
 _TIER_HEAD = re.compile(r'^((?:T\d|Enhanced|Upgrade|Corrupted): )')
 _LABEL_WORD = re.compile(r'[a-z0-9]+')
+_LABEL_DIGITS = re.compile(r'\d+')
+_LETTERS = re.compile(r'[^a-z]+')
 RENAME_RATIO = 0.75         # name likeness of a re-key with the same value ("Interupt" -> "Interrupt": 0.97)
-RENAME_RATIO_CHANGED = 0.85  # … and of one whose value moved too: only a respelling
+RENAME_RATIO_CHANGED = 0.9  # … and of one whose value moved too: only a respelling (`_respelt`)
+# a property name that is a real property (an ability property or a T1-T3 bonus of one): one name inside
+# the other is the same property ("FlameAuraDPS" / "DPS"); a bare engine leaf (m_value, m_flValue,
+# eScaleStat) names nothing and matched unrelated stats (data-quality review 2026-10-04)
+_PROP_PATH = re.compile(r'm_mapAbilityProperties\.|m_vecPropertyUpgrades\{')
 
 
 def _words(label: str) -> set[str]:
@@ -142,20 +148,41 @@ def _alike(r: dict, a: dict, ratio: float) -> float:
     if (hr.group(1) if hr else '') != (ha.group(1) if ha else ''):
         return 0.0                          # a T1 bonus is not a T2 one
     lr, la = lr[hr.end():] if hr else lr, la[ha.end():] if ha else la
+    if _LABEL_DIGITS.findall(lr) != _LABEL_DIGITS.findall(la):
+        return 0.0                          # "at 9,600 souls" is not "at 6,400 souls", "#1" not "#5"
+    if ratio > RENAME_RATIO:
+        return _respelt(lr, la)
     sm = difflib.SequenceMatcher(None, _last_seg(lr), _last_seg(la))
     if sm.real_quick_ratio() >= ratio and sm.quick_ratio() >= ratio:       # cheap upper bounds first
         best = sm.ratio()
         if best >= ratio:
             return best
-    if ratio > RENAME_RATIO:
-        return 0.0
     wr, wa = _words(lr), _words(la)
     if wr and wa and (wr <= wa or wa <= wr):
         return 0.7
-    pr, pa = _prop_of(r).lower(), _prop_of(a).lower()
-    if min(len(pr), len(pa)) >= 3 and (pr in pa or pa in pr):
-        return 0.6
+    if _PROP_PATH.search(str(r.get('path') or '')) and _PROP_PATH.search(str(a.get('path') or '')):
+        pr, pa = _prop_of(r).lower(), _prop_of(a).lower()
+        if min(len(pr), len(pa)) >= 3 and (pr in pa or pa in pr):
+            return 0.6
     return 0.0
+
+
+def _respelt(lr: str, la: str) -> float:
+    """How surely two labels are one name respelt ("Interupt Cooldown" → "Interrupt Cooldown"): as many
+    words and the letters ≥ RENAME_RATIO_CHANGED alike. A word more or less is another field ("Damage
+    Taken (spirit scaling)" → "Damage (spirit scaling)", "Wall Turn Ratio" → "… Max", "Horizontal
+    Speed" → "… Speed X"), and so is another word in its place ("Spirit Damage" → "Base Damage"):
+    paired with a new value they invented a BUFF / NERF with a made-up percent (review 2026-10-04)."""
+    if len(_LABEL_WORD.findall(lr.lower())) != len(_LABEL_WORD.findall(la.lower())):
+        return 0.0
+    a, b = _LETTERS.sub('', lr.lower()), _LETTERS.sub('', la.lower())
+    if not a or not b:
+        return 0.0
+    sm = difflib.SequenceMatcher(None, a, b)
+    if sm.real_quick_ratio() < RENAME_RATIO_CHANGED or sm.quick_ratio() < RENAME_RATIO_CHANGED:
+        return 0.0
+    s = sm.ratio()
+    return s if s >= RENAME_RATIO_CHANGED else 0.0
 
 
 def _renamed_add(r: dict, added: list[dict], used: set[int]) -> dict | None:
@@ -171,13 +198,32 @@ def _renamed_add(r: dict, added: list[dict], used: set[int]) -> dict | None:
         if id(a) in used or not str(a.get('key') or '').startswith(ent + ':'):
             continue
         x, y = _num(r.get('old_s')), _num(a.get('new_s'))
-        same = _same_shown(r.get('old_s'), a.get('new_s')) or (x is not None and x == y)
+        same = _same_value(r.get('old_s'), a.get('new_s'), r, a)
         if not same and (_unit_of(r.get('old_s')) != _unit_of(a.get('new_s')) or x is None or y is None):
             continue
         s = _alike(r, a, RENAME_RATIO if same else RENAME_RATIO_CHANGED)
         if s > score:
             best, score = a, s
     return best
+
+
+_PCT_NAME = re.compile(r'percent|pct', re.I)
+
+
+def _same_value(old_s, new_s, r: dict, a: dict) -> bool:
+    """A removed and an added value that are one value: shown alike, or one number in units that agree.
+    A bare number and a percent are one only when the bare field's name says percent (Inhibitor's
+    "…Damage Penalty Percent -35" → "Damage Penalty -35%"), or at 0: Blood Bomb's flat "Self Damage
+    30" → "Health Cost 30%" (SelfDamagePct) is another cost, it read as no change (review 2026-10-04)."""
+    if _same_shown(old_s, new_s):
+        return True
+    x, y = _num(old_s), _num(new_s)
+    if x is None or x != y:
+        return False
+    ur, ua = _unit_of(old_s), _unit_of(new_s)
+    if x == 0 or ur == ua or '%' not in (ur, ua):
+        return True
+    return bool(_PCT_NAME.search(_prop_of(r if ur != '%' else a)))
 
 
 UNITS_PER_METER = 39.37
@@ -328,6 +374,9 @@ def is_noop(c: dict) -> bool:
         # compared as the page prints them: "ELOSCheck_Bounds → Bounds" or an id and its name
         # read "Bounds → Bounds" (28 MECH rows, audit 2026-10-01); 9999 and -1 are one "no limit"
         a, b = shown_value(c.get('old_s')), shown_value(c.get('new_s'))
+        if '|' in str(c.get('old_s')) and '|' in str(c.get('new_s')) and \
+                flag_rules.bits(c.get('old_s')) == flag_rules.bits(c.get('new_s')):
+            return True    # the same bits in another order: Goo Ball's "Behaviour" read as an empty row
         return _same(_sentinel(a, c, b), _sentinel(b, c, a))
     if op in ('add', 'remove') and not str(c.get('path') or '').startswith('@'):
         v = str(c.get('new_s' if op == 'add' else 'old_s') or '').strip().lower()
@@ -346,7 +395,9 @@ def change_row(c: dict) -> str:
 # A table edited row by row (souls per level 19-36, investment steps, the shotgun's pellet offsets)
 # reads as one change: one summary row, the rows behind a click (audit 2026-10-01: ~700 rows in patches)
 FAMILY_MIN = 4
-_NUM_IN_LABEL = re.compile(r'\d+')
+# a number in a label, thousands separators included: "at 6,400 souls" is one number (the fold read
+# "Vitality investment at 6–28,200 souls", review 2026-10-04)
+_NUM_IN_LABEL = re.compile(r'\d{1,3}(?:,\d{3})+|\d+')
 
 
 def _family(label: str) -> str:
@@ -355,7 +406,7 @@ def _family(label: str) -> str:
 
 def _span(nums: list[int]) -> str:
     lo, hi = min(nums), max(nums)
-    return str(lo) if lo == hi else f'{lo}–{hi}'
+    return f'{lo:,}' if lo == hi else f'{lo:,}–{hi:,}'
 
 
 _LEVEL_ROW = re.compile(r'^Level (\d+): (.+)$')
@@ -421,7 +472,7 @@ def _family_row(fam: str, group: list[dict]) -> str:
     """'Level 19–36: souls needed · 12 rows', tag of the group (mixed directions -> REWORK) and the
     range of % changes; the rows themselves fold under it."""
     from .render import tag_of
-    first_nums = [int(m.group()) for c in group for m in [_NUM_IN_LABEL.search(str(c.get('label', '')))] if m]
+    first_nums = [int(m.group().replace(',', '')) for c in group for m in [_NUM_IN_LABEL.search(str(c.get('label', '')))] if m]
     base = str(group[0].get('label', ''))
     label = _NUM_IN_LABEL.sub(_span(first_nums), base, count=1) if first_nums else base
     kinds = {tag_of(c)[0] for c in group}

@@ -169,6 +169,8 @@ def ids_to_names(s: str) -> str:
 
 
 _ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_|npc_)')
+# how Valve files a gun's parts, never what a player calls it: "shotgun shared base", "… shared weapon info"
+_WEAPON_PLUMBING = re.compile(r'_?shared(?:_base|_weapon_info)?$')
 
 
 def display_name(e: dict) -> str:
@@ -185,13 +187,16 @@ def pretty_id(eid: str, owner: str | None = None) -> str:
         if eid.endswith(('_alt', '_set2', '_set_2')):
             return 'Alt weapon'
         # a hero's other guns say what tells them apart: Holliday had five "Weapon" groups (hand cannon,
-        # shotgun, shotgun backwards…; audit 2026-10-04)
+        # shotgun, shotgun backwards…; audit 2026-10-04). Only after the owner's own code: Atlas' gun is
+        # citadel_weapon_bull_set, Krill's citadel_weapon_digger_set — "Weapon (bull set)" put the code
+        # word on the hero matrix 58 times (review 2026-10-04)
         rest = eid.removeprefix('citadel_weapon_')
         code = (owner or '').removeprefix('hero_')
-        if code and rest.startswith(code + '_'):
-            rest = rest[len(code) + 1:]
-        rest = re.sub(r'^set(?:_|$)', '', rest).replace('_', ' ').strip()
-        return f'Weapon ({rest})' if rest and code and rest != code else 'Weapon'
+        if not code or not rest.startswith(code + '_'):
+            return 'Weapon'
+        rest = re.sub(r'^set(?:_|$)', '', rest[len(code) + 1:])
+        rest = _WEAPON_PLUMBING.sub('', rest).replace('_', ' ').strip()
+        return f'Weapon ({rest})' if rest else 'Weapon'
     if eid.startswith('m_'):                 # a game-rules block: 'm_RejuvParams' -> 'Rejuv Params'
         from pipeline.semantics import humanize
         return humanize(eid)

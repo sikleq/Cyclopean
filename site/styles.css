@@ -1206,6 +1206,10 @@ h2.flush { margin-top: 0; }
 .flag { font: 17px/1 var(--font-label); padding: 3px 5px; background: var(--bg-panel-3); text-transform: uppercase; }
 .flag.add { color: var(--tag-buff); }
 .flag.rem { color: var(--tag-nerf); }
+/* a gameplay bit: the side it moved the owner to (render._bits_html), whether added or removed */
+.flag.good { color: var(--tag-buff); }
+.flag.bad { color: var(--tag-nerf); }
+.flag.even { color: var(--tag-changed); }
 table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .item-hdr { margin-bottom: 10px; }
 .no-notes { color: var(--eye); }

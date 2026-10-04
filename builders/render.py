@@ -267,17 +267,34 @@ def _short_flag(f: str) -> str:
     return _FLAG_PREFIX.sub('', f).replace('_', ' ').lower()
 
 
+_SIDE_CLASS = {1: 'good', -1: 'bad', 0: 'even'}
+
+
 def _bits_html(added: list[tuple[str, int]], removed: list[tuple[str, int]]) -> str:
+    """A listed bit's chip takes the colour of the side it moved the owner to (pipeline.flags), not of
+    added / removed: "Interrupted by +silenced" is a nerf, "Interrupted by −rooted" a buff (review
+    2026-10-04: green chips under a NERF tag)."""
     return ('<span class="vals flags">'
-            + ''.join(f'<span class="flag add">+{esc(w)}</span>' for w, _ in added)
-            + ''.join(f'<span class="flag rem">−{esc(w)}</span>' for w, _ in removed) + '</span>')
+            + ''.join(f'<span class="flag add {_SIDE_CLASS[s]}">+{esc(w)}</span>' for w, s in added)
+            + ''.join(f'<span class="flag rem {_SIDE_CLASS[-s]}">−{esc(w)}</span>' for w, s in removed) + '</span>')
+
+
+def flag_moves(path: str, old_s, new_s) -> list[str] | None:
+    """The listed bits of a flag field that moved, as '+words' / '−words' (pipeline.flags), for plain-text
+    places (the matrices' hover cards); None when the field is no flag field or no listed bit moved."""
+    d = flag_rules.diff(path, old_s, new_s) if path else None
+    if not d or not (d[0] or d[1]):
+        return None
+    return [f'+{w}' for w, _ in d[0]] + [f'−{w}' for w, _ in d[1]]
 
 
 def flags_html(old_s, new_s, path: str = '') -> str | None:
     """Bit-flag lists ('A | B | C') show only what was added / removed; in a flag field a player plays
-    with, only its listed bits, in words ("+ignored by troopers and neutrals", pipeline.flags)."""
+    with, only its listed bits, in words ("+ignored by troopers and neutrals", pipeline.flags). A field
+    whose moved bits are all unlisted (a "Technical" row) shows them the engine's way: the words left
+    1,168 empty cells (review 2026-10-04)."""
     d = flag_rules.diff(path, old_s, new_s) if path else None
-    if d is not None:
+    if d is not None and (d[0] or d[1]):
         return _bits_html(*d)
     a, b = _flags(old_s), _flags(new_s)
     if a is None and b is None:
@@ -413,7 +430,9 @@ def vals_html(c: dict) -> str:
     # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop
     old_s, new_s = (flag_rules.enum_words(path, v) or v for v in (old_s, new_s))
     old_s, new_s = _clip(old_s), _clip(new_s)
-    old_s, new_s = _same_unit(_sentinel(old_s, c, new_s), _sentinel(new_s, c, old_s))
+    old_s, new_s = _sentinel(old_s, c, new_s), _sentinel(new_s, c, old_s)
+    if not c.get('unit_switch'):     # "30% → 2": Valve dropped the unit, the old one is not the new one's
+        old_s, new_s = _same_unit(old_s, new_s)
     # rows without a % pill keep its slot (.pct-pad, shown only in change rows), so the new
     # values of every row end on one vertical line
     if op == 'add':

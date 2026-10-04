@@ -52,6 +52,12 @@ def collect(records) -> dict[str, dict]:
                     s['scaled_by'] = c.get('scaled_by')
                     if c.get('label_src') != 'fallback':
                         s['loc_label'] = c['label']
+                        # the unit this build's text printed, where it had the field: (build, unit) at
+                        # each switch, so a window knows the unit before it (unit_switch)
+                        u = c.get('unit') or ''
+                        steps = s.setdefault('steps', [])
+                        if not steps or steps[-1][1] != u:
+                            steps.append((rec.get('build'), u))
                     if c.get('unit'):
                         s['unit'] = c['unit']
                     if 'sign' in c:
@@ -69,11 +75,45 @@ def resolve(path: str, head: dict, seen: dict | None) -> dict:
         label, src = seen['loc_label'], 'loc'
     else:
         label, src = head['label'], 'fallback'
-    unit = head.get('unit') or seen.get('unit') or ''
+    steps = seen.get('steps') or []
+    units = {u for _, u in steps if u} | ({head['unit']} if head.get('unit') else set())
+    if head.get('src') == 'loc' and steps and (len(units) > 1 or units and not head.get('unit')):
+        # the newest text still labels the field and prints no unit (or another one) where older text
+        # printed one: Valve dropped or replaced it (Express Shot's Extra Ammo Consumed went from 30% of
+        # the clip to 2 bullets, Kinetic Carbine's Max Damage from % to flat). Each window keeps its own
+        # text's unit (None here, display_unit) — "30% → 2%" put the old unit on the new number (review
+        # 2026-10-04). A unit only ever added (a bare number, later "%") stays one unit for all rows.
+        unit = None
+    else:
+        unit = head.get('unit') or seen.get('unit') or ''
     sign = head['sign'] if head.get('sign') is not None else seen.get('sign') or ''
     if sign == '-' and src == 'loc':
         label = semantics.enemy_label(label, semantics.property_name(path))
-    return {'label': label, 'unit': unit, 'sign': sign, 'src': src}
+    out = {'label': label, 'unit': unit, 'sign': sign, 'src': src}
+    if len(steps) > 1:
+        out['steps'] = steps
+    return out
+
+
+def unit_switch(cn: dict, builds: list) -> tuple[str, str] | None:
+    """(old unit, new unit) when the field's printed unit was dropped or replaced inside a window of
+    `builds` (oldest first): the text before the window had one unit, the window's last build
+    another or none. Gaining a unit is no switch — that is Valve finishing its text, the canonical
+    unit covers it. None otherwise, or when the builds are not comparable."""
+    steps = cn.get('steps')
+    if not steps or not builds or not all(isinstance(b, int) for b in (builds[0], builds[-1])):
+        return None
+    before = after = None
+    for b, u in steps:
+        if not isinstance(b, int):
+            return None
+        if b < builds[0]:
+            before = u
+        if b <= builds[-1]:
+            after = u
+    if before and after is not None and before != after:
+        return before, after
+    return None
 
 
 def build(records, tok: dict[str, str], kinds: dict[str, str] | None = None) -> dict[str, dict]:
@@ -118,8 +158,11 @@ def display_unit(era: dict, cn: dict) -> str:
     """The unit printed after a window's values: the field's canonical one. Old bare numbers under a
     unit Valve added later are in that unit (Power Slash's "Slash Radius 50 → 45" of 2024 is the 50m
     the tooltip prints; the 2024 move speeds 7 → 6.5 are m/s) — no build record holds a bare length
-    of 40+ engine units under a field that gained "m" (checked 2026-10-04). A speed's "m" is m/s."""
-    unit = cn.get('unit') or ''
+    of 40+ engine units under a field that gained "m" (checked 2026-10-04). A speed's "m" is m/s. A
+    field whose unit Valve dropped (`resolve`: unit None) prints its own window's unit."""
+    unit = cn.get('unit')
+    if unit is None:
+        unit = era.get('unit') or ''
     return 'm/s' if unit == 'm' and era.get('speed_m') else unit
 
 

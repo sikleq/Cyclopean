@@ -152,9 +152,11 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
     if pol > 0 and path.startswith('m_mapStartingStats.'):
         # a hero's own base stat counts with its sign: a resist below zero is a penalty, so Pocket's
         # bullet resist −20% → −15% is the notes' "Base bullet resistance improved" (it read NERF), and
-        # Celeste's −6% → −8% a nerf (audit 2026-10-04)
+        # Celeste's −6% → −8% a nerf (audit 2026-10-04). The percent goes with the sign too: Pocket's
+        # BUFF read "−20% → −15% −25.0%" (review 2026-10-04), it is +25%
         x, y = float(old), float(new)
-        return ('changed' if x == y else 'buff' if y > x else 'nerf'), pct
+        signed = None if x == 0 else (y - x) / abs(x) * 100.0
+        return ('changed' if x == y else 'buff' if y > x else 'nerf'), signed
     if pol == 0 or a == b:
         return 'changed', pct
     if UPGRADE_BONUS.search(path) or pol < 0:
@@ -451,9 +453,20 @@ def _loc_label(tok: dict[str, str], name: str, ability: str | None = None) -> st
         if key and key.lower() in tok:
             # loc text carries HTML entities ("Bullet &amp; Spirit Lifesteal"): plain text out
             val = html.unescape(re.sub(r'<[^>]+>', '', tok[key.lower()])).strip()
-            if val and '{' not in val:
+            if val and '{' not in val and _names_something(val):
                 return val
     return None
+
+
+_PARENS = re.compile(r'\([^)]*\)')
+_LETTER = re.compile(r'[^\W\d_]')
+
+
+def _names_something(label: str) -> bool:
+    """A label is more than a qualifier: Calico's Ava 'StatueHealth_label' became "(Normalized)" and 17
+    rows read "(Normalized) 300HP → 200HP" (review 2026-10-04) — such text is no label, the field keeps
+    the last one Valve gave it (labels.collect) or its name in words."""
+    return bool(_LETTER.search(_PARENS.sub('', label)))
 
 
 def stat_label(tok: dict[str, str], stat: str) -> str:
@@ -479,7 +492,8 @@ def override_label(tok: dict[str, str], token: str | None, entity: str = '') -> 
         return None
     if token.startswith('#'):
         val = tok.get(token[1:].lower())
-        return html.unescape(re.sub(r'<[^>]+>', '', val)).strip() if val and '{' not in val else None
+        val = html.unescape(re.sub(r'<[^>]+>', '', val)).strip() if val and '{' not in val else None
+        return val if val and _names_something(val) else None
     return _loc_label(tok, token, entity)
 
 

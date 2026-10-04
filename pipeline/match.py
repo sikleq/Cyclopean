@@ -106,6 +106,9 @@ class MChange:
     shown: str = ''
     sign: str = ''                                # '-': the tooltip's own minus (an enemy slow), shown as a size
     retyped: bool = False                         # the property's provided type flipped with its sign (Riposte)
+    # the old value's unit when Valve dropped or replaced the printed unit inside the window (labels.unit_switch):
+    # "Extra Ammo Consumed 30% → 2" is CHANGED, no percent — 30% of a clip and 2 bullets do not compare
+    old_unit: str | None = None
 
     @property
     def key(self) -> str:
@@ -362,6 +365,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
     diffed field by field (their whole data is "new"): they become one
     'entity added' change each."""
     merged: dict[str, MChange] = {}
+    canon: dict[str, dict] = {}
     extras = {'loc': [], 'convars': [], 'assets': [], 'entities_added': [], 'entities_removed': [],
               'entities_returned': []}
     added_here: set[str] = set()
@@ -392,7 +396,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                     if mc is None:
                         d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'),
                                                c.get('loc_token'))
-                        cn = labels.canonical(key, d)
+                        cn = canon[key] = labels.canonical(key, d)
                         merged[key] = MChange(
                             e['file'], tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
                             # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
@@ -411,6 +415,11 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
         if rec.get('assets'):
             extras['assets'].append({'build': rec['build'], **rec['assets']})
     changes = [c for c in merged.values() if not (c.op == 'change' and c.old == c.new)]
+    for c in changes:
+        sw = labels.unit_switch(canon.get(c.key) or {}, c.builds) if c.op == 'change' else None
+        if sw:
+            era = {'speed_m': c.speed_m}
+            c.old_unit, c.unit = (labels.display_unit(era, {'unit': u}) for u in sw)
     mark_retyped(changes)
     # console variables take part in matching ("Respawn time … from 35s to 38s")
     for cv in extras['convars']:
@@ -1141,15 +1150,19 @@ def change_json(c: MChange) -> dict:
     if not c.meters and semantics.length_in_units(c.path, c.unit, (c.old, c.new)):
         shown = True                  # a property length no build gave a unit: engine units, shown in metres
     magnitude = c.sign == '-'
+    switched = c.old_unit is not None
+    if switched:
+        dirn, pct = 'changed', None   # another unit: the numbers do not compare (labels.unit_switch)
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.shown or c.label,
-        'old_s': semantics.show(c.old, shown, c.unit, c.invert, magnitude),
+        'old_s': semantics.show(c.old, shown, c.old_unit if switched else c.unit, c.invert, magnitude),
         'new_s': semantics.show(c.new, shown, c.unit, c.invert, magnitude),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
         'same': semantics.reencoded(c.old, c.new, c.path) or (c.retyped and semantics.sign_flip(c.old, c.new)),
         **({'flag': True} if flag else {}),
+        **({'unit_switch': True} if switched else {}),
     }
 
 

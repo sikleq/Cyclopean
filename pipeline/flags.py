@@ -42,6 +42,20 @@ STATES = {
     'PULLDOWN_TO_GROUND': ('pulled to the ground', 0), 'OUT_OF_GAME': ('out of the game', 0),
     'VISIBLE_TO_ENEMY': ('revealed to enemies', 0),
 }
+# --- the same states in a modifier's DISABLED mask: what the holder cannot be put into while it lasts. Nouns,
+# under "Immune to": "Immune to +no dashing +disarmed" read as a double negative on Abrams, Yamato, Warden
+# and Mirage (review 2026-10-04); an added one is always an immunity (FIELDS gives the side)
+IMMUNITIES = {
+    'SLOWED': 'slows', 'SILENCED': 'silence', 'SILENCE_MOVEMENT_ABILITES': 'movement silences',
+    'MUTED': 'item mutes', 'DISARMED': 'disarm', 'GLITCHED': 'glitch', 'STUNNED': 'stuns', 'IMMOBILIZED': 'roots',
+    'IS_ASLEEP': 'sleep', 'CHAINED': 'chains', 'COMMAND_RESTRICTED': 'control locks',
+    'DASH_DISABLED': 'dash lockouts', 'DASH_DISABLED_DEBUFF': 'dash lockouts', 'JUMP_DISABLED': 'jump lockouts',
+    'AIR_JUMPS_DISABLED': 'air-jump lockouts', 'DUCKING_DISABLED': 'crouch lockouts',
+    'MELEE_DISABLED': 'melee lockouts', 'MELEE_DISABLED_DEBUFF': 'melee lockouts',
+    'ZIPLINE_DISABLED': 'zipline lockouts', 'SLIDING_DISABLED': 'slide lockouts', 'MANTLE_DISABLED': 'mantle lockouts',
+    'TELEPORTER_DISABLED': 'teleporter lockouts', 'MOVEMENT_ABILITY_RESTRICTED': 'movement restrictions',
+    'MOVEMENT_ABILITY_ACTIVATION_RESTRICTED': 'movement restrictions', 'PULLDOWN_TO_GROUND': 'pull-downs',
+}
 # --- a modifier's rules (MODIFIER_ATTRIBUTE_*); MULTIPLE / PERMANENT are bookkeeping
 ATTRIBUTES = {'CANNOT_BE_PURGED': ("can't be purged", 1), 'IGNORE_INVULNERABLE': ('ignores invulnerability', 1)}
 # --- how an ability casts (CITADEL_ABILITY_BEHAVIOR_*); quick-cast UI, previews, camera, lag compensation
@@ -69,14 +83,16 @@ FIELDS = {
     'm_iAuraSearchType': ('target', 0),                 # whom an aura touches: no side
     'm_bitsInterruptingStates': ('state', -1),          # interrupted by more states: worse
     'm_nEnabledStateMask': ('state', 'own'),
-    'm_nDisabledStateMask': ('state', 1),               # states blocked while it lasts: an immunity
+    'm_nDisabledStateMask': ('immunity', 1),            # states blocked while it lasts: an immunity
     'm_nAttributes': ('attribute', 'own'),
     'm_AbilityBehaviorsBits': ('behaviour', 'own'), 'm_nAbilityBehaviors': ('behaviour', 'own'),
     'm_nAbilityTargetFlags': ('targetflag', 'own'),
 }
-_PREFIX = {'state': 'MODIFIER_STATE_', 'attribute': 'MODIFIER_ATTRIBUTE_', 'behaviour': 'CITADEL_ABILITY_BEHAVIOR_',
-           'target': 'CITADEL_UNIT_TARGET_', 'targetflag': 'CITADEL_UNIT_TARGET_FLAG_'}
-_VOCAB = {'state': STATES, 'attribute': ATTRIBUTES, 'behaviour': BEHAVIOURS, 'targetflag': TARGET_FLAGS}
+_PREFIX = {'state': 'MODIFIER_STATE_', 'immunity': 'MODIFIER_STATE_', 'attribute': 'MODIFIER_ATTRIBUTE_',
+           'behaviour': 'CITADEL_ABILITY_BEHAVIOR_', 'target': 'CITADEL_UNIT_TARGET_',
+           'targetflag': 'CITADEL_UNIT_TARGET_FLAG_'}
+_VOCAB = {'state': STATES, 'immunity': {k: (w, 1) for k, w in IMMUNITIES.items()}, 'attribute': ATTRIBUTES,
+          'behaviour': BEHAVIOURS, 'targetflag': TARGET_FLAGS}
 
 # single-value enums: field leaf -> value pattern, words of its capture
 ENUMS = {
@@ -155,9 +171,12 @@ def enum_words(path: str, v) -> str | None:
     """'EItemSlotType_Tech' -> 'Spirit', 'CITADEL_ABILITY_ACTIVATION_INSTANT_CAST' -> 'instant cast'."""
     rx = ENUMS.get(leaf(path))
     m = rx.match(str(v)) if rx and v is not None else None
-    if not m:
-        return None
+    if not m or _NO_VALUE.match(m.group(1)):
+        return None           # EItemSlotType_Invalid: no slot, not a shop ("DEL Item slot invalid" on Viper)
     return SHOP_SLOT.get(m.group(1)) or m.group(1).replace('_', ' ').lower()
+
+
+_NO_VALUE = re.compile(r'^(?:invalid|none|null|unset|count)$', re.I)
 
 
 def _truthy(v) -> bool:
