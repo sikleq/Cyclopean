@@ -1,5 +1,19 @@
 [
   {
+    "date": "2026-10-05",
+    "title": "Entity pages, shared abilities, data fixes, and Item Stats history",
+    "items": [
+      "Hero, item and unit pages now open on their history: a filter bar above the history (tags, \"not in notes\", stats/weapon/abilities, each ability by icon), and today's stats, weapon and cards folded into one line above it. The history reads easier: each number follows its stat, the % is coloured text, every tag is the same size, and old values on deletions are struck through.",
+      "Jump, dash, slide, mantle, ziplines and parry have their own page (Heroes → Movement & shared abilities) and a row in the hero change matrix; their changes no longer fill other heroes' pages. Clicking an ability's icon in the history filter scrolls to and lights up its group.",
+      "Hover a patch square on a history strip, an ability card, or a home feed icon to see what that patch changed: the top changes by ability, old → new, and a count of what wasn't in the notes. Clicking opens that patch on the page; the eye mark shows when notes left something out.",
+      "Unit pages with tiers (Dock Creature, Lantern, and the rest) fit a phone screen with no sideways scroll. Unit families have their own page (Slum Shroom I-III as one card and page). Change grids keep your place when a phone's address bar hides.",
+      "Shared abilities, buffs and nerfs, units and labels are now honest: one name per stat across its whole history (the name the game uses today); enemy slows read as slows (\"Movement Slow 30% → 24%\") not your own move speed; hidden ability rules show in plain words (\"can now target neutrals\", \"Immune to: dash lockouts, disarm, slows\"); no more \"−0.0254 m\" for \"no limit\", all speeds in m/s, all lengths in metres, all −1 bonuses shown as numbers.",
+      "Item Stats now shows every number from each item's tooltip card. One table: Weapon / Spirit / Vitality bands, tier dividers, bigger framed icons, units in headers, heatmap on by default, and a \"Stat columns\" switch that lets you sort by any stat. Every chip carries its history.",
+      "Item Stats history is now exact: a value Valve only renamed or newly showed no longer reads \"added\", and the older history before it is back (Extended Magazine's Weapon Damage went 15 → 12 → 6 → 8 again). What an item's active does is marked \"Active\" (Spirit Sap's -30 Spirit Power is the target's debuff, not the item's stat). Drawbacks show red in the history.",
+      "Buff and nerf tags are fixed where Valve changed one stat to another without saying it (investment thresholds, Djinn's Mark, Frank's Aura): they now read as removed and added, and a stat swap on a neutral no longer vanishes. No more engine switches, empty rows or renamed fields without a change in the history."
+    ]
+  },
+  {
     "date": "2026-10-03",
     "title": "Find what changed, read it as the game says it",
     "items": [

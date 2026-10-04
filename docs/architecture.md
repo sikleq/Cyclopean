@@ -18,7 +18,11 @@ pipeline/abilities.py  -> data/abilities.json (current ability/item cards: the i
                           m_AbilityTooltipDetails / m_vecTooltipSectionInfo, labels, units, spirit scaling, T1-T3 text)
 pipeline/hero_table.py -> data/tables/heroes.json (columns evaluated on every build -> cell histories)
 pipeline/unit_table.py -> data/tables/units.json  (troopers, buildings, neutrals; same idea)
-pipeline/item_table.py -> data/tables/items.json  (tier, cost from generic_data, main properties)
+pipeline/item_table.py -> data/tables/items.json  (every number of each shop item's card, by build)
+pipeline/labels.py     one label / unit / sign per field over its whole history (map built from data/builds
+                          + the newest build's loc; used by match.py and abilities.py, not persisted)
+pipeline/flags.py      bit sets and enums a player plays with: which bits are gameplay, their words, the side
+                          an added bit takes (used by enrich, match and the builders)
 pipeline/news.py       -> data/notes/steam.json (Steam News API); forum notes in data/notes/forum/*.txt
 pipeline/patches.py    groups builds into patch windows (changelogs; notes-less big builds get their own)
 pipeline/match.py      -> data/patches/<id>.json.gz  notes lines ⇄ data changes; documented/described/hidden/mismatch/fix
@@ -90,10 +94,16 @@ On hero and patch pages changes are grouped: patch or hero → one header per ab
 counters) → its rows without the name repeated. Abilities re-created under a new id borrow the icon of
 their namesake with the same owner (`common.entity_icon`).
 
-Tag look: the tag's own pixel icon + word, coloured on a tint of the tag colour with a 2px bar and
-notched corners; the tint grows with the size of the change (`data-g`). Counters (▲3-style) are the
-same icons + a number (`render.pip`). Icons are 10×10 ASCII grids in `builders/pixel_icons.py`, never
-font glyphs (fallback fonts drew ⟳ as "C"); how to draw and review them: `.claude/skills/pixel-icons`.
+Tag look (`render.tag_badge`, the only badge markup, used by all builders): the word in the UI font
+(600 11px uppercase), one width for every tag (`--tag-w`, 80px: CHANGED fits), a muted tint of the tag
+colour with a 2px bar on the left, and one fill. The size of a change is shown by the % next to it, never
+by the badge. The % is coloured text whose ink strength follows `data-g`, not a second box. There is no
+clip-path, because it cut the focus and "chosen" rings. The tag's pixel icon is the badge's CSS
+`::before`: a mask per tag (`pixel_icons.tag_mask`, written into styles.css as `.tag.<t> { --ti: … }`),
+drawn in the badge's own colour. `tests/test_entity_page.py` keeps the CSS in sync with `TAG_ART`. An
+inline SVG per badge used to mean ~600 copies of ten shapes on a hero page. Counters (`render.pip`)
+keep their inline SVG. A chosen filter tag is `aria-pressed="true"`, never the class `on`, because
+`.tag.on` is the ON tag's green.
 
 **One counting rule.** Every counter on every page (home summary, patches index, heroes index, card
 headers, ability sub-headers, history bands, the 12-patch strip) counts `cards.player_facing(changes)`:
@@ -132,10 +142,14 @@ its card shows "Added to the game files · N fields", the stats a player compare
 (`cards.ADDED_KEY`, at most 12), and folds the rest (level tables, item-cost curves every hero shares)
 under "All fields".
 
+**Folded tables** keep thousands in their range (`cards._NUM_IN_LABEL`: "6,400–28,800 souls").
+
 Polarity notes: an interval between an effect's ticks (`HealInterval`, `TickInterval`, `DamageInterval`…)
 is lower-is-better — Infest Heal Interval 3 → 2 is a BUFF. A property the game marks as the holder's own
 downside (`m_bIsNegativeAttribute`, drawn red in the tooltip; `enrich.drawbacks`, the change carries
-`drawback`) grows as a NERF whatever its name says (Golden Goose Egg's damage penalty −10% → −15%).
+`drawback`) grows as a NERF whatever its name says (Golden Goose Egg's damage penalty −10% → −15%). Path rules in `semantics.POLARITY_RULES` come first; a flag
+row's tag comes from `pipeline/flags.py`. A hero's signed base stat (m_mapStartingStats) has a signed percent
+too: −20% → −15% is +25%.
 
 Audit of the patch pages (2026-10-01):
 - a field added or removed with a 0 / "no" value changes nothing (`cards.is_noop`; a field tuned to 0
@@ -256,6 +270,124 @@ Audit follow-up (2026-10-02, enrich 25):
   never merging or rebasing generated files (run 36896244450 went red so); any other push failure
   fails at once.
 
+Data-quality audit (2026-10-04, record format 7, enrich 29):
+- shared abilities: an ability more than half of the real heroes bind (at least 3: jump, dash, mantle, slide,
+  sprint, climb rope, zipline, zipline boost, parry, the voting poster) belongs to every hero, so to none
+  (`classify.shared_abilities`): no owner, kind `shared` in records, entities.json and abilities.json; units
+  do not claim them either. The first real hero in the file (Infernus) had taken them all — 135 of the 295
+  rows on his page. They have their own page, heroes/shared.html (`builders/shared_page.py`, linked from the Heroes index toolbar), a row
+  "All heroes · movement & shared" in the hero change matrix (`dynamics_page.SHARED_KEY`) and search rows
+  (#ab-<id> filters the page); the patch archive lists them as cards of their own.
+- one label per field: enrich keeps each build's own words (`label`, `label_src: 'fallback'` when the label is
+  the field's name, `unit`, `sign`); `pipeline/labels.py` builds, per (file, entity, path), the label the
+  NEWEST build's text gives it, else the last label Valve ever gave it, else the name split into words; the
+  newest non-empty unit; the newest sign. The matcher matches note lines against the window's own label
+  (`MChange.label`) but writes the canonical one (`MChange.shown`) and re-renders `old_s` / `new_s` from the
+  raw values with the canonical unit (`labels.display_unit`: an old bare number takes the unit Valve added
+  later — no record holds a bare length of 40+ engine units under a field that gained "m"; a speed's "m" is
+  m/s). Build records (the archive's build pages) keep each build's words. Ability cards use the same
+  resolver (`abilities._label`), so a card and the newest history row agree, and list a property once per
+  section. A loc text that is only a qualifier ("(Normalized)") is no label
+  (`semantics._names_something`). When the newest text still labels a field but prints no unit, or another one,
+  where older text printed one (Valve dropped or replaced it), the field has no canonical unit: each window prints
+  its own text's unit (`labels.resolve` → unit None, `display_unit`), and the row across the switch
+  (`labels.unit_switch`, from the per-build unit steps `collect` keeps) prints each side in its own unit, CHANGED
+  without a percent (`match.MChange.old_unit`, `unit_switch: true` in the patch JSON; `render.vals_html` then
+  does not copy a unit across). A unit only ever added stays one unit for every row, as before.
+- enemy slows: a property whose tooltip prefix is "-" (`semantics.prop_sign`: the game prints "-30% Move
+  Speed" over a stored 30) is labelled by what it does to the enemy (`semantics.enemy_label`: "Movement
+  Slow", "Fire Rate Slow", "Bullet Resist reduction (Heavy)", "Parry Cooldown reduction") and shown as its
+  size (`show(..., magnitude=True)`); BUFF / NERF still from the raw value (a smaller slow is a nerf). A slow
+  stored −30 in one build and 30 in the next (Card Trick 2026-08-12) is one value.
+- sign flips: `cards.is_noop` keeps signs ("−22% → 22%" is a change); a flip that comes with the property's
+  provided type flipping (REDUCTION_PERCENT → INCREASE_PERCENT: Riposte, Gloom Bombs) is the same value
+  written the other way round (`match.mark_retyped` → `same`).
+- units: −1 is never turned into metres (`display_value`); recoil, turn, spin, decay, blend-bias and penalty
+  fields are not lengths or speeds; "…MeterPerSecond" is m/s already; an engine float ENDING in a length word
+  is a length ("Nearby Enemy Resist Range" 2000 = 50.8 m); an ability property named like a length that no
+  build gave a unit is engine units when its numbers pass 20 (`semantics.length_in_units`: "Lift Height
+  120 → 200" = 3.05 → 5.08 m); a property is a speed wherever "speed" sits in its name (`speed_prop`:
+  "Active Movespeed Penalty 4.5m/s"); a label drops "(m)" / "(s)" when its value carries the unit;
+  "Verticall" → "Vertical"; corrupted bonuses carry their property's unit.
+- an identifying field spelt with other capitals (Valve's `m_StrPropertyNAme`, Shadow Transformation
+  2026-03-06) still keys its list (`flatten._id_case`): the T2 cooldown bonus reads "T2: Cooldown −25s →
+  −20s NERF", not "Ability Upgrades #2 › Property Upgrades #2 › Bonus" BUFF.
+- names: a weapon-class ability's upgrades are T1-T3 (Venator's ultimate), map keys that are ids read as the
+  game's names ("Item Draft Weights › <item name>"), an NPC ability whose only text is its unit's name has
+  none (`catalog.drop_unit_names`: the Patron's "Aoe wave", not three "Patron" groups), stand-ins say what
+  they are (`common.pretty_id`: "Ability 1", "Weapon (shotgun)").
+- values: `render._sentinel` keeps a real −1 — a T1-T3 / Enhanced / Corrupted bonus (".m_strBonus") or a
+  value whose other side is another negative number (Sharpshooter's −0.5 → −1 m/s); `cards.merge_renames`
+  does not pair a removed and an added bonus of another property AND another unit (Shoulder Charge's T1
+  "25% → 2.2"); the hero page's weapon cells show two decimals (Reload 1.06, not 1.0575).
+- tracker upkeep commits (a subject without a build number: "cleanup", "Dump exe, dedupe…") are not builds
+  (`tracker.is_game_build`, `head_build`): no record (history takes what they moved as the new baseline; the
+  next build names the build before it), the catalog and the cards keep the newest game build, and
+  update-data names its commit after the newest game build ("tracker Dump" / "tracker Fail" on 2026-10-04,
+  `None_92d2d9d0` = the 2025-08-23 "cleanup" with 498 loc rows).
+
+Data-quality audit, part 2 (2026-10-04, enrich 30):
+- plumbing by path: `cards._PLUMBING_PATH` drops, in every file, a modifier's mid-boss / effectiveness /
+  refresh / time-scale / target-filter / buildup switches, dependent-ability lists, model scale, the Patron's
+  observer origin and the deploy checks unless a note named them; `_PROPERTY_WIRING` also drops
+  `m_nRequiredUpgradeBits`; a shotgun's pellet offsets never show (`_PELLETS`, labelled "Pellet pattern" in
+  the archive); `cards.is_noop` drops an empty block added or removed. Rows are never hidden because of
+  where their label came from.
+- container words: a container named after its modifier loses the word ("Grab › Duration",
+  `semantics._MODIFIER_TAIL`, not on the leaf); `CONTAINER_WORDS` names the Rejuvenator buff, "On target",
+  "Build-up", "Stagger"; `UNIT_FIELDS` the invulnerability aura range and the sight range vs heroes;
+  `FLAG_FIELDS` "Applies" (m_nEnabledStateMask), "Immune to" (m_nDisabledStateMask), "Aura affects",
+  "Item slot", "Activation", "Reduced by CC diminishing returns".
+- gameplay flags (`pipeline/flags.py`): a modifier's m_nEnabledStateMask is a mechanic (it was technical); for
+  target types, interrupting states, enabled / disabled state masks, attributes, cast behaviours and target
+  flags a vocabulary lists the bits a player plays with — words and the side an ADDED bit takes for the owner
+  (+1 / -1 / 0: a lockout state has no side, it can be the holder's own or an enemy's debuff). Interrupting
+  states count -1 each, target types +1, a disabled-state mask +1 (an immunity). A row shows when a listed bit
+  moved (`flags.is_gameplay`; bits that read the same, DASH_DISABLED → DASH_DISABLED_DEBUFF, cancel out),
+  with only the listed bits in words ("+ignored by troopers and neutrals", "+neutrals", "+can't be purged");
+  quick-cast UI and internal states stay plumbing. Enums read as words ("Item slot: Spirit → Vitality",
+  `flags.enum_words`, also `render.readable_value` for EItemSlotType_*). `flags.direction` gives BUFF /
+  NERF when every moved bit goes one way; the records carry `flag: true` and `render.tag_of` uses the
+  direction even for a first bit added (op add). The matcher links a state mask only by the states that
+  moved (`match._STATE_MASK`), never by the modifier's container words. A flag field whose moved bits are all unlisted shows them the engine's
+  way (`render.flags_html`; they are Technical rows). A chip's colour is the side it moved the owner to
+  (`.flag.good / .bad / .even`), not added / removed. The disabled-state mask has its own nouns
+  (`flags.IMMUNITIES`: "Immune to +dash lockouts +disarm +slows"); *_Invalid / NONE enum values are no value
+  (`flags.enum_words`); the same bits in another order are no change (`cards.is_noop`); the matrices' hover cards
+  read a flag row as its moved bits in words (`dynamics_page._sample_values`, `render.flag_moves`).
+- polarity: `semantics.POLARITY_RULES` (path regex → side, each with its note) wins over the name rules —
+  ActiveReloadPercent, RecoilRecoverySpeed, MoveSpeedPenaltyPerStack (an enemy slow) +1; SummonFrequency,
+  BonusBuffsPerGold, MinimumDamage, Goo Ball's m_DamagePreventionModifier.m_flDuration -1. A hero's own
+  base stat compares with its sign (a negative resist is a penalty). A negating word before the lower-is-
+  better word counts too ("Reduce Cooldown On Hit"). Offsets, pitch limits, aim bias, damping, friction and
+  springs are neutral; a shotgun's scatter scales lower-is-better. `semantics.is_sentinel`: 9999 always,
+  -1 only against a non-negative other side; -2 is no sentinel.
+- "no limit": `render.shown_value` prints 9999 as "no limit" (was ∞), the same word `render._sentinel` gives
+  -1, so `cards.is_noop` sees "9999 → -1" as no change; `_SENTINEL_WORDS` says "default" for a charge delay /
+  spin-up / spread-decay -1 and "permanent" for a modifier's duration.
+- renames: `cards.merge_renames` also pairs a DEL with a NEW of the same entity and tier when the values
+  are equal and the names say the same thing (`cards._alike`: labels with other
+  numbers in them are never one field (investment thresholds, "Level N", "value #N"); with the same value, last
+  label part ≥ 0.75 alike, one label's words inside the other's, or — for ability properties and T1-T3 bonuses
+  only — one property name inside the other ("FlameAuraDPS" / "DPS"; a bare engine leaf such as m_value names
+  nothing); with a new value only a respelling (`cards._respelt`: as many words, letters ≥ 0.9 alike: "Picup" →
+  "Pickup"); a word more or less ("Damage Taken" → "Damage", "… Max", "Imbued …") or another word in its place
+  ("Spirit Damage" → "Base Damage") stays DEL + NEW. A flat number and a percent are one value only at 0 or when
+  the bare field's name says percent (`cards._same_value`: Blood Bomb's "Self Damage 30" → "Health Cost 30%" is
+  two rows).
+- matcher: `match.twin_hits` — a matched line also claims, in the entities it matched, a changed field of
+  the line's tier that it names by a word and that moved by its exact numbers ("Ability Range" range AND
+  radius multiplier, "damage and debuff resistance" bullet AND spirit resist); `match._aligned_pairs` —
+  "from A … B … to C … D …" pairs numbers that have words between them when both sides read alike (not
+  'changed from "X" to "Y"' nor "changed from -56s Cooldown to Impact Area Stuns"); `_ITEM_TIER_MOVE` —
+  "Moved from T4 to T3" is the item's tier; a fix line's pairs also run reversed ("being 3 instead of 1.5")
+  and its status stays "fix"; LABEL_SYNONYMS cooldown ↔ chargeup.
+- scenery: `classify.decor_entity` (the city's traffic, glass panes, team colours, minimap offsets, district
+  names, timer placement) — no gameplay event in `match._gameplay_entity`, their fields `visual` in enrich.
+
+Data-quality audit, part 3 (2026-10-04, enrich 31):
+- shared page (already described above in part 1, but expanded here).
+
 Matching, third pass (2026-10-02, P12/P13): synonyms are looked up the way `words()` writes words
 (`rules.stem`: "radius" is "radiu" — `radius`, `souls`, `charges` synonyms never fired; "collision size"
 / "hitbox" now name a radius, "HP" is health); a subject-less line without numbers is checked for a
@@ -347,21 +479,39 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Patch page first screen: tag tiles + proportion bar, released heroes hit (portrait, its two biggest
   counters of any tag below, all of them in the chip tooltip), one line of the notes check (zero items
   hidden), ◀ ▶ patch switcher.
-- Hero / item / unit pages ARE their history (owner, 2026-10-03: "closer to Sloppy"): head (portrait /
-  icon, name, chips; a hero's key stat tiles) → "Current …" folded in one line (all stats, the weapon
-  panel, ability cards; an item's values; a unit's stat tables) → History. One function for all three
-  (`history_view.history_table`): one band per patch, newest first (latest 3 open), over ONE panel — a
-  sub-header per part (base stats, gun, each ability; none on a single-entity page) and its rows: what
-  the files changed (`cards.entity_rows`: tag, field, old → new; no "Technical" fold, a new entity is
-  its NEW head + key fields) plus the note lines that live in the game's code (status `code`). Bug
-  fixes, sound / look lines, engine plumbing and unmatched lines stay in data/ and the patch archive.
-  One mark only: the eye on what the notes left out.
-- The history toolbar (`history_view.toolbar`, scripts.js `hist-filter`): the tags present (multi-
-  select), "Not in patch notes" (CSS on build-time `has-hidden` classes), the parts Stats / Weapon /
-  Abilities, the abilities as icons (current ones in slot order, removed ones grey after a divider),
-  "Before release" (work on a hero before release: rows `st-unreleased`, groups / bands `dev-only`;
-  shown by default only while the hero itself is in development). A patch with a match opens; a band
-  left empty folds away.
+- Hero / item / unit pages ARE their history (owner, 2026-10-03: "closer to Sloppy"), in ONE centred
+  column (`common.page(cls='entity')` → `<main class="page entity">`, max `--entity-w` 1180px). Head,
+  today's values, strip, toolbar and bands share the same left and right edges. Before this, the history
+  sat in 1120px pinned left under a 1640px head. Order: head (portrait / icon, name, chips; a hero's key
+  stat tiles) → what it is today, OPEN (owner 2026-10-04: nothing folded by default). A hero gets a plain
+  `section.now-open` with the weapon panel (all cells), the ability cards and the other stats as panels.
+  An item's "Current values" and a unit's "Current stats" are `history_view.now_fold`, always `open`, and
+  can still be folded; an item's sections sit side by side as cards. Then History. One function for all
+  three (`history_view.history_table`): one band per patch, newest first (latest 3 open), over ONE panel.
+  Each part (base stats, gun, each ability) is an `.hgroup.has-ic`: its icon on a framed plate in a
+  column of its own (`cards.ability_plate`, scaled smooth, the ultimate marked with a gold corner diamond:
+  `hero_page.ULT_SLOT`, `history_table(ults=)`), then its name and rows. A single-entity page has no
+  sub-header. The rows are what the files changed (`cards.entity_rows`) plus the note lines that live in
+  the game's code (status `code`). A row reads as a sentence: the label, old → new right after it, the %
+  at the right edge, and a dashed ruler to it on hover (the values' own `::after`, no markup). A DEL
+  row's old value is struck through. One mark only: the eye on what the notes left out. A unit family's tier table (`table.tier-grid`) is at least 420px
+  wide on a desktop and fills the panel below 700px (390px phone: no sideways scroll on any of the 455
+  hero, item and unit pages). An item's section cards fill the panel (`auto-fit`); a lone card stops at
+  580px, so a label and its value never sit a whole panel apart. The ultimate's plate has the gold corner
+  and no tooltip, because its name is written next to it.
+- The history toolbar (`history_view.toolbar`, scripts.js `hist-filter`) is ONE compact row of
+  badge-high controls (40px on Abrams, Calico, Viscous at 1440px). It holds the tags present
+  (multi-select, `aria-pressed`), "Not in patch notes", the parts Stats / Weapon / Abilities, the
+  abilities as 26px plates (the ultimate marked), and "Before release" as a toggle button like the eye.
+  Every filter, the eye included, opens the bands it matches, folds the empty ones away and recounts each
+  band's counters and its eye count from the shown rows. The built numbers come back when the filters
+  clear. A band's title is plain text, so a click opens it in place; a small "patch ↗" goes to the
+  archive. Every toggle (the eye, "Removed", the parts, "Before release") starts with
+  `aria-pressed="false"`, and a reset by a strip tile or square clears it. A row that stands for changes
+  it does not list carries `data-n="tag:changes:hidden …"`. This is the "Added to the game" head of a new
+  entity (`cards.entity_rows`, `cards.behind_attr`), shown with its 12 key fields only. The filters use it
+  to match and recount, so a filtered band reads like its built counters (Old Gods: NEW 71 with or
+  without the NEW filter).
 - Round 2 (advisor, 2026-10-03): a band where every row is hidden carries ONE eye, on its banner
   (`pblock.all-hidden`; the eye sat on 46% of hero rows); engine vocabulary — flag sets "A | B",
   `PBF_*`, `k_e*`, bone names, pellet `m_vecScatterOffsets` — is plumbing (`cards.is_engine`) unless a
@@ -378,18 +528,41 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   drops a column that repeats another (Walk = Run), a glyph where there is no art; the history toolbar
   is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
   every patch).
-- Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as
-  tiles over the toolbar, newest first like the history below, striped by tag (`dynamics_page.stripes`),
-  the count, a dot (and a count in the tooltip) when the notes left something out; a tile is
-  `#p-<patch>` (the band opens and stamps).
+- Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as ONE
+  row of tiles over the toolbar, newest first like the history below (older tiles scroll in from the
+  right). Tiles are striped by tag (`dynamics_page.stripes`), show the count, and carry the site's eye (a
+  CSS mask, `--mask-eye`) when the notes left something out. A tile opens `#p-<patch>`. Hovering it
+  shows the hover card (below).
+- Hover cards (scripts.js `dyn-tip`, ONE renderer `card()`): a change-matrix cell, an entity page's strip
+  tile, an ability card's trail square and its "last change" link, and a home feed icon. Each card shows
+  the patch (named ones in gold), counts by tag, "N not in patch notes", and the biggest changes (tag,
+  eye, field, old → new). On an entity page they are grouped by ability with its plate. The data is ONE
+  JSON blob per page, parsed on the first hover: `script.strip-data` (`history_view.strip_data` /
+  `tile_card`: per tile per group the counts, the hidden count, and samples ranked across the patch;
+  the strip card lists the top `TILE_SAMPLES` 6, a trail card the ability's own up to 4) and
+  `script.feed-data` on the home page (`home_page.chip_card`, 2 per icon). The older bands are
+  `<template>`s, so a card never reads the page. The change matrices' blob is parsed on the first hover
+  too and shared with `dyn-parts` (`window.__dyn`). Tiles carry `aria-label` and no text tooltip, so two
+  tooltips never stack. A card also opens on keyboard focus. A card's "biggest" (`history_view._rank`, also the home feed's
+  `chip_card`) is the size of the % and then the tag order. A NEW / REWORK / DEL row without a % counts
+  as 100%, so a release card shows what was added and not two small base-stat NERFs. The change
+  matrices keep their own order (`dynamics_page._collect`); that is the owner's call.
+- Links inside a page (scripts.js `patch-anchor`): a strip tile, a trail square (`trail_html(local=True)`:
+  `#p-<patch>` with `data-ab`; mixed buff+nerf patches are striped, not REWORK purple) and an ability
+  card's "last change" (`trail.last_counts`, its tag counts) open the band on this page. This works even
+  when a filter or "Before release" hid the band or
+  only the ability's group (`window.__histReset(dev)`: the group is checked on its own, because the band
+  can show through another ability's rows), and even when the address
+  already names it. A square scrolls to its ability's group and lights it briefly. On the patch archive
+  the squares still link to `patches/<id>.html` with a text tooltip.
 - Round 4 (advisor, a player's eye): one wording — "not in patch notes" for the eye (toolbar, banners,
   home), "Before release" for work on a hero before it shipped, "First seen <date>" (`common.first_seen`)
   instead of a build number. Labels split from field names use the game's words
   (`semantics.game_words`: Tech → Spirit, Armor Damage Resist → Resist; `m_vecIntrinsicModifiers` →
   "Passive"); a time field without a tooltip unit gets "s" (`semantics._TIME_FIELD`), a speed Valve
   writes as "20m" reads m/s (`speed_m` → `M_SPEED`, display only: the matcher's transforms are
-  unchanged). The history column stops at 1120px, % pills are 13px, long values wrap. A history of ≤3
-  rows opens the "Current …" fold (`history_view.now_fold`); an entity event row ("Added to the game
+  unchanged). Long values wrap;
+  an entity event row ("Added to the game
   files", path `@add`) has no value cell. The newest update on the home page names its icons; stats
   tables explain their notch. A "changed in the newest update" notch on index cards was tried and
   dropped (owner, 2026-10-03): the newest update marked 1 hero, two weeks would mark 102 items — it
@@ -407,9 +580,17 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).
 - Hero page head: every main non-gun stat as a tile (`hero_page.KEY_STATS`: health, regen, resists,
-  movement, melee, spirit growth), values centred. Weapon panel (under "Current …"): six headline
-  tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload), the rest under
-  "All weapon stats" (units ride on the number). "Changed lately" is a corner notch.
+  movement, melee, spirit growth), values centred. Weapon panel (open, first under the head): six
+  headline tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload) and every other weapon number in an even grid below (units ride on the number). "Changed lately" is a corner notch.
+- Site shell (add to the Fonts / shell bullets): the site bar is a 3-column grid: brand left,
+  Heroes | Items | Units centred, build badge right. On phones it is eye + scrolling tabs. The site shell does not centre wide tables. Centring every
+  `.table-fade` gave the change matrices a 20-25px sideways scroll at 1700-1920px, and the first column
+  slid under the sticky names. A stats table that should sit in the middle opts in with the item-stats
+  track's `.table-fade.center`. Tooltips and cards
+  float above the sticky site bar (`--z-tooltip` 200 > `--z-nav` 100). The game's icons are scaled smooth
+  (`img.px` is no longer pixelated; only `.icon-px` keeps hard pixels), because they are 128px paintings
+  shown at 20-96px. A switch (`data-toggle-class` checkbox) follows its box, also when the browser restores
+  a ticked box on "back". Toggle buttons report `aria-pressed`.
 - Patch titles (`common.patch_title_html` / `patch_title_text`): the date once. A named update (City
   Never Sleeps, Matchmaking Update) shows its name in gold (`--gold`, no icon: it shifted the text) +
   the date and a gold banner bar; a dated one ("09-16-2026 Update") shows only its date + "update".
@@ -498,6 +679,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   buff / nerf edge, the eye when something was hidden) linking to that page at that update
   (`home_page.update_feed`: a hero's abilities count on the hero; '@shared', templates, helpers and
   unreleased work are left out).
+- Shared abilities (`builders/shared_page.py`): the abilities every hero has (kind 'shared'): heroes/shared.html (the hero history
+  view), the hero matrix's "All heroes · movement & shared" row, search rows.
 - Hero Stats: group labels left-aligned (visible at each group's start), a right-edge fade while more
   columns are off-screen (`.table-fade`, removed when scrolled to the end).
 - Every stats table (2026-10-03): a click on a group header folds the group to its first column
@@ -505,12 +688,75 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   cannot show (`tables_pages._same_shown`: Max DPS 122.925 → 122.9251); `data-hist` is single-quoted
   JSON (`common.json_attr`, no `&quot;`). Boons redraw once per frame and re-rank the heat; the search
   waits for a pause in typing and takes comma-separated names ("haze, abrams").
-- Item Stats (`tables_pages.items_table`, 2026-10-03, Sloppy's Mana Items): ONE table of the shop
-  (Weapon → Spirit → Vitality, by tier), a "Builds" column (component icons → what it builds into),
-  chips by category / tier / Active · Passive · Imbue (rows carry `data-cat / data-tier / data-kind`),
-  columns no shown row fills hide and the group headers re-span (scripts.js `item-filter`, also after a
-  search), "Souls per point" turns each Stats cell into cost / value (lower is better, heat re-ranks via
-  `window.__reheat`).
+- Item Stats (`tables_pages.items_table`; data `pipeline/item_table.py`, rebuilt 2026-10-04 after owner
+  complaint 6 "too plain": 14 hand-picked properties left 67-84% of the cells empty). The data is every
+  number the item's tooltip card shows (`m_vecTooltipSectionInfo` + header values, `item_table.shown_props`),
+  per build. A property that feeds a hero stat (`m_eProvidedPropertyType`) and is always on (no
+  "Conditional" in `m_eStatsUsageFlags`, before 2025-04 `m_UsageFlags`) is keyed by the stat it provides
+  (`stat_key`: TechPower and SpiritPower are one `tech_power`); a stat that `STAT_MIN_ITEMS` (3) shop
+  items give is a column, grouped by `item_table.family()` (Weapon / Spirit / Vitality / Movement by the
+  stat's name; an unknown new stat goes to Utility, never dropped), with the card's label, unit, icon
+  (`css`) and direction (`semantics.polarity`). Cooldown and duration are Utility columns; every other
+  number (`fx:<Prop>`: Headshot Booster's +45 Head Shot Bonus Damage, Cultist Sacrifice's conditional
+  +50 Bonus Health, a stat only 1-2 items give) is one of the row's `effects`, with the card's label and
+  printed value. History is tracked PER PROPERTY over every number of the item, on the card or not
+  (`item_table.snapshot`, `collect`); which stat or effect a property feeds is decided by the newest
+  build only (`_raw_keys`), and each key reads the property that feeds it now (`item_history`). Keyed by
+  the provided stat, Valve's enum renames (6541: BASEATTACK_DAMAGE_PERCENT -> WEAPON_DAMAGE_INCREASE …),
+  a usage flag flipped or a property newly listed on the card made 77 fake "added" steps and dropped the
+  real history before them (review 2026-10-04). Per property a meta is kept (provided stat, conditional,
+  card section, drawback, icon: `prop_meta` / `note_meta`); retired enum names are learned from it
+  (`Enums.aliases`: a property switched X -> Y in build B and no shop item used X from B on). A property
+  that got its first value in the very build another lost its own, feeding the same stat (BonusSpirit ->
+  TechPower), or — a plain number — with the same value and a respelled name (…TooltipOnly, a typo fixed),
+  is joined to it (`joined`). A property the item lost keeps its history under the key it fed last: a
+  column stat as the column's hidden "gone" marker, a card number as a row's `removed` effect (struck
+  through in the Effect cell while within the 45-day notch window). Each step carries
+  `semantics.direction` (drawback flag of that build) as a fifth element and the row's `odir` the whole
+  history's direction (`data-odir`); scripts.js `hist-tip` uses them before the column's polarity, so the
+  table and the item page agree.
+  A provided stat is an always-on stat only outside the card's Active section and outside a "triggered"
+  Passive section (one listing its own timer / stacks: a plain number named …Duration / …Cooldown /
+  …ChargeUp… / …Stack… / BuildUp…, `_triggered`, read as section 'Conditional'); otherwise it is an effect
+  (Spirit Sap's -30 Spirit Power is the active's debuff). Effects from the Active section carry `active`
+  and follow an "Active" tag (`.fx-tag`, `.fx.fx-act`). An unknown provided stat's family is "Other" (not
+  "Utility": two Utility groups broke folding). Card speeds print m/s (`abilities.is_speed`: display units,
+  EMaxMoveSpeed / ESprintSpeed, or a *SPEED* provided stat that is not a percent).
+  The page: Item | Shop (tier, cost) | Stats — the always-on stats as chips in one cell (`stats_cell`) | Effect chips (`effects_cell`) | Utility | Builds;
+  every chip carries its own history (`data-hist`). The "Stat columns" switch (or a click on a chip, which
+  also sorts by that stat) opens one sortable column per stat by family; those cells are not in the page:
+  scripts.js `item-filter` builds them from the chips on first open (`th[data-cell-cls]`, a `lazy`
+  column in `render_table`; a stat the item lost travels as an empty `.sc.gone` marker with its history).
+  Category band rows (`tr.sec[data-cat]`) and a 2px divider at each new tier (`tier-start`) stand aside
+  while the table is sorted (`table.is-sorted`); item icons 28px on a framed plate, a 3px category stripe,
+  units in the headers (`.u`), the table centred when narrower than the page (`.table-fade.center`).
+  Dashes in the default view: 26% of the cells (was 71-84%), no row without a number. "Souls per point"
+  converts every `[data-spp]` value (chips and stat cells) to cost / value; the heat then ranks it
+  lower-is-better through `data-hpol` while `data-pol` keeps the stat's own direction for the history
+  tooltip. Cost carries `data-hpol="0"` (it only repeats the tier).
+- Heatmap (all stats tables, scripts.js `heatmap`): graded by rank — each column's distinct values (by
+  size) ranked 0..1, the middle fifth plain, then 4 steps of green / red (`--heat-g1..4`, `--heat-b1..4`);
+  an item's stat chip ranks with its column. On by default on Item Stats (`_toolbar(heat_on=True)`), a
+  switch elsewhere. The sorted column has a gold header and a faint gold wash (`td.sorted-col`). Values rank with their sign (a drawback is the worst, not the biggest); a table with
+  `data-heat-by="tier"` (Item Stats) ranks within each row's tier, except with "Souls per point" on.
+- One recount for everything that hides columns (scripts.js `col-groups`, `table.__recount`): a folded
+  group, the item filter's empty columns, Details and the stat columns; each group header spans exactly its
+  visible columns, a folded group keeps the first column the filter left visible, band rows re-span. `col-groups` refolds every group on each recount (a group just unfolded drops its
+  `grp-off`; only folded groups were refolded before, so an unfolded group stayed hidden); a column's cells
+  change only when its header's state does (the `statcols` event re-applies to new cells).
+- Table and matrix toolbars are not sticky (`.toolbar.tbl-bar`, `.toolbar.dyn-bar`): stuck, they covered
+  the table's own sticky header. The legend chip wraps and is shortened on phones (`.lg-tail`).
+- Change matrices (scripts.js `dyn-scroll`): the box is as wide as the name column + a whole number of
+  patch columns, so the newest end opens with the first column at the sticky names; month labels are
+  clipped (a one-patch month's label overflowed and made the box scroll 25px too far); only "Older
+  patches" re-scrolls to the end. On phones (≤600px) the name column is the icon only (44px). A resize keeps the place — height-only does nothing, a new width keeps the
+  distance from the newest end; only "Older patches" re-scrolls to the end.
+- Item Stats extras: closing "Stat columns" while one sorted the rows resets the sort (`table.__resetSort`);
+  a "Souls per point" box restored on "back" converts the values at load.
+- Tests: `tests/test_browser_tables.py` runs site/scripts.js + styles.css on fixture pages in Chromium
+  (Playwright; skipped where it is not installed — CI does not install it): fold / unfold returns the
+  column count, signed and per-tier heat, sort reset, souls-per-point restore, matrix resize, tooltip
+  step directions. All 7 fail on the previous scripts.js.
 
 ## Patch notes tab (`builders/notes_view.py`)
 
@@ -572,7 +818,7 @@ separate `.hist-tip`. Hero Stats column headers are short one-line labels; the f
 header's tooltip; niche columns live in a hidden "Details" group (`tables_pages.HERO_LAYOUT`).
 
 Field categories that never count as gameplay (so never "hidden"): `technical` (scale-function wiring,
-state masks, curve spline points), `streetbrawl` (incl. item draft weights), `ui`, `visual`, `audio`, `meta`.
+curve spline points), `streetbrawl` (incl. item draft weights), `ui`, `visual`, `audio`, `meta`. State masks are now a mechanic.
 Changes copied into many entities (`@shared`, e.g. soul-investment bonuses in every hero) show once as
 "All heroes (N)".
 
@@ -626,3 +872,4 @@ within 3 days becomes its own patch, named after an announcement within 2 days i
 | 5201 (2024-09) | `m_nAbilityBehaviors` → `m_AbilityBehaviorsBits` |
 | 6468 (2026-04-30) | trooper flat DPS/resist fields → `m_VS*{…}` blocks (real restructure, not aliased) |
 | 6711 (2026-09-29) | `m_WeaponInfo` → `m_mapWeaponInfos.primary` |
+| various (2026-03-06) | `m_StrPropertyNAme` — an id field with odd capitals, matched case-insensitively (`flatten._id_case`) |
