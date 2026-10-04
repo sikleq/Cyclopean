@@ -13,14 +13,14 @@ from __future__ import annotations
 import argparse
 import re
 
-from . import cache, jsonio, loc, semantics, tracker
-from .classify import (ability_kind, category, hero_bound_abilities, shared_abilities, unit_bound_abilities,
-                       unit_kind)
+from . import cache, flags, jsonio, loc, semantics, tracker
+from .classify import (ability_kind, category, decor_entity, hero_bound_abilities, shared_abilities,
+                       unit_bound_abilities, unit_kind)
 from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 29       # 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
+ENRICH_VERSION = 30       # 30: modifier states a mechanic, flag rows (pipeline.flags), polarity rules, container words; 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):
@@ -105,6 +105,8 @@ def enrich_record(rec: dict) -> dict:
             # change whose values were dropped (cosmetic) into a category that shows values
             has_vals = 'old' in c or 'new' in c
             cat = category(c['path'], c.get('old'), c.get('new'))
+            if f in ('misc.vdata', 'generic_data.vdata') and decor_entity(eid) and cat not in VALUELESS_CATS:
+                cat = 'visual'              # scenery and presentation entries (classify.decor_entity)
             if has_vals or cat in VALUELESS_CATS:
                 c['cat'] = cat
             # what the property's coefficient multiplies (boons, melee damage…): kept on the change so
@@ -143,6 +145,11 @@ def enrich_record(rec: dict) -> dict:
                 if neg:
                     c['neg_base'] = True
                 dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), side, worse, neg)
+                c.pop('flag', None)
+                if flags.is_flag_field(c['path']):
+                    c['flag'] = True            # a bit set / enum a player plays with (pipeline.flags)
+                    if side not in semantics.SHARED_KINDS:
+                        dirn = flags.direction(c['path'], c.get('old'), c.get('new')) or dirn
                 c['dir'] = dirn
                 c['pct'] = None if pct is None else round(pct, 1)
                 c['grad'] = semantics.gradient(pct)

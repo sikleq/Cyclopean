@@ -3,6 +3,9 @@ from __future__ import annotations
 
 import re
 
+from pipeline import flags as flag_rules
+from pipeline.semantics import SHOP_SLOT
+
 from .pixel_icons import tag_svg
 from .common import esc, glyph_for, ids_to_names, mark, visual
 
@@ -42,11 +45,14 @@ def tag_of(c: dict) -> tuple[str, str]:
             return 'changed', 'CHANGED'
         off = truthy if _OFF_WHEN_TRUE.search(str(c.get('label', '')) + str(c.get('path', ''))) else not truthy
         return ('off', 'OFF') if off else ('on', 'ON')
+    d = c.get('dir')
+    if c.get('flag') and d in ('buff', 'nerf'):
+        # a bit set gaining its first bit is not a new field: "Can target: + neutrals" is a BUFF
+        return d, d.upper()
     if op == 'add':
         return 'new', 'NEW'
     if op == 'remove':
         return 'del', 'DEL'
-    d = c.get('dir')
     if d in ('buff', 'nerf', 'up', 'down'):
         return d, d.upper()
     return ('mech', 'MECH') if cat == 'mechanic' else ('changed', 'CHANGED')
@@ -261,8 +267,18 @@ def _short_flag(f: str) -> str:
     return _FLAG_PREFIX.sub('', f).replace('_', ' ').lower()
 
 
-def flags_html(old_s, new_s) -> str | None:
-    """Bit-flag lists ('A | B | C') show only what was added / removed."""
+def _bits_html(added: list[tuple[str, int]], removed: list[tuple[str, int]]) -> str:
+    return ('<span class="vals flags">'
+            + ''.join(f'<span class="flag add">+{esc(w)}</span>' for w, _ in added)
+            + ''.join(f'<span class="flag rem">−{esc(w)}</span>' for w, _ in removed) + '</span>')
+
+
+def flags_html(old_s, new_s, path: str = '') -> str | None:
+    """Bit-flag lists ('A | B | C') show only what was added / removed; in a flag field a player plays
+    with, only its listed bits, in words ("+ignored by troopers and neutrals", pipeline.flags)."""
+    d = flag_rules.diff(path, old_s, new_s) if path else None
+    if d is not None:
+        return _bits_html(*d)
     a, b = _flags(old_s), _flags(new_s)
     if a is None and b is None:
         return None
@@ -290,6 +306,8 @@ def readable_value(s: str) -> str:
         return ' | '.join(readable_value(p.strip()) for p in s.split('|') if p.strip())
     m = _ENUM_VALUE.match(s)
     if m:
+        if s.startswith('EItemSlotType_') and m.group(1) in SHOP_SLOT:
+            return SHOP_SLOT[m.group(1)]        # the shop's words: "Tech" is Spirit, "Armor" Vitality
         return ' '.join(w for w in _CAMEL.split(m.group(1)) if w)
     if _CAPS_VALUE.match(s):
         return _CAPS_PREFIX.sub('', s).replace('_', ' ').title()
@@ -301,14 +319,17 @@ def readable_value(s: str) -> str:
 
 # 9999 / 99999 is how the game writes "no limit" (Channel Move Speed 50 -> 9999, Max Stacks 99 -> 9999)
 _NO_LIMIT = re.compile(r'^(?:9999|99999)(?:\.0+)?[a-z%/]*$')
+# one wording for both of the game's spellings (9999 and -1): "∞ → no limit" read as a change on 4 rows
+# (Rabbit Hex's Channel Move Speed, audit 2026-10-04)
+NO_LIMIT = 'no limit'
 
 
 def shown_value(s) -> str:
-    """A value as the page prints it: ids as names, engine enums as words, "no limit" as ∞."""
+    """A value as the page prints it: ids as names, engine enums as words, 9999 as "no limit"."""
     if s is None:
         return ''
     s = str(s)
-    return '∞' if _NO_LIMIT.match(s.strip()) else readable_value(ids_to_names(s))
+    return NO_LIMIT if _NO_LIMIT.match(s.strip()) else readable_value(ids_to_names(s))
 
 
 def _clip(s) -> str:
@@ -350,7 +371,16 @@ def _sentinel(s: str, c: dict | None = None, other: str | None = None) -> str:
     m = _NEG_NUM.match(str(other or '').strip())
     if m and float(m.group(1)) != 1.0:
         return s
-    return 'no limit'
+    path = str((c or {}).get('path') or '')
+    return next((w for rx, w in _SENTINEL_WORDS if rx.search(path)), NO_LIMIT)
+
+
+# what -1 means where it is not "no limit": a charge delay, a weapon's spin-up or spread decay "as the
+# ability's default" (16 Venator rows read "Charge Delay 0s → no limit", audit 2026-10-04), a buff that
+# never runs out
+_SENTINEL_WORDS = ((re.compile(r'AbilityCooldownBetweenCharge|m_fl(?:BuildUpRate|MaxSpinCycleTime|'
+                               r'ShootSpreadPenaltyDecayDelay)$'), 'default'),
+                   (re.compile(r'(?:^|\.)m_flDuration$'), 'permanent'))
 
 
 def _same_unit(old: str, new: str) -> tuple[str, str]:
@@ -376,9 +406,12 @@ def vals_html(c: dict) -> str:
                 f'<span class="new">{esc(new_s)}</span></span>')
     if c.get('bonus_list'):       # folded corrupted version: one list of bonuses, may wrap
         return f'<span class="vals wrap"><span class="{"new" if op == "add" else "old"}">{esc(new_s or old_s)}</span></span>'
-    fl = flags_html(old_s, new_s)
+    path = str(c.get('path') or '')
+    fl = flags_html(old_s, new_s, path)
     if fl:
         return fl
+    # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop
+    old_s, new_s = (flag_rules.enum_words(path, v) or v for v in (old_s, new_s))
     old_s, new_s = _clip(old_s), _clip(new_s)
     old_s, new_s = _same_unit(_sentinel(old_s, c, new_s), _sentinel(new_s, c, old_s))
     # rows without a % pill keep its slot (.pct-pad, shown only in change rows), so the new

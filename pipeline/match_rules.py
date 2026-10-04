@@ -89,7 +89,9 @@ LABEL_SYNONYMS = {
     # a projectile's "collision size" / "hitbox" is its radius (Serrated Knives -10% tied with its velocity)
     'resist': {'armor', 'resistance'}, 'armor': {'resist'},
     'radius': {'range', 'aoe', 'area', 'size', 'collision', 'hitbox'}, 'health': {'hp'},
-    'range': {'radius'}, 'multiplier': {'range'}, 'chargeup': {'cooldown'}, 'cooldown': {'cd'},
+    # a passive item's cooldown is its "chargeup time" in the notes (Mystic Burst, Tankbuster, Quicksilver
+    # Reload 2025-05-19: "Chargeup time increased from 8s to 12s" left the cooldown hidden)
+    'range': {'radius'}, 'multiplier': {'range'}, 'chargeup': {'cooldown'}, 'cooldown': {'cd', 'chargeup'},
     'shock': {'chain'}, 'lifesteal': {'heal', 'healing'}, 'heal': {'healing', 'lifesteal'},
     'duration': {'time'}, 'charges': {'charge'}, 'barrier': {'shield'}, 'speed': {'velocity'},
     'velocity': {'speed'}, 'souls': {'bounty', 'gold'}, 'gold': {'souls', 'bounty'},

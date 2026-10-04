@@ -6,7 +6,8 @@ Categories (what kind of change a field path represents):
   mechanic     — non-numeric gameplay data (flags, enums, classes, new/removed props)
   meta         — testing/recommendation flags, hero role/tags, template links
   streetbrawl  — values that only apply in the Street Brawl mode (incl. item draft weights)
-  technical    — engine plumbing: scale-function wiring, state masks, curve spline points
+  technical    — engine plumbing: scale-function wiring, pre-cast state bits, curve spline points
+                 (a modifier's m_nEnabledStateMask is a mechanic: pipeline.flags)
   ui           — tooltip layout, CSS classes, display units, shop/stat panels
   visual       — particles, models, materials, images, colours, animations, camera
   audio        — sounds, voice lines, music
@@ -52,7 +53,9 @@ STREET_BRAWL_RE = re.compile(r'StreetBrawl|ItemDraft', re.I)
 # internals of curves (the gameplay value, e.g. m_flBulletSpeed, is kept).
 TECHNICAL_RE = re.compile(
     r'((^|\.)(_class|_my_subclass_name)$|m_vecScriptEventHandlers|m_vecScriptValues(?!.*m_value$)|'
-    r'm_bits\w*Mask|m_nEnabledStateMask|m_UsageFlags|m_ValueType|'
+    # a modifier's state mask is not here: "ignored by NPC targeting", "unstoppable" are gameplay
+    # (pipeline.flags says which states, external audit 2026-10-04)
+    r'm_bits\w*Mask|m_UsageFlags|m_ValueType|'
     r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|m_AutoIntrinsicModifiers|'
     r'm_strAG2SourceName|m_nShopVersion|m_strSelectionNameOverride|m_eShopFilters|m_eAdditionalShopFilters|'
     r'm_strDisableItemTarget|m_strPropertyName$|'
@@ -86,6 +89,18 @@ TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHul
                            # an editor check ("warn the designer if no ability is affected"), shown as NEW
                            # on five headshot items in 2026-01-30
                            r'm_bWarnIfNoAffectedAbilities)')
+
+
+# whole entries that are scenery or presentation, not something a player plays with: the city's traffic
+# and glass panes in misc.vdata, the team colours, minimap offsets, district names and timer placement in
+# generic_data (coverage audit 9, 2026-10-04: 97 of City Never Sleeps' 226 "REMOVED" were these, and the
+# colours / minimap rows came in as hidden NEW)
+DECOR_ID_RE = re.compile(r'^(?:vehicle_|citadel_base_glass_)|^m_(?:Color[A-Z]|MiniMap)|Localization$|'
+                         r'TimerHeight$|TimerShowDistance$|TextDuration$|EffectStaggerInterval$')
+
+
+def decor_entity(eid: str) -> bool:
+    return bool(DECOR_ID_RE.search(eid or ''))
 
 
 def _zero(v) -> bool:

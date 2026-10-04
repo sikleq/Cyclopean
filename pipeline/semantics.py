@@ -31,7 +31,9 @@ _LOWER_FIRST = re.compile(
     r'bulletstofully|drainrate|durationformax|expandtime|spindecay|nonheroreduction|'
     # a dash covers a fixed distance (EGround/AirDashDistanceInMeters): longer = slower ("same
     # distance, slower to get there", 2025-07-29) — 22 rows read BUFF (audit 2026-10-01)
-    r'dashduration|airdashtraveltime)', re.I)
+    r'dashduration|airdashtraveltime|'
+    # how far a shotgun's pellets scatter sideways / up: a spread scale (Slork's 1 -> 0 read NERF)
+    r'scatter(?:yaw|pitch)scale)', re.I)
 # a slow on the player's own movement (mantle / climb rope when hit): smaller is better — checked on
 # the whole path, the field itself is a generic "Percentage Multiplier Start"
 _SELF_SLOW = re.compile(r'(SlowOnHit|SlowFromRecentDamage)Modifier\.', re.I)
@@ -40,8 +42,32 @@ _SELF_SLOW = re.compile(r'(SlowOnHit|SlowFromRecentDamage)Modifier\.', re.I)
 _HIGHER_FIRST = re.compile(r'(respawnhealth|wakeupdelay|draindelay|bonus\w*damagetaken|'
                            # the parried enemy takes it: "Parry bonus damage reduced from 30% to 25%" is a nerf
                            r'victimdamagetaken|meleedamagetakenscale)', re.I)
-# fields where direction is not meaningful for the owner
-_NEUTRAL = re.compile(r'(tangent|spline|curve|domain|seed|index|order|count_max_ui|_class|mask|bits|flags?$)', re.I)
+# fields where direction is not meaningful for the owner; also where a thing sits or how it eases in
+# (a summoned card's offset, Ice Path's pitch limits, a grab's damping, a dragon's spring: 30 rows read
+# BUFF / NERF, audit 2026-10-04). Bare yaw / pitch stay: a recoil or spread pitch has a side
+_NEUTRAL = re.compile(r'(tangent|spline|curve|domain|seed|index|order|count_max_ui|_class|mask|bits|flags?$|'
+                      r'offset|pitch(?:up|down|min|max)|aimbias|damping|friction|spring(?:constant|length))', re.I)
+# a field whose name says the opposite of what it does, by its whole path; checked before every other
+# rule (data-quality audit 2026-10-04: these rows were tagged against their own patch note)
+POLARITY_RULES = (
+    # Vampiric Burst's active ADDS this share of the clip ("Added ammo on active increased from +50% to
+    # +75%", 2024-10-10): not a reload time, though "reload" is in the name
+    (re.compile(r'ActiveReloadPercent'), 1),
+    # how fast the aim settles after recoil: faster is better ("recoil" is in the name; game logic, no note)
+    (re.compile(r'RecoilRecoverySpeed'), 1),
+    # Malice's slow on the ENEMY per stack ("Malice slow reduced from 20% to 15%", 2024-10-24: a nerf)
+    (re.compile(r'MoveSpeedPenaltyPerStack'), 1),
+    # Borrowed Decree's seconds between summons ("spawn interval improved from every 5s to every 4s")
+    (re.compile(r'SummonFrequency'), -1),
+    # Golden Goose Egg's souls per buff ("souls per buff improved from every 200 souls to every 150")
+    (re.compile(r'BonusBuffsPerGold'), -1),
+    # Improved Burst / Tankbuster's damage threshold ("Threshold damage increased from 125 to 200" is a
+    # nerf, "Damage threshold requirement reduced from 200 to 175" a buff)
+    (re.compile(r'MinimumDamage'), -1),
+    # Goo Ball's lockout before it can stun the same target again ("stun frequency cooldown improved from
+    # 1.5s to 1.25s", 2024-09-12)
+    (re.compile(r'^m_DamagePreventionModifier\.m_flDuration$'), -1),
+)
 
 GRADIENT_STEPS = (5, 10, 15, 20, 25, 33, 45, 60, 80)
 
@@ -66,6 +92,9 @@ def property_name(path: str) -> str:
 
 def polarity(path: str) -> int:
     """+1 higher is better, -1 lower is better, 0 no direction — read from the property's own name."""
+    for rx, pol in POLARITY_RULES:
+        if rx.search(path):
+            return pol
     name = property_name(path)
     if _NEUTRAL.search(name):
         return 0
@@ -78,7 +107,9 @@ def polarity(path: str) -> int:
     m = _LOWER_BETTER.search(name)
     if not m:
         return 1
-    return 1 if _NEGATED.search(name[m.end():]) else -1
+    # the negating word may come first: Rising Ram's "Reduce Cooldown On Hit Pct" 0 -> 50 is a buff
+    # (it read NERF), Pain Battery's "Bonus Damage Decay Lockout Duration" longer is better
+    return 1 if _NEGATED.search(name[m.end():]) or _NEGATED.search(name[:m.start()]) else -1
 
 
 def direction(path: str, old, new, kind: str = '', drawback: bool = False,
@@ -100,7 +131,7 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
         # Vitality investment switched units twice (a % of base health <-> flat HP; builds 6044 and
         # 6403): "8 → 75 +837%" was a unit, not a buff (audit 2026-10-01)
         return 'changed', None
-    if (float(old) in SENTINELS or float(new) in SENTINELS) and not UPGRADE_BONUS.search(path):
+    if (is_sentinel(old, new) or is_sentinel(new, old)) and not UPGRADE_BONUS.search(path):
         return 'changed', None              # "no limit" (-1, 9999) on one side: no direction, no %
     if drawback and kind not in SHARED_KINDS:
         return ('changed' if a == b else 'nerf' if b > a else 'buff'), pct
@@ -118,6 +149,12 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
             return 'changed', pct
         return ('up' if float(new) > float(old) else 'down'), pct
     pol = polarity(path)
+    if pol > 0 and path.startswith('m_mapStartingStats.'):
+        # a hero's own base stat counts with its sign: a resist below zero is a penalty, so Pocket's
+        # bullet resist −20% → −15% is the notes' "Base bullet resistance improved" (it read NERF), and
+        # Celeste's −6% → −8% a nerf (audit 2026-10-04)
+        x, y = float(old), float(new)
+        return ('changed' if x == y else 'buff' if y > x else 'nerf'), pct
     if pol == 0 or a == b:
         return 'changed', pct
     if UPGRADE_BONUS.search(path) or pol < 0:
@@ -367,6 +404,10 @@ UNIT_FIELDS = {
     'm_flMaxRange': ('Max Range', True),
     'm_flDamageResist': ('Damage Resist', False),
     'm_flOOCRegen': ('Out-of-combat Regen', False),
+    # Walker's / the Patron's shield around them and how far a guardian sees heroes (audit 2026-10-04:
+    # "Invul Modifier Range", "Sight Range Players")
+    'm_flInvulModifierRange': ('Invulnerability aura range', True),
+    'm_flSightRangePlayers': ('Sight range vs heroes', True),
 }
 
 # 'm_' always goes; a Hungarian type prefix goes when a capital follows ('m_flBonus', 'flBonus',
@@ -664,7 +705,8 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
         stat = path.split('.')[1]
         label, src = stat_label_src(tok, stat)
         return {'label': f'{label} per Spirit', 'meters': False, 'group': 'scaling', 'src': src}
-    if path.startswith('m_mapWeaponInfos.'):
+    if path.startswith('m_mapWeaponInfos.') and not _SCATTER_RE.search(path):
+        # (a shotgun's pellet offsets read "Scatter Offsets[10]" until 2026-10-04: plain_label names them)
         field = path.split('.')[2] if path.count('.') >= 2 else path
         src = 'curated' if field in WEAPON_FIELDS else 'fallback'
         label, meters = WEAPON_FIELDS.get(field, (humanize(field), engine_unit(field)))
@@ -810,18 +852,30 @@ CONTAINER_WORDS = {'m_projectileInfo': 'Projectile', 'm_mapAttacks': '', 'EAttac
                    'm_sModifier': 'Effect', 'm_ModifierProvidedByAura': 'Aura', 'm_FriendlyAuraModifier': 'Ally aura',
                    'm_ObjectiveRegen': 'Regen', 'm_EnemyTrooperDamageReduction': 'Vs troopers',
                    # a unit's always-on modifier, by its id: "Intrinsic Modifiers boss intrinsic › …" (round 4)
-                   'm_vecIntrinsicModifiers': 'Passive'}
+                   'm_vecIntrinsicModifiers': 'Passive',
+                   # the modifiers players know by what they are (data-quality audit 2026-10-04: "Rebirth
+                   # Modifier › Duration", "Stagger Watcher Modifier › Build Up Modifier › …")
+                   'm_RebirthModifier': 'Rejuvenator buff', 'm_TargetModifier': 'On target',
+                   'm_BuildUpModifier': 'Build-up', 'm_StaggerWatcherModifier': 'Stagger'}
 FLAG_FIELDS = {'m_AbilityBehaviorsBits': 'Behaviour', 'm_nAbilityBehaviors': 'Behaviour',
                'm_nAbilityTargetTypes': 'Can target', 'm_nAbilityTargetFlags': 'Targeting rules',
                'm_bitsInterruptingStates': 'Interrupted by', 'm_nBehaviors': 'Behaviour',
-               'm_eAbilityTargetingLocation': 'Targeting', 'm_eAbilityTargetingShape': 'Targeting shape'}
+               'm_eAbilityTargetingLocation': 'Targeting', 'm_eAbilityTargetingShape': 'Targeting shape',
+               # the states a modifier puts on its holder, and the ones it shields the holder from
+               'm_nEnabledStateMask': 'Applies', 'm_nDisabledStateMask': 'Immune to',
+               'm_iAuraSearchType': 'Aura affects', 'm_eItemSlotType': 'Item slot', 'm_eAbilityActivation': 'Activation',
+               # a crowd control that wears off faster on a target hit by it again (Air Drop's grab, 2026-09-29)
+               'm_bDurationReducibleByCrowdControlDiminish': 'Reduced by CC diminishing returns'}
 _SCRIPT_VALUE = re.compile(r'^m_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_)?([A-Z0-9_]+)[^}]*\}$')
 # the value leaf under a script / modifier value ("Effect › Modifier Values MODIFIER_VALUE_STAMINA ›
 # Modifier Value" on powerups until 2026-10-02)
 _VALUE_LEAF = re.compile(r'^m_(?:fl)?(?:[mM]odifier)?[vV]alue$')
 
 
-def _context_segment(seg: str, tok: dict[str, str] | None = None) -> str:
+_MODIFIER_TAIL = re.compile(r'(?<=[a-z])Modifier$')
+
+
+def _context_segment(seg: str, tok: dict[str, str] | None = None, container: bool = False) -> str:
     m = _SCRIPT_VALUE.match(seg)
     if m:                                    # what the modifier changes: "Cooldown Reduction Percentage"
         return game_words(m.group(1).replace('_', ' ').title())
@@ -830,6 +884,10 @@ def _context_segment(seg: str, tok: dict[str, str] | None = None) -> str:
         return FLAG_FIELDS[base]
     if base in CONTAINER_WORDS:
         return CONTAINER_WORDS[base]
+    if container and base.startswith('m_') and _MODIFIER_TAIL.search(base):
+        # a container named after its modifier says what it is without the word: "Grab › Duration", not
+        # "Grab Modifier › Duration" (281 rows on 46 pages, audit 2026-10-04)
+        seg = _MODIFIER_TAIL.sub('', base) + seg[len(base):]
     return _segment(seg, tok)
 
 
@@ -843,16 +901,37 @@ def context_label(path: str, depth: int = 3, tok: dict[str, str] | None = None) 
     if len(parts) > 1 and _VALUE_LEAF.match(parts[-1]) and _SCRIPT_VALUE.match(parts[-2]):
         parts = parts[:-1]
     shown = []
-    for p in parts[-depth:]:
-        s = _context_segment(p, tok)
+    tail = parts[-depth:]
+    for i, p in enumerate(tail):
+        s = _context_segment(p, tok, container=i < len(tail) - 1)
         if s and (not shown or shown[-1] != s):
             shown.append(s)
     return ' › '.join(shown)
 
 
 _RAW_NUM = re.compile(r'^\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*(m|s|%|u)?\s*$')
-# "no limit" / "none" written as a number: Channel Move Speed 50 -> -1 is not a -98% nerf
-SENTINELS = (-1.0, -2.0, 9999.0, 99999.0)
+# "no limit" / "none" written as a number: Channel Move Speed 50 -> -1 is not a -98% nerf. -2 was one
+# too, but the only -2 in every patch is Cheat Death's real −2 m/s slow (audit 2026-10-04)
+SENTINELS = (-1.0, 9999.0, 99999.0)
+NO_LIMIT_BIG = (9999.0, 99999.0)
+
+
+def is_sentinel(v, other=None) -> bool:
+    """`v` is the game's "no limit / default" and not a number on a scale: 9999 always; -1 only when the
+    other side of the change is not another negative number — Sharpshooter's move speed penalty −0.5 →
+    −1 m/s is a real, bigger penalty (it read CHANGED), Channel Move Speed 50 → −1 is "no limit"."""
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return False
+    if x in NO_LIMIT_BIG:
+        return True
+    if x != -1.0:
+        return False
+    try:
+        return other is None or float(other) >= 0
+    except (TypeError, ValueError):
+        return True
 
 
 def reencoded(old, new, path: str = '') -> bool:

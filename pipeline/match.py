@@ -24,9 +24,10 @@ import re
 from dataclasses import dataclass, field
 
 from . import cache, catalog, jsonio, labels, loc, semantics, tracker
+from . import flags as flag_rules
 from . import match_rules as rules
 from . import patches as patches_mod
-from .classify import category
+from .classify import category, decor_entity
 from .patches import Patch, group
 
 OUT = tracker.ROOT / 'data' / 'patches'
@@ -238,10 +239,43 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
         # "level 2 drops now happen at 15 minutes instead of 20": the new value first
         for m in _INSTEAD_RE.finditer(text):
             pairs.append((float(m.group('a')), float(m.group('b'))))
+    if not pairs and not _SWAP_LINE.search(text):
+        # (not 'T1 changed from "-15s Cooldown" to "+50 Max Health Steal"': two properties, no pair)
+        pairs = _aligned_pairs(text)
     return pairs
 
 
 _INSTEAD_RE = re.compile(rf'(?P<b>{_NUM})\s*[a-z%]*\s+instead of\s+(?P<a>{_NUM})', re.I)
+_ITEM_TIER_MOVE = re.compile(r'\bmoved\s+from\s+T([1-5])\s+to\s+T([1-5])\b', re.I)
+_FROM_TO = re.compile(r'\bfrom\b(?P<a>(?:[^.;:]|(?<=\d)\.(?=\d))*?)\bto\b(?P<b>(?:[^.;:]|(?<=\d)\.(?=\d))*)', re.I)
+ALIGNED_MAX = 4
+
+
+def _aligned_pairs(text: str) -> list[tuple[float, float]]:
+    """"from A … B … to C … D …" with as many numbers on each side, paired in order — the words between
+    them hold numbers too, which the strict pattern does not allow: "T2 reduced from -15% Spirit Resist
+    for 8s to -10% for 6s", "from 150 (+1.2) to 125 (+1.0)", 'from "+225s within 4s" to "+200 within 3s"',
+    "spawn interval improved from every 5s to every 4s" (data-quality audit 2026-10-04: their rows kept
+    the eye). An ability tier ("T2") is no number."""
+    m = _FROM_TO.search(text)
+    if not m:
+        return []
+    a, b = (re.findall(_NUM, _TIER_NAME.sub(' ', m.group(g))) for g in ('a', 'b'))
+    if not a or len(a) != len(b) or len(a) > ALIGNED_MAX:
+        return []
+    # the same words around the numbers (one side may leave some out: "-10% for 6s"): not one property
+    # traded for another ("T3 changed from -56s Cooldown to Impact Area Stuns for 1s")
+    wa, wb = (_skeleton(m.group(g)) for g in ('a', 'b'))
+    if not (wa <= wb or wb <= wa):
+        return []
+    return [(float(x), float(y)) for x, y in zip(a, b)]
+
+
+_TIME_WORDS = {'minute': 'min', 'minutes': 'min', 'mins': 'min', 'second': 's', 'seconds': 's', 'sec': 's'}
+
+
+def _skeleton(part: str) -> set[str]:
+    return {_TIME_WORDS.get(w, w) for w in re.findall(r'[a-z]{2,}', part.lower())}
 
 
 # "T2 is now +50 Damage" is a value; "Luggage Cart is now 20% larger" is a change: "is now" needs the "+"
@@ -617,6 +651,25 @@ def mismatch_field(c: MChange, line_words: set[str], own: set[str], line_tokens:
     return bool(label_words(c) & own) or (not _core(c) and _tokens(c.label or '') <= line_tokens)
 
 
+def twin_hits(scored: list[tuple[int, MChange]], hits: list[MChange], pairs, lw: set[str],
+              tier: int | None) -> list[MChange]:
+    """Other fields of the matched entities that moved by the line's exact numbers and that the line names
+    by a word (a synonym counts): "Ability Range reduced from +6% to +5%" is the range AND the radius
+    multiplier (Knockdown and 11 items 2026-03-21), "damage and debuff resistance reduced from 80% to 70%"
+    the bullet AND the spirit resist (Shadow Transformation 2024-06-27): 62 rows kept the eye while their
+    own note gave both numbers (data-quality audit 2026-10-04). Not a field the line does not name
+    (Sticky Bomb's "radius 12m to 10m" is not its Kill Check Window 12 -> 10), not a T1-T3 bonus of
+    another tier than the line's (Air Drop's T1 barrier scaling 1 -> 0.7 is not "damage spirit scaling
+    reduced from 1 to 0.7"), and only a value that changed (not a field removed with the old value)."""
+    same = {ent_key(h) for h in hits}
+
+    def tier_ok(c: MChange) -> bool:
+        t = re.match(r'T([1-3]):', c.label or '')
+        return (int(t.group(1)) if t else None) == tier
+    return [c for _, c in scored if c not in hits and c.status == 'hidden' and c.op == 'change'
+            and ent_key(c) in same and tier_ok(c) and label_words(c) & lw and exact_pair(c, pairs)]
+
+
 def pair_hits(scored: list[tuple[int, MChange]], pairs, least: int) -> list[MChange]:
     """The best-scoring fields of each number pair on its own (scored: [(score, change)])."""
     out: list[MChange] = []
@@ -734,6 +787,11 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         subject = resolve_subject(prefix, idx, cat)
     lw = expand_words(words(rest))
     pairs = parse_pairs(rest)
+    fix_line = bool(_FIX_RE.search(text))
+    if fix_line and pairs:
+        # "Fixed Health Regen being 3 instead of 1.5": the value WAS 3 and is 1.5 now, the other way round
+        # from "drops now happen at 15 minutes instead of 20" (Seven 2025-05-27 stayed hidden)
+        pairs = pairs + [(b, a) for a, b in pairs if (b, a) not in pairs]
     if _MINUTES.search(rest) or (_SPAWN_TIMER.search(rest) and not _SECONDS.search(rest)
                                  and all(max(a, b) <= 60 for a, b in pairs)):
         # "Rejuv duration 4 -> 3 minutes" while the files count seconds (240 -> 180): 8 lines unmatched;
@@ -752,7 +810,11 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     m = _BY_RE.search(rest)
     by_pct = float(m.group('p')) if m else None
     by_at = m.start() if m else None
-    tm = _TIER_RE.search(rest)
+    mv = _ITEM_TIER_MOVE.search(rest)
+    if mv and not pairs:
+        # "Shadow Weave: Moved from T4 to T3" is the item's tier 4 -> 3, not an ability's T3 upgrade
+        pairs = [(float(mv.group(1)), float(mv.group(2)))]
+    tm = None if mv else _TIER_RE.search(rest)
     tier = int(tm.group(1)) if tm else None
     result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
 
@@ -853,6 +915,8 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
             if by_pct is not None and not pairs:
                 # "respawn times, hp, and bounty reduced by 30%": the best field of EACH property listed
                 hits += [c for c in list_hits(rest[:by_at], pool, by_pct, text, ability_hits) if c not in hits]
+            if pairs and not granted:
+                hits += twin_hits(scored, hits, pairs, lw, tier)
             for c in hits:
                 c.status = 'documented'
                 c.lines.append(text)
@@ -860,7 +924,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
                     _old_from_notes(c, pairs, text, pool)
             # a "now grants +N" value is stated exactly; its invented 0 is not a rounding
             rounded = pairs and not granted and not any(exact_pair(c, pairs) for c in hits)
-            result['status'] = 'rounded' if rounded else 'documented'
+            result['status'] = 'fix' if fix_line else 'rounded' if rounded else 'documented'
             result['changes'] = [c.key for c in hits]
             if rounded:
                 result['data'] = data_values(hits[0], pairs)
@@ -903,6 +967,8 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         # not The Cube's behaviour)
         if flags and subject.kind == 'hero' and ability_hits and ent_key(c) not in ability_hits:
             flags = set()
+        if _STATE_MASK.search(c.path):
+            return bool(flags)
         return bool(words(c.label) & specific) or bool(label_words(c) & specific - SYNONYM_ONLY) or bool(flags)
 
     def named_whole(c: MChange) -> bool:
@@ -911,7 +977,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         (a hero line: the ability it names)."""
         core = words(c.label or '') - _LABEL_FILLER
         # two words at least, or one of its own: "Bullet Damage" is just "bullet" (Afterburn "… each bullet")
-        enough = len(core) >= 2 or bool(core - GENERIC_WORDS)
+        enough = (len(core) >= 2 or bool(core - GENERIC_WORDS)) and not _STATE_MASK.search(c.path)
         return (enough and all(w in lw or rules.expand_label_words({w}) & lw for w in core)
                 and (subject.kind != 'hero' or ent_key(c) in ability_hits))
 
@@ -921,7 +987,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         # a line about sounds or looks ("Updated Mo & Krill Burrow … end sounds" is not falloff end)
         if pairs or _PRESENTATION_LINE.search(text):
             return result
-        linked = [c for c in pool if words(c.label) & specific]
+        linked = [c for c in pool if words(c.label) & specific and not _STATE_MASK.search(c.path)]
         return _link(result, linked, text, 'described') if linked else result
     # 3: "T2 changed from 'A' to 'B'" / "T3 also increases radius": that tier's fields of the ability
     if tier is not None:
@@ -949,7 +1015,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     # clearer" had claimed its cooldown 180 → 148; 468 changes were "described" only that way)
     fallback = []
     if ability_hits and subject.kind == 'hero' and not _PRESENTATION_LINE.search(text):
-        fallback = [c for c in pool if ent_key(c) in ability_hits and c.cat == 'mechanic']
+        # (a modifier's states only when a state a player plays with moved: not "has fire beetles debuff")
+        fallback = [c for c in pool if ent_key(c) in ability_hits and c.cat == 'mechanic'
+                    and (not _STATE_MASK.search(c.path) or flag_rules.is_gameplay(c.path, c.old, c.new))]
     if _REMOVED_LINE.search(text):
         # "Soul Rebirth: Removed from the game" is its Disabled false -> true
         gone = [c for c in pool if c.cat == 'availability'
@@ -977,6 +1045,13 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     return result
 
 
+# a modifier's states: its label is the modifier's container ("Holding Idol › Applies"), so a line links it
+# only by the states that came or went ("not disarmed or silenced"), never by the container's words ("Please
+# continue to give feedback on the Urn" took the Urn runner's states, 2026-10-04)
+_STATE_MASK = re.compile(r'\.m_nEnabledStateMask$')
+_FLAG_WORD_FIELDS = {'m_AbilityBehaviorsBits', 'm_nAbilityBehaviors', 'm_nAbilityTargetTypes', 'm_nAbilityTargetFlags',
+                     'm_bitsInterruptingStates', 'm_nBehaviors', 'm_eAbilityTargetingLocation',
+                     'm_eAbilityTargetingShape', 'm_nAttributes', 'm_nEnabledStateMask', 'm_nDisabledStateMask'}
 _REMOVED_LINE = re.compile(r'\b(removed from the (game|shop)|(is|are|now) disabled|no longer (available|in the shop))\b',
                            re.I)
 _FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|CITADEL_UNIT_TARGET_|CITADEL_|MODIFIER_STATE_|MODIFIER_)')
@@ -985,8 +1060,9 @@ _FLAG_PREFIX = re.compile(r'^(CITADEL_ABILITY_BEHAVIOR_|CITADEL_UNIT_TARGET_|CIT
 def flag_words(c: MChange) -> set[str]:
     """The words of the flags a flag field gained or lost (Behaviour, Can target, Interrupted by…)."""
     leaf = c.path.rsplit('.', 1)[-1]
-    # a modifier's attributes too: "Multiple instances stack" = MODIFIER_ATTRIBUTE_MULTIPLE (Slice and Dice)
-    if leaf not in semantics.FLAG_FIELDS and leaf != 'm_nAttributes':
+    # a modifier's attributes too: "Multiple instances stack" = MODIFIER_ATTRIBUTE_MULTIPLE (Slice and Dice);
+    # bit sets only (not the enums and switches FLAG_FIELDS also names)
+    if leaf not in _FLAG_WORD_FIELDS:
         return set()
     split = lambda v: {f.strip() for f in str(v or '').split('|') if f.strip()}      # noqa: E731
     moved = split(c.old) ^ split(c.new)
@@ -1058,6 +1134,9 @@ def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = ''
 def change_json(c: MChange) -> dict:
     kind = c.kind or ''
     dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback, c.neg_base)
+    flag = flag_rules.is_flag_field(c.path)
+    if flag and kind not in semantics.SHARED_KINDS:
+        dirn = flag_rules.direction(c.path, c.old, c.new) or dirn     # "Can target: + neutrals" is a buff
     shown = semantics.M_SPEED if c.speed_m and not c.meters else c.meters
     if not c.meters and semantics.length_in_units(c.path, c.unit, (c.old, c.new)):
         shown = True                  # a property length no build gave a unit: engine units, shown in metres
@@ -1070,6 +1149,7 @@ def change_json(c: MChange) -> dict:
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
         'same': semantics.reencoded(c.old, c.new, c.path) or (c.retyped and semantics.sign_flip(c.old, c.new)),
+        **({'flag': True} if flag else {}),
     }
 
 
@@ -1091,6 +1171,8 @@ def event_name(e: dict, ce: dict) -> str | None:
 
 
 def _gameplay_entity(e: dict) -> bool:
+    if e['file'] in ('misc.vdata', 'generic_data.vdata') and decor_entity(e['id']):
+        return False                    # the city's traffic, team colours, minimap offsets (classify)
     if e['status'] == 'removed':        # a removed entity carries no fields: judge its id
         return e['file'] != 'generic_data.vdata' or category(e['id'], None, None) in GAMEPLAY_CATS
     return any(c.get('cat') in GAMEPLAY_CATS for c in e['changes'])
