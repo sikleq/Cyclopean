@@ -1,52 +1,58 @@
 """The strip of history squares next to an entity (Sloppy's item cards have it): the last
 N patches up to the one on screen, a square per patch, filled when the entity changed
-there, coloured by what the change mostly was."""
+there, striped in the colours of what changed (one colour when it was one kind)."""
 from __future__ import annotations
 
 from functools import lru_cache
 
 from .cards import gameplay_entities, player_facing
 from .common import esc, load_json, patch_title_text
-from .render import tag_of
+from .render import counts_text, tag_of
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 TRAIL_LEN = 12
-TAG_WORD = {'buff': 'buff', 'nerf': 'nerf', 'rework': 'buffs and nerfs', 'new': 'added', 'del': 'removed',
-            'mech': 'mechanic change', 'changed': 'changed', 'on': 'enabled', 'off': 'disabled'}
 
 
-def dominant(changes: list[dict]) -> str:
-    kinds = [tag_of(c)[0] for c in changes]
-    if 'buff' in kinds and 'nerf' in kinds:
+def dominant_of(counts: dict[str, int]) -> str:
+    """The tag that colours a one-colour mark (the shop card's "Last change" pip)."""
+    if counts.get('buff') and counts.get('nerf'):
         return 'rework'
     for k in ('rework', 'buff', 'nerf', 'new', 'del', 'off', 'on', 'mech'):
-        if k in kinds:
+        if counts.get(k):
             return k
     return 'changed'
 
 
 @lru_cache(maxsize=1)
-def _index() -> tuple[list[dict], dict[str, dict[str, str]]]:
-    """(patches oldest first, {entity key: {patch id: dominant tag}})"""
+def _index() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]]]:
+    """(patches oldest first, {entity key: {patch id: {tag: count}}})"""
     rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
-    by_ent: dict[str, dict[str, str]] = {}
+    by_ent: dict[str, dict[str, dict[str, int]]] = {}
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
         for e in p['entities']:
             ch = player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY])
             if ch and e.get('id') != '@shared':
-                by_ent.setdefault(e['key'], {})[r['id']] = dominant(ch)
+                counts = by_ent.setdefault(e['key'], {}).setdefault(r['id'], {})
+                for c in ch:
+                    counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
     return rows, by_ent
 
 
-def last_change(key: str) -> tuple[dict, str] | None:
-    """(patch index row, dominant tag) of the newest patch that changed the entity."""
+def last_counts(key: str) -> tuple[dict, dict[str, int]] | None:
+    """(patch index row, {tag: count}) of the newest patch that changed the entity."""
     rows, by_ent = _index()
     hits = by_ent.get(key) or {}
     for r in reversed(rows):
         if r['id'] in hits:
             return r, hits[r['id']]
     return None
+
+
+def last_change(key: str) -> tuple[dict, str] | None:
+    """(patch index row, dominant tag) of the newest patch that changed the entity."""
+    last = last_counts(key)
+    return (last[0], dominant_of(last[1])) if last else None
 
 
 @lru_cache(maxsize=1)
@@ -90,26 +96,41 @@ def hero_last(hid: str) -> tuple[dict, list[dict]] | None:
     return _hero_changes().get(hid)
 
 
-def trail_html(key: str, current: str | None = None, rel: str = '../', n: int = TRAIL_LEN) -> str:
+@lru_cache(maxsize=1)
+def _positions() -> dict[str, int]:
+    return {r['id']: i for i, r in enumerate(_index()[0])}
+
+
+def trail_html(key: str, current: str | None = None, rel: str = '../', n: int = TRAIL_LEN, local: bool = False) -> str:
     """Squares for the last n patches ending at `current` (or the newest); empty when the
-    entity never changed in that span."""
+    entity never changed in that span. A patch that both buffed and nerfed is striped, not REWORK purple
+    (REWORK means a replaced tier). `local`: the square is on the entity's own page — it opens that patch's
+    band below (#p-<patch>) and shows the band's hover card (scripts.js, the page's strip data) instead of
+    linking to the patch archive (owner 2026-10-04)."""
+    from .dynamics_page import stripes
     rows, by_ent = _index()
     hits = by_ent.get(key)
     if not hits:
         return ''
-    ids = [r['id'] for r in rows]
-    end = ids.index(current) + 1 if current in ids else len(ids)
+    end = _positions().get(current, len(rows) - 1) + 1 if current else len(rows)
     span = rows[max(0, end - n):end]
     if not any(r['id'] in hits for r in span):
         return ''
+    eid = key.partition(':')[2]
     cells = []
     for r in span:
-        tag = hits.get(r['id'])
+        counts = hits.get(r['id'])
         cur = ' cur' if r['id'] == current else ''
-        if tag:
-            tip = f'{patch_title_text(r)} · {TAG_WORD.get(tag, tag)}'
-            cells.append(f'<a class="sq t-{tag}{cur}" href="{rel}patches/{esc(r["id"])}.html" '
-                         f'data-tooltip="{esc(tip)}"></a>')
-        else:
+        if not counts:
             cells.append(f'<span class="sq{cur}"></span>')
+            continue
+        pid = esc(r['id'])
+        text = esc(f'{patch_title_text(r)} · {counts_text(counts)}')
+        style = f' style="background:{stripes(counts)}"' if len(counts) > 1 else ''
+        cls = f'sq t-{dominant_of(counts)}{cur}'
+        if local:
+            cells.append(f'<a class="{cls}" href="#p-{pid}" data-p="{pid}" data-ab="{esc(eid)}" '
+                         f'aria-label="{text}"{style}></a>')
+        else:
+            cells.append(f'<a class="{cls}" href="{rel}patches/{pid}.html" data-tooltip="{text}"{style}></a>')
     return '<span class="trail">' + ''.join(cells) + '</span>'

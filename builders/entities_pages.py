@@ -6,7 +6,7 @@ from collections import defaultdict
 from .common import (display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, img, load_json, page, pretty_id,
                      slug, write)
 from .hero_page import hero_page, history_table, now_fold, prop_icon, prop_rows, stat_tables
-from .render import KIND_LABEL
+from .render import KIND_LABEL, tag_badge
 
 GAMEPLAY = ('balance', 'mechanic', 'availability')
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -36,7 +36,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
     name = it['name'] if it.get('name') and it['name'] != it['id'] else pretty_id(it['id'])
     ic = entity_icon(it['file'], it['id'], it['kind'], rel)
-    gone = '' if it.get('alive') else ' <span class="tag del">REMOVED</span>'
+    gone = '' if it.get('alive') else ' ' + tag_badge('del', 'REMOVED')
     disabled = ' <span class="chip">not in shop</span>' if it.get('disabled') else ''
     info = card.get('item') if card else None
     chips = []
@@ -66,11 +66,14 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             hdr = '<div class="chips item-hdr">' + ''.join(
                 f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
                 f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
-        sections = (hdr + ''.join(blocks)) if blocks or hdr else ''
+        # the sections side by side as cards, not full-width tables (a label and its value sat 1300px apart)
+        grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
+        sections = (hdr + grid) if blocks or hdr else ''
     history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
                             enhanced=True)
-    # the page is the history (owner, 2026-10-03): what the item does today folds under one line
-    return page(name, head + now_fold('Current values', sections, history) + history, rel, 'items')
+    # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
+    # 2026-10-04: nothing folded by default)
+    return page(name, head + now_fold('Current values', sections) + history, rel, 'items', cls='entity')
 
 
 UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'Tier III'), ('abil', 'Abilities'))
@@ -78,13 +81,13 @@ UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'T
 
 def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subject, bound: dict) -> str:
     """A unit FAMILY's page (unit_families): Slum Shroom I-III, the four Walkers — one head, today's stats
-    per tier folded, one history where each member is a group (identical ones merged)."""
+    per tier (open), one history where each member is a group (identical ones merged)."""
     from .unit_families import TIER_RANK, family_name, member_label, merged_label, tier_of
     rel = '../'
     u = members[0]
     name = family_name(u)
     ic = entity_icon(u['file'], u['id'], u['kind'], rel)
-    gone = '' if any(m.get('alive') for m in members) else ' <span class="tag del">REMOVED</span>'
+    gone = '' if any(m.get('alive') for m in members) else ' ' + tag_badge('del', 'REMOVED')
     tiers = list(dict.fromkeys(tier_of(m) for m in members if tier_of(m)))
     chips = [f'<span class="chip">{esc(KIND_LABEL.get(u["kind"], u["kind"]))}</span>']
     if tiers:
@@ -96,7 +99,7 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
             f'{first_seen(u["first"])}</div></div>')
-    # today's stats folded under one line: a tiered family as ONE table, a stat per row, a tier per column
+    # today's stats above the history: a tiered family as ONE table, a stat per row, a tier per column
     # (three stacked panels repeated every label, advisor 10-03); others as before
     by_tier: dict[str, dict] = {}
     for m in members:
@@ -131,7 +134,7 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     hist = history_table(keys + own, [name] + [display_name(m) for m in members], by_ent, by_subject, rel,
                          line_names=False, areas=areas, area_labels=UNIT_AREAS,
                          merge=lambda labels: merged_label(labels, len(members)))
-    return page(name, head + now_fold('Current stats', stats_html, hist) + hist, rel, 'units')
+    return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
 
 
 def redirect_page(target: str, name: str) -> str:

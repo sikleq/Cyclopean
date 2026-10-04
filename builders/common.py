@@ -300,8 +300,11 @@ def asset_version() -> str:
 
 
 def page(title: str, body: str, rel: str = '', active: str = '', build: int | None = None,
-         description: str = '', wide: bool = False, fonts: str = '') -> str:
-    """`fonts`: one more Google Fonts stylesheet for this page only (the shop's stand-ins)."""
+         description: str = '', wide: bool = False, fonts: str = '', cls: str = '') -> str:
+    """`fonts`: one more Google Fonts stylesheet for this page only (the shop's stand-ins). `cls`: one more
+    class on <main> — 'entity' gives a hero / item / unit page its one centred column (owner 2026-10-04:
+    the history sat pinned left under a full-width head)."""
+    main_cls = 'page' + (' wide' if wide else '') + (f' {cls}' if cls else '')
     tabs = ''.join(
         f'<a class="nav-tab{" active" if key == active else ""}" href="{rel}{href}">{label}</a>'
         for key, label, href in NAV)
@@ -328,7 +331,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
 <div class="nav-tabs">{tabs}</div>
 {build_s}
 </div></nav>
-<main class="page{' wide' if wide else ''}">
+<main class="{main_cls}">
 {body}
 </main>
 <footer class="site-foot">Data: SteamTracking GameTracking-Deadlock, Steam News, the official Deadlock forum; icons from the game files. Not affiliated with Valve. · <a href="{rel}patches/index.html">Patch archive</a> · <a href="{rel}changelog.html">Site changelog</a> · <a href="https://github.com/sikleq/Cyclopean" rel="noopener">Source</a></footer>

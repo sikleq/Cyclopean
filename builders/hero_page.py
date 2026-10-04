@@ -9,12 +9,14 @@ import re
 from .common import (cosmetics, display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, icon, img, json_attr,
                      load_json, mark, page, pretty_id)
 from .history_view import history_table, now_fold  # noqa: F401  (re-exported for entities_pages)
+from .render import tag_badge
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
 SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Signature_1': 'Ability 1',
               'Signature_2': 'Ability 2', 'Signature_3': 'Ability 3', 'Signature_4': 'Ultimate'}
+ULT_SLOT = 'Signature_4'    # its icon carries the ultimate's corner mark (cards.ability_plate)
 # the head strip: every main non-gun stat (survival, movement, melee, spirit growth); the rest of
-# the stats fold under "All stats" right below it, the gun's under the weapon block (user, 10-01)
+# the stats are open panels under the abilities, the gun's in the weapon block (user, 10-01; open 10-04)
 KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina',
              'light_melee', 'heavy_melee', 'spirit_lvl')
 WEAPON_GROUP = 'Damage'
@@ -86,12 +88,12 @@ def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
 
 
 def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
-    """Secondary stats (per-boon growth of resists, dashes, collision…) folded under the head."""
+    """Secondary stats (per-boon growth of resists, dashes, collision…) as open panels below the abilities
+    (owner 2026-10-04: nothing folded by default — they sat two clicks deep)."""
     panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS)
     if not panels:
         return ''
-    n = panels.count('class="sc-row"')
-    return f'<details class="more"><summary>All stats <span class="n">{n}</span></summary>{panels}</details>'
+    return f'<h2>Stats</h2>{panels}'
 
 
 def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
@@ -165,10 +167,8 @@ def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel:
 
 
 def _more_weapon(cells: list[str]) -> str:
-    if not cells:
-        return ''
-    return (f'<details class="more"><summary>All weapon stats <span class="n">{len(cells)}</span></summary>'
-            f'<div class="wb-cells">{"".join(cells)}</div></details>')
+    """Every other weapon number in an even grid under the six headline tiles — shown, not folded."""
+    return f'<div class="wb-cells">{"".join(cells)}</div>' if cells else ''
 
 
 def prop_icon(css: str | None, rel: str) -> str:
@@ -201,20 +201,24 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         f'{esc(t["text"] or ", ".join(b["label"] + " " + b["value"] for b in t["bonuses"]))}</span></div>'
         for t in c.get('tiers', []))
     name = c['name'] if c.get('name') and c['name'] != c['id'] else pretty_id(c['id'], c.get('owner'))
-    # what happened to it lately: the last patch that touched it, and its 12-patch strip
-    from .render import pip
-    from .trail import last_change, trail_html
+    # what happened to it lately: the last patch that touched it, and its 12-patch strip — both open that
+    # patch's band in the history below, not the patch archive (owner 2026-10-04)
+    from .cards import ability_plate
+    from .render import TAG_ORDER, pip
+    from .trail import last_counts, trail_html
     key = f'abilities.vdata:{c["id"]}'
-    last = last_change(key)
+    last = last_counts(key)
     last_html = ''
     if last:
-        prow, tag = last
-        last_html = (f'<a class="ac-last t-{esc(tag)}" href="{rel}patches/{esc(prow["id"])}.html">'
-                     f'{pip(tag)} {esc(prow["date"])}</a>')
-    return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{img(ic, "", "px", "abilities")}'
+        prow, counts = last
+        pips = ''.join(pip(t, n) for t, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
+        last_html = (f'<a class="ac-last" href="#p-{esc(prow["id"])}" data-p="{esc(prow["id"])}" '
+                     f'data-ab="{esc(c["id"])}"><span class="tsum">{pips}</span> {esc(prow["date"])}</a>')
+    plate = ability_plate(ic, 'abilities', c.get('slot') == ULT_SLOT)
+    return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{plate}'
             f'<div class="ac-id"><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}{last_html}'
             f'<a class="ac-hist" href="#ab-{esc(c["id"])}">History</a></div>'
-            f'{trail_html(key, None, rel)}</div></div>'
+            f'{trail_html(key, None, rel, local=True)}</div></div>'
             f'{"<div class=ac-hdr>" + hdr + "</div>" if hdr else ""}{desc}{table}'
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
 
@@ -265,7 +269,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     chips = []
     state = h.get('state')
     if not h.get('alive'):
-        chips.append('<span class="tag del">REMOVED</span>')
+        chips.append(tag_badge('del', 'REMOVED'))
     elif state == 'EHeroDevState_PreRelease':
         chips.append('<span class="chip">pre-release</span>')
     elif state != 'EHeroDevState_Release':
@@ -288,15 +292,18 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     abil_cards = [ability_card(c, rel, SLOT_LABEL.get(c.get('slot', ''), c.get('slot', '')))
                   for c in mine if c.get('slot') != 'Weapon_Primary' or not table_row]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
-    # the page is the history (owner, 2026-10-03): what the hero is today folds under one line
-    now = (more_stats(table_row, cols, name, rel) if table_row else '') + weapon + abil
+    # the page is the history (owner, 2026-10-03), and what the hero is today stands open above it — the gun,
+    # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
+    now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
     keys = _owned_keys(hid, name, mine, ents_by_id, rel)
+    ults = frozenset(f'abilities.vdata:{c["id"]}' for c in mine if c.get('slot') == ULT_SLOT)
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}
     areas |= {f'abilities.vdata:{e["id"]}': part_of(e) for e in ents_by_id.values() if e.get('owner') == hid}
     gone = {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
             and e['id'] not in {c['id'] for c in mine}}
     hist = history_table(keys, [name], by_ent, by_subject, rel, areas=areas, gone=gone,
-                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'))
-    body = head + now_fold('Current stats, weapon and abilities', now, hist) + hist
-    return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities')
+                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults)
+    body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
+    return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',
+                cls='entity')

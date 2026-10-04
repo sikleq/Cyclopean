@@ -193,79 +193,208 @@
     document.querySelectorAll('[data-toggle-class]').forEach(function (btn) {
       var target = document.querySelector(btn.getAttribute('data-target') || 'body');
       var cls = btn.getAttribute('data-toggle-class');
+      if (!target) return;
+      if (btn.type === 'checkbox') {
+        // a switch: the class follows the box — also when the browser restores a ticked box on "back"
+        // (Firefox on a reload too), which left the box on and its class off
+        var sync = function () { target.classList.toggle(cls, btn.checked); };
+        btn.addEventListener('change', sync);
+        window.addEventListener('pageshow', sync);
+        sync();
+        return;
+      }
       btn.addEventListener('click', function () {
         var on = !target.classList.contains(cls);
         target.classList.toggle(cls, on);
         btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       });
     });
   });
 
-  /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
-  /* ---------- change matrices: a hover card per cell (who, which patch, counts, the biggest changes) ---------- */
+  /* ---------- hover cards: what a patch did. ONE renderer for a change-matrix cell, an entity page's strip
+     tile (the whole patch) and an ability card's trail square (that ability in the patch): head, counts by
+     tag, "N not in patch notes", the biggest changes grouped by ability, a foot. Each page's JSON is parsed
+     on the first hover, not at load (heroes/changes carries 313 KB of it); the older history bands are
+     <template>s, so the cards never read the page (builders/history_view.strip_data). ---------- */
   safe('dyn-tip', function () {
-    var blobs = document.querySelectorAll('script.dyn-data');
-    if (!blobs.length) return;
-    var data = window.__dyn = window.__dyn || {};     // shared with dyn-parts: parse each blob once
-    blobs.forEach(function (b) { data[b.getAttribute('data-for')] = JSON.parse(b.textContent); });
-    var tip = document.createElement('div');
-    tip.className = 'dyn-tip px-frame';
-    document.body.appendChild(tip);
+    var SEL = 'table.dyn .dsq, .patch-strip .ps-tile[data-k], .trail a.sq[data-p], a.ac-last[data-p], a.lu[data-k]';
+    if (!document.querySelector(SEL)) return;
+    var ORDER = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
+    var tip = null, current = null, strip, feed;
     function txt(s) { var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
-    function show(a) {
+    function matrixData(id) {                   // shared with dyn-parts: each blob parsed once
+      var all = window.__dyn = window.__dyn || {};
+      if (!all[id]) {
+        var b = document.querySelector('script.dyn-data[data-for="' + id + '"]');
+        if (b) all[id] = JSON.parse(b.textContent);
+      }
+      return all[id];
+    }
+    function stripData() {
+      if (strip === undefined) {
+        var b = document.querySelector('script.strip-data');
+        strip = b ? JSON.parse(b.textContent) : null;
+      }
+      return strip;
+    }
+    function feedData() {
+      if (feed === undefined) {
+        var b = document.querySelector('script.feed-data');
+        feed = b ? JSON.parse(b.textContent) : null;
+      }
+      return feed;
+    }
+    function countsHtml(counts, d) {
+      return '<div class="dt-counts">' + ORDER.filter(function (t) { return counts[t]; }).map(function (t) {
+        var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
+        return '<span class="pip ' + t + '">' + ((d.icons || {})[t] || '') + counts[t] + '<em>' + txt(word) + '</em></span>';
+      }).join('') + '</div>';
+    }
+    function valsHtml(old, now, tag) {
+      return old && now ? txt(old) + '<i>→</i><b class="t-' + tag + '">' + txt(now) + '</b>'
+        : '<b class="t-' + tag + '">' + txt(now || old) + '</b>';
+    }
+    /* one change in an entity card: its tag, the eye when the notes left it out, the field, old → new */
+    function rowHtml(d, field, old, now, tag, hidden) {
+      return '<tr' + (hidden ? ' class="dt-hid"' : '') + '><td class="dt-tg"><span class="tag ' + tag + '">' +
+        txt(tag.toUpperCase()) + '</span></td><td class="dt-field">' + (hidden ? '<span class="dt-e">' + d.eye + '</span>' : '') +
+        field + '</td><td class="dt-vals">' + valsHtml(old, now, tag) + '</td></tr>';
+    }
+    /* o: icon, name, patch, named, counts, hidden, rows (table html), more, foot, d (words / icons / eye) */
+    function card(o) {
+      var html = '<div class="dt-head">' + (o.icon ? '<img src="' + txt(o.icon) + '" alt="">' : '') +
+        (o.name ? '<span class="dt-name">' + txt(o.name) + '</span>' : '') +
+        '<span class="dt-patch' + (o.named ? ' named' : '') + '">' + txt(o.patch) + '</span></div>';
+      if (o.counts) html += countsHtml(o.counts, o.d);
+      if (o.hidden) html += '<div class="dt-eye">' + (o.d.eye || '') + o.hidden + ' not in patch notes</div>';
+      if (o.rows) html += '<table class="dt-rows">' + o.rows + '</table>';
+      if (o.foot) html += '<div class="dt-foot">' + (o.more > 0 ? '+' + o.more + ' more · ' : '') + txt(o.foot) + '</div>';
+      return html;
+    }
+    function total(counts) { var n = 0; Object.keys(counts).forEach(function (t) { n += counts[t]; }); return n; }
+
+    /* a change-matrix cell: who, which patch, its counts, the biggest changes by part */
+    function matrixCard(a) {
       var table = a.closest('table.dyn');
-      var d = table && data[table.id];
+      var d = table && matrixData(table.id);
       var k = a.getAttribute('data-k');
-      if (!d || k === null) return;
+      if (!d || k === null) return null;
       var c = d.cells[+k], p = d.patches[c[0]], tr = a.closest('tr');
-      var counts = c[1], samples = c[2], order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
+      var counts = c[1], samples = c[2];
       var part = table.getAttribute('data-part') || 'all';
       if (part !== 'all' && c[3]) {             // the filter: only this part's counts and changes
         counts = c[3][part] || {};
         samples = samples.filter(function (s) { return s[5] === part; });
       }
-      var total = 0;
-      Object.keys(counts).forEach(function (t) { total += counts[t]; });
-      var icon = tr.getAttribute('data-icon');
-      var html = '<div class="dt-head">' + (icon ? '<img src="' + txt(icon) + '" alt="">' : '') +
-        '<span class="dt-name">' + txt(tr.getAttribute('data-name')) + '</span>' +
-        '<span class="dt-patch' + (p[2] ? ' named' : '') + '">' + txt(p[1]) + '</span></div>';
-      html += '<div class="dt-counts">' + order.filter(function (t) { return counts[t]; }).map(function (t) {
-        var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
-        return '<span class="pip ' + t + '">' + (d.icons[t] || '') + counts[t] + '<em>' + txt(word) + '</em></span>';
-      }).join('') + '</div>';
-      if (samples.length) {
-        // the biggest changes; a hero's are grouped by part (base stats, weapon, abilities) and name
-        // the ability — an item's or unit's are about the row itself
-        var hero = !!c[3], lastPart = null, rowsHtml = '';
-        samples.forEach(function (s) {
-          if (hero && s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
-            lastPart = s[5];
-            rowsHtml += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
-          }
-          var vals = s[2] && s[3] ? txt(s[2]) + '<i>→</i><b class="t-' + s[4] + '">' + txt(s[3]) + '</b>'
-            : '<b class="t-' + s[4] + '">' + txt(s[3] || s[2]) + '</b>';
-          rowsHtml += '<tr>' + (hero ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
-            '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + vals + '</td></tr>';
+      // a hero's changes are grouped by part (base stats, weapon, abilities) and name the ability — an
+      // item's or unit's are about the row itself
+      var hero = !!c[3], lastPart = null, rows = '';
+      samples.forEach(function (s) {
+        if (hero && s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
+          lastPart = s[5];
+          rows += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
+        }
+        rows += '<tr>' + (hero ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
+          '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
+      });
+      return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
+                    counts: counts, d: d, rows: rows, more: total(counts) - samples.length,
+                    foot: 'click for its history at this patch' });
+    }
+
+    /* an entity page: a strip tile = the patch's biggest changes by ability; a trail square or an ability
+       card's "last change" = that ability's own changes in that patch */
+    function rowsHtml(d, groups, pick, limit, heads) {
+      var html = '', shown = 0;
+      groups.forEach(function (g) {
+        var ref = d.g[g[0]];
+        var rows = g[3].filter(pick).sort(function (x, y) { return x[5] - y[5]; }).slice(0, limit);
+        if (!rows.length) return;
+        if (heads && ref[0]) {
+          html += '<tr class="dt-grp"><td colspan="3">' + (ref[1] ? '<span class="dt-ic' + (ref[3] ? ' ult' : '') +
+            '"><img src="' + txt(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) + '</td></tr>';
+        }
+        rows.forEach(function (s) {
+          shown++;
+          html += rowHtml(d, txt(s[0]), s[1], s[2], s[3], s[4]);
         });
-        html += '<table class="dt-rows">' + rowsHtml + '</table>';
+      });
+      return { html: html, shown: shown };
+    }
+    function stripCard(a) {
+      var d = stripData();
+      if (!d) return null;
+      var tile = null, k = a.getAttribute('data-k'), pid = a.getAttribute('data-p'), ab = a.getAttribute('data-ab');
+      if (k !== null) tile = d.t[+k];
+      else for (var i = 0; i < d.t.length && !tile; i++) if (d.t[i][0] === pid) tile = d.t[i];
+      if (!tile) {                               // a band the strip leaves out (work before release)
+        var label = a.getAttribute('aria-label');
+        return label ? card({ patch: label, d: d }) : null;
       }
-      var more = total - samples.length;
-      html += '<div class="dt-foot">' + (more > 0 ? '+' + more + ' more · ' : '') + 'click for its history at this patch</div>';
-      tip.innerHTML = html;
-      tip.classList.add('on');
+      var foot = 'click to open this patch';
+      if (!ab) {
+        var top = rowsHtml(d, tile[5], function (s) { return s[5] < d.top; }, 99, true);
+        var n = total(tile[3]);
+        return card({ patch: tile[1], named: tile[2], counts: tile[3], hidden: tile[4], d: d, rows: top.html,
+                      more: n - top.shown, foot: foot });
+      }
+      var mine = tile[5].filter(function (g) { return (' ' + d.g[g[0]][2] + ' ').indexOf(' ' + ab + ' ') >= 0; });
+      if (!mine.length) return null;
+      var ref = d.g[mine[0][0]], counts = {}, hidden = 0;
+      mine.forEach(function (g) {
+        Object.keys(g[1]).forEach(function (t) { counts[t] = (counts[t] || 0) + g[1][t]; });
+        hidden += g[2];
+      });
+      var own = rowsHtml(d, mine, function () { return true; }, d.per, false);
+      return card({ icon: ref[1], name: ref[0], patch: tile[1], named: tile[2], counts: counts, hidden: hidden, d: d,
+                    rows: own.html, more: total(counts) - own.shown, foot: foot });
+    }
+
+    /* the home page's feed: an icon = what one update did to that hero / item / unit page */
+    function feedCard(a) {
+      var d = feedData(), e = d && d.c[+a.getAttribute('data-k')];
+      if (!e) return null;
+      var u = d.u[e[0]], rows = '', img = a.querySelector('img');
+      e[3].forEach(function (s) {
+        rows += rowHtml(d, (s[0] ? '<b class="dt-what">' + txt(s[0]) + '</b> · ' : '') + txt(s[1]), s[2], s[3], s[4], s[5]);
+      });
+      return card({ icon: img && img.getAttribute('src'), name: a.getAttribute('data-name'), patch: u[0], named: u[1],
+                    counts: e[1], hidden: e[2], d: d, rows: rows, more: total(e[1]) - e[3].length,
+                    foot: 'click for its history at this patch' });
+    }
+
+    function place(a) {
       var r = a.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+      var nav = document.querySelector('.top-nav');
+      var minY = (nav ? nav.getBoundingClientRect().bottom : 0) + 8;       // never under the sticky site bar
       var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), document.documentElement.clientWidth - tw - 8);
       var y = r.bottom + 8;
       if (y + th > window.innerHeight - 8) y = r.top - th - 8;
       tip.style.left = x + 'px';
-      tip.style.top = Math.max(8, y) + 'px';
+      tip.style.top = Math.max(minY, y) + 'px';
     }
-    document.addEventListener('mouseover', function (ev) {
-      var a = ev.target.closest && ev.target.closest('table.dyn .dsq');
-      if (a) show(a); else tip.classList.remove('on');
-    });
-    window.addEventListener('scroll', function () { tip.classList.remove('on'); }, true);
+    function hide() { if (tip) tip.classList.remove('on'); current = null; }
+    function over(ev) {
+      var a = ev.target.closest && ev.target.closest(SEL);
+      if (!a) { if (current) hide(); return; }
+      if (a === current) return;                 // moving inside the same tile: nothing to redraw
+      var html = a.classList.contains('dsq') ? matrixCard(a) : a.classList.contains('lu') ? feedCard(a) : stripCard(a);
+      if (!html) { hide(); return; }
+      if (!tip) {
+        tip = document.createElement('div');
+        tip.className = 'dyn-tip px-frame';
+        document.body.appendChild(tip);
+      }
+      tip.innerHTML = html;
+      tip.classList.add('on');
+      current = a;
+      place(a);
+    }
+    document.addEventListener('mouseover', over);
+    document.addEventListener('focusin', over);              // a tile reached with the keyboard shows it too
+    document.addEventListener('focusout', hide);
+    window.addEventListener('scroll', hide, true);
   });
 
   /* ---------- hero changes: a filter narrows every tile to one part (stats / weapon / abilities) ---------- */
@@ -275,7 +404,6 @@
     var tables = document.querySelectorAll('table.dyn');
     if (!tables.length) return;
     var order = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
-    var parsed = {};
     // the same gradient builders/dynamics_page.stripes draws: a stripe per tag, none thinner than 12%
     var COLOUR = { up: 'changed', down: 'changed' };
     function stripes(counts, tags) {
@@ -294,7 +422,8 @@
     function redraw(table, onlyTag, onlyDirty) {
       var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
       if (!blob) return;
-      var d = (window.__dyn || {})[table.id] || parsed[table.id] || (parsed[table.id] = JSON.parse(blob.textContent));
+      var all = window.__dyn = window.__dyn || {};          // shared with dyn-tip's hover card: parsed once
+      var d = all[table.id] || (all[table.id] = JSON.parse(blob.textContent));
       var list = tiles[table.id] || (tiles[table.id] = Array.prototype.map.call(
         table.querySelectorAll('a.dsq[data-k]'), function (a) {
           var td = a.parentNode;
@@ -340,7 +469,8 @@
         if (!table) return;
         var sel = table.__sel || (table.__sel = []), tag = btn.getAttribute('data-dyn-tag'), i = sel.indexOf(tag);
         if (i >= 0) sel.splice(i, 1); else sel.push(tag);
-        btn.classList.toggle('on', i < 0);
+        // chosen = aria-pressed: the class "on" is the ON tag's colour (a chosen NERF turned green)
+        btn.setAttribute('aria-pressed', i < 0 ? 'true' : 'false');
         redraw(table);
       });
     });
@@ -365,6 +495,7 @@
     });
   });
 
+  /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
   safe('table-fade', function () {
     document.querySelectorAll('.table-fade > .table-scroll').forEach(function (sc) {
       function check() {
@@ -811,11 +942,12 @@
     });
   });
 
-  /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
   /* ---------- entity history: older patches render when opened; the toolbar filters rows ---------- */
   /* (builders/history_view.py) tags are a multi-select, a part (Stats / Weapon / Abilities) and an
-     ability one at a time (click again to clear); "Only hidden" and "In development" are classes on
-     #history that CSS reads — the filter re-runs after them so a block left empty folds away */
+     ability one at a time (click again to clear); "Not in patch notes" and "Before release" are classes on
+     #history that CSS reads — the filter re-runs after them. Every filter, the eye included, opens the
+     bands it matches, folds the empty ones away and recounts each band's counters from its shown rows
+     (owner 2026-10-04: the eye left Viscous's 21 bands closed, the counters ignored every filter). */
   safe('hist-filter', function () {
     var box = document.getElementById('history');
     if (!box || !box.classList.contains('hblocks')) return;
@@ -839,23 +971,83 @@
       }
       return r.__t;
     }
+    // a row that stands for changes it does not list (a new unit's "Added to the game" over its 12 key
+    // fields) says which in data-n: "tag:changes:hidden …" (cards.entity_rows)
+    function behind(r) {
+      if (r.__b === undefined) {
+        var n = r.getAttribute('data-n');
+        r.__b = n ? n.split(' ').map(function (e) { var p = e.split(':'); return [p[0], +p[1], +p[2]]; }) : null;
+      }
+      return r.__b;
+    }
+    function tagOk(r) {
+      if (!state.tags.length) return true;
+      var bs = behind(r);
+      if (!bs) return state.tags.indexOf(tagOf(r)) >= 0;
+      for (var i = 0; i < bs.length; i++) if (state.tags.indexOf(bs[i][0]) >= 0) return true;
+      return false;
+    }
+    // the banner's counters while a filter is on: the shown rows by tag (a code line is no counted change),
+    // the eye's count; the built numbers come back when the filters clear
+    function recount(b, active, onlyHidden) {
+      var bc = b.querySelector('summary .bc');
+      if (!bc) return;
+      var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
+      if (!active) {
+        if (!b.__rc) return;
+        b.__rc = false;
+        pips.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
+        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
+        return;
+      }
+      b.__rc = true;
+      var counts = {}, hidden = 0;
+      b.querySelectorAll('.erow').forEach(function (r) {
+        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.parentNode.tagName === 'SUMMARY') return;
+        var bs = behind(r);
+        if (bs) {
+          bs.forEach(function (e) {
+            if (state.tags.length && state.tags.indexOf(e[0]) < 0) return;
+            counts[e[0]] = (counts[e[0]] || 0) + (onlyHidden ? e[2] : e[1]);
+            hidden += e[2];
+          });
+          return;
+        }
+        var t = tagOf(r);
+        counts[t] = (counts[t] || 0) + 1;
+        if (r.classList.contains('st-hidden')) hidden++;
+      });
+      pips.forEach(function (p) {
+        if (!p.lastChild || p.lastChild.nodeType !== 3) return;
+        if (p.__n === undefined) p.__n = p.lastChild.nodeValue;
+        var n = counts[p.classList[1]] || 0;
+        p.lastChild.nodeValue = n;
+        p.classList.toggle('n0', !n);
+      });
+      if (eye) {
+        if (eye.__t === undefined) eye.__t = eye.textContent;
+        eye.textContent = hidden + ' not in notes';
+        eye.parentNode.classList.toggle('n0', !hidden);
+      }
+    }
     function apply() {
-      var active = state.tags.length || state.area || state.ab;
       var onlyHidden = box.classList.contains('only-hidden'), dev = box.classList.contains('show-dev');
-      box.classList.toggle('filtering', !!active);
+      var active = !!(state.tags.length || state.area || state.ab || onlyHidden);
+      box.classList.toggle('filtering', active);
       var blocks = box.querySelectorAll('details.pblock');
-      // a band still in its <template> says what it holds (data-tags / -abs / -areas): one that cannot
-      // match is folded away unstamped (the first filter stamped all 33 of Calico's)
+      // a band still in its <template> says what it holds (data-tags / -abs / -areas, has-hidden): one that
+      // cannot match is folded away unstamped (the first filter stamped all 33 of Calico's)
       function mayMatch(b) {
         var has = function (attr, v) { return (' ' + (b.getAttribute(attr) || '') + ' ').indexOf(' ' + v + ' ') >= 0; };
         return !(state.tags.length && !state.tags.some(function (t) { return has('data-tags', t); })) &&
                !(state.ab && !state.ab.split(' ').some(function (id) { return has('data-abs', id); })) &&
-               !(state.area && !has('data-areas', state.area));
+               !(state.area && !has('data-areas', state.area)) &&
+               !(onlyHidden && !b.classList.contains('has-hidden'));
       }
       blocks.forEach(function (b) {
         if (active && b.querySelector('template.hp-t') && !mayMatch(b)) { b.classList.add('f-out'); return; }
         if (active) stamp(b);
-        if (!active && !b.querySelector('.f-out')) { b.classList.remove('f-out'); return; }
+        if (!active && !b.__rc && !b.querySelector('.f-out')) { b.classList.remove('f-out'); return; }
         var any = false;
         b.querySelectorAll('.hgroup').forEach(function (g) {
           // a merged group belongs to several parts ("t1 t2 t3": the same change on every tier)
@@ -864,7 +1056,7 @@
           var gany = false;
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
-            var ok = gok && (!state.tags.length || state.tags.indexOf(tagOf(r)) >= 0) &&
+            var ok = gok && tagOk(r) &&
                      (!onlyHidden || r.classList.contains('is-hidden')) &&
                      (dev || !r.classList.contains('st-unreleased'));
             r.classList.toggle('f-out', !ok);
@@ -877,22 +1069,52 @@
           any = any || gany;
         });
         b.classList.toggle('f-out', !any);
+        recount(b, active, onlyHidden);
         if (active && any && !b.open) b.open = true;            // a patch with a match opens
       });
     }
     var bar = document.querySelector('.hist-bar');
     if (!bar) return;
+    function pressAll(attr, value) {           // one of the part / ability buttons, or none
+      bar.querySelectorAll('[' + attr + ']').forEach(function (b) {
+        var on = b.getAttribute(attr) === value;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+    // patch-anchor: a tile or square names a band or group the filters hide — clear them all and show it;
+    // dev = also show the work before release (a dev-only band or group)
+    window.__histReset = function (dev) {
+      state.tags = []; state.area = null; state.ab = null;
+      box.classList.remove('only-hidden');
+      bar.querySelectorAll('[data-f-tag]').forEach(function (b) { b.setAttribute('aria-pressed', 'false'); });
+      pressAll('data-f-area', null);
+      pressAll('data-f-ab', null);
+      var eye = bar.querySelector('.hf-hidden');
+      if (eye) { eye.classList.remove('on'); eye.setAttribute('aria-pressed', 'false'); }
+      if (dev) {
+        box.classList.add('show-dev');
+        var sw = bar.querySelector('.hf-dev');
+        if (sw) { sw.classList.add('on'); sw.setAttribute('aria-pressed', 'true'); }
+      }
+      apply();
+    };
     // #ab-<ability id> (an ability card's "History" link, Sloppy's ?ability=) filters to that ability
     function fromHash() {
       if (location.hash.indexOf('#ab-') !== 0) return;
-      var id = decodeURIComponent(location.hash.slice(4));
+      var id;
+      try { id = decodeURIComponent(location.hash.slice(4)); } catch (e) { return; }
       // the chip that holds this id (one chip may stand for namesakes: "id1 id2")
       var chip = Array.prototype.filter.call(bar.querySelectorAll('[data-f-ab]'), function (b) {
         return b.getAttribute('data-f-ab').split(' ').indexOf(id) >= 0;
       })[0];
       state.ab = chip ? chip.getAttribute('data-f-ab') : id;
-      if (chip && chip.classList.contains('gone')) chip.parentNode.classList.add('show-gone');
-      bar.querySelectorAll('[data-f-ab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-ab') === state.ab); });
+      if (chip && chip.classList.contains('gone')) {
+        chip.parentNode.classList.add('show-gone');
+        var gb = chip.parentNode.querySelector('.hf-gone-btn');
+        if (gb) { gb.classList.add('on'); gb.setAttribute('aria-pressed', 'true'); }
+      }
+      pressAll('data-f-ab', state.ab);
       apply();
       box.scrollIntoView({ block: 'start' });
     }
@@ -905,36 +1127,75 @@
       if (tag) {
         var i = state.tags.indexOf(tag);
         if (i >= 0) state.tags.splice(i, 1); else state.tags.push(tag);
-        btn.classList.toggle('on', i < 0);
+        // chosen = aria-pressed: the class "on" is the ON tag's colour (a chosen NERF turned green)
+        btn.setAttribute('aria-pressed', i < 0 ? 'true' : 'false');
       } else if (area) {
         state.area = state.area === area ? null : area;
-        bar.querySelectorAll('[data-f-area]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-area') === state.area); });
+        pressAll('data-f-area', state.area);
       } else if (ab) {
         state.ab = state.ab === ab ? null : ab;
-        bar.querySelectorAll('[data-f-ab]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-f-ab') === state.ab); });
+        pressAll('data-f-ab', state.ab);
       }
-      // "Only hidden" and "In development" toggle a class on #history first (the generic toggle)
+      // "Not in patch notes" and "Before release" toggle a class on #history first (the generic toggle)
       setTimeout(apply, 0);
     });
-    bar.addEventListener('change', function () { setTimeout(apply, 0); });
   });
 
-  /* ---------- #p-<patch>: a history block named in the address opens and comes into view ---------- */
+  /* ---------- #p-<patch>: a history band named in the address — or clicked on this page (a strip tile,
+     an ability card's trail square or its last change) — opens and comes into view, even when a filter
+     or "Before release" hid it and even when the address already names it ---------- */
   safe('patch-anchor', function () {
-    function go() {
+    // a band or group a filter (or "Before release") hides: clear the filters; still hidden and work before
+    // release -> show that too. The band can show while the group is filtered out (another ability's rows
+    // kept it): the group is checked on its own, or the square scrolled nowhere and lit a hidden group
+    function reveal(x) {
+      if (!x || x.offsetParent !== null) return;
+      var reset = window.__histReset;
+      if (reset) reset();
+      if (x.offsetParent !== null || !(x.classList.contains('dev-only') || x.closest('.dev-only') ||
+          x.querySelector('.st-unreleased'))) return;
+      var hist = x.closest('.hblocks');
+      if (reset) reset(true);
+      else if (hist) hist.classList.add('show-dev');
+    }
+    function go(ab) {
       if (location.hash.indexOf('#p-') !== 0) return;
-      var el = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      var id;
+      try { id = decodeURIComponent(location.hash.slice(1)); } catch (e) { return; }
+      var el = document.getElementById(id);
       if (!el) return;
       if (el.tagName === 'DETAILS') {
+        reveal(el);
         if (window.__histStamp) window.__histStamp(el);
         el.open = true;
       }
-      el.scrollIntoView({ block: 'start' });
+      // an ability's square: its group in the band, lit for a moment
+      var group = ab && Array.prototype.filter.call(el.querySelectorAll('.hgroup'), function (g) {
+        return g.getAttribute('data-ab') === ab;
+      })[0];
+      if (group) {
+        reveal(group);
+        group.classList.add('flash');
+        setTimeout(function () { group.classList.remove('flash'); }, 1600);
+      }
+      (group || el).scrollIntoView({ block: 'start' });
     }
     go();
-    window.addEventListener('hashchange', go);
+    window.addEventListener('hashchange', function () { go(); });
+    document.addEventListener('click', function (ev) {
+      var a = ev.target.closest && ev.target.closest('a[href^="#p-"]');
+      if (!a || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+      var href = a.getAttribute('href');
+      if (!document.getElementById(href.slice(1))) return;
+      ev.preventDefault();
+      if (location.hash !== href) {
+        try { history.pushState(null, '', href); } catch (e) { location.hash = href; return; }
+      }
+      go(a.getAttribute('data-ab'));
+    });
   });
 
+  /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
   safe('tabs', function () {
     var buttons = document.querySelectorAll('[data-tab]');
     function open(id) {

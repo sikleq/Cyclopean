@@ -8,8 +8,7 @@ import re
 from functools import lru_cache
 
 from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark, visual
-from .pixel_icons import tag_svg
-from .render import shown_value, tag_html, tag_of, tag_summary
+from .render import shown_value, tag_badge, tag_html, tag_of, tag_summary
 
 LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated', 'code')
 TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
@@ -122,10 +121,10 @@ TOPIC_TAG = {'sound': 'SOUND', 'visual': 'VISUAL', 'interface': 'UI', 'map': 'MA
 def text_tag(text: str, topic: str | None = None) -> str:
     """A badge for a line the files could not back: its topic, or the wording Valve uses."""
     if topic:
-        return f'<span class="tag topic-tag">{esc(TOPIC_TAG.get(topic, topic.upper()))}</span>'
+        return tag_badge('topic-tag', TOPIC_TAG.get(topic, topic.upper()))
     for rx, cls, word in _TEXT_TAGS:
         if rx.search(text):
-            return f'<span class="tag {cls}" data-g="5">{tag_svg(cls)}{word}</span>'
+            return tag_badge(cls, word)
     return ''           # no kind in the wording: the line itself says what changed (CHANGED told nothing)
 
 
@@ -140,7 +139,7 @@ def _line_tag(changes: list[dict]) -> tuple[str, str]:
         return tag_html(first), d
     # one line, many kinds of change: a mechanic rework ("now circular rather than in front"),
     # or a value line whose numbers already tell the direction
-    return '<span class="tag rework" data-g="6">REWORK</span>', 'changed'
+    return tag_badge('rework', 'REWORK'), 'changed'
 
 
 def _files_cell(ln: dict, changes: list[dict], subject_ent: dict | None) -> str:

@@ -704,7 +704,8 @@ def test_a_bare_namesake_gets_a_word_too():
                           ch(key='b', label='T3: Damage', path=up % 'DamageHeavyMelee')]),
                     (p2, [ch(key='c', label='T3: Damage', path=up % 'Damage', old_s='-35', new_s='-30')])]}
     html = history_table([(key, 'Puddle Punch', None)], ['Viscous'], by_ent, {}, '../')
-    assert html.count('T3: Damage · base') == 2 and html.count('T3: Damage · heavy melee') == 1
+    bands = html.split('id="history"')[1]            # the strip's hover-card data repeats the labels
+    assert bands.count('T3: Damage · base') == 2 and bands.count('T3: Damage · heavy melee') == 1
     switch = {'cat': 'mechanic', 'label': 'Cooldown · Function Disabled', 'status': 'hidden', 'old_s': 'no', 'new_s': 'yes',
               'path': 'm_mapAbilityProperties.AbilityCooldown.m_subclassScaleFunction.m_bFunctionDisabled'}
     assert is_engine(switch)
@@ -727,15 +728,13 @@ def test_player_terms_and_the_strip_runs_newest_first():
     assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in notes' in html
 
 
-def test_short_history_opens_the_current_fold_and_events_carry_no_value():
+def test_current_fold_is_open_and_events_carry_no_value():
     """Advisor round 4: Slum Shroom's page was one "Added to the game files · —" row under a closed
-    "Current stats"."""
+    "Current stats"; owner 2026-10-04: nothing folded by default, whatever the history's length."""
     from builders.history_view import now_fold
     from builders.render import vals_html
-    one = '<div class="erow st-hidden"></div>'
-    assert '<details class="now px-frame" open>' in now_fold('Current stats', '<table></table>', one)
-    assert '<details class="now px-frame">' in now_fold('Current stats', '<table></table>', one * 4)
-    assert now_fold('Current stats', '', one) == ''
+    assert '<details class="now px-frame" open>' in now_fold('Current stats', '<table></table>')
+    assert now_fold('Current stats', '') == ''
     assert vals_html({'op': 'add', 'path': '@add', 'cat': 'balance', 'label': 'Added to the game files'}) == ''
 
 

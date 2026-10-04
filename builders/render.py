@@ -52,10 +52,17 @@ def tag_of(c: dict) -> tuple[str, str]:
     return ('mech', 'MECH') if cat == 'mechanic' else ('changed', 'CHANGED')
 
 
+def tag_badge(cls: str, text: str, el: str = 'span', attrs: str = '') -> str:
+    """THE tag badge — every BUFF / NERF / NEW / REMOVED on the site is this one markup: its word, one fill
+    (the size of a change is the % beside it, not the badge; owner 2026-10-04: two chips per row both shaded
+    by size, and nine hand-made badges without the icon). The tag's pixel icon is the badge's CSS ::before
+    (pixel_icons.tag_mask): an inline SVG per badge was ~600 copies of ten shapes on a hero page."""
+    return f'<{el} class="tag {esc(cls)}"{attrs}>{esc(text)}</{el}>'
+
+
 def tag_html(c: dict) -> str:
     cls, txt = tag_of(c)
-    g = c.get('grad', 5)
-    return f'<span class="tag {cls}" data-g="{g}">{tag_svg(cls)}{esc(txt)}</span>'
+    return tag_badge(cls, txt)
 
 
 def sort_changes(changes: list[dict]) -> list[dict]:
@@ -379,6 +386,31 @@ def vals_html(c: dict) -> str:
              if isinstance(pct, (int, float)) else PCT_PAD)
     return (f'<span class="vals"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
             f'<span class="new dir-{d}">{esc(new_s)}</span>{pct_s}</span>')
+
+
+def vals_text(c: dict) -> tuple[str, str]:
+    """(old, new) as plain text the way vals_html prints them — names for ids, "no limit", the unit on both
+    sides, a flag list as its +added / −removed — for the hover cards (scripts.js renders them)."""
+    if c.get('cat') in ('visual', 'audio', 'ui') or str(c.get('path', '')).startswith('@'):
+        return '', ''
+    op = c.get('op')
+    old_s, new_s = c.get('old_s', c.get('old')), c.get('new_s', c.get('new'))
+    if op == 'rework' or c.get('bonus_list'):
+        return _clip(old_s) if old_s else '', _clip(new_s) if new_s else ''
+    a, b = _flags(old_s), _flags(new_s)
+    if a is not None or b is not None:
+        none = ('', '—', None)
+        a = set(a or ([old_s] if old_s not in none else []))
+        b = set(b or ([new_s] if new_s not in none else []))
+        moved = [f'+{_short_flag(f)}' for f in sorted(b - a)] + [f'−{_short_flag(f)}' for f in sorted(a - b)]
+        text = ' '.join(moved)
+        return '', text if len(text) <= LONG_VALUE else text[:LONG_VALUE - 1] + '…'
+    old, new = _same_unit(_sentinel(_clip(old_s)), _sentinel(_clip(new_s)))
+    if op == 'add':
+        return '', new
+    if op == 'remove':
+        return old, ''
+    return old, new
 
 
 def change_li(c: dict, show_status: bool = True, show_builds: bool = False) -> str:

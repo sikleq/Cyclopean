@@ -9,6 +9,7 @@ from .site_search import search_box
 
 LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
 SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'))
+CHIP_SAMPLES = 2          # a feed icon's hover card lists this many of its biggest changes (217 icons on the page)
 
 
 def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
@@ -36,10 +37,12 @@ def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[st
 
 def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
                 ) -> dict[str, dict[str, dict]]:
-    """section -> page key -> {n, hidden, buff, nerf, kind}: what one update did to each page.
+    """section -> page key -> {n, hidden, buff, nerf, kind, rows}: what one update did to each page (rows:
+    (what, change) for the icon's hover card).
     Counts are the player-facing rows (cards.player_facing) a page shows; work on unreleased heroes
     waits for their release."""
     from .cards import gameplay_entities, player_facing
+    from .dynamics_page import _display
     out: dict[str, dict[str, dict]] = {}
     once: set = set()
     for e in gameplay_entities(p['entities']):
@@ -54,7 +57,10 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
             if not rows:
                 continue
         slot = out.setdefault(section, {}).setdefault(key, {'n': 0, 'hidden': 0, 'buff': 0, 'nerf': 0,
-                                                             'kind': e.get('kind')})
+                                                             'kind': e.get('kind'), 'rows': []})
+        # what each row is about on its page: a hero's ability or gun by name, an item's / unit's own rows bare
+        what = _display(e) if section == 'heroes' else ''
+        slot['rows'] += [(what, c) for c in rows]
         slot['n'] += len(rows)
         slot['hidden'] += sum(1 for c in rows if c.get('status') == 'hidden')
         slot['buff'] += sum(1 for c in rows if c.get('dir') == 'buff')
@@ -62,22 +68,46 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     return out
 
 
-def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = False) -> str:
+def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = False, k: int | None = None) -> str:
     """`names`: entity key -> its name today (common.display_name: never an id). `named`: the name under
-    the icon (the newest update; advisor round 4: names were in tooltips only)."""
+    the icon (the newest update; advisor round 4: names were in tooltips only). `k`: the icon's entry in the
+    feed's hover-card data (chip_card) — the card replaces the one-line tooltip."""
     file, _, eid = key.partition(':')
     name = names.get(key) or pretty_id(eid)
     ic = hero_icon(eid, '') if file == 'heroes.vdata' else entity_icon(file, eid, s.get('kind') or '', '', name)
     net = 'buff' if s['buff'] > s['nerf'] else 'nerf' if s['nerf'] > s['buff'] else 'mix'
     tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
-    eye = f'<span class="lu-eye">{mark("hidden")}</span>' if s['hidden'] else ''
+    # with a card the eye says nothing of its own (its tooltip stacked on the card)
+    eye_mark = mark('hidden') if k is None else f'<span class="mark hidden">{EYE_SVG}</span>'
+    eye = f'<span class="lu-eye">{eye_mark}</span>' if s['hidden'] else ''
     label = f'<span class="lu-nm">{esc(name)}</span>' if named else ''
-    return (f'<a class="lu net-{net}" href="{esc(slug(file, eid))}#p-{esc(pid)}" data-tooltip="{esc(tip)}">'
+    hover = (f'aria-label="{esc(tip)}" data-name="{esc(name)}" data-k="{k}"' if k is not None
+             else f'data-tooltip="{esc(tip)}"')
+    return (f'<a class="lu net-{net}" href="{esc(slug(file, eid))}#p-{esc(pid)}" {hover}>'
             f'{visual(ic, glyph_for(file, eid))}<span class="lu-n">{s["n"]}</span>{eye}{label}</a>')
 
 
+def chip_card(s: dict) -> list:
+    """[{tag: n}, hidden, samples] for a feed icon's hover card: its CHIP_SAMPLES biggest changes as
+    [what (a hero's ability; '' for an item's / unit's own rows), label, old, new, tag, hidden 0/1]."""
+    from .history_view import _rank
+    from .render import tag_of, vals_text
+    counts: dict[str, int] = {}
+    for _, c in s['rows']:
+        counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
+    top = sorted(s['rows'], key=lambda wc: _rank(wc[1]))[:CHIP_SAMPLES]
+    return [counts, s['hidden'], [[w, str(c.get('label') or ''), *vals_text(c), tag_of(c)[0],
+                                   int(c.get('status') == 'hidden')] for w, c in top]]
+
+
 def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str]) -> str:
-    blocks = []
+    """The latest updates' icons + ONE JSON blob of their hover cards (scripts.js dyn-tip, parsed on the first
+    hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed)."""
+    import json
+    from .common import patch_title_text
+    from .pixel_icons import tag_svg
+    from .render import TAG_WORD_ONE, TAG_WORDS
+    blocks, updates, cards = [], [], []
     for row in reversed(patches):
         if len(blocks) == LATEST_UPDATES:
             break
@@ -85,20 +115,29 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         feed = update_feed(p, templates, unit_main)
         if not feed:
             continue
+        updates.append([patch_title_text(row), bool(patch_name(row['title']))])
         groups = []
         for sec, title in SECTIONS:
             got = sorted(feed.get(sec, {}).items(), key=lambda kv: (-kv[1]['n'], kv[0]))
             if got:
                 named = not blocks
-                chips = ''.join(_chip(k, s, row['id'], names, named) for k, s in got)
+                chips = []
+                for k, s in got:
+                    chips.append(_chip(k, s, row['id'], names, named, len(cards)))
+                    cards.append([len(updates) - 1, *chip_card(s)])
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b></span>'
-                              f'<div class="lu-row{" named" if named else ""}">{chips}</div></div>')
+                              f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}</div></div>')
         hidden = sum(s['hidden'] for sec in feed.values() for s in sec.values())
         eye = f'<span class="au au-hidden">{mark("hidden")}<b>{hidden}</b> not in patch notes</span>' if hidden else ''
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
-    return ''.join(blocks)
+    used = sorted({t for c in cards for t in c[1]})
+    data = {'u': updates, 'c': cards, 'icons': {t: tag_svg(t) for t in used}, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
+            'eye': EYE_SVG}
+    # JSON inside a script element: "</" would end it early
+    blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
+    return ''.join(blocks) + f'<script type="application/json" class="feed-data">{blob}</script>'
 
 
 def _tiles(counts: dict[str, int], faces: list[str], units: list[str]) -> str:
