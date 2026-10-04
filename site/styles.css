@@ -1544,7 +1544,9 @@ table.dt-rows td { padding: 4px 6px; text-align: center; border-top: 1px solid v
 table.dt-rows td:last-child { border-right: 0; }
 .dt-what { color: var(--text-bright); font-weight: 600; }
 .dt-field { color: var(--text-dim); }
-.dt-vals { white-space: nowrap; color: var(--label); font-variant-numeric: tabular-nums; }
+/* values wrap: a REWORK's bonus lists kept on one line pushed the table past the card's right edge and
+   squeezed the field names to a word a line */
+.dt-vals { white-space: normal; overflow-wrap: anywhere; color: var(--label); font-variant-numeric: tabular-nums; }
 .dt-vals i { font-style: normal; color: var(--arrow); padding: 0 3px; }
 .dt-vals b.t-buff { color: var(--tag-buff); }
 .dt-vals b.t-nerf { color: var(--tag-nerf); }
