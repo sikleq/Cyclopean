@@ -2548,12 +2548,12 @@
   "id": "build-6736",
   "title": "Listen up, Crumbums! Your King is here.",
   "date": "2026-10-02",
-  "builds": 4,
+  "builds": 5,
   "counts": {
    "documented": 0,
    "described": 0,
    "hidden": 0,
-   "unannounced": 41,
+   "unannounced": 47,
    "unreleased": 0
   },
   "line_counts": {},
