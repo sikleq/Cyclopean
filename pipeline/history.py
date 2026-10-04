@@ -17,7 +17,8 @@ from . import cache, extras, jsonio, loc, tracker
 from .diff import EntityChange, diff_entity, diff_file
 
 OUT = tracker.ROOT / 'data' / 'builds'
-FORMAT_VERSION = 6        # 6: table rows keyed by souls threshold / tier, speed curve wins only before 5747,
+FORMAT_VERSION = 7        # 7: identifying fields matched whatever their capitals (m_StrPropertyNAme), no upkeep records
+#                           6: table rows keyed by souls threshold / tier, speed curve wins only before 5747,
 #                           the spirit-resist-per-boon key rename; 5: numbers in lists keep their order
 SUFFIX = '.json.gz'
 GONE = '@gone'            # last_known[GONE][vdata path][entity id] = blob of the last version before removal
@@ -172,8 +173,18 @@ def run(rebuild: bool = False) -> None:
     for stale in OUT.glob('*_*.json'):          # pre-gzip format
         stale.unlink()
     last_known: dict[str, str] = {}
+    prev_game = all_builds[0] if all_builds and tracker.is_game_build(all_builds[0]) else None
     for prev, cur in zip(all_builds, all_builds[1:]):
         out = record_path(cur)
+        if not tracker.is_game_build(cur):
+            # the tracker's own upkeep ("cleanup", "Dump exe…"): what it moved is the tracker's doing,
+            # not the game's — taken as the new baseline, no record (it wrote None_92d2d9d0, 498 loc rows)
+            remember(last_known, prev, cur, {'entities': []})
+            if out.exists():
+                out.unlink()
+            continue
+        prev = prev_game or prev           # a build after an upkeep commit names the build before it
+        prev_game = cur
         name = out.name
         rec = None
         if out.exists() and not rebuild:

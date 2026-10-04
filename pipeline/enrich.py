@@ -13,13 +13,14 @@ from __future__ import annotations
 import argparse
 import re
 
-from . import cache, jsonio, loc, semantics, tracker
-from .classify import ability_kind, category, hero_bound_abilities, unit_bound_abilities, unit_kind
+from . import cache, flags, jsonio, loc, semantics, tracker
+from .classify import (ability_kind, category, decor_entity, hero_bound_abilities, shared_abilities,
+                       unit_bound_abilities, unit_kind)
 from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 28       # 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
+ENRICH_VERSION = 31       # 31: qualifier-only loc text is no label, a hero's signed base stat % with its sign; 30: modifier states a mechanic, flag rows (pipeline.flags), polarity rules, container words; 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):
@@ -68,7 +69,8 @@ def enrich_record(rec: dict) -> dict:
     units = cache.vdata(commit, tracker.SCRIPTS + 'npc_units.vdata')
     prev_abilities = None
     owners = hero_bound_abilities(heroes, abilities)
-    npc_bound = unit_bound_abilities(units, owners)
+    shared = shared_abilities(heroes)
+    npc_bound = unit_bound_abilities(units, owners, shared)
     for e in rec['entities']:
         f, eid = e['file'], e['id']
         if f == 'heroes.vdata':
@@ -80,7 +82,7 @@ def enrich_record(rec: dict) -> dict:
                 if prev_abilities is None:
                     prev_abilities = cache.vdata(rec['prev_commit'], tracker.SCRIPTS + 'abilities.vdata')
                 data = prev_abilities.get(eid, {})
-            e['kind'] = ability_kind(eid, data, owners) if eid != '@shared' else 'shared'
+            e['kind'] = ability_kind(eid, data, owners, shared) if eid != '@shared' else 'shared'
             e['name'] = (loc.plain(loc.entity_name(tok, eid, owners.get(eid))) if eid != '@shared'
                          else 'Many abilities & items')
         elif f == 'npc_units.vdata':
@@ -103,6 +105,8 @@ def enrich_record(rec: dict) -> dict:
             # change whose values were dropped (cosmetic) into a category that shows values
             has_vals = 'old' in c or 'new' in c
             cat = category(c['path'], c.get('old'), c.get('new'))
+            if f in ('misc.vdata', 'generic_data.vdata') and decor_entity(eid) and cat not in VALUELESS_CATS:
+                cat = 'visual'              # scenery and presentation entries (classify.decor_entity)
             if has_vals or cat in VALUELESS_CATS:
                 c['cat'] = cat
             # what the property's coefficient multiplies (boons, melee damage…): kept on the change so
@@ -115,13 +119,23 @@ def enrich_record(rec: dict) -> dict:
             if token:
                 c['loc_token'] = token          # the tooltip's own name for the property
             d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'), token)
+            # this build's own words; pipeline.labels picks one label / unit / sign per field from them
+            for k in ('label_src', 'unit', 'sign'):
+                c.pop(k, None)              # a re-enriched record keeps nothing of an older pass
             c['label'] = d['label']
+            if d.get('src') == 'fallback':
+                c['label_src'] = 'fallback'     # the field's name, not a label the game had
             if d.get('unit'):
                 c['unit'] = d['unit']
+            if d.get('sign') is not None:
+                c['sign'] = d['sign']
+            minus = d.get('sign') == '-'
+            if minus and d.get('src') == 'loc':
+                c['label'] = semantics.enemy_label(d['label'], semantics.property_name(c['path']))
             if 'old' in c or 'new' in c:
                 shown = semantics.M_SPEED if d.get('speed_m') and not d['meters'] else d['meters']
-                c['old_s'] = semantics.show(c.get('old'), shown, d.get('unit', ''), d.get('invert', False))
-                c['new_s'] = semantics.show(c.get('new'), shown, d.get('unit', ''), d.get('invert', False))
+                c['old_s'] = semantics.show(c.get('old'), shown, d.get('unit', ''), d.get('invert', False), minus)
+                c['new_s'] = semantics.show(c.get('new'), shown, d.get('unit', ''), d.get('invert', False), minus)
                 # the property itself, not a T1-T3 bonus to it (a bigger bonus there shrinks the downside)
                 worse = c['path'].startswith('m_mapAbilityProperties.') and semantics.property_name(c['path']) in downsides
                 if worse:
@@ -131,6 +145,11 @@ def enrich_record(rec: dict) -> dict:
                 if neg:
                     c['neg_base'] = True
                 dirn, pct = semantics.direction(c['path'], _num(c.get('old')), _num(c.get('new')), side, worse, neg)
+                c.pop('flag', None)
+                if flags.is_flag_field(c['path']):
+                    c['flag'] = True            # a bit set / enum a player plays with (pipeline.flags)
+                    if side not in semantics.SHARED_KINDS:
+                        dirn = flags.direction(c['path'], c.get('old'), c.get('new')) or dirn
                 c['dir'] = dirn
                 c['pct'] = None if pct is None else round(pct, 1)
                 c['grad'] = semantics.gradient(pct)

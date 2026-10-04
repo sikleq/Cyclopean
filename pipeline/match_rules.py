@@ -89,7 +89,9 @@ LABEL_SYNONYMS = {
     # a projectile's "collision size" / "hitbox" is its radius (Serrated Knives -10% tied with its velocity)
     'resist': {'armor', 'resistance'}, 'armor': {'resist'},
     'radius': {'range', 'aoe', 'area', 'size', 'collision', 'hitbox'}, 'health': {'hp'},
-    'range': {'radius'}, 'multiplier': {'range'}, 'chargeup': {'cooldown'}, 'cooldown': {'cd'},
+    # a passive item's cooldown is its "chargeup time" in the notes (Mystic Burst, Tankbuster, Quicksilver
+    # Reload 2025-05-19: "Chargeup time increased from 8s to 12s" left the cooldown hidden)
+    'range': {'radius'}, 'multiplier': {'range'}, 'chargeup': {'cooldown'}, 'cooldown': {'cd', 'chargeup'},
     'shock': {'chain'}, 'lifesteal': {'heal', 'healing'}, 'heal': {'healing', 'lifesteal'},
     'duration': {'time'}, 'charges': {'charge'}, 'barrier': {'shield'}, 'speed': {'velocity'},
     'velocity': {'speed'}, 'souls': {'bounty', 'gold'}, 'gold': {'souls', 'bounty'},
@@ -156,7 +158,8 @@ SCOPES: tuple[tuple[re.Pattern, object], ...] = (
     (re.compile(r'\bultimates?\b'), lambda e, c: e.get('ability_slot') == 'Signature_4'),
     (re.compile(r'\b(items?|upgrades?)\b'), lambda e, c: e.get('kind') == 'item'),
     (re.compile(r'\babilit(y|ies)\b'), lambda e, c: e.get('kind') == 'ability'),
-    (re.compile(r'\bheroes\b'), lambda e, c: e.get('kind') in ('hero', 'ability', 'weapon')),
+    # every hero's jump / dash / slide (kind 'shared' since 2026-10-04) is a hero thing too
+    (re.compile(r'\bheroes\b'), lambda e, c: e.get('kind') in ('hero', 'ability', 'weapon', 'shared')),
 )
 _PCT = re.compile(r'(increased|reduced|decreased|lowered|raised|by)\D{0,12}?~?(\d+(?:\.\d+)?)\s*%', re.I)
 _GLOBAL = re.compile(r'\b(all|every|global(ly)?|across the board)\b', re.I)

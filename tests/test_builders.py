@@ -539,13 +539,16 @@ def test_key_bindings_in_text_read_as_keys():
     assert _plain("{g:citadel_binding:1st:'Spectator.SpecNext'}Target") == '[Spec Next] Target'
 
 
-def test_no_limit_reads_as_infinity():
+def test_no_limit_reads_as_no_limit():
     from builders.cards import is_noop
     from builders.render import shown_value
-    assert shown_value('9999') == '∞' and shown_value('99999') == '∞' and shown_value('9999m') == '∞'
+    # one wording for 9999 and -1 (audit 2026-10-04: "∞ → no limit" read as a change)
+    assert shown_value('9999') == 'no limit' and shown_value('99999') == 'no limit' and shown_value('9999m') == 'no limit'
     assert shown_value('999') == '999'
-    # the two spellings of "no limit" are one value
+    # the spellings of "no limit" are one value
     assert is_noop({'op': 'change', 'old_s': '9999', 'new_s': '99999'})
+    assert is_noop({'op': 'change', 'old_s': '9999', 'new_s': '-1',
+                    'path': 'm_mapAbilityProperties.ChannelMoveSpeed.m_strValue'})
 
 
 def test_flags_written_without_spaces_read_as_words():

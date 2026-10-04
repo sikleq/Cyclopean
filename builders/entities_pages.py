@@ -186,13 +186,18 @@ def build_all() -> dict[str, int]:
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
     from .dynamics_page import hero_entries, matrix_html, toolbar
     from .heroes_grid import heroes_grid_html, pre_release_switch
+    from . import shared_page
+    shared = shared_page.shared_entities(list(ents.values()))
+    has_shared = shared_page.has_history(shared, by_ent)
+    if has_shared:
+        write(f'heroes/{shared_page.HREF}', shared_page.shared_page(shared, by_ent, by_subject))
     body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
-            f'<span class="sep"></span>{pre_release_switch(live)}</div>'
+            f'<span class="sep"></span>{pre_release_switch(live)}{shared_page.index_link() if has_shared else ""}</div>'
             + heroes_grid_html(live, other, trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
-    dyn = matrix_html(hero_entries(live, rel), 'hero')
+    dyn = matrix_html(hero_entries(live, rel) + ([shared_page.matrix_entry()] if has_shared else []), 'hero')
     write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
                                       + toolbar('hero', n_pre, 'Pre-release') + dyn, rel, 'heroes', wide=True))
 
@@ -272,7 +277,10 @@ def build_all() -> dict[str, int]:
     from .hero_page import current_cards
     from .site_search import INDEX_FILE, search_json, search_rows
     named = [(n, ms[0]) for n, ms in fams.items() if group_of(ms) != 'helper']
-    write(INDEX_FILE, search_json(search_rows(live, items, named, cards, current_cards)))
+    found = search_rows(live, items, named, cards, current_cards)
+    if has_shared:          # jump, dash, parry… open their own page (shared_page)
+        found = sorted(found + shared_page.search_rows(shared, by_ent), key=lambda r: (r[0].lower(), r[2]))
+    write(INDEX_FILE, search_json(found))
     from .dynamics_page import unit_entries
     entries = unit_entries(units, UNIT_GROUPS, rel)
     n_gone = sum(1 for e in entries if e[4])

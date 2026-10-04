@@ -114,6 +114,20 @@ def builds() -> tuple[Build, ...]:
     return tuple(pre + main)
 
 
+def is_game_build(b: Build) -> bool:
+    """A tracker commit for a game build: its subject starts with the build number ("6745 | 5 files |
+    …"). The tracker's own upkeep commits ("cleanup", "Dump exe, dedupe from stringsignore", "Migrate
+    to Github Action") are not builds: they made a `None_92d2d9d0` record and, at the head, a catalog
+    with "build": null and data commits named "tracker Dump" / "tracker Fail" (2026-10-04)."""
+    return b.build is not None
+
+
+def head_build() -> Build:
+    """The newest game build (an upkeep commit on top of it does not move it)."""
+    all_ = builds()
+    return next((b for b in reversed(all_) if is_game_build(b)), all_[-1])
+
+
 @lru_cache(maxsize=None)
 def _repo_of(rev: str) -> str:
     if rev == 'HEAD':

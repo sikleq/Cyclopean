@@ -169,6 +169,8 @@ def ids_to_names(s: str) -> str:
 
 
 _ID_PREFIX = re.compile(r'^(citadel_ability_|citadel_weapon_|citadel_|ability_|upgrade_|npc_)')
+# how Valve files a gun's parts, never what a player calls it: "shotgun shared base", "… shared weapon info"
+_WEAPON_PLUMBING = re.compile(r'_?shared(?:_base|_weapon_info)?$')
 
 
 def display_name(e: dict) -> str:
@@ -182,7 +184,19 @@ def pretty_id(eid: str, owner: str | None = None) -> str:
     development): internal ids are never shown. 'citadel_weapon_frank_set' -> 'Weapon',
     'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'."""
     if eid.startswith('citadel_weapon_'):
-        return 'Alt weapon' if eid.endswith(('_alt', '_set2', '_set_2')) else 'Weapon'
+        if eid.endswith(('_alt', '_set2', '_set_2')):
+            return 'Alt weapon'
+        # a hero's other guns say what tells them apart: Holliday had five "Weapon" groups (hand cannon,
+        # shotgun, shotgun backwards…; audit 2026-10-04). Only after the owner's own code: Atlas' gun is
+        # citadel_weapon_bull_set, Krill's citadel_weapon_digger_set — "Weapon (bull set)" put the code
+        # word on the hero matrix 58 times (review 2026-10-04)
+        rest = eid.removeprefix('citadel_weapon_')
+        code = (owner or '').removeprefix('hero_')
+        if not code or not rest.startswith(code + '_'):
+            return 'Weapon'
+        rest = re.sub(r'^set(?:_|$)', '', rest[len(code) + 1:])
+        rest = _WEAPON_PLUMBING.sub('', rest).replace('_', ' ').strip()
+        return f'Weapon ({rest})' if rest else 'Weapon'
     if eid.startswith('m_'):                 # a game-rules block: 'm_RejuvParams' -> 'Rejuv Params'
         from pipeline.semantics import humanize
         return humanize(eid)
@@ -195,6 +209,8 @@ def pretty_id(eid: str, owner: str | None = None) -> str:
     s = re.sub(r'^tier\dboss_', '', s)                    # a boss's own: 'tier2boss_aoe_wave' -> 'Aoe wave'
     s = re.sub(r'^ult(imate)?$', 'ultimate', s)
     s = re.sub(r'ability0?(\d)', r'ability \1', s).replace('_', ' ').strip()
+    if s.isdigit():
+        s = f'ability {s}'                                # 'thumper_ability_1' read as a group named "1"
     return s[:1].upper() + s[1:] if s else eid
 
 
