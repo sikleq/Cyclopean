@@ -70,6 +70,18 @@
       });
       // cells built later (Item Stats' stat columns) join the marked column
       table.addEventListener('statcols', function () { mark(state.dir !== 0 ? state.col : null); });
+      // back to the table's own order (Item Stats: its stat columns closed while one sorted the rows)
+      table.__sortedBy = function () { return state.dir !== 0 ? state.col : null; };
+      table.__resetSort = function () {
+        state.col = null;
+        state.dir = 0;
+        table.querySelectorAll('thead th.sorted').forEach(function (x) { x.classList.remove('sorted'); x.removeAttribute('data-arrow'); });
+        table.classList.remove('is-sorted');
+        var frag = document.createDocumentFragment();
+        original.forEach(function (r) { frag.appendChild(r); });
+        tbody.appendChild(frag);
+        mark(null);
+      };
       // row marking
       tbody.addEventListener('click', function (ev) {
         if (ev.target.closest('a, .sc')) return;
@@ -100,13 +112,17 @@
       var first = hist[0][2], last = hist[hist.length - 1][3];
       if (hist.length > 1 && typeof first === 'number' && typeof last === 'number' && first !== 0) {
         var p = (last - first) / Math.abs(first) * 100;
+        var odir = td.getAttribute('data-odir');
         html += '<div class="t-overall">Overall: ' + fmtNum(first, digits) + ' → ' + fmtNum(last, digits) +
-          ' <span class="' + dirClass(first, last, pol) + '">(' + (p > 0 ? '+' : '') + p.toFixed(1) + '%)</span></div>';
+          ' <span class="' + (odir ? 'dir-' + odir : dirClass(first, last, pol)) + '">(' + (p > 0 ? '+' : '') +
+          p.toFixed(1) + '%)</span></div>';
       }
       html += '<ol>';
       for (var i = hist.length - 1; i >= 0; i--) {
         var h = hist[i];
-        var cls = dirClass(h[2], h[3], pol);
+        // a step that carries its direction (Item Stats: the item page's own, drawbacks and signed
+        // penalties included) wins over the column's polarity
+        var cls = h[4] ? 'dir-' + h[4] : dirClass(h[2], h[3], pol);
         // the pill only when there is a real change to measure: a first value or a 0.0% step gets none
         var pill = '';
         if (typeof h[2] === 'number' && typeof h[3] === 'number' && h[2] !== 0) {
@@ -400,11 +416,20 @@
         var now = t.classList.contains('show-old');
         if (now !== old) { old = now; fit(); toEnd(); }
       }).observe(t, { attributes: true, attributeFilter: ['class'] });
-      var pending = false;
+      // a resize keeps the user's place: a height-only one (a phone's URL bar hiding while the page
+      // scrolls) does nothing, a new width keeps the same distance from the newest end — re-scrolling to
+      // the end threw a reader of older patches back to the newest ones (review 2026-10-04)
+      var pending = false, lastW = window.innerWidth;
       window.addEventListener('resize', function () {
-        if (pending) return;
+        if (pending || window.innerWidth === lastW) return;
         pending = true;
-        requestAnimationFrame(function () { pending = false; fit(); toEnd(); });
+        requestAnimationFrame(function () {
+          pending = false;
+          lastW = window.innerWidth;
+          var gap = sc.scrollWidth - sc.scrollLeft - sc.clientWidth;
+          fit();
+          sc.scrollLeft = Math.max(0, sc.scrollWidth - sc.clientWidth - gap);
+        });
       });
     });
   });
@@ -708,20 +733,26 @@
     window.__reheat = function () { if (btn.checked) all(); };
     // on by default where the page says so (Item Stats); a box the browser restored on "back" counts too
     if (btn.checked) all();
-    /* graded by rank (Sloppy's mana table): each column's distinct values ranked by size, the middle
-       fifth left plain, then 4 steps of green (better) or red (worse) — a binary +-14% hid the spread.
-       An item's stat chip ranks with its column; bonuses rank by size, so a -8% shred beats a -6% one. */
+    /* graded by rank (Sloppy's mana table): each column's distinct values ranked, the middle fifth left
+       plain, then 4 steps of green (better) or red (worse) — a binary +-14% hid the spread. An item's stat
+       chip ranks with its column. Values rank with their sign, as the column sorts: a stat column holds
+       bonuses, so a negative one (Spirit Sap's -30 Spirit Power, Weighted Shots' -14% Stamina Recovery
+       drawback) is the worst, not the biggest (by size they read deep green, review 2026-10-04).
+       A table with data-heat-by="tier" ranks within each row's tier (items of one price); "Souls per
+       point" evens the price out and ranks over all. */
     function heat(table, on) {
       table.querySelectorAll('.' + CLS.join(', .')).forEach(function (el) { el.classList.remove.apply(el.classList, CLS); });
       if (!on) return;
       var cols = {};
+      var by = table.classList.contains('per-soul') ? null : table.getAttribute('data-heat-by');
       // the heat's direction: data-hpol when set ("Souls per point": cheaper per point is better; a
       // price column: no heat), else the stat's own data-pol, which the history tooltip reads too
       table.querySelectorAll('tbody td[data-col], tbody .sc[data-col]').forEach(function (el) {
         var v = parseFloat(el.getAttribute('data-sort'));
         var pol = parseInt(el.getAttribute('data-hpol') || el.getAttribute('data-pol') || '1', 10);
         if (isNaN(v) || pol === 0) return;
-        (cols[el.getAttribute('data-col')] = cols[el.getAttribute('data-col')] || []).push([Math.abs(v), el, pol]);
+        var key = el.getAttribute('data-col') + (by ? '|' + el.closest('tr').getAttribute('data-' + by) : '');
+        (cols[key] = cols[key] || []).push([v, el, pol]);
       });
       Object.keys(cols).forEach(function (k) {
         var list = cols[k];
@@ -753,21 +784,33 @@
       if (!cats.length) return;
       function shown(el) { return getComputedStyle(el).display !== 'none'; }
       function ofGroup(g) { return heads.filter(function (h) { return h.getAttribute('data-group') === g; }); }
-      function setOff(h, off) {
+      // a column's cells change only when its state does (or `all`: cells built since, Item Stats' stat
+      // columns, take their header's state)
+      function setOff(h, off, all) {
+        if (!all && h.classList.contains('grp-off') === off) return;
         h.classList.toggle('grp-off', off);
         table.querySelectorAll('td[data-col="' + h.getAttribute('data-col') + '"]').forEach(function (td) {
           td.classList.toggle('grp-off', off);
         });
       }
-      function refold(th) {
-        var hs = ofGroup(th.getAttribute('data-group'));
-        hs.forEach(function (h) { setOff(h, false); });
-        if (!th.classList.contains('folded')) return;
-        var keep = hs.filter(function (h) { return !h.classList.contains('col-off') && shown(h); })[0];
-        hs.forEach(function (h) { if (h !== keep) setOff(h, true); });
+      function shownUnfolded(h) {        // would the header show if its group were open (header only)
+        if (!h.classList.contains('grp-off')) return shown(h);
+        h.classList.remove('grp-off');
+        var s = shown(h);
+        h.classList.add('grp-off');
+        return s;
       }
-      function recount() {
-        cats.forEach(function (th) { if (th.classList.contains('folded')) refold(th); });
+      function refold(th, all) {
+        var hs = ofGroup(th.getAttribute('data-group'));
+        var folded = th.classList.contains('folded');
+        var keep = folded ? hs.filter(function (h) { return !h.classList.contains('col-off') && shownUnfolded(h); })[0] : null;
+        hs.forEach(function (h) { setOff(h, folded && h !== keep, all); });
+      }
+      /* every group, folded or not: a group just unfolded has to drop its grp-off too — refolding only the
+         folded ones left an unfolded group's columns hidden for good (review 2026-10-04: Hero Stats 34 ->
+         21 -> 21 columns on fold / unfold) */
+      function recount(all) {
+        cats.forEach(function (th) { refold(th, all === true); });
         cats.forEach(function (th) {
           var n = ofGroup(th.getAttribute('data-group')).filter(shown).length;
           th.classList.toggle('col-gone', !n);
@@ -790,7 +833,7 @@
       document.querySelectorAll('[data-toggle-class]').forEach(function (b) {
         b.addEventListener('click', function () { setTimeout(recount, 0); });
       });
-      table.addEventListener('statcols', recount);
+      table.addEventListener('statcols', function () { recount(true); });
       recount();
     });
   });
@@ -877,11 +920,15 @@
       var on = !!(per && per.checked);
       table.querySelectorAll('[data-spp]').forEach(function (el) { spp(el, on); });
     }
-    if (per) per.addEventListener('change', function () {
+    function perSoul() {
       table.classList.toggle('per-soul', per.checked);
       sppAll();
       if (window.__reheat) window.__reheat();
-    });
+    }
+    if (per) {
+      per.addEventListener('change', perSoul);
+      if (per.checked) perSoul();               // the browser restored the box on "back": values follow it
+    }
 
     /* Stat columns: the always-on stats as one sortable column each (by family). Their cells are not in
        the page — built here from each row's chips the first time the columns open. */
@@ -929,7 +976,13 @@
       if (window.__reheat) window.__reheat();
     }
     if (sw) {
-      sw.addEventListener('change', function () { if (sw.checked) build(); });
+      sw.addEventListener('change', function () {
+        if (sw.checked) { build(); return; }
+        // closed while one of them sorted the rows: no visible header would show or undo that sort
+        var col = table.__sortedBy && table.__sortedBy();
+        var th = col && table.querySelector('thead tr.cols th[data-col="' + col + '"]');
+        if (th && th.hasAttribute('data-cell-cls') && table.__resetSort) table.__resetSort();
+      });
       if (sw.checked) {                          // the browser restored the box on "back"
         table.classList.add('cols-open');
         build();

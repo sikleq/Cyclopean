@@ -818,6 +818,55 @@ def test_item_table_bands_tiers_and_lazy_columns():
     assert '<th colspan="2" class="cat stc" data-group="Vitality">' in html
 
 
+def test_item_effects_mark_the_active_and_recent_losses():
+    """Review 2026-10-04: "+70% Spirit Lifesteal" while Infuser runs sat beside its always-on +13% with
+    nothing between them; a number the item lost left no trace on the table."""
+    from builders.tables_pages import effects_cell
+    row = {**BOOSTER, 'effects': BOOSTER['effects'] + [
+        {'key': 'fx:Lifesteal', 'label': 'Spirit Lifesteal', 'value': '+70%', 'css': None, 'pol': 1, 'digits': 0,
+         'active': True}],
+        'removed': [{'key': 'fx:PerKill', 'label': 'Weapon Damage per Kill', 'css': None, 'pol': 1, 'digits': 0,
+                     'history': [[6700, '2026-09-20', 10.0, None, 'changed']]},
+                    {'key': 'fx:Old', 'label': 'Old Thing', 'css': None, 'pol': 1, 'digits': 0,
+                     'history': [[5000, '2024-08-01', 3.0, None, 'changed']]}],
+        'odir': {'fx:HeadShotBonusDamage': 'buff'}}
+    html = effects_cell(row, '2026-08-20')
+    # the "Active" tag before the first active number, which is framed apart
+    assert html.index('<span class="fx-tag">Active</span>') < html.index('class="fx fx-act')
+    assert html.index('Head Shot Bonus Damage') < html.index('fx-tag')
+    # lost lately: struck through with its history; lost long ago: only on the item's page
+    assert 'class="fx fx-gone has-hist recent"' in html and '<b>10</b> <i>Weapon Damage per Kill</i>' in html
+    assert 'Old Thing' not in html
+    assert 'data-sort="2"' in html                                      # what the item does now
+    assert 'data-odir="buff"' in html                                   # the whole history's direction
+
+
+def test_item_stats_refuse_an_old_items_json():
+    """Review 2026-10-04: the old items.json built a broken page (two Stats groups, empty cells) without
+    failing; CI deploys committed data, so a stale file must stop the build."""
+    import pytest
+    from builders.tables_pages import check_items_data
+    with pytest.raises(RuntimeError, match='old format'):
+        check_items_data({'columns': ITEM_COLS[:2], 'items': [{'id': 'x', 'values': {}}]})
+    with pytest.raises(RuntimeError):
+        check_items_data({'columns': ITEM_COLS, 'items': [{'id': 'x', 'values': {}}]})
+    check_items_data({'columns': ITEM_COLS, 'items': [BOOSTER]})
+
+
+def test_item_unknown_stat_family_is_one_group_before_effects():
+    """A new provided stat no family word matches is "Other", next to the stat families: as "Utility" it
+    sat before Effect while Cooldown sat after it — two "Utility" groups the folding merged by name."""
+    from builders.tables_pages import item_columns, render_table
+    new = {'key': 'something_new', 'label': 'New', 'group': 'Other', 'pol': 1, 'digits': 0, 'unit': '', 'stat': True}
+    cols = item_columns(ITEM_COLS[:4] + [new] + ITEM_COLS[4:])
+    groups = [c['group'] for c in cols]
+    assert groups == ['Shop', 'Shop', 'Stats', 'Vitality', 'Vitality', 'Other', 'Effect', 'Utility', 'Builds']
+    html = render_table(cols, [BOOSTER], lambda r: '<td class="name"></td>', 'Item',
+                        cells_by_key={'stats': lambda r, c, cut: '<td></td>', 'effect': lambda r, c, cut: '<td></td>',
+                                      'builds': lambda r, c, cut: '<td></td>'}, table_attrs=' data-heat-by="tier"')
+    assert html.count('data-group="Utility">') == 1 and '<table class="stats" data-heat-by="tier">' in html
+
+
 def test_table_bar_scrolls_away_and_its_legend_wraps():
     """The sticky bar covered the column headers (a third of a phone); the 489px legend chip scrolled
     the page sideways at 390px; the heatmap is on by default on Item Stats."""

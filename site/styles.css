@@ -636,6 +636,11 @@ table.tier-grid { width: auto; min-width: 420px; border-collapse: collapse; }
 table.tier-grid th, table.tier-grid td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
 table.tier-grid td:first-child { text-align: left; color: var(--label); }
 table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bright); text-transform: uppercase; }
+/* a phone: the grid fits its box (420px in a 332px box cut the third tier off, frontend-audit 9) */
+@media (max-width: 760px) {
+  table.tier-grid { min-width: 0; width: 100%; }
+  table.tier-grid th, table.tier-grid td { padding: 5px 6px; }
+}
 @media (max-width: 700px) {
   .erow { grid-template-columns: 22px 86px minmax(0, 1fr); }
   .erow .vv { grid-column: 3; text-align: left; white-space: normal; max-width: 100%; overflow-wrap: anywhere; }
@@ -1715,6 +1720,13 @@ table.per-soul .sc b { color: var(--patina-strong); }
   text-underline-offset: 3px; }
 .sc.recent::after, .fx.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
   border-top: 6px solid var(--patina); border-left: 6px solid transparent; }
+/* what the item's active gives: after an "Active" tag, framed dashed (not the always-on numbers) */
+.fx-tag { align-self: center; padding: 0 2px 0 4px; font: 13px/1 var(--font-label); color: var(--text-dimmer);
+  text-transform: uppercase; letter-spacing: .08em; }
+.fx.fx-act { box-shadow: none; outline: 1px dashed var(--grid-strong); outline-offset: -1px; }
+/* a number the item lost lately, struck through */
+.fx.fx-gone { opacity: .6; }
+.fx.fx-gone b { text-decoration: line-through; }
 @media (max-width: 600px) {
   .chip.legend-hist .lg-tail { display: none; }
   /* a phone sees the numbers first: no Builds column, names may wrap */

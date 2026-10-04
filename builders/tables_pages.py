@@ -77,15 +77,19 @@ def non_empty(cols: list[dict], rows: list[dict]) -> list[dict]:
     return [c for c in cols if any(r['values'].get(c['key']) is not None for r in rows)]
 
 
-def hist_attrs(hist: list | None, digits: int, title: str, cutoff: str) -> tuple[list[str], str]:
+def hist_attrs(hist: list | None, digits: int, title: str, cutoff: str,
+               odir: str | None = None) -> tuple[list[str], str]:
     """(classes, attributes) of a value with a change history: the hover table's data, a corner notch
     when it changed lately. A step the column's rounding cannot show is not a change to a reader (Max
-    DPS 122.925 -> 122.9251 sat in Abrams' history, 2026-10-03)."""
+    DPS 122.925 -> 122.9251 sat in Abrams' history, 2026-10-03). A step may carry its direction as a
+    fifth element and `odir` the whole history's (Item Stats: semantics.direction, as on the item's
+    page); without them scripts.js judges by the column's polarity."""
     hist = [h for h in hist or [] if not _same_shown(h[2], h[3], digits)]
     if not hist:
         return [], ''
     cls = ['has-hist'] + (['recent'] if str(hist[-1][1])[:10] >= cutoff else [])
-    return cls, json_attr('data-hist', hist) + f' data-title="{esc(title)}"'
+    extra = f' data-odir="{esc(odir)}"' if odir else ''
+    return cls, json_attr('data-hist', hist) + f' data-title="{esc(title)}"' + extra
 
 
 def _head_label(c: dict, rel: str) -> str:
@@ -104,12 +108,14 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                  cell_attrs: Callable[[dict, dict], str] | None = None,
                  row_attrs: Callable[[dict], str] | None = None,
                  cells_by_key: dict[str, Callable[[dict, dict, str], str]] | None = None,
-                 group_cls: dict[str, str] | None = None, rel: str = '../', center: bool = False) -> str:
+                 group_cls: dict[str, str] | None = None, rel: str = '../', center: bool = False,
+                 table_attrs: str = '') -> str:
     """`cells_by_key`: a column whose cell is not one number (items: the stats as chips, the effects,
     what an item builds from and into) — builder(row, column, cutoff) -> '<td…>'. A column's own `cls`
     goes on its header and cells, a group's (`group_cls`) on its group header; a `lazy` column has no
     cells (scripts.js builds them). `section_of` -> a band row before each new section: its label, or
-    (label, row attributes). `center`: the box sits in the middle of the page when narrower."""
+    (label, row attributes). `center`: the box sits in the middle of the page when narrower.
+    `table_attrs`: extra attributes of the <table> (Item Stats' data-heat-by)."""
     cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
     for c in cols:
@@ -166,7 +172,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                 cls.append(tint)
             if v == 0 and isinstance(v, (int, float)):
                 cls.append('zero')                  # a zero reads quieter than a number (Sloppy's regen 0)
-            hcls, hattrs = hist_attrs(r['history'].get(c['key']), c['digits'], f'{r["name"]} · {c["label"]}', cutoff)
+            hcls, hattrs = hist_attrs(r['history'].get(c['key']), c['digits'], f'{r["name"]} · {c["label"]}', cutoff,
+                                      (r.get('odir') or {}).get(c['key']))
             cls += hcls
             attrs += hattrs
             cells.append(f'<td class="{" ".join(cls)}"{attrs}>{_fmt(v, c["digits"])}</td>')
@@ -183,7 +190,7 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
     # the fade on the right edge says "more columns this way" until the table is scrolled to its end
     tid = f' id="{esc(table_id)}"' if table_id else ''
     fade = 'table-fade center' if center else 'table-fade'
-    return (f'<div class="{fade}"><div class="table-scroll"><table class="stats"{tid}><thead>{cat_row}{col_row}</thead>'
+    return (f'<div class="{fade}"><div class="table-scroll"><table class="stats"{tid}{table_attrs}><thead>{cat_row}{col_row}</thead>'
             f'<tbody>{"".join(body)}</tbody></table></div></div>')
 
 
@@ -418,7 +425,7 @@ def units_table() -> str:
 
 ITEM_SECTIONS = (('Weapon', 'w', 'courage'), ('Spirit', 's', 'spirit'), ('Vitality', 'v', 'fortitude'))
 # stat families (pipeline.item_table.family) -> the class that colours their numbers
-FAMILY_CSS = {'Weapon': 'f-w', 'Spirit': 'f-s', 'Vitality': 'f-v', 'Movement': 'f-m', 'Utility': 'f-u'}
+FAMILY_CSS = {'Weapon': 'f-w', 'Spirit': 'f-s', 'Vitality': 'f-v', 'Movement': 'f-m', 'Other': 'f-u', 'Utility': 'f-u'}
 STATS_COL = {'key': 'stats', 'label': 'Always on', 'group': 'Stats', 'cls': 'sumc', 'nosort': True, 'pol': 0, 'digits': 0}
 EFFECT_COL = {'key': 'effect', 'label': 'Passive · Active', 'group': 'Effect', 'cls': 'fxc', 'nosort': True, 'pol': 0,
               'digits': 0}
@@ -453,7 +460,8 @@ def stats_cell(row: dict, stat_cols: list[dict], cutoff: str, rel: str = '../') 
     chips, gone = [], []
     for c in stat_cols:
         v = row['values'].get(c['key'])
-        hcls, hattrs = hist_attrs(row['history'].get(c['key']), c['digits'], f'{row["name"]} · {c["label"]}', cutoff)
+        hcls, hattrs = hist_attrs(row['history'].get(c['key']), c['digits'], f'{row["name"]} · {c["label"]}', cutoff,
+                                  (row.get('odir') or {}).get(c['key']))
         if v is None:
             # a stat the item no longer gives keeps its history for the column view (an empty marker)
             if hattrs:
@@ -471,14 +479,30 @@ def stats_cell(row: dict, stat_cols: list[dict], cutoff: str, rel: str = '../') 
 
 def effects_cell(row: dict, cutoff: str, rel: str = '../') -> str:
     """Every other number on the item's card (Headshot Booster's +45 Head Shot Bonus Damage), labelled,
-    with units, each with its own history."""
-    chips = []
+    with units, each with its own history. What the item's active gives follows an "Active" tag and is
+    framed apart (`fx-act`): Infuser's +70% Spirit Lifesteal while it runs is not its always-on +13%.
+    A number the item lost lately (within the corner notch's window) stays a moment, struck through."""
+    chips, tagged = [], False
     for e in row.get('effects') or []:
-        hcls, hattrs = hist_attrs(row['history'].get(e['key']), e['digits'], f'{row["name"]} · {e["label"]}', cutoff)
+        hcls, hattrs = hist_attrs(row['history'].get(e['key']), e['digits'], f'{row["name"]} · {e["label"]}', cutoff,
+                                  (row.get('odir') or {}).get(e['key']))
         attrs = f' data-pol="{e["pol"]}" data-digits="{e["digits"]}"{hattrs}'
-        chips.append(_chip(' '.join(['fx'] + hcls), e['value'], e['label'], e.get('css'), attrs, rel))
+        if e.get('active') and not tagged:
+            chips.append('<span class="fx-tag">Active</span>')
+            tagged = True
+        cls = ['fx'] + (['fx-act'] if e.get('active') else []) + hcls
+        chips.append(_chip(' '.join(cls), e['value'], e['label'], e.get('css'), attrs, rel))
+    n = len(row.get('effects') or [])
+    for x in row.get('removed') or []:
+        hist = x.get('history') or []
+        if not hist or str(hist[-1][1])[:10] < cutoff:
+            continue
+        hcls, hattrs = hist_attrs(hist, x['digits'], f'{row["name"]} · {x["label"]}', cutoff)
+        attrs = f' data-pol="{x["pol"]}" data-digits="{x["digits"]}"{hattrs}'
+        chips.append(_chip(' '.join(['fx', 'fx-gone'] + hcls), _fmt(hist[-1][2], x['digits']), x['label'],
+                           x.get('css'), attrs, rel))
     inner = f'<div class="chips">{"".join(chips)}</div>' if chips else '<span class="dash">—</span>'
-    return f'<td class="fxc grp-start" data-col="effect" data-sort="{len(chips) or ""}" data-pol="0">{inner}</td>'
+    return f'<td class="fxc grp-start" data-col="effect" data-sort="{n or ""}" data-pol="0">{inner}</td>'
 
 
 def tier_starts(rows: list[dict]) -> set[str]:
@@ -492,10 +516,37 @@ def tier_starts(rows: list[dict]) -> set[str]:
     return out
 
 
+def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
+    """Item Stats' toolbar: category / tier / kind chips, the "Stat columns" and "Souls per point" switches
+    (scripts.js item-filter)."""
+    return ('<span class="it-filter">'
+            + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}">{cat_icon(ik)}{esc(slot)}</button>'
+                      for slot, css, ik in ITEM_SECTIONS)
+            + '</span><span class="sep"></span><span class="it-filter">'
+            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}">Tier {r}</button>'
+                      for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
+            + '</span><span class="sep"></span><span class="it-filter">'
+            + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}">{lbl}</button>'
+                      for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))
+            + '</span><span class="sep"></span><label class="switch"><input type="checkbox" data-stat-cols '
+              'data-toggle-class="cols-open" data-target="#items-table"><span class="track"></span>Stat columns</label>'
+              '<label class="switch"><input type="checkbox" data-souls-per>'
+              '<span class="track"></span>Souls per point</label>')
+
+
+def check_items_data(t: dict) -> None:
+    """The page reads the card-based items.json (columns with `stat`, rows with `effects`); an older file
+    rendered two "Stats" groups and empty cells without failing the build (review 2026-10-04) — stop."""
+    if not any(c.get('stat') for c in t.get('columns') or []) or any('effects' not in r for r in t.get('items') or []):
+        raise RuntimeError('data/tables/items.json is in the old format (no stat columns / row effects): '
+                         'regenerate it with pipeline.item_table (build_site.py --data --no-sync)')
+
+
 def items_table() -> str:
     from .common import icon
     rel = '../'
     t = load_json('tables/items.json')
+    check_items_data(t)
     cards = load_json('abilities.json')['abilities']
 
     def name_cell(it):
@@ -548,19 +599,7 @@ def items_table() -> str:
     def cat_icon(ik: str) -> str:
         src = icon(f'prop:{ik}', rel)
         return f'<img class="cat-i" src="{esc(src)}" alt="">' if src else ''
-    chips = ('<span class="it-filter">'
-             + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}">{cat_icon(ik)}{esc(slot)}</button>'
-                       for slot, css, ik in ITEM_SECTIONS)
-             + '</span><span class="sep"></span><span class="it-filter">'
-             + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}">Tier {r}</button>'
-                       for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
-             + '</span><span class="sep"></span><span class="it-filter">'
-             + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}">{lbl}</button>'
-                       for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))
-             + '</span><span class="sep"></span><label class="switch"><input type="checkbox" data-stat-cols '
-               'data-toggle-class="cols-open" data-target="#items-table"><span class="track"></span>Stat columns</label>'
-               '<label class="switch"><input type="checkbox" data-souls-per>'
-               '<span class="track"></span>Souls per point</label>')
+    chips = item_filter_chips(cat_icon)
     # a band row per category (Weapon → Spirit → Vitality) and a divider at each new tier; both stand
     # aside while the table is sorted by a column (scripts.js table-sort)
     n_in = {slot: sum(1 for r in rows if r.get('slot') == slot) for slot, _, _ in ITEM_SECTIONS}
@@ -590,7 +629,11 @@ def items_table() -> str:
                          cell_attrs=cell_attrs,
                          cells_by_key={'stats': lambda r, c, cut: stats_cell(r, stat_cols, cut, rel),
                                        'effect': lambda r, c, cut: effects_cell(r, cut, rel), 'builds': builds},
-                         group_cls=group_cls, rel=rel, center=True)
+                         group_cls=group_cls, rel=rel, center=True,
+                         # the heat compares items of one tier (one price): ranked over all tiers every
+                         # tier-I number read red and every tier-IV one green; "Souls per point" evens
+                         # the price out, so it ranks over all (scripts.js heatmap)
+                         table_attrs=' data-heat-by="tier"')
     body = ('<h1>Item Stats</h1>' + section_tabs('items', 'stats')
             + _toolbar('Item…', extra='<span class="sep"></span>' + chips, heat_on=True) + table)
     return page('Item Stats', body, rel, 'items', build=t['build'],

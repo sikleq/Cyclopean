@@ -79,6 +79,98 @@ def test_item_numbers_come_from_its_card():
     assert evaluate(a, [])['tech_power'] == 14 and evaluate(b, [])['tech_power'] == 20
 
 
+def test_item_stat_on_a_trigger_is_an_effect():
+    """Review 2026-10-04: Spirit Sap's -30 Spirit Power (the active's debuff on the target) was an
+    always-on chip because the game left its usage flags empty; Active Reload's Move Speed after a
+    perfect reload too (a Passive section with its own cooldown / duration)."""
+    from pipeline.item_table import evaluate
+    sap = _item([('Innate', ['BonusHealth']), ('Active', ['TechPowerReduction'])],
+                {'BonusHealth': {'m_strValue': '50', 'm_eProvidedPropertyType': HP},
+                 'TechPowerReduction': {'m_strValue': '-30', 'm_eProvidedPropertyType': SP}})
+    assert evaluate(sap, []) == {'tier': 1, 'cost': None, 'health_max': 50.0, 'fx:TechPowerReduction': -30.0}
+    move = {'m_strValue': '0.75m', 'm_eProvidedPropertyType': 'MODIFIER_VALUE_MOVEMENT_SPEED_MAX'}
+    reload_ = _item([('Passive', ['BonusMoveSpeed', 'AbilityDuration'])],
+                    {'BonusMoveSpeed': move, 'AbilityDuration': {'m_strValue': '7'}})
+    assert 'fx:BonusMoveSpeed' in evaluate(reload_, [])
+    # a plain Passive stat (Superior Cooldown's +20% cooldown reduction) stays a stat
+    cdr = {'m_strValue': '20', 'm_eProvidedPropertyType': 'MODIFIER_VALUE_COOLDOWN_REDUCTION_PERCENTAGE'}
+    assert 'cooldown_reduction_percentage' in evaluate(_item([('Passive', ['CooldownReduction'])],
+                                                             {'CooldownReduction': cdr}), [])
+
+
+def _history(builds: list[tuple[int, dict]]) -> dict:
+    """item_table's history of 'upgrade_x' over [(build, item)] (newest last), as build() assembles it."""
+    from pipeline.item_table import _raw_keys, collect, evaluate, item_history
+    snaps = [(b, f'2026-01-{b:02d}', {'upgrade_x': it}, [0, 800]) for b, it in builds]
+    series, metas, enums = collect(snaps)
+    last = builds[-1][1]
+    raw, now = _raw_keys(last), evaluate(last, [0, 800])
+    cols = {k for k in now if not k.startswith('fx:')}
+    return item_history(series['upgrade_x'], metas['upgrade_x'], raw, now, cols, enums.aliases())
+
+
+OLD_WD, NEW_WD = 'MODIFIER_VALUE_BASEATTACK_DAMAGE_PERCENT', 'MODIFIER_VALUE_WEAPON_DAMAGE_INCREASE'
+
+
+def test_item_history_follows_the_property_not_the_stat_name():
+    """Review 2026-10-04: keyed by the provided stat, Valve's enum rename (6541) and a property newly
+    listed on the card made 77 fake "added" entries and dropped what came before (Extended Magazine's
+    Weapon Damage 15 -> 12 -> 6 -> 8 read "added 2026-06-03: 8")."""
+    def mag(wd: str, ptype: str, card=('WeaponDamage',)):
+        return _item([('Innate', list(card))],
+                     {'WeaponDamage': {'m_strValue': wd, 'm_eProvidedPropertyType': ptype},
+                      'Close': {'m_strValue': '15m'}})
+    h = _history([(1, mag('15', OLD_WD)), (2, mag('12', OLD_WD)),       # a change before the rename stays
+                  (3, mag('12', NEW_WD)),                                # renamed enum, same value: nothing
+                  (4, mag('12', NEW_WD, ('WeaponDamage', 'Close')))])    # newly on the card: no addition
+    assert h['history'] == {'weapon_damage_increase': [[2, '2026-01-02', 15.0, 12.0, 'nerf']]}
+    assert h['removed'] == []
+
+
+def test_item_history_joins_a_renamed_property():
+    """A property renamed with the stat it gives (BonusSpirit -> TechPower) keeps its predecessor's
+    history; a respelled plain number (…TooltipOnly, a typo fixed) too, but not a coincidence."""
+    def it(props: dict, card: list):
+        return _item([('Innate', card)], props)
+    old = {'BonusSpirit': {'m_strValue': '25', 'm_eProvidedPropertyType': SP},
+           'RicochetTargetsTooltipOnly': {'m_strValue': '2'}, 'MaxStacks': {'m_strValue': '20'}}
+    new = {'TechPower': {'m_strValue': '8', 'm_eProvidedPropertyType': SP},
+           'RicochetTargets': {'m_strValue': '2'}, 'AbilityCooldown': {'m_strValue': '20'}}
+    h = _history([(1, it(old, list(old))), (2, it(old, list(old))), (3, it(new, list(new)))])
+    assert h['history']['tech_power'] == [[3, '2026-01-03', 25.0, 8.0, 'nerf']]
+    assert 'fx:RicochetTargets' not in h['history']
+    # MaxStacks 20 -> a 20s cooldown is not one property: the cooldown is new, the stacks are gone
+    assert h['history']['cooldown'] == [[3, '2026-01-03', None, 20.0, 'changed']]
+    assert [(r['key'], r['history']) for r in h['removed']] == \
+        [('fx:MaxStacks', [[3, '2026-01-03', 20.0, None, 'changed']])]
+
+
+def test_item_history_steps_carry_the_item_pages_direction():
+    """Review 2026-10-04: the table coloured |new| vs |old| under one polarity, 33 steps opposite to the
+    item page: Toxic Bullets' anti-heal -30 -> -35 is a buff, Glass Cannon's drawback -15 -> -13 too."""
+    def it(heal: str, loss: str):
+        return _item([('Innate', ['MaxHealthLossPercent']), ('Passive', ['HealAmpReceivePenaltyPercent'])],
+                     {'HealAmpReceivePenaltyPercent': {'m_strValue': heal, 'm_eStatsUsageFlags': 'ConditionallyApplied',
+                                                       'm_eProvidedPropertyType': 'MODIFIER_VALUE_HEAL_AMP_RECEIVE_PERCENT'},
+                      'MaxHealthLossPercent': {'m_strValue': loss, 'm_bIsNegativeAttribute': 'true',
+                                               'm_eProvidedPropertyType': 'MODIFIER_VALUE_HEALTH_MAX_PERCENT'}})
+    h = _history([(1, it('-30', '-15')), (2, it('-35', '-13'))])
+    assert h['history']['fx:HealAmpReceivePenaltyPercent'] == [[2, '2026-01-02', -30.0, -35.0, 'buff']]
+    assert h['history']['health_max_percent'] == [[2, '2026-01-02', -15.0, -13.0, 'buff']]
+    assert h['odir'] == {'fx:HealAmpReceivePenaltyPercent': 'buff', 'health_max_percent': 'buff'}
+
+
+def test_item_card_speeds_print_metres_per_second():
+    """Review 2026-10-04: Sprint Speed chips said "+2m" under an "m/s" column."""
+    from pipeline.abilities import is_speed
+    from pipeline.item_table import _unit
+    assert is_speed({'m_eProvidedPropertyType': 'MODIFIER_VALUE_SPRINT_SPEED_BONUS'})
+    assert is_speed({'m_eDisplayType': 'EMaxMoveSpeed'})
+    assert not is_speed({'m_eProvidedPropertyType': 'MODIFIER_VALUE_MOVEMENT_SPEED_SLOW_PERCENT'})
+    assert not is_speed({'m_eProvidedPropertyType': 'MODIFIER_VALUE_TECH_RANGE_PERCENT'})
+    assert _unit('+2m', 'MODIFIER_VALUE_SPRINT_SPEED_BONUS') == 'm/s' and _unit('15m') == 'm'
+
+
 def test_stat_families_by_the_provided_stat():
     from pipeline.item_table import family
     assert family('MODIFIER_VALUE_WEAPON_DAMAGE_INCREASE') == 'Weapon'
@@ -86,7 +178,8 @@ def test_stat_families_by_the_provided_stat():
     assert family('MODIFIER_VALUE_MOVEMENT_SLOW_RESISTANCE') == 'Vitality'
     assert family('MODIFIER_VALUE_SPRINT_SPEED_BONUS') == 'Movement'
     assert family('MODIFIER_VALUE_TECH_POWER') == 'Spirit'
-    assert family('MODIFIER_VALUE_SOMETHING_NEW') == 'Utility'                 # never dropped
+    # never dropped, and never a second "Utility" group apart from cooldown / duration (it broke folding)
+    assert family('MODIFIER_VALUE_SOMETHING_NEW') == 'Other'
 
 
 def test_item_columns_are_the_stats_several_items_give():
