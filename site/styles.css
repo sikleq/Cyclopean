@@ -1255,9 +1255,16 @@ a.au.au-hidden:hover b { text-decoration: underline; }
 .game-card .glyph { color: var(--label); }
 .dyn td.name .mx-g { display: inline-block; width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; color: var(--label); }
 /* Game rules: one table, a band row per system; centred cells and translucent lines both ways, names left */
-table.game-rules { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 560px; }
-table.game-rules th, table.game-rules td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
-table.game-rules thead th { font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
+/* the page is one centred column: heading, tabs, search and the table share its width; the table scrolls with the
+   page, its head sticks under the site bar (no box of its own: a double scroll over 200 rows) */
+.rules-col { width: fit-content; max-width: 100%; margin-inline: auto; }
+.rules-col > .toolbar { position: static; margin-bottom: 10px; }
+table.game-rules { border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums;
+  min-width: 560px; border-left: 1px solid var(--grid); border-top: 1px solid var(--grid); }
+table.game-rules th, table.game-rules td { padding: 5px 14px; text-align: center; border-right: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid); }
+table.game-rules thead th { position: sticky; top: var(--nav-h); z-index: var(--z-sticky); background: var(--bg-panel-2);
+  font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
 table.game-rules td.nm { text-align: left; color: var(--text-main); }
 table.game-rules td.v { color: var(--text-bright); white-space: nowrap; }
 table.game-rules td.has-hist { cursor: help; text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }

@@ -156,6 +156,23 @@ def test_the_rules_table_has_todays_values_and_their_history(monkeypatch):
     assert spawn['value'] == '38' and [h[2:] for h in spawn['hist']] == [[30, 35], [35, 38]]
     assert 'citadel_player_spawn_time_max_ramp_1' in html and 'citadel_hud_scale' not in html
     assert re.search(r'data-hist=.*?\[6694,"2026-09-16",35,38\]', html)
+    # review 2026-10-05: a search over the variables, no scroll box of its own, a variable added since the
+    # tracking began reads NEW (not "—" beside a date)
+    assert 'data-search-target="table.game-rules tbody tr:not(.sec)"' in html and 'table-scroll' not in html
+    added = rules_page(raw + [({'id': '2026-09-20', 'date': '2026-09-20'},
+                               [cv('citadel_player_spawn_time_min', op='add', new='5', build=6700)])])
+    row = added.split('citadel_player_spawn_time_min</code>')[1].split('</tr>')[0]
+    assert 'class="tag new"' in row
+
+
+def test_the_designers_test_objects_are_on_no_game_page():
+    """Review 2026-10-05: "Item projectile test 01, … + 4 more" led the Shop page, "Herotest orbspawner" sat on
+    Souls; the Hero Labs target dummy is real."""
+    from builders.game_systems import is_dev, place_entity
+    for eid in ('item_projectile_test_01', 'citadel_herotest_orbspawner', 'neutral_camp_bug_herotest', 'x_debug'):
+        assert is_dev({'id': eid}) and place_entity(f'misc.vdata:{eid}', {'file': 'misc.vdata', 'id': eid}) is None
+    for eid in ('hero_targetdummy', 'citadel_breakable_latest', 'testament'):
+        assert not is_dev({'id': eid}), eid
 
 
 # ---- templates --------------------------------------------------------------------------------------------------
@@ -364,12 +381,13 @@ needs_data = pytest.mark.skipif(not _regenerated(), reason='data/patches predate
 @needs_data
 def test_every_gameplay_row_lands_on_a_hero_item_unit_or_game_page():
     """Except a template's change one of its heirs shows (the heir's page has it) and work on a hero in development
-    whose page waits (behind "Before release"); scenery (classify.decor_entity) is no gameplay."""
+    whose page waits (behind "Before release"); scenery (classify.decor_entity) and the designers' test objects
+    (game_systems.is_dev) are no gameplay."""
     from builders.cards import player_facing
     from builders.common import load_json
     from builders.entities_pages import _history, changed, page_entities, page_keys
     from builders.game_pages import _heir_sigs, collect
-    from builders.game_systems import is_decor, is_template
+    from builders.game_systems import is_decor, is_dev, is_template
     from builders.shared_rows import entities as spread_all, is_every
     ents = {f"{e['file']}:{e['id']}": e for e in load_json('entities.json')['entities']}
     by_ent, _ = _history()
@@ -384,7 +402,7 @@ def test_every_gameplay_row_lands_on_a_hero_item_unit_or_game_page():
         for e in spread_all(p['entities']):
             info = {**e, **ents.get(e['key'], {})}
             rows = player_facing([c for c in e['changes'] if c['cat'] in ('balance', 'mechanic', 'availability')])
-            if not rows or e['key'] in pages or is_decor(info):
+            if not rows or e['key'] in pages or is_decor(info) or is_dev(info):
                 continue
             for c in rows:
                 if c.get('status') == 'unreleased' or is_every(c):

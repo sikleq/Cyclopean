@@ -75,11 +75,15 @@ DASH = '<span class="dash">—</span>'
 
 
 def _row(name: str, slot: dict) -> str:
-    """Name | value now (its history on hover) | how many times it moved | the date of the last move."""
+    """Name | value now (its history on hover) | how many times it moved (NEW: added since the tracking began, no
+    move yet — "—" beside a date read as a contradiction on 55 of 190; review 2026-10-05) | the date of the last
+    move."""
+    from .render import tag_badge
     moves = [h for h in slot['hist'] if h[2] is not None and h[3] is not None]
     last = esc(slot['hist'][-1][1]) if slot['hist'] else DASH
-    return (f'<tr><td class="nm"><code>{esc(name)}</code></td>{_cell(name, slot)}'
-            f'<td>{len(moves) or DASH}</td><td>{last}</td></tr>')
+    count = str(len(moves)) if moves else tag_badge('new', 'NEW') if slot['hist'] else DASH
+    return (f'<tr data-search="{esc(name.lower())}"><td class="nm"><code>{esc(name)}</code></td>{_cell(name, slot)}'
+            f'<td>{count}</td><td>{last}</td></tr>')
 
 
 def rules_page(raw: list) -> str:
@@ -94,9 +98,13 @@ def rules_page(raw: list) -> str:
             continue
         body.append(f'<tr class="sec"><td colspan="4"><a href="{esc(s.href)}">{icon_html(s, rel, "px rules-ic")}'
                     f'{esc(s.name)}</a></td></tr>' + ''.join(_row(name, slot) for name, slot in got))
-    content = (f'<div class="table-fade center"><div class="table-scroll"><table class="game-rules">'
-               f'<thead><tr><th>Console variable</th><th>Now</th><th>Changes</th><th>Last change</th></tr></thead>'
-               f'<tbody>{"".join(body)}</tbody></table></div></div>'
+    # one column: the heading, the tabs and a search over the variables above the table, which scrolls with the
+    # page (its own 816px scroll box inside the page's was a double scroll over 200 rows; review 2026-10-05)
+    content = (f'<div class="toolbar"><input type="search" placeholder="Variable…" '
+               f'data-search-target="table.game-rules tbody tr:not(.sec)"></div>'
+               f'<table class="game-rules"><thead><tr><th>Console variable</th><th>Now</th><th>Changes</th>'
+               f'<th>Last change</th></tr></thead><tbody>{"".join(body)}</tbody></table>'
                if body else '<p class="muted">No console variables recorded.</p>')
-    return page('Game rules', '<h1>Game rules</h1>' + section_tabs('stats') + content, rel, SECTION,
+    return page('Game rules', '<div class="rules-col"><h1>Game rules</h1>' + section_tabs('stats') + content + '</div>',
+                rel, SECTION,
                 description='Deadlock: respawn times, soul rewards and objective timers as the game sets them today')

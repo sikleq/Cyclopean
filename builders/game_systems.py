@@ -112,13 +112,20 @@ def is_decor(e: dict) -> bool:
 
 
 DECOR_FILES = ('misc.vdata', 'generic_data.vdata')
+# the designers' test objects (review 2026-10-05: "Item projectile test 01, … + 4 more" led the Shop page, "Herotest
+# orbspawner" sat on Souls): no player meets them. Not "dummy" — the Hero Labs target dummy is real
+_DEV_ID = re.compile(r'herotest|(?:^|_)test(?:_|\d|$)|projectile_test|(?:^|_)debug(?:_|$)')
+
+
+def is_dev(e: dict) -> bool:
+    return bool(_DEV_ID.search(str(e.get('id', ''))))
 
 
 def place_entity(key: str, e: dict, pages: set[str] | frozenset[str] | None = None) -> tuple[str, str] | None:
     """The Game's (system, part) of an entry no page claims; None for a claimed one or scenery. `pages`: the keys
     the hero, item and unit pages show (entities_pages.page_keys) — where the pages are built, the Game takes exactly
     the rest; without it, what the files say (`claimed`: the change matrices, the home feed)."""
-    if (key in pages if pages is not None else claimed(e)) or is_decor(e):
+    if (key in pages if pages is not None else claimed(e)) or is_decor(e) or is_dev(e):
         return None
     return place(entity_subject(key, e.get('kind'))) or ('other', 'rest')
 
