@@ -1159,3 +1159,83 @@ def test_builds_into_links_the_other_items_component_list():
     by_ent = {frenzy: [comp]}
     out = annotate_line('Berserker: Now builds into Frenzy', [comp], by_ent, idx, cat, {})
     assert out['status'] == 'described' and out['changes'] == [comp.key]
+
+
+def _event(file, eid, name, kind, path='@add'):
+    return {'file': file, 'id': eid, 'name': name, 'kind': kind,
+            'change': {'key': f'{file}:{eid}:{path}', 'path': path, 'status': 'hidden'}}
+
+
+def test_a_line_naming_what_came_describes_the_event():
+    """City Never Sleeps: "Haunts (new neutral camps): Specimen, Gutter Ghouls, Barrel Mimics, …, Shrooms" names
+    the camps by their plural without the tier; "Tough Crates: …" and the map line "Bell Tower: …" name entries
+    the files give no name. The Overseer is in no line and stays hidden (review 2026-10-05)."""
+    from pipeline.match import name_events
+    haunts = {'text': 'Haunts (new neutral camps) — Specimen, Gutter Ghouls, Barrel Mimics, Past Dues, Shrooms',
+              'status': 'described', 'changes': ['x']}
+    crates = {'text': 'Tough Crates: These Tough Crates require a Heavy Melee to break open', 'status': 'unmatched',
+              'changes': []}
+    bell = {'text': 'Bell Tower: Ascend to the top of the Chinatown Bell Tower for a soul hotspot.',
+            'status': 'untracked', 'topic': 'map', 'changes': []}
+    sections = [{'title': 'Map', 'lines': [haunts, crates, bell]}]
+    evs = [_event('npc_units.vdata', 'neutral_barrel_01_weak', 'Barrel Mimic II', 'neutral'),
+           _event('npc_units.vdata', 'neutral_shroom_weak', 'Slum Shroom I', 'neutral'),
+           _event('npc_units.vdata', 'neutral_overseer_weak', 'Overseer I', 'neutral'),
+           _event('misc.vdata', 'citadel_breakable_prop_tough_crate', 'citadel_breakable_prop_tough_crate', 'global'),
+           _event('misc.vdata', 'citadel_breakable_bell_chinatown', 'citadel_breakable_bell_chinatown', 'global')]
+    assert name_events(sections, evs) == 4
+    assert [e['change']['status'] for e in evs] == ['described', 'described', 'hidden', 'described', 'described']
+    assert crates['status'] == 'described' and crates['changes'] == ['misc.vdata:citadel_breakable_prop_tough_crate:@add']
+    assert bell['status'] == 'described' and 'topic' not in bell
+    assert 'npc_units.vdata:neutral_barrel_01_weak:@add' in haunts['changes']
+
+
+def test_a_name_inside_another_word_is_no_event_line():
+    from pipeline.match_rules import event_phrases, names_event
+    # "Tesla Bullets" does not name "Cat Bullet"; "shields" does not name "Mud Shield"
+    assert not names_event('Added sound for Tesla Bullets proc', event_phrases('a:cat_bullet', 'Cat Bullet'))
+    assert not names_event('Shields have been reworked', event_phrases('a:mud', 'Mud Shield'))
+    assert names_event('Stage Hands, Crabbage Pots', event_phrases('n:x', 'Crabbage Pot III'))
+
+
+def test_blanket_lines_cover_only_their_scope():
+    """'All hero stats rebalanced alongside the shop rework' covers the heroes' base stats and growth, never their
+    other fields; 'Full shop rework, including many new items' covers the items that came or went, never the
+    numbers of the items that stayed (audit TRUE_HIDDEN: Extra Health 160 -> 175)."""
+    from pipeline.match import blanket_lines
+    blankets = [
+        {'patch': 'p', 'line': 'All hero stats rebalanced',
+         'match': [{'file': 'heroes.vdata', 'path': '^m_mapStartingStats[.]', 'ops': ['change']}]},
+        {'patch': 'p', 'line': 'Full shop rework', 'match': [{'file': 'abilities.vdata', 'path': '^@(add|remove)$',
+                                                              'kinds': ['item']}]},
+        {'patch': 'other', 'line': 'Full shop rework', 'match': [{'path': '.'}]},
+    ]
+    stat = MChange('heroes.vdata', 'hero_atlas', 'm_mapStartingStats.EMaxHealth', 'change', 570, 720, 'balance',
+                   'hero', None, 'Max Health', False)
+    sound = MChange('heroes.vdata', 'hero_atlas', 'm_flStepSoundTime', 'change', 1, 2, 'balance', 'hero', None, 'x', False)
+    item = MChange('abilities.vdata', 'upgrade_extra_health', 'm_mapAbilityProperties.BonusHealth.m_strValue', 'change',
+                   160, 175, 'balance', 'item', None, 'Bonus Health', False)
+    lines = [{'text': 'All hero stats rebalanced alongside the shop rework.', 'status': 'unmatched', 'changes': []},
+             {'text': 'Full shop rework, including many new items.', 'status': 'unmatched', 'changes': []}]
+    evs = [_event('abilities.vdata', 'upgrade_arctic_blast', 'Arctic Blast', 'item'),
+           _event('abilities.vdata', 'citadel_ability_x', 'X', 'ability')]
+    n = blanket_lines('p', [{'title': 'Misc', 'lines': lines}], [stat, sound, item], evs, {}, blankets)
+    assert n == 2
+    assert (stat.status, sound.status, item.status) == ('described', 'hidden', 'hidden')
+    assert [e['change']['status'] for e in evs] == ['described', 'hidden']
+    assert lines[0]['status'] == lines[1]['status'] == 'described'
+    assert lines[0]['changes'] == [stat.key] and stat.lines == [lines[0]['text']]
+
+
+def test_the_blanket_file_is_valid():
+    """Every entry names a patch, a line, why, and scopes that compile (data/overrides/blanket_lines.json)."""
+    import re
+    from pipeline.match import load_blankets
+    assert load_blankets()
+    for b in load_blankets():
+        assert b['patch'] and b['line'] and b['why'] and b['match']
+        for sc in b['match']:
+            assert set(sc) <= {'file', 'path', 'ops', 'kinds', 'id'}, sc
+            for k in ('path', 'id'):
+                if k in sc:
+                    re.compile(sc[k])

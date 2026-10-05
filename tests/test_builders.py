@@ -37,6 +37,28 @@ def test_a_corrupted_version_is_one_row():
     assert fold_corrupted(rows[:2]) == rows[:2]
 
 
+def test_an_enhanced_version_is_one_row():
+    """Old Gods, New Blood: an item's Enhanced version that appears whole is ONE row and one change (452 NEW rows
+    under one line of the notes); on the item page, inside its "Enhanced version" group, the row is "Bonuses"."""
+    from builders.render import fold_versions
+    p = 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{%s}.m_strBonus'
+    key = 'abilities.vdata:upgrade_active_reload:'
+    rows = [{'op': 'add', 'path': p % x, 'key': key + p % x, 'label': f'Enhanced: {lab}', 'new_s': v, 'status': 'described'}
+            for x, lab, v in (('BonusClipSizePercent', 'Max Ammo', '10%'), ('BonusFireRate', 'Fire Rate', '15%'),
+                              ('BonusMoveSpeed', 'Move Speed', '3m/s'))]
+    out = fold_versions(rows + [ch(label='Cooldown', key=key + 'cd')])
+    assert len(out) == 2
+    assert (out[0]['label'], out[0]['new_s'], out[0]['folded']) == ('Enhanced version',
+                                                                     'Max Ammo +10%, Fire Rate +15%, Move Speed +3m/s', 3)
+    stripped = [{**c, 'label': c['label'].removeprefix('Enhanced: ')} for c in rows]
+    assert fold_versions(stripped)[0]['label'] == 'Bonuses'
+    # a hero's T1 bonuses sit on the same path, but are no Enhanced version
+    t1 = [{**c, 'key': 'abilities.vdata:ability_x:' + c['path'], 'label': 'T1: ' + c['label'][10:]} for c in rows]
+    assert fold_versions(t1) == t1
+    # a later tweak of a few Enhanced bonuses stays row by row
+    assert fold_versions(rows[:2]) == rows[:2]
+
+
 def test_unit_families_tiers_and_variants():
     """2026-10-03: Slum Shroom I-III, the four Walkers, the Barrel Mimics of two models are one family each."""
     from builders.unit_families import families, member_label, merged_label

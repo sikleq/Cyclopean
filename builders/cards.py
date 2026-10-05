@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from pipeline import flags as flag_rules
 
 from .common import esc, mark, plural, visual
-from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_corrupted, fold_tier_swaps, not_in_notes, shown_value,
+from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold_versions, not_in_notes, shown_value,
                      sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
 from .shared_rows import is_every
 
@@ -387,7 +387,7 @@ def _player_facing(changes: list[dict]) -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for c in changes:
         groups.setdefault(':'.join(str(c.get('key') or '').split(':', 2)[:2]), []).append(c)
-    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(fold_corrupted(merge_renames(g))))
+    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(fold_versions(merge_renames(g))))
             if not is_engine(c) and not is_noop(c)]
 
 
@@ -652,7 +652,7 @@ def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = 
     if every:
         own = [c for c in changes if not is_every(c)]
         return (entity_rows(own, known) if own else '') + every_rows(every, every_href)
-    rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+    rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
                          if not is_noop(c) and not is_engine(c)], known)
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
         keep, _ = _added_split(rows)
@@ -671,7 +671,7 @@ def every_rows(changes: list[dict], every_href=None) -> str:
     2026-10-05). Counted apart from the entity's own changes (history_view); `shr-all`: no tag or eye filter keeps
     the row, no band recount counts it (scripts.js hist-filter)."""
     from .game_systems import place_all_row, system
-    rows = [c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+    rows = [c for c in sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
             if not is_noop(c) and not is_engine(c)]
     by_sys: dict[str, list[dict]] = {}
     for c in rows:
@@ -705,7 +705,7 @@ def behind_attr(changes: list[dict], listed: list[dict]) -> str:
 
 
 def change_rows(changes: list[dict], added: bool = False) -> str:
-    rows = sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+    rows = sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
     if added:
         keep, rest = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden') if rows else 'hidden',

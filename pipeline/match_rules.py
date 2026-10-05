@@ -75,6 +75,48 @@ def alias_keys(text: str, longer: tuple[str, ...] = ()) -> set[str]:
     return out
 
 
+# ---- an entity that came or went, named by a line of its window ----
+# "Haunts (new neutral camps): Specimen, Gutter Ghouls, Barrel Mimics…" names the camps, not "Barrel Mimic II":
+# a tier numeral is dropped and the last word may be plural (hidden-story review 2026-10-05: ~40 camp events of
+# City Never Sleeps carried the eye). Entries the files give no name, or that the notes call otherwise, by key:
+EVENT_ALIASES: dict[str, tuple[str, ...]] = {
+    'misc.vdata:citadel_breakable_prop_tough_crate': ('tough crate',),        # "Tough Crates: … require a Heavy Melee"
+    'misc.vdata:citadel_breakable_bell_chinatown': ('bell tower', 'chinatown bell'),   # "Bell Tower: Ascend …"
+}
+# … and by name without the tier: the notes' word for a family ("Shrooms" is the Slum Shroom)
+EVENT_NAME_ALIASES: dict[str, tuple[str, ...]] = {
+    'slum shroom': ('shroom',),
+}
+_TIER_NUMERAL = re.compile(r'\s+(?:i{1,3}|iv|v)$', re.I)
+EVENT_NAME_MIN = 4
+
+
+def event_phrases(key: str, name: str | None) -> list[str]:
+    """What a line may call an entity that came or went: its name without a tier numeral (and without "The"),
+    the aliases of its key and of that name."""
+    out: list[str] = list(EVENT_ALIASES.get(key, ()))
+    eid = key.split(':', 1)[1] if ':' in key else key
+    if name and name != eid:
+        base = _TIER_NUMERAL.sub('', name.strip().lower())
+        for n in {base, base[4:] if base.startswith('the ') else base}:
+            if len(n) >= EVENT_NAME_MIN:
+                out.append(n)
+        out += EVENT_NAME_ALIASES.get(base, ())
+    return list(dict.fromkeys(out))
+
+
+def names_event(text: str, phrases: list[str]) -> bool:
+    """A line names the entity: one of its phrases as whole words, the last word singular or plural
+    ("Barrel Mimics" names Barrel Mimic I-III; "Overseer" is not in that line, so the Overseer stays hidden)."""
+    low = text.lower()
+    for ph in phrases:
+        ws = ph.split()
+        pat = r'\b' + r'\s+'.join(re.escape(w) for w in ws) + r'(?:s|es)?\b'
+        if re.search(pat, low):
+            return True
+    return False
+
+
 def name_variants(name: str) -> set[str]:
     """'The Doorman' / 'Doorman', 'Mo & Krill' / 'Mo and Krill'."""
     n = name.strip().lower()

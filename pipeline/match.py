@@ -1259,6 +1259,95 @@ def entity_events(extras: dict, notes_text: str, tok: dict[str, str]) -> list[di
     return out
 
 
+_OPEN_LINE = ('unmatched', 'untracked')
+
+
+def _claim_line(ln: dict, key: str) -> None:
+    """A line that announces a change: it links the change, and a line nothing had claimed is 'described'."""
+    if key not in ln.setdefault('changes', []):
+        ln['changes'].append(key)
+    if ln.get('status') in _OPEN_LINE:
+        ln['status'] = 'described'
+        ln.pop('topic', None)
+
+
+def name_events(sections: list[dict], events: list[dict]) -> int:
+    """An entity that came or went is 'described' when a line of its window names it (`rules.names_event`:
+    "Haunts (new neutral camps): … Barrel Mimics" for Barrel Mimic I-III, "Tough Crates: …", the "Bell Tower"
+    line, which is also a map line). Only the event: the numbers of a new entity the notes do not give stay
+    hidden. Returns the events it described."""
+    lines = [ln for s in sections for ln in s['lines'] if ln.get('status') not in ('heading', 'repeated')]
+    n = 0
+    for ev in events:
+        ch = ev['change']
+        if ch['status'] != 'hidden':
+            continue
+        phrases = rules.event_phrases(f"{ev['file']}:{ev['id']}", ev.get('name'))
+        hit = next((ln for ln in lines if phrases and rules.names_event(ln['text'], phrases)), None)
+        if hit is None:
+            continue
+        ch['status'] = 'described'
+        _claim_line(hit, ch['key'])
+        n += 1
+    return n
+
+
+BLANKET_FILE = tracker.ROOT / 'data' / 'overrides' / 'blanket_lines.json'
+
+
+def load_blankets() -> list[dict]:
+    try:
+        return json.loads(BLANKET_FILE.read_text(encoding='utf-8')).get('lines', [])
+    except FileNotFoundError:
+        return []
+
+
+def _in_scope(scope: dict, file: str, eid: str, path: str, op: str, kind: str | None) -> bool:
+    if scope.get('file') and scope['file'] != file:
+        return False
+    if scope.get('path') and not re.search(scope['path'], path):
+        return False
+    if scope.get('ops') and op not in scope['ops']:
+        return False
+    if scope.get('kinds') and (kind or '') not in scope['kinds']:
+        return False
+    return not scope.get('id') or bool(re.search(scope['id'], eid))
+
+
+def blanket_lines(pid: str, sections: list[dict], changes: list[MChange], events: list[dict],
+                  cat: dict[str, dict], blankets: list[dict] | None = None) -> int:
+    """A line that announces a whole feature without numbers ('Full shop rework, including many new items')
+    covers the changes `data/overrides/blanket_lines.json` scopes to it — by field and kind of operation, never a
+    whole file. Only hidden changes move (to 'described', linked to the line). Returns the changes it covered."""
+    n = 0
+    for b in (load_blankets() if blankets is None else blankets):
+        if b.get('patch') != pid:
+            continue
+        needle = b['line'].lower()
+        line = next((ln for s in sections for ln in s['lines'] if needle in ln['text'].lower()), None)
+        if line is None:
+            continue
+        scopes = b.get('match') or []
+        for c in changes:
+            if c.status != 'hidden' or c.file == 'convars':
+                continue
+            kind = cat.get(ent_key(c), {}).get('kind') or c.kind
+            if any(_in_scope(sc, c.file, c.eid, c.path, c.op, kind) for sc in scopes):
+                c.status = 'described'
+                c.lines.append(line['text'])
+                _claim_line(line, c.key)
+                n += 1
+        for ev in events:
+            ch = ev['change']
+            op = ch['path'].lstrip('@')
+            if ch['status'] == 'hidden' and any(_in_scope(sc, ev['file'], ev['id'], ch['path'], op, ev.get('kind'))
+                                                for sc in scopes):
+                ch['status'] = 'described'
+                _claim_line(line, ch['key'])
+                n += 1
+    return n
+
+
 def count_statuses(changes: list[MChange], events: list[dict]) -> dict[str, int]:
     """Gameplay changes by status; a change repeated across many entities
     ('@shared') counts once, an added/removed entity counts once."""
@@ -1316,6 +1405,10 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
             owner = ev['id'] if ev['file'] == 'heroes.vdata' else ev.get('owner')
             if ev['change']['status'] == 'hidden' and owner and owner in unreleased_at([ev.get('build')]):
                 ev['change']['status'] = 'unreleased'
+        # lines that announce what came or went, and features announced in one sentence (after the
+        # unreleased pass: work on a hero still in development stays "Before release")
+        name_events(sections, events)
+        blanket_lines(p.id, sections, changes, events, cat)
     entities: dict[str, dict] = {}
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}
     for cv in extras['convars']:

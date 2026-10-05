@@ -139,6 +139,27 @@ def _signed(v) -> str:
     return f'+{s}' if re.match(r'^\d', s) else s
 
 
+def _fold_version(changes: list[dict], mine: list[dict], prefix: str, label: str, path: str) -> list[dict]:
+    """Bonus rows of an item's other version that all appear (or all go) at once -> ONE row "<label>: A +1, B +2"
+    and one change for every counter (fold_corrupted, fold_enhanced)."""
+    ops = {c.get('op') for c in mine}
+    if len(mine) < CORRUPTED_MIN or len(ops) != 1 or ops & {'change'}:
+        return changes
+    op = ops.pop()
+    side = 'new_s' if op == 'add' else 'old_s'
+    # sub-fields ("… › Fixed Corrupted Bonus") are how the bonus rolls, not a bonus
+    parts = [f'{str(c.get("label", "")).removeprefix(prefix)} {_signed(c.get(side))}'.strip()
+             for c in mine if '›' not in str(c.get('label', ''))]
+    status = min((c.get('status', 'hidden') for c in mine), key=lambda s: _STATUS_WEIGHT.get(s, 9))
+    first = changes.index(mine[0])
+    row = {**mine[0], 'op': op, 'cat': 'balance', 'label': label, 'path': path,
+           'old_s': ', '.join(parts) if op == 'remove' else '', 'new_s': ', '.join(parts) if op == 'add' else '',
+           'status': status, 'dir': 'changed', 'pct': None, 'folded': len(mine), 'bonus_list': True}
+    folded = {id(c) for c in mine}
+    rest = [c for c in changes if id(c) not in folded]
+    return rest[:first] + [row] + rest[first:]     # where the first bonus row was
+
+
 def fold_corrupted(changes: list[dict]) -> list[dict]:
     """City Never Sleeps gave 97 items a Corrupted version (the Broker trades it for the item:
     bonuses plus random penalties, m_CorruptedItemInfo): ~5 bonus rows an item, 474 NEW rows in all.
@@ -146,22 +167,39 @@ def fold_corrupted(changes: list[dict]) -> list[dict]:
     Cooldown -4, Base Health +10" — and one change for the counters; a later tweak of a few bonuses
     stays row by row with its own direction."""
     mine = [c for c in changes if str(c.get('path') or '').startswith(CORRUPTED)]
-    ops = {c.get('op') for c in mine}
-    if len(mine) < CORRUPTED_MIN or len(ops) != 1 or ops & {'change'}:
+    return _fold_version(changes, mine, 'Corrupted: ', 'Corrupted version', CORRUPTED)
+
+
+ENHANCED = 'm_vecAbilityUpgrades[0].'
+ENHANCED_PREFIX = 'Enhanced: '
+
+
+def _enhanced(c: dict) -> bool:
+    """A bonus of an item's Enhanced version (its upgrade entry: "Enhanced: …"; an item page files them in their
+    own group with the prefix taken off, so the item id and the path say it there)."""
+    if str(c.get('label') or '').startswith(ENHANCED_PREFIX):
+        return True
+    key = str(c.get('key') or '')
+    return str(c.get('path') or '').startswith(ENHANCED) and ':upgrade_' in key
+
+
+def fold_enhanced(changes: list[dict]) -> list[dict]:
+    """Old Gods, New Blood gave the shop items an Enhanced version: ~3 bonus rows an item, 452 NEW rows that
+    one line of the notes announced. Like the Corrupted version, an Enhanced version whose bonuses all appear
+    (or all go) at once is ONE row "Enhanced version: Max Ammo +10%, Fire Rate +15%" and one change for every
+    counter (hidden-story review 2026-10-05: Old Gods read 902 not in the notes); a later tweak of a few bonuses
+    (2026-03-21) stays row by row. On the item page, inside its "Enhanced version" group, the row is "Bonuses"."""
+    mine = [c for c in changes if _enhanced(c)]
+    if not mine:
         return changes
-    op = ops.pop()
-    side = 'new_s' if op == 'add' else 'old_s'
-    # sub-fields ("… › Fixed Corrupted Bonus") are how the bonus rolls, not a bonus
-    parts = [f'{str(c.get("label", "")).removeprefix("Corrupted: ")} {_signed(c.get(side))}'.strip()
-             for c in mine if '›' not in str(c.get('label', ''))]
-    status = min((c.get('status', 'hidden') for c in mine), key=lambda s: _STATUS_WEIGHT.get(s, 9))
-    first = changes.index(mine[0])
-    row = {**mine[0], 'op': op, 'cat': 'balance', 'label': 'Corrupted version', 'path': CORRUPTED,
-           'old_s': ', '.join(parts) if op == 'remove' else '', 'new_s': ', '.join(parts) if op == 'add' else '',
-           'status': status, 'dir': 'changed', 'pct': None, 'folded': len(mine), 'bonus_list': True}
-    folded = {id(c) for c in mine}
-    rest = [c for c in changes if id(c) not in folded]
-    return rest[:first] + [row] + rest[first:]     # where the first bonus row was
+    prefixed = str(mine[0].get('label') or '').startswith(ENHANCED_PREFIX)
+    return _fold_version(changes, mine, ENHANCED_PREFIX, 'Enhanced version' if prefixed else 'Bonuses',
+                         ENHANCED.rstrip('.'))
+
+
+def fold_versions(changes: list[dict]) -> list[dict]:
+    """An item's Corrupted and Enhanced versions, each one row when they come or go whole."""
+    return fold_enhanced(fold_corrupted(changes))
 
 
 # the counters' icons are the site's own pixel art (builders/pixel_icons.py), not font glyphs;

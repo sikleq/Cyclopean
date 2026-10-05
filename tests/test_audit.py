@@ -31,3 +31,10 @@ def test_matcher_covers_what_the_notes_describe_and_keeps_real_hidden():
     kept = th['hidden'] / sum(th.values())
     assert coverage >= 0.70, coverage
     assert kept >= 0.85, kept
+
+
+def test_the_eye_is_mostly_right():
+    """Of the audited changes still called hidden, at least 30% ARE hidden (eye precision; 28% when the eye sat on
+    the Corrupted / Enhanced versions and the camps the notes announced, review 2026-10-05)."""
+    from audit_score import eye_precision
+    assert eye_precision(_table()) >= 0.30
