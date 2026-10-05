@@ -228,18 +228,24 @@
         // the pill only when there is a real change to measure: a first value or a 0.0% step gets none
         var pill = '';
         if (typeof h[2] === 'number' && typeof h[3] === 'number' && h[2] !== 0) {
-          var q = (h[3] - h[2]) / Math.abs(h[2]) * 100;
+          // two negatives (a penalty, a slow) compare by size, as the item page does: −0.5 → −1 is +100%, not
+          // −100% (review 2026-10-05)
+          var q = h[2] < 0 && h[3] < 0 ? (Math.abs(h[3]) - Math.abs(h[2])) / Math.abs(h[2]) * 100
+            : (h[3] - h[2]) / Math.abs(h[2]) * 100;
           if (Math.abs(q) >= 0.05) {
             pill = '<span class="' + cls + ' pct" data-g="' + pctGrade(q) + '">' + (q > 0 ? '+' : '') + q.toFixed(1) + '%</span>';
           }
         }
-        // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row
+        // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row, "added"
+        // where the value was; a value that went says "removed" (a bare "—" read as no value)
         var firstStep = (h[2] === null || h[2] === undefined);
-        html += '<li><span class="d">' + h[1] + '</span>' +
-          '<span class="o">' + (firstStep ? '' : fmtU(h[2], digits)) + '</span>' +
+        var gone = (h[3] === null || h[3] === undefined);
+        esc.textContent = h[1];
+        html += '<li><span class="d">' + esc.innerHTML + '</span>' +
+          '<span class="o">' + (firstStep ? '<i>added</i>' : fmtU(h[2], digits)) + '</span>' +
           '<span class="arrow">' + (firstStep ? '' : '→') + '</span>' +
-          '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + fmtU(h[3], digits) + '</span>' +
-          '<span class="p">' + pill + '</span></li>';
+          '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + (gone ? '<i>removed</i>' : fmtU(h[3], digits)) +
+          '</span><span class="p">' + pill + '</span></li>';
       }
       html += '</ol>';
       tip.innerHTML = html;
@@ -565,6 +571,30 @@
     document.addEventListener('focusin', over);              // a tile reached with the keyboard shows it too
     document.addEventListener('focusout', hide);
     window.addEventListener('scroll', hide, true);
+  });
+
+  /* ---------- change matrices: rows by slot / tier (items) or role (heroes) — one choice per group, pressed again
+     to clear; a row out is `f-out` (dynamics_page.toolbar `.dyn-rows`, review 2026-10-05) ---------- */
+  safe('dyn-rows', function () {
+    document.querySelectorAll('.dyn-rows[data-target]').forEach(function (box) {
+      var table = document.querySelector(box.getAttribute('data-target'));
+      if (!table) return;
+      var chosen = {};
+      box.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('button[data-rowf]');
+        if (!btn) return;
+        var f = btn.getAttribute('data-rowf'), v = btn.getAttribute('data-v');
+        chosen[f] = chosen[f] === v ? null : v;
+        box.querySelectorAll('button[data-rowf="' + f + '"]').forEach(function (b) {
+          b.setAttribute('aria-pressed', chosen[f] === b.getAttribute('data-v') ? 'true' : 'false');
+        });
+        table.querySelectorAll('tbody tr').forEach(function (tr) {
+          var out = false;
+          for (var k in chosen) if (chosen[k] && tr.getAttribute('data-' + k) !== chosen[k]) out = true;
+          tr.classList.toggle('f-out', out);
+        });
+      });
+    });
   });
 
   /* ---------- hero changes: a filter narrows every tile to one part (stats / weapon / abilities) ---------- */

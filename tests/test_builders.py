@@ -235,6 +235,20 @@ def test_hero_table_layout_keeps_every_column_and_hides_details():
     assert all(len(short) <= 13 for _, entries in HERO_LAYOUT for _, short in entries)   # one-line headers
 
 
+def test_a_hero_stats_column_nobody_has_today_waits_under_details(monkeypatch):
+    """Review 2026-10-05: "Bullet res" read "—" for all 44 heroes; it goes under Details with its history."""
+    from builders import tables_pages
+    cols = [{'key': 'hp', 'label': 'Health', 'group': 'Vitality', 'pol': 1, 'digits': 0},
+            {'key': 'bullet_resist', 'label': 'Bullet Resist', 'group': 'Vitality', 'pol': 1, 'digits': 0}]
+    heroes = [{'id': 'hero_atlas', 'name': 'Abrams', 'state': 'release', 'type': 'x_Brawler',
+               'values': {'hp': 800, 'bullet_resist': None}, 'history': {}, 'spirit_scaled': []}]
+    monkeypatch.setattr(tables_pages, 'heroes_data', lambda: {'columns': cols, 'heroes': heroes, 'build': 1,
+                                                              'date': '2026-10-01'})
+    html = tables_pages.heroes_table()
+    head = html.split('<thead>')[1].split('</thead>')[0]
+    assert re.search(r'g-details[^>]*>[^<]*Bullet', head) and not re.search(r'g-details[^>]*>[^<]*Health', head)
+
+
 def test_rows_without_game_art_get_a_category_glyph():
     from builders.common import glyph_for, visual
     assert glyph_for('heroes.vdata', '@shared') == 'heroes'
@@ -637,6 +651,40 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     # tag chips select (only these tags), as on an entity page — not "hide this tag"
     assert 'show-old' in bar and 'bvn' in bar and 'data-dyn-tag="buff"' in bar and 'show-extra' in bar
     assert 'data-part="weapon"' in bar and 'data-part="all"' in bar
+
+
+def test_number_lists_read_as_ranges_and_moved_positions():
+    """Review 2026-10-05: 229 rows of bare number lists ("Aiming Move Spread Penalty 0, 0.15 → —", "Horizontal
+    Recoil -0.4, 0.4 → 0, 0", item prices by tier)."""
+    from builders.render import vals_html, vals_text
+    row = lambda path, a, b: {'op': 'change', 'cat': 'balance', 'path': path, 'old_s': a, 'new_s': b}  # noqa: E731
+    assert vals_text(row('m_AimingMoveSpreadPenalty', '0, 0.15', '—')) == ('0–0.15', '—')
+    assert vals_text(row('m_mapAbilityProperties.x.m_HorizontalRecoil', '-0.4, 0.4', '0, 0')) == ('±0.4', 'none')
+    html = vals_html(row('m_nItemPricePerTier', '0, 500, 1250, 3000', '0, 800, 1250, 3200'))
+    assert '#2 500 → 800 · #4 3000 → 3200' in html and '#1' not in html
+    assert vals_text(row('m_flRadius', '5m', '6m')) == ('5m', '6m')          # a plain value is no list
+
+
+def test_the_item_matrix_reads_in_shop_order_with_slot_and_tier_filters():
+    """Review 2026-10-05: 238 rows alphabetically, Weapon / Spirit / Vitality of every tier mixed, no filters; the
+    hero matrix had no role filter (Hero Stats has one)."""
+    from builders import dynamics_page
+    items = [{'file': 'abilities.vdata', 'id': i, 'name': n, 'slot': s, 'tier': t, 'alive': True}
+             for i, n, s, t in [('upgrade_b', 'Beta', 'EItemSlotType_Tech', 'EModTier_1'),
+                                ('upgrade_a', 'Alpha', 'EItemSlotType_WeaponMod', 'EModTier_3'),
+                                ('upgrade_c', 'Gamma', 'EItemSlotType_WeaponMod', 'EModTier_1'),
+                                ('upgrade_d', 'Delta', 'EItemSlotType_Armor', 'EModTier_5')]]
+    entries = dynamics_page.item_entries(items, {}, '../')
+    assert [e[1] for e in entries] == ['Gamma', 'Alpha', 'Delta', 'Beta']
+    assert entries[2][5] == {'data-cat': 'v', 'data-tier': '5'}
+    bar = dynamics_page.toolbar('item', 0, 'Removed')
+    assert 'data-rowf="cat" data-v="w"' in bar and 'data-rowf="tier" data-v="5"' in bar and '>V</button>' in bar
+    hero_bar = dynamics_page.toolbar('hero', 0, 'Pre-release', ('Assassin', 'Brawler'))
+    assert 'data-rowf="role" data-v="brawler"' in hero_bar
+    heroes = dynamics_page.hero_entries([{'file': 'heroes.vdata', 'id': 'hero_atlas', 'name': 'Abrams',
+                                          'state': 'EHeroDevState_Release'}], '../',
+                                        {'hero_atlas': {'type': 'ECitadelHeroType_Brawler'}})
+    assert heroes[0][5] == {'data-role': 'brawler'}
 
 
 def test_matrix_merges_empty_runs_but_not_across_the_old_line():

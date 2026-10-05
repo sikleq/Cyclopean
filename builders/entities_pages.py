@@ -265,11 +265,19 @@ def build_all() -> dict[str, int]:
     write(INDEX_FILE, search_json(found))
     from .dynamics_page import matrix_html, toolbar, unit_entries
     entries = unit_entries(units, UNIT_GROUPS, rel)
-    n_gone = sum(1 for e in entries if e[4])
+    n_gone = drawn_extra(entries)
     write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
                                      + toolbar('unit', n_gone, 'Removed & helpers') + matrix_html(entries, 'unit'),
                                      rel, 'units', wide=True))
     return {'heroes': len(heroes), 'items': len(items), 'units': len(fams), 'game': n_game}
+
+
+def drawn_extra(entries: list[tuple]) -> int:
+    """How many rows the matrix hides behind its switch ("Removed N") — of the rows it draws: one with no change is
+    no row (the item switch said 88 over 65 rows; review 2026-10-05)."""
+    from .dynamics_page import _collect
+    cells = _collect()['cells']
+    return sum(1 for e in entries if e[4] and cells.get(e[0]))
 
 
 def _context() -> dict:
@@ -309,9 +317,11 @@ def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
             + heroes_grid_html(live, other, trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
-    dyn = matrix_html(hero_entries(live, rel), 'hero')
+    dyn = matrix_html(hero_entries(live, rel, trow), 'hero')
+    # the roles Hero Stats filters by, as the matrix's row filter too (review 2026-10-05: it had none)
+    roles = tuple(sorted({str(r.get('type') or '').rsplit('_', 1)[-1] for r in trow.values()} - {''}))
     write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
-                                      + toolbar('hero', n_pre, 'Pre-release') + dyn, rel, 'heroes', wide=True))
+                                      + toolbar('hero', n_pre, 'Pre-release', roles) + dyn, rel, 'heroes', wide=True))
     return live
 
 
@@ -328,7 +338,7 @@ def _build_items(ctx: dict, items: list[dict]) -> None:
     body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard"></div>' + shop)
     entries = item_entries(items, cards, rel)
-    n_gone = sum(1 for e in entries if e[4])
+    n_gone = drawn_extra(entries)
     write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
                                      + toolbar('item', n_gone, 'Removed') + matrix_html(entries, 'item'),
                                      rel, 'items', wide=True))

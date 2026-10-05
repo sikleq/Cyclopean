@@ -1627,6 +1627,8 @@ table.dyn.bvn .dsq.net-mix { background: var(--tag-changed) !important; }
 /* old columns: month headers by class; the cells by column number (scripts.js dyn-old) */
 table.dyn:not(.show-old) .old { display: none; }
 table.dyn:not(.show-extra) tr.extra { display: none; }
+table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
+.dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .dyn-bar { flex-wrap: wrap; row-gap: 8px; }
 .dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .dyn-tags .tag { min-width: 0; }      /* selected (aria-pressed): only these tags — the .tag rules */

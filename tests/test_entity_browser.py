@@ -263,6 +263,33 @@ def test_a_merged_group_answers_to_each_of_its_members(browser, tmp_path):
         ctx.close()
 
 
+def test_a_matrix_row_filter_keeps_one_slot_and_clears(browser, tmp_path):
+    """Review 2026-10-05: the item matrix gets the shop's slot and tier filters (one choice per group)."""
+    from builders.common import page
+    body = ('<div class="toolbar dyn-bar"><span class="dyn-rows" data-target="#dyn-item">'
+            '<button class="px-btn" data-rowf="cat" data-v="w" aria-pressed="false">Weapon</button>'
+            '<button class="px-btn" data-rowf="cat" data-v="s" aria-pressed="false">Spirit</button>'
+            '<button class="px-btn" data-rowf="tier" data-v="1" aria-pressed="false">I</button></span></div>'
+            '<table class="dyn" id="dyn-item"><tbody>'
+            '<tr data-cat="w" data-tier="1"><td>A</td></tr><tr data-cat="w" data-tier="3"><td>B</td></tr>'
+            '<tr data-cat="s" data-tier="1"><td>C</td></tr></tbody></table>')
+    ctx, pg, errors = _open(browser, tmp_path, page('Items', body, '../'), 1440, 900)
+    shown = "[...document.querySelectorAll('#dyn-item tbody tr')].filter(r => getComputedStyle(r).display !== 'none').length"
+    try:
+        pg.click('[data-rowf="cat"][data-v="w"]')
+        assert pg.evaluate(shown) == 2
+        pg.click('[data-rowf="tier"][data-v="1"]')
+        assert pg.evaluate(shown) == 1                                   # Weapon AND tier I
+        pg.click('[data-rowf="cat"][data-v="s"]')
+        assert pg.evaluate(shown) == 1 and pg.get_attribute('[data-v="w"]', 'aria-pressed') == 'false'
+        pg.click('[data-rowf="cat"][data-v="s"]')
+        pg.click('[data-rowf="tier"][data-v="1"]')
+        assert pg.evaluate(shown) == 3                                   # all cleared
+        assert not errors
+    finally:
+        ctx.close()
+
+
 def test_hidden_opens_a_patch_pages_tab_of_what_the_notes_left_out(browser, tmp_path):
     """Review 2026-10-05: on an update with notes, #hidden pressed the raw All changes filter (first rows: engine
     words); it opens the "Not in patch notes" tab of readable lines; the filter keeps its own tab's hash."""

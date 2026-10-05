@@ -13,6 +13,7 @@ shows, a rule for every hero or ability (once), the console variables a game rea
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, timedelta
 from functools import lru_cache
 
@@ -59,7 +60,7 @@ def _collect() -> dict:
     hidden     {row key: {pid: n}}                          (not in the notes: render.not_in_notes)"""
     from . import archive
     from .render import not_in_notes
-    from .cards import player_facing
+    from .cards import disambiguate, player_facing
     rows = list(archive.by_date())
     ents = load_json('entities.json')['entities']
     # an NPC's own abilities count on its row (Walker's Stomp), as they do on its page
@@ -130,7 +131,9 @@ def _collect() -> dict:
             for key in keys:
                 cell = cells.setdefault(key, {}).setdefault(r['id'], {})
                 pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
-                for c in player_facing(changes):
+                # two fields under one label say which is which, as on the entity's page ("Incoming Healing · receive"
+                # / "· regen": Healbane's card listed "Incoming Healing" twice; review 2026-10-05)
+                for c in disambiguate(player_facing(changes)):
                     # the same change on several members of a family counts once; so does one edit spread over a
                     # system's entries — the Breakables tile read 138 for 2026-09-29 where its band read 52 and
                     # the home icon 50 (review 2026-10-05; the same signature as home_page.update_feed)
@@ -271,15 +274,16 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             out.append(_gap(run, run_old))
         return ''.join(out)
 
-    for key, name, ic, href, extra in entries:
+    for key, name, ic, href, extra, *more in entries:
         mine = cells.get(key, {})
         if not mine:
             continue
+        attrs = ''.join(f' {k}="{esc(v)}"' for k, v in (more[0] if more else {}).items() if v)
         # a Game system without art from the game files has the site's glyph ('glyph:<name>', game_systems)
         img = (visual(None, ic[6:], 'mx-g') if ic and ic.startswith('glyph:') else
                f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else '')
         ic = '' if ic and ic.startswith('glyph:') else ic
-        body.append(f'<tr class="{esc(extra)}" data-search="{esc(name.lower())}" data-name="{esc(name)}" '
+        body.append(f'<tr class="{esc(extra)}"{attrs} data-search="{esc(name.lower())}" data-name="{esc(name)}" '
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
@@ -296,7 +300,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             f'<script type="application/json" class="dyn-data" data-for="dyn-{kind}">{blob}</script>')
 
 
-def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
+def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, ...] = ()) -> str:
     target = f'#dyn-{kind}'
     # a tag chip SELECTS (only these tags), the same as on a hero / item / unit page (advisor 10-03: here
     # "on" used to hide the tag)
@@ -308,10 +312,22 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
                    if n_hidden_rows else '')
     # which part of a hero the tiles show: everything, or only its stats / weapon / abilities
     parts_filter = ''
+    if kind == 'item':
+        # the shop's slots and tiers as filters (Item Stats has them; the matrix had none): one choice per group,
+        # pressed again to clear (scripts.js dyn-rows); Tier V too — 23 of the matrix's rows are tier 5
+        parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
+            f'<button class="px-btn" data-rowf="cat" data-v="{c}" aria-pressed="false">{esc(lbl)}</button>'
+            for _, c, lbl in ITEM_SLOTS) + '<span class="sep"></span>' + ''.join(
+            f'<button class="px-btn" data-rowf="tier" data-v="{t}" aria-pressed="false">{"I II III IV V".split()[i]}</button>'
+            for i, t in enumerate(ITEM_TIERS)) + '</span>')
+    elif kind == 'hero' and roles:
+        parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
+            f'<button class="px-btn" data-rowf="role" data-v="{esc(r.lower())}" aria-pressed="false">{esc(r)}</button>'
+            for r in roles) + '</span>')
     if kind == 'hero':
         parts_filter = ('<span class="sep"></span><span class="dyn-parts">' + ''.join(
             f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
-            for p, lbl in (('all', 'All'),) + PARTS) + '</span>')
+            for p, lbl in (('all', 'All'),) + PARTS) + '</span>' + parts_filter)
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
             f'<span class="sep"></span>'
             f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
@@ -321,14 +337,16 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
             f'<span class="sep"></span><span class="dyn-tags">{tags}</span></div>')
 
 
-def hero_entries(heroes: list[dict], rel: str) -> list[tuple]:
+def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list[tuple]:
+    """A row per hero; its role (Hero Stats' `type`, e.g. "…_Brawler") rides on the row for the role filter."""
     from .common import slug
     out = []
     for h in sorted(heroes, key=lambda h: display_name(h).lower()):
         pre = h.get('state') != 'EHeroDevState_Release'
+        role = str(((trow or {}).get(h['id']) or {}).get('type') or '').rsplit('_', 1)[-1].lower()
         # the page is heroes/atlas.html, not hero_atlas.html (every name link was a 404)
         out.append((f'hero:{h["id"]}', display_name(h), hero_icon(h['id'], rel),
-                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else ''))
+                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else '', {'data-role': role}))
     return out
 
 
@@ -357,13 +375,32 @@ def game_entries(rel: str) -> list[tuple]:
             for s in shown()]
 
 
+ITEM_SLOTS = (('WeaponMod', 'w', 'Weapon'), ('Armor', 'v', 'Vitality'), ('Tech', 's', 'Spirit'))
+ITEM_TIERS = ('1', '2', '3', '4', '5')
+
+
+def _item_slot_tier(it: dict) -> tuple[str, str]:
+    """('w' / 'v' / 's' / '', '1'-'5' / '') of a catalog item: its raw enums ('EItemSlotType_WeaponMod',
+    'EModTier_3') as the shop's slot letters and tier digits."""
+    slot = str(it.get('slot') or '').removeprefix('EItemSlotType_')
+    cat = next((c for raw, c, _ in ITEM_SLOTS if raw == slot), '')
+    m = re.search(r'(\d)$', str(it.get('tier') or ''))
+    return cat, m.group(1) if m else ''
+
+
 def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:
+    """A row per item in the shop's order — Weapon, Vitality, Spirit, then tier and name (it was alphabetical over 238
+    rows; review 2026-10-05) — each carrying its slot and tier for the toolbar's filters (`data-cat`, `data-tier`)."""
     from .common import slug
+    order = {c: i for i, (_, c, _) in enumerate(ITEM_SLOTS)}
     out = []
-    for it in sorted(items, key=lambda e: (e.get('name') or e['id']).lower()):
+    for it in sorted(items, key=lambda e: (order.get(_item_slot_tier(e)[0], 9), _item_slot_tier(e)[1] or '9',
+                                           (e.get('name') or e['id']).lower())):
         info = (cards.get(it['id']) or {}).get('item') or {}
         gone = not it.get('alive') or it.get('disabled') or info.get('disabled')
         name = display_name(it)
+        cat, tier = _item_slot_tier(it)
         out.append((f'item:{it["id"]}', name, entity_icon(it['file'], it['id'], 'item', rel),
-                    slug(it['file'], it['id']).split('/', 1)[1], 'extra' if gone else ''))
+                    slug(it['file'], it['id']).split('/', 1)[1], 'extra' if gone else '',
+                    {'data-cat': cat, 'data-tier': tier}))
     return out

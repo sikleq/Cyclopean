@@ -462,6 +462,47 @@ def _same_unit(old: str, new: str) -> tuple[str, str]:
     return old, new
 
 
+_LIST_NUM = re.compile(r'^[-+]?(?:\d+\.?\d*|\.\d+)(?:m|s|%|m/s)?$')
+# a [min, max] pair (review 2026-10-05: "Aiming Move Spread Penalty 0, 0.15 → —", "Horizontal Recoil -0.4, 0.4 → 0, 0")
+_RANGE_PAIR = re.compile(r'(Range|SpreadPenalty|Spread|Recoil|EnableTime|AimingSpread)\w*$', re.I)
+
+
+def _numbers(v) -> list[str] | None:
+    if not isinstance(v, str) or ', ' not in v:
+        return None
+    parts = [p.strip() for p in v.split(', ')]
+    return parts if len(parts) > 1 and all(_LIST_NUM.match(p) for p in parts) else None
+
+
+def _range_text(parts: list[str]) -> str:
+    a, b = parts
+    x, y = (float(re.sub(r'[^\d.+-]', '', v)) for v in (a, b))
+    if x == y == 0:
+        return 'none'
+    if x == -y:
+        return f'±{b.lstrip("+-")}'
+    return f'{a}–{b}'
+
+
+def number_lists(path: str, old, new) -> tuple | None:
+    """A field whose value is a list of numbers (229 rows read "0, 0.15 → —", "0, 500, 1250, 3000, 6000 → 0, 800, …";
+    review 2026-10-05): a [min, max] pair as a range ("0–0.15", "±0.4 → none"), equal lists by the positions that
+    moved ("#2 500 → 800 · #3 1250 → 1600"); ('steps', text) or ('pair', old, new), None for anything else."""
+    a, b = _numbers(old), _numbers(new)
+    if a is None and b is None:
+        return None
+    pair = _RANGE_PAIR.search(path.rsplit('.', 1)[-1] if '.' in path else path)
+    if pair and all(x is None or len(x) == 2 for x in (a, b)):
+        return ('pair', _range_text(a) if a else old, _range_text(b) if b else new)
+    if a is not None and b is not None and len(a) == len(b):
+        moved = [f'#{i + 1} {x} → {y}' for i, (x, y) in enumerate(zip(a, b)) if x != y]
+        if moved:
+            return ('steps', ' · '.join(moved))
+    if a is not None and b is not None and len(b) > len(a) and b[:len(a)] == a:
+        return ('steps', ' · '.join(f'new #{i + 1} {y}' for i, y in enumerate(b) if i >= len(a)))
+    return None
+
+
 def shown_pair(c: dict) -> tuple:
     """A row's values as the page prints them — ONE function for the rows (vals_html), the hover cards (vals_text)
     and the change matrices' cards (dynamics_page._sample_values); review 2026-10-05: three hand copies disagreed
@@ -487,6 +528,9 @@ def shown_pair(c: dict) -> tuple:
         b = set(b or ([new_s] if new_s not in none else []))
         return ('flags', [(f'+{_short_flag(f)}', 'add') for f in sorted(b - a)]
                 + [(f'−{_short_flag(f)}', 'rem') for f in sorted(a - b)])
+    lists = number_lists(path, old_s, new_s)
+    if lists:
+        return lists
     # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop; the
     # sentinels judge each side against the other's value BEFORE either is replaced
     old_s, new_s = (flag_rules.enum_words(path, v) or v for v in (old_s, new_s))
@@ -510,6 +554,8 @@ def vals_html(c: dict) -> str:
                     f'<span class="new">{esc(v[2])}</span></span>')
         # folded Corrupted / Enhanced version: one list of bonuses, may wrap
         return f'<span class="vals wrap"><span class="{"new" if op == "add" else "old"}">{esc(v[2] or v[1])}</span></span>'
+    if v[0] == 'steps':            # a list by the positions that moved (number_lists)
+        return f'<span class="vals wrap"><span class="new">{esc(v[1])}</span></span>'
     if v[0] == 'flags':
         # a listed bit's chip takes the colour of the side it moved the owner to (pipeline.flags)
         return '<span class="vals flags">' + ''.join(
@@ -538,6 +584,8 @@ def vals_text(c: dict) -> tuple[str, str]:
         return '', ''
     if v[0] == 'list':
         return _clip(v[1]) if v[1] else '', _clip(v[2]) if v[2] else ''
+    if v[0] == 'steps':
+        return '', v[1] if len(v[1]) <= LONG_VALUE else v[1][:LONG_VALUE - 1] + '…'
     if v[0] == 'flags':
         text = ' '.join(w for w, _ in v[1])
         return '', text if len(text) <= LONG_VALUE else text[:LONG_VALUE - 1] + '…'
