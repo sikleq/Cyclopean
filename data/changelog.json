@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-10-06",
+    "title": "Description numbers, alt fire stats, net buff/nerf marks, and game art for systems",
+    "items": [
+      "Ability and item description changes now show the real numbers the game printed before and after the patch (\"-17s Cooldown → +1s Sleep Duration\") instead of placeholders like \"[Ability Cooldown]\".",
+      "Heroes with an alt fire (Viscous, Shiv, Yamato) show its own numbers — damage, fire rate, ammo per shot, reload, range — under the gun, with their history on hover.",
+      "Every Game page opens with what the system is today: its console variables with their values and units, and the latest numbers of its objects; durations now read in seconds (\"45s\", not \"45\").",
+      "Every patch on a hero, item or unit page now says in one small mark whether it was a net buff, a net nerf or mixed — weighed by how big each change was, the same way as \"Buff vs nerf\" in the change tables. The mark is also in the hover card of the patch squares and of the home page icons.",
+      "Units and Game pages show the game's own pictures instead of placeholder symbols: Shrine, Sinner's Sacrifice, Mini Turret, hero summons, the Soul Urn, the Unstable Rift, soul orbs, crates, camps by tier, ziplines and more.",
+      "Scrolling the item change table no longer stutters while the item pictures load."
+    ]
+  },
+  {
     "date": "2026-10-05",
     "title": "Announced features better tracked, rules for all shown once, histories clearer",
     "items": [

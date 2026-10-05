@@ -1016,11 +1016,20 @@ chip.
 
 | Rows | Source |
 |---|---|
-| troopers, Guardians, Walkers, Patron, Base Guardians, base turret, Mid Boss | the class portraits the game's own ping wheel uses (`scripts/ping_wheel_messages.vdata`), rules in `data/overrides/unit_icons.json` |
+| troopers (and the zipline trooper), Guardians, Walkers, Patron, Base Guardians, base turret, Mid Boss, Shrine, Sinner's Sacrifice | the portraits / markers the game's own ping wheel uses (`scripts/ping_wheel_messages.vdata`: "Push Shrine" → npcs/shield_generator, "Sinner's Here" → minimap/neutral_vault), rules in `data/overrides/unit_icons.json` |
+| a hero's summon or placed object (Mini Turret, Spectral Wall, Goo Ball, Bounce Pad, Familiar's helpers, Fire Scarabs, Rat King's rats and swarm), the shield escort, the removed rejuvenator / soul pickup units | the art of the ability that makes it, matched by model and class (Mini Turret: McGinnis' turret portrait heroes/engineer_turret); the escort: the minimap's escort marker; removed pickups: their misc.vdata namesakes' art — same file |
 | neutral camps without art | their family's art: same id stem (`neutral_lantern_weak` → `_normal`) or same name without the tier ("Gutter Ghoul I" → II) |
 | map pickups (powerups, rejuvenator) | `m_strPingIcon` / nested `m_strHudIcon` of `misc.vdata` (`misc:<id>`) |
-| groups and rules ("All heroes (24)", game rules, map objects, modifiers, loot tables) | site category glyphs (`common.GLYPHS`, pixel SVG, never presented as game art) |
-| ability card property rows | `m_strCSSClass` → `icons/stats/prop/<class>` (the in-game tooltip icon); spirit damage purple, bullet damage warm, healing green |
+| Game entries with no art of their own (Soul Urn pickup / carrier / return, Unstable Rift, soul pickups and orbs, souls powerup, crates, neutral camps by tier, Rejuvenator buff, ziplines, Parry, Mantle, Teleporting, Stunned) | the art the game shows for the same thing elsewhere (minimap marker, ping-wheel or HUD icon), rules on `<file>:<id>` in `data/overrides/game_icons.json` → manifest keys `misc:` / `modifier:` / `ability:` (`common.entity_icon` reads `modifier:<id>`), files under `icons/game/` |
+| Game tiles | `game_systems.json` `icon`: Breakables = the minimap crate marker, Hero progression = the HUD level-up icon, Modes = Street Brawl's HUD icon, Urn = the Soul Urn's minimap marker (the old art, ability_golden_idol's, is Wraith's Telekinesis the files borrow); their files are game_icons.json's `systems` |
+| groups and rules ("All heroes (24)", game rules, console variables, "Other rules & objects", loot tables) and units with no fitting art | site category glyphs (`common.GLYPHS`, pixel SVG, never presented as game art) |
+
+`tools/extract_icons.py`: rule images go through `rule_art` (stored once, PNG → WebP, SVG copied); a marker whose
+art fills under 35% of its canvas (`TRIM_BELOW`: minimap markers, 20×24 px of 64×64) is cut to its art and squared
+(`trimmed`), portraits keep their framing. A `systems` image the VPK lacks is reported as missing (`game-art:<path>`,
+exit 1 unless allow-listed). PREFIXES gained a few single-file prefixes (hud/brawl/icon_brawl, hud/levelup_,
+hud/zipline_icon, hud/ledge_climb, hud/teleport_icon). Run from a worktree without `vendor/`:
+`CYCLOPEAN_VRF=…/Source2Viewer-CLI.exe CYCLOPEAN_TRACKER=…/GameTracking-Deadlock CYCLOPEAN_PRE_TRACKER=…/Deadlocked`.
 
 ## Value printing and display (`builders/render.py`)
 
@@ -1116,8 +1125,53 @@ abilities & items" on a unit page; several kinds: "Rules for all").
 A row whose eye has words of its own (`cards.hidden_tip`: "shipped silently …") carries `.late` and keeps its eye
 in an all-hidden band (styles.css `.pblock.all-hidden .erow:not(.late)`).
 
+Description changes print what the game printed. `pipeline/entity_texts.with_values` gives every name /
+description / tier text change that holds "{s:Prop}" tokens a `vals` = `{'old': {token: value}, 'new': {…}}`: the
+old text's values are read at the build before the patch window (`match.window_states`: the first build record's
+`prev_commit`), the new text's at the window's last build — the same two states the window's merged change rows
+compare. `match.text_state` reads that build's abilities.vdata (parsed-file cache, two blobs memoised: neighbouring
+windows share a state) and `pipeline.abilities.text_values` gives each part its tokens: 'desc' the properties
+(`base_values`: metres keep their m, seconds / percents leave the unit to the text, a property also under its
+m_strLocTokenOverride), 't1'..'t3' that tier's bonuses over them (`tier_values`, a zero bonus is none, a scale bonus
+also as "<prop>_scale") — the helpers the ability cards use (`card`). Tokens are looked up as written, then without
+case; the hero's name and key bindings ("{s:iv_attack}", "{s:ability_key}") are no value. `builders/text_rows.sides`
+fills each side (`abilities.fill_values`, the text's unit once: "+{s:AbilityCastRange}m" with "3m" is "+3m"); a token
+no build record knows is a neutral gap "…" (`text_rows.GAP`), never "[Ability Cooldown]", and keeps the row folded; a
+row whose texts differ only in numbers the patch's own change rows show (`numbers_only`: "30s Cooldown" → "28s" beside
+"Cooldown 30s → 28s") stays folded too; two texts that read the same once filled are no row. On the data of
+2026-10-05: 519 of 1,084 text changes hold tokens, 513 fill completely (6 have a value no build knows: texts written
+before their property existed, 2024-07-04 Mini-bombs).
+
+**Hero / unit stats — alt fire:**
+
+The alt fire (`ESlot_Weapon_Secondary`: Viscous, Shiv, Yamato; Skyrunner is not playable yet) is evaluated on every
+build like the gun (`hero_table.evaluate_alt`) over `ALT_COLUMNS`: the gun's columns that read the weapon alone — no
+per-boon growth — plus Ammo / Shot (`m_iAmmoConsumedPerShot`, Viscous 5, Yamato 3, Shiv 4). A hero row gets `alt` =
+`{weapon, values, history}`, heroes.json `alt_columns`; a build without an alt fire after one reads as removed
+(Viscous' five-pellet alt fire went 2024-08-01, the goo ball came 2024-08-30), an alt fire cut from abilities.vdata
+is MISSING and bridged like the gun. `hero_page.alt_cells` draws DPS, Bullet dmg, Pellets, Bullets/s, Ammo, Ammo/shot,
+Reload, Bullet speed, Range as one compact row under the weapon block's "Alt fire" line (`.wb-alt-cells`: one row on a
+desktop, three to a row under 600px), each with its history on hover; a default (one pellet, one ammo a shot) is left
+out even if an older alt fire's steps moved it (`at_default`).
+
+**Game pages — the "now" block:**
+
+A system page opens on its values today (from `builders/game_now.py` via `now_block`, displayed with `history_view.now_fold('Current values', …)` between the head and
+the history, like a unit's "Current stats"): its entries' numbers, then every console variable it reads. An entry's
+number today is the newest value of a field in its history (`entry_values`: the history holds every move; a field
+removed since, a switch or a name and work before release are left out), its most recently moved six (`NOW_ROWS`);
+entries with the same numbers share a panel (`merged_label`), the six most recently tuned panels are shown
+(`NOW_PANELS`). A field never moved since the tracking began is not in data/, so it is not there; a rule for every
+hero or ability (the level curve) is no entry's number. Console variables: `game_rules.convar_parts(ledger)` (system →
+part → variables; `rules_rows` is its per-system flattening), the ledger read once a build for every "now" block and
+the Game rules table; a full-width panel per part with the variables in columns (`.cv-rows`), the value printed like
+the Game rules table (`game_rules.value_parts`: game units, history on hover). `game_systems.convar_unit` and
+`convar_side` match the config's words as whole words of the name (`_word_match`): "ratio" had matched inside
+"du-ratio-n", so every `*_duration` read as a bare number (the Soul Urn's 45s decay "45"; 62 variables, 7 of them on
+Game pages; no variable's side changed).
+
 Description rows (`text_rows`): a short text opens unless either side holds a value the game fills in
-(`text_rows.unfilled`: "{s:AbilityCooldown}"; the hero's own name and key bindings "{s:iv_attack}" are not).
+(the hero's own name and key bindings "{s:iv_attack}" are not).
 
 `now_fold` escapes its summary (plain text).
 
@@ -1155,8 +1209,26 @@ that moved for equal lists ("#2 500 → 800"; `render.number_lists`, shown kind 
 hist-tip: two negative values compare by size (−0.5 → −1 is +100%), "added" / "removed" instead of blanks.
 
 `builders/weights.py`: (net, volume) of a set of rows (BUFF / NERF by min(|%|, 60)/20, NEW +1, DEL −1, the rest
-volume); the change matrices' "Buff vs nerf" colours a cell by it (`net_class`; the tile's data [5]); a tag or
-part filter falls back to the majority of rows. Calibration open (not fitted to Deadlock's own pairs yet).
+volume). `net_of(rows)` is THE net mark of what one patch did to one entity: 'buff' / 'nerf' / 'mix' by the weighed
+sum (`net_class`), '' when no row takes a side (only reworks, mechanics, plain changes). Every place that says it
+reads it: a history band's banner (`history_view._banner`: one quiet `.net-chip` after the counters — "net buff",
+"net nerf", "mixed" in the tag colours, `weights.net_chip`; hidden while a filter recounts the band,
+`.hblocks.filtering`), the hover card of a strip tile (`strip_data` tile [6]), of a home feed icon (`_feed` card [4];
+the icon's underline `.lu.net-*` too, which counted a majority before) and of a change-matrix tile (`_collect` →
+`nets`, the cell's data [5]; the tile's "Buff vs nerf" class). The words come with each blob (`nets`:
+`weights.NET_WORDS`); scripts.js never re-weighs (it read [net, volume] and copied the thresholds before) — a tag or
+part filter in the matrices still falls back to which side has more rows. NEW / DEL rows weigh ±1 whatever they are,
+so a band of added console variables reads "net buff"; calibration is still open.
+
+The net mark weighs `weights.weighed_rows`: what a band counts — no rule for every hero / ability (counted apart
+everywhere) and no work before release unless the entity itself is in development (the band passes its `in_dev`;
+every hero on a matrix is released or pre-release, so its cell weighs released rows only). The band computes its mark
+once for its banner and its strip card (`_patch_block` → `_banner(net=…)`); the home feed once for an icon and its
+card (`_chip(net=…)`). `dynamics_page._collect` takes a removed ability's owner and kind from the catalog: the patch
+record of an ability removed in that patch names neither, so the matrix had dropped its DEL rows from the hero's cell
+(Holliday 2026-09-29: 7 DEL on the band, 1 in the cell) — the cells' counts and stripes now include them too.
+`tests/test_builders.py::test_band_chip_and_matrix_cell_weigh_the_same_rows` builds one hero's band and matrix cell
+from the same fixture (a rule for all, work before release, a removed ability, a sideless patch).
 
 classify: `m_bSpawnOnGround`, `BuffTypeValueUnit` are technical.
 
@@ -1200,6 +1272,18 @@ the archive opened 128 times instead of ~1,500. **Pages** (`tools/perf_probe.py`
 page cold): index.html DOMContentLoaded 2,978 → 171 ms (the Google Fonts stylesheet no longer blocks), elements
 1,389 → 1,085, HTML 138 → 95 KB; heroes/nano 483 → 330 KB, elements 1,392 → 1,203; heroes/haze 288 → 197 KB;
 units/npc_boss_tier2 204 → 129 KB, elements 865 → 692. Scroll p95 stays 16.7-16.8 ms on all pages (budget 25 ms).
+
+**Scrolling inside the change matrices** (perf_probe `in-p95`; 2026-10-05). items/changes.html read 16.7 or 33.4 ms run
+to run on the maintainer's PC — a main-thread cost hidden under one frame unless the PC is busy. Profiled with a
+CDP trace on a 4× slower CPU (`tools/perf_probe.py --throttle 4`, new): each lazy row icon that arrived mid-scroll
+cost a layout, a repaint and a new layering (Layerize) of the ~200 sticky name cells (one composited layer each).
+CSS variants (no column-line gradient, no bevel shadows, no sticky cells, no text-shadow on the counts) changed the
+raster time on the worker threads, not the frames; eager icons took the cold inner scroll from p95 50 ms to 17.
+scripts.js `dyn-icons` switches `table.dyn td.name img[loading=lazy]` to eager at `load` (the first screen starts
+lazy as before). Before → after, `--throttle 4`, median of 3–4 alternated runs: items 33.4 → 16.7 ms (a busier run:
+75 → 33), heroes 16.7 → 16.7, units 16.8 → 16.8; at full speed all three 16.7. Known, left as it is: Chromium
+replays the whole matrix display list (~29k ops) for every raster tile (no culling under any variant tried), and
+the column lines' repeating gradient is ~65% of that raster time — removing it would change the look.
 
 ## Tooltips and Keyboard Access
 
