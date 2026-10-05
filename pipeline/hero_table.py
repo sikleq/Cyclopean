@@ -125,8 +125,14 @@ def _dash(stat: str, ability_prop: str):
 MISSING = 'missing'
 
 
-def weapon_info(hero: dict, abilities: dict) -> dict:
-    wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
+PRIMARY_SLOT = 'ESlot_Weapon_Primary'
+ALT_SLOT = 'ESlot_Weapon_Secondary'
+
+
+def weapon_info(hero: dict, abilities: dict, slot: str = PRIMARY_SLOT) -> dict:
+    """The weapon numbers of the gun bound to `slot` (the alt fire: ALT_SLOT) — a gun keeps its own under
+    m_mapWeaponInfos.primary (m_WeaponInfo before build 6711)."""
+    wid = (hero.get('m_mapBoundAbilities') or {}).get(slot)
     ab = abilities.get(wid) if wid else None
     if not isinstance(ab, dict):
         return {}
@@ -256,6 +262,18 @@ COLUMNS: tuple[Col, ...] = (
 )
 
 
+# The alt fire (the gun bound to ESlot_Weapon_Secondary: Viscous' goo ball, Shiv's, Yamato's, Skyrunner's): the gun's
+# columns that read the weapon alone — per-boon growth (Max DPS, +Bullet DMG / boon, +Range / boon) is the hero's —
+# and what one alt shot costs of the clip (m_iAmmoConsumedPerShot: Viscous 5, Yamato 3). The weapon block showed only
+# a slim "Alt fire" line: neither heroes.json nor abilities.json carried its numbers (review 2026-10-05).
+ALT_KEYS = ('dps', 'bullet_dmg', 'pellets', 'bps', 'cycle', 'burst', 'burst_cycle', 'clip', 'reload', 'reload_full',
+            'headshot', 'bullet_speed', 'range', 'falloff_start', 'falloff_end')
+ALT_COLUMNS: tuple[Col, ...] = tuple(c for c in COLUMNS if c.key in ALT_KEYS) + (
+    Col('ammo_shot', 'Ammo / Shot', 'Damage', _wf('m_iAmmoConsumedPerShot'), pol=-1, digits=0,
+        note='Ammo one alt shot takes from the clip.'),
+)
+
+
 def _round(v, digits):
     if v is None or (isinstance(v, float) and (math.isnan(v) or math.isinf(v))):
         return None
@@ -286,16 +304,43 @@ def evaluate(hero: dict, abilities: dict, build: int | None = None, borrowed: bo
     w = weapon_info(hero, abilities)
     wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
     weapon_cut = (bool(wid) and not isinstance(abilities.get(wid), dict)) or borrowed
-    out = {}
-    for c in COLUMNS:
-        if weapon_cut and c.group == 'Damage':
-            out[c.key] = MISSING
-            continue
-        try:
-            out[c.key] = _round(c.fn(hero, w, abilities), c.digits)
-        except (TypeError, ValueError, ZeroDivisionError):
-            out[c.key] = None
-    return out
+    return {c.key: MISSING if weapon_cut and c.group == 'Damage' else _value(c, hero, w, abilities) for c in COLUMNS}
+
+
+def _value(c: Col, hero: dict, w: dict, abilities: dict):
+    try:
+        return _round(c.fn(hero, w, abilities), c.digits)
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def evaluate_alt(hero: dict, abilities: dict, build: int | None = None, borrowed: bool = False) -> dict | None:
+    """Every ALT_COLUMNS value of the hero's alt fire at one build; None when it binds none. An alt fire the build
+    cut from abilities.vdata, or one that comes with a borrowed gun (`evaluate`), is MISSING (bridged like the
+    gun's): a stand-in's numbers are not the hero's."""
+    aid = (hero.get('m_mapBoundAbilities') or {}).get(ALT_SLOT)
+    if not aid:
+        return None
+    _BUILD[0] = build
+    if borrowed or not isinstance(abilities.get(aid), dict):
+        return {c.key: MISSING for c in ALT_COLUMNS}
+    w = weapon_info(hero, abilities, ALT_SLOT)
+    return {c.key: _value(c, hero, w, abilities) for c in ALT_COLUMNS}
+
+
+def _add_point(series: dict[str, list], vals: dict, b) -> None:
+    for k, v in vals.items():
+        pts = series.setdefault(k, [])
+        if not pts or pts[-1][2] != v:
+            pts.append([b.build, b.date[:10], v])
+
+
+def _history(series: dict[str, list]) -> dict[str, list]:
+    return {k: ch for k, pts in series.items() for ch in [history_changes(pts)] if ch}
+
+
+def _now(series: dict[str, list]) -> dict:
+    return {k: (None if pts[-1][2] == MISSING else pts[-1][2]) for k, pts in series.items()}
 
 
 def history_changes(pts: list[list]) -> list[list]:
@@ -355,6 +400,7 @@ def snapshots():
 def build() -> dict:
     t0 = time.time()
     series: dict[str, dict[str, list]] = {}    # hero -> col -> [[build, date, value], ...]
+    alt_series: dict[str, dict[str, list]] = {}    # the same for the hero's alt fire (ALT_COLUMNS)
     first_seen: dict[str, list] = {}
     last_heroes: dict = {}
     last_abilities: dict = {}
@@ -365,12 +411,12 @@ def build() -> dict:
             if not hid.startswith('hero_') or not isinstance(hero, dict) or hero.get('_not_pickable'):
                 continue
             vals = evaluate(hero, abilities, b.build, hid in borrowed)
-            hs = series.setdefault(hid, {})
             first_seen.setdefault(hid, [b.build, b.date[:10]])
-            for k, v in vals.items():
-                pts = hs.setdefault(k, [])
-                if not pts or pts[-1][2] != v:
-                    pts.append([b.build, b.date[:10], v])
+            _add_point(series.setdefault(hid, {}), vals, b)
+            alt = evaluate_alt(hero, abilities, b.build, hid in borrowed)
+            if alt is not None or hid in alt_series:
+                # no alt fire at this build after one: its numbers are gone (None), not bridged
+                _add_point(alt_series.setdefault(hid, {}), alt or {c.key: None for c in ALT_COLUMNS}, b)
         last_heroes, last_abilities, last_build = heroes, abilities, b
     tok = loc.tokens(last_build.commit)
     rows = []
@@ -381,12 +427,10 @@ def build() -> dict:
         if state not in PLAYABLE_STATES:
             continue
         hs = series.get(hid, {})
-        history = {}
-        for k, pts in hs.items():
-            changes = history_changes(pts)
-            if changes:
-                history[k] = changes
+        history = _history(hs)
         wid = (hero.get('m_mapBoundAbilities') or {}).get('ESlot_Weapon_Primary')
+        alt_id = (hero.get('m_mapBoundAbilities') or {}).get(ALT_SLOT)
+        alt_hs = alt_series.get(hid) if alt_id else None
         rows.append({
             'id': hid,
             'name': loc.hero_name(tok, hid),
@@ -400,10 +444,12 @@ def build() -> dict:
             'weapon': wid,
             'weapon_name': loc.plain(loc.entity_name(tok, wid, hid)) if wid else None,
             'first_seen': first_seen.get(hid),
-            'values': {k: (None if pts[-1][2] == MISSING else pts[-1][2]) for k, pts in hs.items()},
+            'values': _now(hs),
             'history': history,
             'spirit_scaled': spirit_scaled(hero),
             'scaling': scaling_detail(hero),
+            # the alt fire's numbers today and their history (ALT_COLUMNS); only a hero that binds one has it
+            **({'alt': {'weapon': alt_id, 'values': _now(alt_hs), 'history': _history(alt_hs)}} if alt_hs else {}),
         })
     # the table is as of the newest game build, like Items and Units (it said "build 6742" beside their 6746: the
     # last build that changed a hero file, review 2026-10-05); that build is kept apart
@@ -415,6 +461,10 @@ def build() -> dict:
         'columns': [
             {'key': c.key, 'label': c.label, 'group': c.group, 'pol': c.pol, 'digits': c.digits, 'note': c.note}
             for c in COLUMNS
+        ],
+        'alt_columns': [
+            {'key': c.key, 'label': c.label, 'group': c.group, 'pol': c.pol, 'digits': c.digits, 'note': c.note}
+            for c in ALT_COLUMNS
         ],
         'heroes': sorted(rows, key=lambda r: r['name'].lower()),
     }

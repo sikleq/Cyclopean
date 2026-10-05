@@ -29,7 +29,7 @@ WEAPON_DIGITS = 2
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
     'dps': 'DPS', 'dps_max': 'DPS', 'bullet_dmg': 'BulletDamage', 'bullet_dmg_lvl': 'BulletDamage',
-    'bullet_dmg_max': 'BulletDamage', 'clip': 'ClipSizeBonus', 'full_clip': 'ClipSizeBonus',
+    'bullet_dmg_max': 'BulletDamage', 'clip': 'ClipSizeBonus', 'full_clip': 'ClipSizeBonus', 'ammo_shot': 'ClipSizeBonus',
     'reload': 'ReloadTime', 'reload_full': 'ReloadTime', 'headshot': 'CritDamageBonusScale',
     'cycle': 'FireRate', 'bps': 'RoundsPerSecond', 'burst_cycle': 'FireRate', 'bullet_speed': 'BulletSpeed',
     'range': 'WeaponRange', 'falloff_start': 'WeaponRange', 'falloff_end': 'WeaponRange', 'range_lvl': 'WeaponRange',
@@ -74,26 +74,28 @@ def _real_steps(row: dict, key: str, digits: int) -> list:
 
 # a stat at its neutral value says nothing (review 2026-10-05: "+Range / boon 0m" on 38 of 39 heroes,
 # "+Bullet Resist / boon 0", "Headshot Taken × 1" on 42): hidden unless it ever moved
-NEUTRAL = {'range_lvl': 0, 'bullet_resist_lvl': 0, 'spirit_resist_lvl': 0, 'headshot_taken': 1}
+NEUTRAL = {'range_lvl': 0, 'bullet_resist_lvl': 0, 'spirit_resist_lvl': 0, 'headshot_taken': 1, 'ammo_shot': 1}
 # …and a gun's pellet / burst details when it fires one pellet / one bullet a burst
 NEEDS = {'pellet_spread': ('pellets', 1), 'pellets': ('pellets', 1), 'burst': ('burst', 1),
          'burst_cycle': ('burst', 1)}
 
 
-def says_nothing(row: dict, c: dict) -> bool:
-    """A stat tile or row that would only print a default (`NEUTRAL`, `NEEDS`) with no real step in its history."""
-    k = c['key']
+def at_default(row: dict, key: str) -> bool:
+    """The stat prints only a default (`NEUTRAL`, `NEEDS`): +0 range a boon, one pellet, one ammo a shot."""
     vals = row.get('values') or {}
-    if k in NEUTRAL:
-        v = vals.get(k)
-        dead = v is not None and float(v) == NEUTRAL[k]
-    elif k in NEEDS:
-        base, one = NEEDS[k]
+    if key in NEUTRAL:
+        v = vals.get(key)
+        return v is not None and float(v) == NEUTRAL[key]
+    if key in NEEDS:
+        base, one = NEEDS[key]
         v = vals.get(base)
-        dead = v is not None and float(v) == one
-    else:
-        return False
-    return dead and not _real_steps(row, k, c.get('digits', 2))
+        return v is not None and float(v) == one
+    return False
+
+
+def says_nothing(row: dict, c: dict) -> bool:
+    """A stat tile or row that would only print a default (`at_default`) with no real step in its history."""
+    return at_default(row, c['key']) and not _real_steps(row, c['key'], c.get('digits', 2))
 
 
 def _stat_icon(key: str, rel: str) -> str:
@@ -171,8 +173,9 @@ def _unit_html(unit: str) -> str:
 def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: str, rel: str,
                  alt: dict | None = None) -> str:
     """The gun is not an ability: its own block, first, with every Damage-group number. `alt`: the gun's alt fire
-    (a Weapon_Secondary card: the files give it no text) as a slim line in the block — what changed it lately, its
-    trail, its history (its rows are in the gun's group: hero_page.fold_alt). Without a stats row (a hero in
+    (a Weapon_Secondary card: the files give it no text) as a line in the block — what changed it lately, its
+    trail, its history (its rows are in the gun's group: hero_page.fold_alt) — over a compact row of its own numbers
+    (`alt_cells`, Hero Stats' `alt`). Without a stats row (a hero in
     development) the block is the gun's name and that line, never an empty ability card."""
     wcols = [c for c in cols if c['group'] == WEAPON_GROUP] if row else []
     top_order = list(WEAPON_TOP)
@@ -207,7 +210,7 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
     lines = ''
     if alt:
         lines += (f'<div class="wb-alt"><span class="wb-alt-l">Alt fire</span>'
-                  f'{_gun_links(alt["id"], wid or alt["id"], rel)}</div>')
+                  f'{_gun_links(alt["id"], wid or alt["id"], rel)}{alt_cells(row, alt["id"], name, rel)}</div>')
     if top or rest:
         nums = f'<div class="wb-top">{"".join(top)}</div>{_more_weapon(rest)}'
     else:
@@ -216,6 +219,39 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
     return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px", "abilities")}'
             f'<div><div class="wb-kicker">Weapon</div>{name_html}{links}{desc}</div></div>'
             f'<div class="wb-nums">{nums}{lines}</div></section>')
+
+
+# the alt fire's compact row: what it hits for, how fast, what it costs of the clip, how far (pipeline.hero_table
+# ALT_COLUMNS; Viscous' goo ball 42 a shot, 5 ammo a shot, 38 m/s)
+ALT_SHOWN = ('dps', 'bullet_dmg', 'pellets', 'bps', 'clip', 'ammo_shot', 'reload', 'bullet_speed', 'range')
+ALT_LABEL = {**WEAPON_TOP, 'ammo_shot': 'Ammo/shot'}
+
+
+@lru_cache(maxsize=1)
+def _alt_columns() -> dict[str, dict]:
+    return {c['key']: c for c in load_json('tables/heroes.json').get('alt_columns') or []}
+
+
+def alt_cells(row: dict | None, aid: str, name: str, rel: str) -> str:
+    """The alt fire's numbers today as one compact row of cells under its "Alt fire" line, each with its history on
+    hover like the gun's; '' when Hero Stats has none for this alt fire. A default (one pellet) is left out even when
+    its history moved: the steps were an older alt fire's (Viscous' five-pellet one, removed 2024-08-01)."""
+    alt = (row or {}).get('alt') or {}
+    if alt.get('weapon') != aid:
+        return ''
+    cols = _alt_columns()
+    sub = {'values': alt.get('values') or {}, 'history': alt.get('history') or {}}
+    out = []
+    for k in ALT_SHOWN:
+        c, v = cols.get(k), sub['values'].get(k)
+        if not c or v is None or at_default(sub, k):
+            continue
+        cls, attrs = _hist_attrs(sub, c, f'{name} · Alt fire')
+        label, unit = _split_unit(c['label'])
+        out.append(f'<div class="wcell {cls}"{attrs}>{_stat_icon(k, rel)}'
+                   f'<span class="v">{_fmt(v, min(c["digits"], WEAPON_DIGITS))}{_unit_html(unit)}</span>'
+                   f'<span class="l">{esc(ALT_LABEL.get(k, label))}</span></div>')
+    return f'<div class="wb-alt-cells">{"".join(out)}</div>' if out else ''
 
 
 def _gun_links(aid: str, group: str, rel: str) -> str:

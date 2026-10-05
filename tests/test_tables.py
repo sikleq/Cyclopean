@@ -25,6 +25,30 @@ def test_abrams_like_single_bullet_reload_matches_sheet():
     assert v['hp'] == 570
 
 
+def test_the_alt_fire_has_its_own_gun_numbers():
+    """Review 2026-10-05: Viscous, Shiv, Yamato showed only a slim "Alt fire" line — no file the site reads carried the
+    alt gun's numbers. The gun bound to ESlot_Weapon_Secondary is evaluated like the gun on the weapon alone (per-boon
+    growth is the hero's), with what one shot takes of the clip; None for a hero without one, MISSING for an alt fire
+    the build cut from abilities.vdata."""
+    from pipeline.hero_table import ALT_COLUMNS, MISSING, evaluate_alt
+    hero, abilities = _hero({'m_flBulletDamage': 10.34, 'm_flCycleTime': 0.21, 'm_iClipSize': 20})
+    assert evaluate_alt(hero, abilities) is None
+    hero['m_mapBoundAbilities']['ESlot_Weapon_Secondary'] = 'alt'
+    abilities['alt'] = {'m_mapWeaponInfos': {'primary': {
+        'm_flBulletDamage': 42, 'm_flCycleTime': 1.26, 'm_iClipSize': 10, 'm_reloadDuration': 2.1,
+        'm_iAmmoConsumedPerShot': 5, 'm_flBulletSpeed': 1500, 'm_flRange': 1000}}}
+    v = evaluate_alt(hero, abilities, 6746)
+    assert v['bullet_dmg'] == 42 and round(v['dps'], 2) == round(42 / 1.26, 2) and v['ammo_shot'] == 5
+    assert round(v['bullet_speed'], 1) == 38.1 and round(v['range'], 1) == 25.4 and v['clip'] == 10
+    assert 'dps_max' not in v and 'bullet_dmg_lvl' not in v and set(v) == {c.key for c in ALT_COLUMNS}
+    # the primary's numbers stay the primary's
+    assert evaluate(hero, abilities)['bullet_dmg'] == 10.34
+    # a hero in development firing another hero's guns: the stand-in's alt fire is not its own
+    assert set(evaluate_alt(hero, abilities, borrowed=True).values()) == {MISSING}
+    del abilities['alt']
+    assert set(evaluate_alt(hero, abilities).values()) == {MISSING}
+
+
 def test_burst_weapon_bullets_per_second():
     hero, abilities = _hero({'m_flBulletDamage': 10, 'm_flCycleTime': 0.5, 'm_iBurstShotCount': 3,
                              'm_flIntraBurstCycleTime': 0.1, 'm_iClipSize': 30})

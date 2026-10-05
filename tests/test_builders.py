@@ -466,6 +466,35 @@ def test_one_band_never_shows_two_groups_of_one_name():
     assert names.count('Wrecking Ball') == 1 and 'Wrecking Ball (old version)' in names
 
 
+def test_the_alt_fire_shows_its_numbers_under_its_line(monkeypatch):
+    """Review 2026-10-05: the weapon block had only a slim "Alt fire" line. Its numbers (Hero Stats' `alt`) are a
+    compact row of cells under it, each with its history on hover; a default (1 pellet, 1 ammo a shot) says nothing;
+    no row for an alt fire Hero Stats does not describe."""
+    from builders import hero_page
+    alt_cols = {k: {'key': k, 'label': lbl, 'group': 'Damage', 'digits': d, 'pol': p} for k, lbl, d, p in [
+        ('dps', 'DPS', 1, 1), ('bullet_dmg', 'Bullet DMG', 2, 1), ('pellets', 'Pellets', 0, 1),
+        ('bps', 'Bullets / s', 2, 1), ('clip', 'Ammo', 0, 1), ('ammo_shot', 'Ammo / Shot', 0, -1),
+        ('reload', 'Reload (s)', 2, -1), ('bullet_speed', 'Bullet Speed (m/s)', 0, 1), ('range', 'Max Range (m)', 1, 1)]}
+    monkeypatch.setattr(hero_page, '_alt_columns', lambda: alt_cols)
+    row = {'values': {'dps': 50}, 'history': {}, 'spirit_scaled': [],
+           'alt': {'weapon': 'gun_alt', 'values': {'dps': 33.3333, 'bullet_dmg': 42.0, 'pellets': 1.0, 'bps': 0.7937,
+                                                   'clip': 10.0, 'ammo_shot': 5.0, 'reload': 2.1, 'bullet_speed': 38.1001,
+                                                   'range': 25.4001},
+                   # the old five-pellet alt fire's steps do not make "Pellets 1" news
+                   'history': {'bullet_dmg': [[5920, '2025-10-02', 48.0, 42.0]],
+                               'pellets': [[5017, '2024-08-01', 5.0, None], [5100, '2024-08-30', None, 1.0]]}}}
+    cols = [{'key': 'dps', 'label': 'DPS', 'group': 'Damage', 'digits': 1, 'pol': 1}]
+    html = hero_page.weapon_block({'name': 'Gun', 'id': 'gun'}, row, cols, 'Viscous', '../', {'id': 'gun_alt'})
+    cells = html[html.index('wb-alt-cells'):]
+    text = re.sub(r'<[^>]+>', ' ', cells)
+    assert re.search(r'42\s+Bullet dmg', text) and re.search(r'5\s+Ammo/shot', text) and re.search(r'38\s+m/s', text)
+    assert 'Pellets' not in text and cells.count('class="wcell') == 8
+    assert 'data-title="Viscous · Alt fire · Bullet DMG"' in cells
+    # another alt fire than the one Hero Stats describes: the line alone
+    other = hero_page.weapon_block({'name': 'Gun', 'id': 'gun'}, row, cols, 'Viscous', '../', {'id': 'other_alt'})
+    assert 'wb-alt-cells' not in other and 'Alt fire' in other
+
+
 def test_a_stat_at_its_default_says_nothing_unless_it_moved():
     """Review 2026-10-05: "+Range / boon 0m" on 38 of 39 heroes, "Burst Interval 0s" on 32, "Pellets 1",
     "Headshot Taken × 1"; hidden unless the value ever really changed (Mirage's pellets, Bookworm's burst)."""
