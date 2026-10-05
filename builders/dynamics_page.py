@@ -20,7 +20,7 @@ from functools import lru_cache
 from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, tag_badge, tag_of
-from .weights import net_class
+from .weights import NET_WORDS, net_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
@@ -61,7 +61,6 @@ def _collect() -> dict:
     hidden     {row key: {pid: n}}                          (not in the notes: render.not_in_notes)"""
     from . import archive
     from .render import not_in_notes
-    from .weights import row_score
     from .cards import disambiguate, player_facing
     rows = list(archive.by_date())
     ents = load_json('entities.json')['entities']
@@ -75,7 +74,7 @@ def _collect() -> dict:
     parts: dict = {}
     raw: dict = {}
     hidden: dict = {}
-    scores: dict = {}
+    weighed: dict = {}         # {row key: {pid: [rows]}}: the cell's net mark (weights.net_of)
     once: set = set()
     from .game_systems import (convar_changes, convar_start, is_template, name_of, place, place_all_row, place_entity, system)
     from .shared_rows import FOLD_FILES, entities as spread_all, own
@@ -149,10 +148,7 @@ def _collect() -> dict:
                     t = tag_of(c)[0]
                     for d in (cell, pcell):
                         d[t] = d.get(t, 0) + 1
-                    w, v = row_score(c)
-                    sc = scores.setdefault(key, {}).setdefault(r['id'], [0.0, 0.0])
-                    sc[0] += w
-                    sc[1] += v
+                    weighed.setdefault(key, {}).setdefault(r['id'], []).append(c)
                     hid = int(bool(not_in_notes(c)))
                     if hid:
                         hidden.setdefault(key, {})[r['id']] = hidden.get(key, {}).get(r['id'], 0) + 1
@@ -177,7 +173,8 @@ def _collect() -> dict:
                     picked[-1] = [*first[:6], first[7]]
             order = {p: i for i, (p, _) in enumerate(PARTS)}
             samples.setdefault(k, {})[pid] = sorted(picked, key=lambda x: order.get(x[5], 9))
-    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples, 'hidden': hidden, 'scores': scores}
+    nets = {k: {pid: net_of(cs) for pid, cs in per.items()} for k, per in weighed.items()}
+    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples, 'hidden': hidden, 'nets': nets}
 
 
 def _net(counts: dict[str, int]) -> str:
@@ -207,7 +204,7 @@ def stripes(counts: dict[str, int]) -> str:
 
 
 def _cell(counts: dict[str, int], href: str, k: int | None, old: bool, hidden: int = 0,
-          score: list | None = None) -> str:
+          mark: str | None = None) -> str:
     """A tile of one colour is a class (`.dsq.s-<tag>`), not an inline gradient: 78% of the item matrix's
     tiles, ~95 KB of style attributes and a gradient to paint each (perf track 2026-10-05). scripts.js
     redraws a filtered tile with the inline gradient and its own classes."""
@@ -216,8 +213,9 @@ def _cell(counts: dict[str, int], href: str, k: int | None, old: bool, hidden: i
     # the eye in the corner, as on a strip tile, when the notes left something of it out (review 2026-10-05: the
     # matrices were the one view without it)
     hid = ' hid' if hidden else ''
-    # "Buff vs nerf" by the weighed sum (builders/weights.py), not a majority of rows
-    net = net_class(*score) if score else _net(counts)
+    # "Buff vs nerf" by the weighed sum (weights.net_of: '' — no row takes a side — is the mix colour), not a majority
+    # of rows; `mark` None: no rows to weigh (a test's counts only)
+    net = _net(counts) if mark is None else f'net-{mark or "mix"}'
     if len(tags) == 1:
         look = f'dsq {net}{hid} s-{STRIPE_COLOUR.get(tags[0], tags[0])}"'
     else:
@@ -257,7 +255,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
     """entries: (row key, display name, icon url, page href, extra row class)."""
     d = _collect()
     rows, cells, parts, samples, hidden = d['rows'], d['cells'], d['parts'], d['samples'], d['hidden']
-    scores = d.get('scores', {})
+    nets = d.get('nets', {})
     cutoff = (date.fromisoformat(rows[-1]['date'][:10]) - timedelta(days=OLD_DAYS)).isoformat() if rows else ''
     pidx = {r['id']: i for i, r in enumerate(rows)}
     tips: list = []
@@ -275,14 +273,14 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
                 run, run_old = run + 1, old
                 continue
             n_hid = hidden.get(key, {}).get(r['id'], 0)
-            score = [round(x, 2) for x in scores.get(key, {}).get(r['id'], [])] or None
+            mark = nets[key].get(r['id']) if key in nets else None
             # [patch, counts, samples, {part: {tag: n}} for the hero filter or None, not in the notes,
-            #  [net, volume] (builders/weights.py)]
+            #  net mark 'buff' / 'nerf' / 'mix' / '' (weights.net_of; scripts.js reads it, never re-weighs)]
             entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], []),
-                     part_of_cell.get(r['id'], {}) if part_of_cell is not None else None, n_hid, score]
+                     part_of_cell.get(r['id'], {}) if part_of_cell is not None else None, n_hid, mark]
             tips.append(entry)
             # the row's own page at that patch (patch pages are off the bar since 2026-10-03)
-            out.append(_cell(counts, f'{href}#p-{r["id"]}', len(tips) - 1, old, n_hid, score))
+            out.append(_cell(counts, f'{href}#p-{r["id"]}', len(tips) - 1, old, n_hid, mark))
         if run:
             out.append(_gap(run, run_old))
         return ''.join(out)
@@ -301,7 +299,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
             'cells': tips, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
-            'parts': dict(PARTS), 'eye': EYE_MARK}
+            'parts': dict(PARTS), 'eye': EYE_MARK, 'nets': NET_WORDS}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     n_old = sum(1 for r in rows if r['date'] < cutoff)

@@ -406,11 +406,14 @@
       }
       return feed;
     }
-    function countsHtml(counts, d) {
+    // `net`: the build's net mark of the patch for this entity (builders/weights.net_of; d.nets its words): one quiet
+    // chip at the end of the counts, as on the band's banner
+    function countsHtml(counts, d, net) {
       return '<div class="dt-counts">' + ORDER.filter(function (t) { return counts[t]; }).map(function (t) {
         var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
         return '<span class="pip ' + t + '">' + counts[t] + '<em>' + txt(word) + '</em></span>';     // icon: CSS
-      }).join('') + '</div>';
+      }).join('') + (net && d.nets && d.nets[net] ? '<span class="net-chip net-' + net + '">' + txt(d.nets[net]) +
+        '</span>' : '') + '</div>';
     }
     function valsHtml(old, now, tag) {
       return old && now ? txt(old) + '<i>→</i><b class="t-' + tag + '">' + txt(now) + '</b>'
@@ -422,12 +425,12 @@
         txt(tag.toUpperCase()) + '</span></td><td class="dt-field">' + (hidden ? '<span class="dt-e">' + d.eye + '</span>' : '') +
         field + '</td><td class="dt-vals">' + valsHtml(old, now, tag) + '</td></tr>';
     }
-    /* o: icon, name, patch, named, counts, hidden, rows (table html), more, foot, d (words / icons / eye) */
+    /* o: icon, name, patch, named, counts, net, hidden, rows (table html), more, foot, d (words / icons / eye) */
     function card(o) {
       var html = '<div class="dt-head">' + (o.icon ? '<img src="' + attr(o.icon) + '" alt="">' : '') +
         (o.name ? '<span class="dt-name">' + txt(o.name) + '</span>' : '') +
         '<span class="dt-patch' + (o.named ? ' named' : '') + '">' + txt(o.patch) + '</span></div>';
-      if (o.counts) html += countsHtml(o.counts, o.d);
+      if (o.counts) html += countsHtml(o.counts, o.d, o.net);
       if (o.hidden) html += '<div class="dt-eye">' + (o.d.eye || '') + o.hidden + ' not in patch notes</div>';
       if (o.rows) html += '<table class="dt-rows">' + o.rows + '</table>';
       if (o.foot) html += '<div class="dt-foot">' + (o.more > 0 ? '+' + o.more + ' more · ' : '') + txt(o.foot) + '</div>';
@@ -473,7 +476,8 @@
       // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered
       var whole = part === 'all' && !sel.length;
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
-                    counts: counts, hidden: whole ? c[4] : 0, d: d, rows: rows, more: total(counts) - samples.length,
+                    counts: counts, net: whole ? c[5] : '', hidden: whole ? c[4] : 0, d: d, rows: rows,
+                    more: total(counts) - samples.length,
                     foot: 'click for its history at this patch' });
     }
 
@@ -516,8 +520,8 @@
       if (!ab) {
         var top = rowsHtml(d, tile[5], function (s) { return s[5] < d.top; }, 99, true);
         var n = total(tile[3]);
-        return card({ patch: tile[1], named: tile[2], counts: tile[3], hidden: tile[4], d: d, rows: top.html,
-                      more: n - top.shown, foot: foot });
+        return card({ patch: tile[1], named: tile[2], counts: tile[3], net: tile[6], hidden: tile[4], d: d,
+                      rows: top.html, more: n - top.shown, foot: foot });
       }
       var mine = tile[5].filter(function (g) { return (' ' + d.g[g[0]][2] + ' ').indexOf(' ' + ab + ' ') >= 0; });
       if (!mine.length) return null;
@@ -540,7 +544,7 @@
         rows += rowHtml(d, (s[0] ? '<b class="dt-what">' + txt(s[0]) + '</b> · ' : '') + txt(s[1]), s[2], s[3], s[4], s[5]);
       });
       return card({ icon: img && img.getAttribute('src'), name: a.getAttribute('data-name'), patch: u[0], named: u[1],
-                    counts: e[1], hidden: e[2], d: d, rows: rows, more: total(e[1]) - e[3].length,
+                    counts: e[1], net: e[4], hidden: e[2], d: d, rows: rows, more: total(e[1]) - e[3].length,
                     foot: 'click for its history at this patch' });
     }
 
@@ -652,11 +656,11 @@
         tags.forEach(function (t) { total += counts[t]; });
         var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
         var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
-        // unfiltered, the cell's weighed net (builders/weights.py: c[5] = [net, volume]); a filter falls back to
-        // which side has more rows
+        // unfiltered, the cell's weighed net as the build marked it (builders/weights.net_of: c[5] = 'buff' / 'nerf' /
+        // 'mix' / '' — the rule lives there only); a filter falls back to which side has more rows
         var whole = part === 'all' && !sel.length, w = c[5];
-        var net = whole && w ? (Math.abs(w[0]) < 0.25 || (w[1] && Math.abs(w[0]) / w[1] < 0.2) ? 'net-mix'
-          : w[0] > 0 ? 'net-buff' : 'net-nerf') : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix';
+        var net = whole && w != null ? 'net-' + (w || 'mix')
+          : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix';
         var cls = 'dsq ' + (!total ? 'part-out' : net) +
           (total && c[4] && whole ? ' hid' : '');      // the built eye, while unfiltered
         // write only what changed: a text or class write re-lays the tile out

@@ -245,19 +245,22 @@ def tile_card(groups: list[tuple[tuple, list[dict]]]) -> list[list]:
 
 def strip_data(items: list[tuple]) -> dict:
     """The page's hover-card data for its strip tiles and trail squares: t = tiles in strip order,
-    [patch id, title, named?, {tag: n}, hidden, [[group, {tag: n}, hidden, samples], …]]; g = the groups
+    [patch id, title, named?, {tag: n}, hidden, [[group, {tag: n}, hidden, samples], …], net mark (weights.net_of:
+    'buff' / 'nerf' / 'mix' / '')]; g = the groups
     [name ('' for the page's own rows), icon url, entity ids, ultimate 0/1]; the tags' icons and words; top /
     per = how many rows the strip card / a trail card lists. The counters' icons are CSS (`.pip.<tag>`)."""
     from .render import TAG_WORD_ONE, TAG_WORDS
+    from .weights import NET_WORDS
     refs: dict[tuple, int] = {}
     tiles = []
-    for pid, hdr, tally, hidden, card, *_ in items[:STRIP_MAX]:
+    for pid, hdr, tally, hidden, card, *rest in items[:STRIP_MAX]:
         groups = []
         for ref, counts, hid, samples in card:
             groups.append([refs.setdefault(ref, len(refs)), counts, hid, samples])
-        tiles.append([pid, patch_title_text(hdr), bool(patch_name(hdr['title'])), tally, hidden, groups])
+        tiles.append([pid, patch_title_text(hdr), bool(patch_name(hdr['title'])), tally, hidden, groups,
+                      rest[0] if rest else ''])
     return {'t': tiles, 'g': [list(r) for r in refs], 'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_MARK,
-            'top': TILE_SAMPLES, 'per': GROUP_SAMPLES + 1}
+            'top': TILE_SAMPLES, 'per': GROUP_SAMPLES + 1, 'nets': NET_WORDS}
 
 
 def patch_strip(items: list[tuple]) -> str:
@@ -272,7 +275,7 @@ def patch_strip(items: list[tuple]) -> str:
     if not items:
         return ''
     tiles = []
-    for k, (pid, hdr, tally, hidden, _) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
+    for k, (pid, hdr, tally, hidden, *_) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
         text = f'{patch_title_text(hdr)}: {plural(sum(tally.values()), "change")}'
         if hidden:
             text += f', {hidden} not in patch notes'
@@ -531,6 +534,7 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     counters and the eye count are what scripts.js recounts while a filter is on. `every`: the rows of rules for
     every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
     from .render import not_in_notes, tag_summary
+    from .weights import net_chip, net_of
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
     # the banner says how many rows the notes left out — "all N" only when N is more than one; a band the notes never
     # mentioned carries its one eye here and none on its rows (styles.css .all-hidden: advisor round 2, kept by the
@@ -550,8 +554,10 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
         chips += f'<span class="chip txt-chip">{esc(texts)}</span>'
     hidden_cls = ' has-hidden' + (' all-hidden' if all_hidden else '') if n_hidden else ''
     cls = ' named' if patch_name(hdr['title']) else ''
+    # what the patch did to this entity on balance, weighed as the change matrices weigh it (weights.net_of): one
+    # small chip after the counters, none when no row takes a side
     summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
-               f'<span class="bc">{tag_summary(counted_all)}{chips}'
+               f'<span class="bc">{tag_summary(counted_all)}{net_chip(net_of(counted_all))}{chips}'
                f'<a class="pnotes" href="{href or patch_href(pid, rel, entity_id, also)}">patch ↗</a></span></summary>')
     return summary, hidden_cls
 
@@ -566,6 +572,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     from .cards import (ability_plate, disambiguate, every_key, every_links, is_hidden, patch_builds, player_facing,
                         sub_head)
     from .render import not_in_notes, tag_of
+    from .weights import net_of
     hdr = slot['row']
     from .game_systems import SECTION
     every_href = lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}'      # noqa: E731
@@ -650,7 +657,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         for name, rows in every_groups(every_all).items():
             card.append(((name, '', '', 0), rows))
         facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
-                                              tile_card(card)))
+                                              tile_card(card), net_of(counted_all)))
     if every_only:
         facts['every'] = facts.get('every', 0) + 1
         facts.setdefault('every_names', set()).update(every_groups(every_all))

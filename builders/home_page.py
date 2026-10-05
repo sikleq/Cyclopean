@@ -7,6 +7,7 @@ from .common import (EYE_MARK, display_name, entity_icon, esc, glyph_for, hero_i
                      patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
 from . import archive
 from .site_search import search_box
+from .weights import NET_WORDS, net_of
 
 LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
 SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'), ('game', 'Game'))
@@ -156,8 +157,9 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
         name = names.get(key) or pretty_id(eid)
         ic = hero_icon(eid, '') if file == 'heroes.vdata' else entity_icon(file, eid, s.get('kind') or '', '', name)
         href, pic = slug(file, eid), visual(ic, glyph_for(file, eid))
-    net = 'buff' if s['buff'] > s['nerf'] else 'nerf' if s['nerf'] > s['buff'] else 'mix'
-    tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
+    # the icon's underline: what the update did to the page on balance, weighed as everywhere (weights.net_of)
+    net = net_of(c for _, c in s['rows']) or 'mix'
+    tip =f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
     # with a card the eye says nothing of its own (its tooltip stacked on the card)
     eye_mark = mark('hidden') if k is None else EYE_MARK
     eye = f'<span class="lu-eye">{eye_mark}</span>' if s['hidden'] and eye else ''
@@ -216,7 +218,8 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                 chips = []
                 for k, s in got:
                     chips.append(_chip(k, s, row['id'], names, named, len(cards), eye=notes and not all_out))
-                    cards.append([len(updates) - 1, *chip_card(s)])
+                    # [update, {tag: n}, hidden, samples, net mark (weights.net_of) for the card's chip]
+                    cards.append([len(updates) - 1, *chip_card(s), net_of(c for _, c in s['rows'])])
                 whole = f'<span class="lu-all">{EYE_MARK}all not in notes</span>' if all_out else ''
                 # a phone shows three rows of icons (styles.css); the rest is the patch page's (City Never Sleeps'
                 # 102 items were 17 rows, ~900px)
@@ -244,7 +247,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
     # the counters' icons are CSS (`.pip.<tag>`), the eye a mark
-    data = {'u': updates, 'c': cards, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_MARK}
+    data = {'u': updates, 'c': cards, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_MARK, 'nets': NET_WORDS}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     return ''.join(blocks) + f'<script type="application/json" class="feed-data">{blob}</script>'

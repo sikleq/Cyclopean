@@ -1311,6 +1311,44 @@ def test_buff_vs_nerf_weighs_the_changes():
     assert band_score([{'op': 'add', 'dir': None, 'pct': None}]) == (1.0, 1.0)            # a NEW thing
 
 
+def test_net_mark_is_one_rule_on_bands_cards_and_matrices(monkeypatch):
+    """Review 2026-10-05: the change matrices weighed buff vs nerf, a band, a strip tile's card and a home icon said
+    nothing (the home icon's underline counted a majority). weights.net_of is the one rule all of them read."""
+    from builders import dynamics_page, history_view
+    from builders.home_page import _chip, update_feed
+    from builders.weights import net_chip, net_of
+    big = ch(dir='buff', pct=50.0)
+    small = ch(dir='nerf', pct=-10.0)
+    assert net_of([big, small, small]) == 'buff'                    # one +50% buff outweighs two −10% nerfs
+    assert net_of([small, small]) == 'nerf'
+    assert net_of([big, ch(dir='nerf', pct=-50.0)]) == 'mix'
+    assert net_of([ch(op='rework'), ch(cat='mechanic', dir='changed', pct=None)]) == ''    # nothing takes a side
+    assert net_chip('buff') == '<span class="net-chip net-buff">net buff</span>' and net_chip('') == ''
+    # the band's banner: one chip after the counters; none for a band of reworks only
+    hdr = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    summary, _ = history_view._banner('p1', hdr, [big, small, small], '../')
+    assert summary.count('net-chip') == 1 and '<span class="net-chip net-buff">net buff</span>' in summary
+    assert summary.index('class="tsum"') < summary.index('net-chip') < summary.index('patch ↗')
+    assert 'net-chip' not in history_view._banner('p1', hdr, [ch(op='rework')], '../')[0]
+    # the strip tile's card carries the band's mark and the words
+    data = history_view.strip_data([('p1', hdr, {'buff': 1, 'nerf': 2}, 0, [], net_of([big, small, small]))])
+    assert data['t'][0][6] == 'buff' and data['nets']['mix'] == 'mixed'
+    # the home icon: its underline by the weighed sum, not by which side has more rows
+    ents = [{'key': 'abilities.vdata:a1', 'file': 'abilities.vdata', 'id': 'a1', 'kind': 'ability', 'owner': 'hero_atlas',
+             'name': 'Siphon Life', 'changes': [{**big, 'key': 'k1'}, {**small, 'key': 'k2', 'label': 'Radius'},
+                                                {**small, 'key': 'k3', 'label': 'Range'}]}]
+    s = update_feed({'entities': ents})['heroes']['heroes.vdata:hero_atlas']
+    assert s['nerf'] == 2 and s['buff'] == 1
+    assert 'class="lu net-buff"' in _chip('heroes.vdata:hero_atlas', s, 'p1', {'heroes.vdata:hero_atlas': 'Abrams'}, k=0)
+    # a matrix tile: its class and its card's mark from the same rule (scripts.js never re-weighs)
+    rows = [{'id': 'p1', 'date': '2026-09-29', 'title': '09-29-2026 Update'}]
+    monkeypatch.setattr(dynamics_page, '_collect', lambda: {
+        'rows': rows, 'cells': {'item:x': {'p1': {'buff': 1, 'nerf': 2}}}, 'parts': {}, 'samples': {}, 'hidden': {},
+        'nets': {'item:x': {'p1': net_of([big, small, small])}}})
+    html = dynamics_page.matrix_html([('item:x', 'X', None, 'x.html', '')], 'item')
+    assert 'class="dsq net-buff"' in html and '"nets":{' in html and ',"buff"]]' in html
+
+
 def test_a_namesake_hint_is_never_a_unit_word():
     """Review 2026-10-05: "Incoming Damage Deferred · pct", "… · value" — hints made of property words."""
     from builders.cards import _hint
