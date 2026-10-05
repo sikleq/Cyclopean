@@ -345,6 +345,55 @@ def test_a_windows_text_change_is_its_first_old_and_last_new_words():
     assert (bubble['old'], bubble['new'], bubble['builds']) == ('Shifting Shroud', 'Ethereal Shift', [1, 2])
 
 
+def test_a_text_change_carries_the_values_of_the_builds_around_its_window():
+    """Review 2026-10-05: ~550 description rows read "[Sleep Duration]". The pipeline keeps, for each side, the values
+    the game filled into it: the old text's at the window's start, the new text's at its end — only the tokens the side
+    uses, looked up without case; a token neither build knows stays out; the hero's name and key bindings are no
+    value; a row without tokens is left as it is."""
+    from pipeline.entity_texts import needed, value_tokens, with_values
+    key = 'abilities.vdata:ability_sleep_dagger'
+    rows = [{'ent': key, 'part': 't2', 'old': '{s:AbilityCooldown}s Cooldown {s:hero_name}',
+             'new': '+{s:sleepduration}s Sleep Duration, {s:Gone}', 'builds': [6642]},
+            {'ent': key, 'part': 'name', 'old': 'Sleep Dagger', 'new': 'Dream Dagger', 'builds': [6642]}]
+    before = {key: {'t2': {'AbilityCooldown': '-4', 'SleepDuration': '0.25', 'hero_name': 'Haze'}}}
+    after = {key: {'t2': {'AbilityCooldown': '-3', 'SleepDuration': '0.5'}}}
+    assert value_tokens(rows[0]['old']) == ['AbilityCooldown'] and needed(rows) == {key}
+    assert value_tokens('Hold [{s:ability_key}] or {s:iv_attack2} for {s:Damage} {s:Damage}') == ['Damage']
+    got = with_values(rows, before, after)
+    assert got[0]['vals'] == {'old': {'AbilityCooldown': '-4'}, 'new': {'sleepduration': '0.5'}}
+    assert got[1] is rows[1] and 'vals' not in rows[0]               # the input rows are not changed
+    # a build that is not known (the window starts the tracking): that side has no values
+    assert with_values(rows, None, after)[0]['vals'] == {'new': {'sleepduration': '0.5'}}
+
+
+def test_a_windows_states_are_the_builds_before_and_after_it(monkeypatch):
+    from pipeline import match
+    from pipeline.patches import Patch
+    recs = {'a.json.gz': {'commit': 'c1', 'prev_commit': 'c0'}, 'b.json.gz': {'commit': 'c2', 'prev_commit': 'c1'}}
+    monkeypatch.setattr(match, 'load_record', lambda f: recs[f])
+    p = Patch('2026-07-28', 'x', '2026-07-28', None, [{'file': 'a.json.gz'}, {'file': 'b.json.gz'}])
+    assert match.window_states(p) == ('c0', 'c2')
+
+    def never():
+        raise AssertionError('no text holds a value: the builds are not read')
+    name = {'ent': 'k', 'part': 'name', 'old': 'A', 'new': 'B'}
+    assert match.texts_with_values([name], never) == [name]
+    # the old side is read at the build before the window, the new side at its last build; only abilities.vdata
+    blobs = {'c0': 'b0', 'c2': 'b2'}
+    files = {'b0': {'ability_x': {'m_mapAbilityProperties': {'AbilityCooldown': {'m_strValue': '30'}}}},
+             'b2': {'ability_x': {'m_mapAbilityProperties': {'AbilityCooldown': {'m_strValue': '28'}}}}}
+    monkeypatch.setattr(match.tracker, 'blob_id', lambda commit, path: blobs.get(commit))
+    monkeypatch.setattr(match, '_abilities_blob', lambda blob: files[blob])
+    monkeypatch.setattr(match.loc, 'tokens', lambda commit: {})
+    rows = [{'ent': 'abilities.vdata:ability_x', 'part': 'desc', 'old': 'Every {s:AbilityCooldown}s',
+             'new': 'Each {s:AbilityCooldown}s'},
+            {'ent': 'heroes.vdata:ability_x', 'part': 'desc', 'old': '{s:AbilityCooldown}', 'new': '{s:X}'}]
+    got = match.texts_with_values(rows, lambda: match.window_states(p))
+    assert got[0]['vals'] == {'old': {'AbilityCooldown': '30'}, 'new': {'AbilityCooldown': '28'}}
+    assert 'vals' not in got[1]
+    assert match.text_state(None, {'abilities.vdata:ability_x'}) is None
+
+
 def test_text_changes_are_rows_of_the_entity_never_counted():
     from builders.history_view import history_table
     from builders.text_rows import TEXT_PREFIX

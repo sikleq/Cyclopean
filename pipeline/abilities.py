@@ -135,14 +135,14 @@ def fmt_prop(tok, prop, value, aid, bonus=False, magnitude=False) -> str:
     return f'{pre}{v}{post}'
 
 
-def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = None) -> str:
-    """Tooltip text with {s:Prop} filled and markup removed. {g:citadel_inline_attribute:'X'}
-    is what the game prints for InlineAttribute_X ('SpiritDPS' -> 'spirit damage over time')."""
-    if not text:
-        return ''
-
+def fill_values(text: str, values: dict[str, str], missing=None) -> str:
+    """`text` with each {s:Prop} replaced by its value as the tooltip prints it, markup kept. `missing(name)`: what a
+    token with no value reads (default: its name). The text's unit is written once: "+{s:Radius}m" with "2m" is
+    "+2m", "{s:BonusMoveSpeed} m/s" with "1.2m" is "1.2 m/s"."""
     def value(m: re.Match) -> str:
-        v = values.get(m.group(1), m.group(1))
+        v = values.get(m.group(1))
+        if v is None:
+            return m.group(1) if missing is None else missing(m.group(1))
         # "+{s:Radius}m" with a value that already ends in m: the unit once ("+2m", not "+2mm")
         nxt = m.string[m.end():m.end() + 1]
         if nxt and not nxt.isdigit() and v.endswith(nxt):
@@ -152,6 +152,14 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
         if unit and v[-1:].isalpha() and unit.group(1).startswith(v[-1]):
             return v[:-1]
         return v
+    return _SUB_RE.sub(value, text)
+
+
+def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = None) -> str:
+    """Tooltip text with {s:Prop} filled and markup removed. {g:citadel_inline_attribute:'X'}
+    is what the game prints for InlineAttribute_X ('SpiritDPS' -> 'spirit damage over time')."""
+    if not text:
+        return ''
 
     def glossary(m: re.Match) -> str:
         kind, name = (m.group(1), m.group(2)) if m.group(2) is not None else (m.group(3), m.group(4))
@@ -161,7 +169,7 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
             words = tok.get(f'inlineattribute_{name}'.lower())
             return words if words is not None else humanize(name).lower()
         return name or ''
-    t = _SUB_RE.sub(value, text)
+    t = fill_values(text, values)
     t = _SPACES_RE.sub(' ', _G_RE.sub(glossary, t))
     t = _TAG_RE.sub('\n', t)
     # the text's entities as characters: the page escapes once ("Bullet, Spirit &amp;amp; Melee")
@@ -169,17 +177,64 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
     return '\n'.join(ln.strip() for ln in t.splitlines() if ln.strip())
 
 
+def _aliases(props: dict) -> dict[str, str]:
+    return {p: str(d['m_strLocTokenOverride']) for p, d in props.items()
+            if isinstance(d, dict) and d.get('m_strLocTokenOverride')}
+
+
+def base_values(a: dict) -> dict[str, str]:
+    """{token: value} the ability's description fills in: each property's value as the tooltip prints it ("30",
+    "20m": metres keep their m, seconds and percents leave the unit to the text), also under its
+    m_strLocTokenOverride."""
+    props = a.get('m_mapAbilityProperties')
+    props = props if isinstance(props, dict) else {}
+    vals = {}
+    for p, d in props.items():
+        if isinstance(d, dict) and d.get('m_strValue') is not None:
+            v = str(d['m_strValue'])
+            vals[p] = _num_s(v) if v.endswith('m') else _num_s(v).rstrip('ms%')
+    return _tokens(vals, _aliases(props))
+
+
+def tier_values(a: dict, ups: list, base_vals: dict[str, str], tok: dict[str, str]) -> dict[str, str]:
+    """{token: value} an upgrade tier's text fills in: its bonuses over the base values ("{s:AbilityCooldown}s" in a
+    T2 is the tier's -4, not the 30s cooldown); a scaling bonus also as "<prop>_scale". A zero bonus is none."""
+    props = a.get('m_mapAbilityProperties')
+    props = props if isinstance(props, dict) else {}
+    vals = dict(base_vals)
+    for u in ups if isinstance(ups, list) else ():
+        if not isinstance(u, dict):          # text_values reads every old build: an odd record is no bonus
+            continue
+        u = _id_case(u)
+        p, b = u.get('m_strPropertyName'), u.get('m_strBonus')
+        if not p or b is None or _num_s(b).rstrip('ms%') in ('0', '-0'):
+            continue
+        vals.setdefault(p, _num_s(b))
+        if u.get('m_eUpgradeType') in ('EAddToScale', 'EMultiplyScale'):
+            vals[f'{p}_scale'] = _num_s(b)     # "{s:MaxBonusBulletDamage_scale}%": the tier's scaling bonus
+        else:
+            vals[p] = _num_s(b).lstrip('-') if _affix(tok, p, 'prefix') == '-' else _num_s(b)
+    vals.update({o: vals[p] for p, o in _aliases(props).items() if p in vals and o not in props})
+    return vals
+
+
+def text_values(a: dict, tok: dict[str, str]) -> dict[str, dict[str, str]]:
+    """{part: {token: value}} of an ability's texts at one build: 'desc' its description's, 't1'..'t3' its upgrade
+    tiers' — what the game fills into "{s:AbilityCooldown}" when it shows them (pipeline/entity_texts.py)."""
+    base = base_values(a)
+    out = {'desc': base}
+    for i, t in enumerate(a.get('m_vecAbilityUpgrades') or [], start=1):
+        if isinstance(t, dict):
+            out[f't{i}'] = tier_values(a, t.get('m_vecPropertyUpgrades') or [], base, tok)
+    return out
+
+
 def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None, fmap: dict | None = None) -> dict:
     """`fmap`: pipeline.labels' map (the field's label over its whole history); without it the
     newest build's text alone names the properties."""
     props = a.get('m_mapAbilityProperties') or {}
-    alias = {p: str(d['m_strLocTokenOverride']) for p, d in props.items()
-             if isinstance(d, dict) and d.get('m_strLocTokenOverride')}
-    base_vals = {}
-    for p, d in props.items():
-        if isinstance(d, dict) and d.get('m_strValue') is not None:
-            base_vals[p] = _num_s(d['m_strValue']).rstrip('ms%') if not str(d['m_strValue']).endswith('m') else _num_s(d['m_strValue'])
-    base_vals = _tokens(base_vals, alias)
+    alias = _aliases(props)
+    base_vals = base_values(a)
     # "{s:hero_name} is slowed" — the game prints the owner's name
     base_vals['hero_name'] = loc.plain(loc.hero_name(tok, owner)) if owner else 'the hero'
     important, basic = [], []
@@ -219,7 +274,7 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None, f
     tiers = []
     for i, t in enumerate(a.get('m_vecAbilityUpgrades') or [], start=1):
         ups = t.get('m_vecPropertyUpgrades') or []
-        vals = dict(base_vals)
+        vals = tier_values(a, ups, base_vals, tok)
         bonuses = []
         paths = _tier_paths(i, ups)
         for j, u in enumerate(ups):
@@ -228,18 +283,12 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None, f
             if not p or b is None or _num_s(b).rstrip('ms%') in ('0', '-0'):
                 continue                       # a zero bonus ("Cooldown +0s" on 103 rows) is no bonus
             scale = u.get('m_eUpgradeType') in ('EAddToScale', 'EMultiplyScale')
-            vals.setdefault(p, _num_s(b))
-            if scale:                          # "{s:MaxBonusBulletDamage_scale}%": the tier's scaling bonus
-                vals[f'{p}_scale'] = _num_s(b)
-            else:
-                vals[p] = _num_s(b).lstrip('-') if _affix(tok, p, 'prefix') == '-' else _num_s(b)
             # the tier's own path: its label carries "(spirit scaling)", "(% of base)" like the history row;
             # a bonus keyed by its property alone hides its scaling there, the card adds it
             name = _label(tok, p, aid, kind, alias.get(p), paths[j], fmap)
             suffix = scaling_suffix([u.get('m_eUpgradeType'), u.get('m_eScaleStatFilter')]) if scale else ''
             bonuses.append({'label': name['label'] + (suffix if suffix and 'scaling' not in name['label'] else ''),
                             'value': fmt_prop(tok, p, b, aid, bonus=True, magnitude=name['sign'] == '-')})
-        vals.update({o: vals[p] for p, o in alias.items() if p in vals and o not in props})
         text = fill(tok.get(f'{aid}_t{i}_desc'.lower()), vals, tok)
         tiers.append({'tier': i, 'text': text, 'bonuses': bonuses})
     sections = []

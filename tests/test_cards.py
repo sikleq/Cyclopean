@@ -46,6 +46,33 @@ def test_tier_text_uses_the_tooltip_token_names():
     assert c['desc'] == 'Paradox floats'
 
 
+def test_a_texts_values_at_one_build_are_its_properties_and_each_tiers_bonuses():
+    """pipeline/entity_texts fills a description change with these (review 2026-10-05: ~550 rows showed "[Ability
+    Cooldown]"): the description reads the properties, a tier's text that tier's bonuses over them — "{s:AbilityCooldown}"
+    in Sleep Dagger's T2 was its -4, not the 30s cooldown; a zero bonus is none; metres keep their m."""
+    from pipeline.abilities import fill_values, text_values
+    a = {'m_mapAbilityProperties': {
+            'AbilityCooldown': {'m_strValue': '30'}, 'AbilityCastRange': {'m_strValue': '12m'},
+            'SlowPercent': {'m_strValue': '25%'},
+            'SpeedOnLandDuration': {'m_strValue': '2', 'm_strLocTokenOverride': 'BuffDuration'}},
+         'm_vecAbilityUpgrades': [
+             {'m_vecPropertyUpgrades': [{'m_strPropertyName': 'SlowPercent', 'm_strBonus': '10'}]},
+             {'m_vecPropertyUpgrades': [{'m_strPropertyName': 'AbilityCooldown', 'm_strBonus': '-4'},
+                                        {'m_strPropertyName': 'SpeedOnLandDuration', 'm_strBonus': '0'}]}]}
+    vals = text_values(a, {})
+    assert set(vals) == {'desc', 't1', 't2'}
+    assert vals['desc']['AbilityCooldown'] == '30' and vals['desc']['AbilityCastRange'] == '12m'
+    assert vals['desc']['SlowPercent'] == '25' and vals['desc']['BuffDuration'] == '2'
+    assert vals['t1']['SlowPercent'] == '10' and vals['t2']['AbilityCooldown'] == '-4'
+    assert vals['t2']['BuffDuration'] == '2'                  # a zero bonus: the property's own value
+    # only the value tokens: markup stays for the page, an unknown token is the caller's
+    assert fill_values('<b>{s:AbilityCooldown}s</b> {s:Nope}', vals['t2'], lambda n: '?') == '<b>-4s</b> ?'
+    # every old build is read: an odd record is no value, never a crash of the pipeline
+    odd = {'m_mapAbilityProperties': [], 'm_vecAbilityUpgrades': [{'m_vecPropertyUpgrades': ['x', None]}, 'odd',
+                                                                   {'m_vecPropertyUpgrades': {'a': 1}}]}
+    assert text_values(odd, {}) == {'desc': {}, 't1': {}, 't3': {}}
+
+
 def test_property_prefix_and_units():
     tok = {'enemyslowpct_prefix': '-', 'enemyslowpct_postfix': '%', 'bonushealth_prefix': '{s:sign}',
            'abilitycastrange_postfix': 'm'}

@@ -41,6 +41,63 @@ def key_part(key: str, ids: dict[str, str]) -> tuple[str, str] | None:
     return ent, 'desc' if desc else 'name'
 
 
+_VALUE = re.compile(r'\{s:(\w+)\}')
+# the hero's own name and a key binding ("{s:iv_attack}", "{s:ability_key}") are no value of the ability:
+# builders/text_rows fills the one, draws the other as a key
+HERO_TOKEN = re.compile(r'^hero_?name$', re.I)
+BINDING_TOKEN = re.compile(r'^(?:(?:iv|in|key)_|ability_key$)', re.I)
+
+
+def not_a_value(name: str) -> bool:
+    return bool(HERO_TOKEN.match(name) or BINDING_TOKEN.match(name))
+VALUE_PARTS = ('desc', 't1', 't2', 't3')
+
+
+def value_tokens(text: str | None) -> list[str]:
+    """The values a text has the game fill in ("{s:AbilityCooldown}"), in order, once each."""
+    return list(dict.fromkeys(n for n in _VALUE.findall(str(text or '')) if not not_a_value(n)))
+
+
+def _side_values(text: str | None, part_values: dict[str, str] | None) -> dict[str, str]:
+    """{token: value} of the tokens a text uses that the build knows (a token is looked up as written, then
+    without case — the game reads keys without case)."""
+    if not part_values:
+        return {}
+    lower = {k.lower(): v for k, v in part_values.items()}
+    out = {}
+    for n in value_tokens(text):
+        v = part_values.get(n, lower.get(n.lower()))
+        if v is not None:
+            out[n] = v
+    return out
+
+
+def with_values(rows: list[dict], before, after) -> list[dict]:
+    """The rows with `vals` = {'old': {token: value}, 'new': {…}}: what the game filled into the old text at the
+    window's start and into the new text at its end (Haze's Sleep Dagger T2 2026-07-28 read "[Ability Cooldown]s
+    Cooldown → +[Sleep Duration]s Sleep Duration"; review 2026-10-05: ~550 such rows). `before` / `after`: entity key
+    -> {part: {token: value}} of that state (pipeline.abilities.text_values), None when it is not known. A row
+    without value tokens is unchanged; a token neither build knows stays out (the page writes a neutral gap)."""
+    out = []
+    for row in rows:
+        if row.get('part') not in VALUE_PARTS or not (value_tokens(row.get('old')) or value_tokens(row.get('new'))):
+            out.append(row)
+            continue
+        vals = {}
+        for side, state in (('old', before), ('new', after)):
+            got = _side_values(row.get(side), ((state or {}).get(row['ent']) or {}).get(row['part']))
+            if got:
+                vals[side] = got
+        out.append({**row, 'vals': vals} if vals else row)
+    return out
+
+
+def needed(rows: list[dict]) -> set[str]:
+    """Entity keys whose texts in `rows` hold values the game fills in (the states `with_values` needs)."""
+    return {r['ent'] for r in rows if r.get('part') in VALUE_PARTS
+            and (value_tokens(r.get('old')) or value_tokens(r.get('new')))}
+
+
 def entity_texts(loc_rows: list[dict], cat: dict[str, dict]) -> list[dict]:
     """[{ent, part, old, new, builds}] of one patch window's localization rows (each with its 'build'), in
     build order; see the module doc for what is kept."""

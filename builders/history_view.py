@@ -374,7 +374,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
-        rows += text_rows(texts.get(key, []), hero)
+        rows += text_rows(texts.get(key, []), hero, changes)
         if not rows:
             continue
         # the same rows on another member: one group, both named (a family, a Game system); on any page the same rows

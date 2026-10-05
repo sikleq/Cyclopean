@@ -22,6 +22,8 @@ import difflib
 import json
 import re
 from dataclasses import dataclass, field
+from functools import lru_cache
+from typing import Callable
 
 from . import cache, catalog, jsonio, labels, loc, semantics, tracker
 from . import flags as flag_rules
@@ -1462,7 +1464,7 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         'sections': sections,
         'entities': ents,
         'key_changes': key_changes(ents),
-        'extras': slim_extras(extras, cat),
+        'extras': slim_extras(extras, cat, lambda: window_states(p)),
         'counts': counts,
         'line_counts': line_counts,
     }
@@ -1544,10 +1546,59 @@ _CONVAR_ORDER = {'documented': 0, 'described': 0, 'rounded': 0, 'mismatch': 0}
 _CONVAR_OP = {'change': 0, 'desc': 1, 'remove': 2, 'add': 3}
 
 
-def slim_extras(extras: dict, cat: dict[str, dict] | None = None) -> dict:
+def window_states(p: Patch) -> tuple[str | None, str | None]:
+    """(commit before the window's first build, commit of its last build): the game as a window found it and left
+    it — the old and new sides of its merged changes."""
+    if not p.builds:
+        return None, None
+    return load_record(p.builds[0]['file']).get('prev_commit'), load_record(p.builds[-1]['file']).get('commit')
+
+
+@lru_cache(maxsize=2)
+def _abilities_blob(blob: str) -> dict:
+    return cache.vdata_blob(blob)           # neighbouring windows share a state: one parse each
+
+
+def text_state(commit: str | None, keys: set[str]) -> dict | None:
+    """entity key -> {part: {token: value}} of the abilities and items in `keys` at `commit`
+    (pipeline.abilities.text_values); None when the build is not known."""
+    from .abilities import text_values
+    if not commit:
+        return None
+    blob = tracker.blob_id(commit, tracker.SCRIPTS + 'abilities.vdata')
+    if not blob:
+        return None
+    abilities, tok = _abilities_blob(blob), loc.tokens(commit)
+    out = {}
+    for k in keys:
+        file, _, eid = k.partition(':')
+        a = abilities.get(eid) if file == 'abilities.vdata' else None
+        if isinstance(a, dict):
+            out[k] = text_values(a, tok)
+    return out
+
+
+States = tuple[str | None, str | None]
+
+
+def texts_with_values(texts: list[dict], states: States | Callable[[], States] | None) -> list[dict]:
+    """The window's text changes with the values the game filled into their old and new sides
+    (`entity_texts.with_values`), read from the builds before and after the window. `states`: (before, after)
+    commits, or what gives them (`window_states`, asked only when a text holds a value)."""
+    from .entity_texts import needed, with_values
+    keys = needed(texts)
+    if not keys or not states:
+        return texts
+    before, after = states() if callable(states) else states
+    return with_values(texts, text_state(before, keys), text_state(after, keys))
+
+
+def slim_extras(extras: dict, cat: dict[str, dict] | None = None,
+                states: States | Callable[[], States] | None = None) -> dict:
     """Patch pages show a capped list of text changes, every console variable and asset totals; the full
     per-build detail stays on the build pages. `texts`: the name / description changes of the abilities, items
-    and heroes a page shows, uncapped (`pipeline/entity_texts.py`)."""
+    and heroes a page shows, uncapped (`pipeline/entity_texts.py`), with the values the game filled in at
+    `states` (`window_states`)."""
     from .entity_texts import entity_texts
     loc_rows = [x for x in extras['loc'] if x.get('group') in LOC_GROUPS]
     totals: dict[str, dict[str, int]] = {}
@@ -1560,7 +1611,7 @@ def slim_extras(extras: dict, cat: dict[str, dict] | None = None) -> dict:
         hero_models |= set(a.get('hero_models', {}))
     return {
         'loc': loc_rows[:LOC_LIMIT], 'loc_total': len(loc_rows),
-        'texts': entity_texts(extras['loc'], cat or {}),
+        'texts': texts_with_values(entity_texts(extras['loc'], cat or {}), states),
         'convars': sorted(extras['convars'], key=lambda x: (_CONVAR_ORDER.get(x.get('status'), 1),
                                                             _CONVAR_OP.get(x.get('op'), 4), x.get('build') or 0)),
         'convars_total': len(extras['convars']),

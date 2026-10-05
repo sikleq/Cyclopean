@@ -31,23 +31,61 @@ _KEY_NAMES = (('iv attack2', 'ads'), ('iv attack', 'attack'), ('in mantle', 'man
 _BRACKET = re.compile(r'\[\[?([^\[\]]+)\]?\]')
 
 
-_HERO_TOKEN = re.compile(r'^hero_?name$', re.I)
-_BINDING_TOKEN = re.compile(r'^(?:iv|in|key)_', re.I)          # "{s:iv_attack}": a key binding, read "[Iv Attack]"
-
-
-def unfilled(raw, hero: str | None = None) -> bool:
-    """Does the game's text hold a value it fills in when it shows it ("{s:AbilityCooldown}", read "[Ability
-    Cooldown]")? A hero's page fills its own name in; a key binding is no value. Such a text stays folded: open, 552
-    of 980 rows showed "[Ability Cooldown]s Cooldown · Applies [Fixation Stacks] Fixation Stacks" (review
-    2026-10-05)."""
-    from .patches_pages import _VALUE_TOKEN
-    return any(not (hero and _HERO_TOKEN.match(n)) and not _BINDING_TOKEN.match(n)
-               for n in _VALUE_TOKEN.findall(str(raw or '')))
-
-
 def _plain(s) -> str:
     from .patches_pages import _plain as plain     # the archive's reading of loc text: markup out, [Tokens]
     return plain(s, None)
+
+
+# a value the game fills in that no build record knows (the ability was not in that build's files): a neutral gap,
+# never "[Ability Cooldown]" (review 2026-10-05)
+GAP = '…'
+_RAW_VALUE = re.compile(r'\{s:(\w+)\}')
+
+
+def _filled(raw, values: dict | None) -> tuple[str, bool]:
+    """(the text as the game printed it at that build, whether a value was not known): each "{s:Prop}" gets the
+    value the pipeline read at that build (pipeline/entity_texts.with_values) with the text's unit once; the hero's
+    name and a key binding stay for `_plain`; an unknown value is the GAP."""
+    from pipeline.abilities import fill_values
+    from pipeline.entity_texts import not_a_value
+    gaps: list[str] = []
+
+    def missing(name: str) -> str:
+        if not_a_value(name):          # the hero's name (filled below) and a key binding (read "[Attack]")
+            return '{s:' + name + '}'
+        gaps.append(name)
+        return GAP
+    text = fill_values(str(raw or ''), values or {}, missing) if _RAW_VALUE.search(str(raw or '')) else raw
+    return _plain(text), bool(gaps)
+
+
+def sides(t: dict, hero: str | None = None) -> tuple[str, str, bool]:
+    """(old text, new text, a value unknown on either side) of a text change as a reader sees them."""
+    vals = t.get('vals') or {}
+    a, gap_a = _filled(t.get('old'), vals.get('old'))
+    b, gap_b = _filled(t.get('new'), vals.get('new'))
+    if hero:
+        a, b = _HERO_NAME.sub(hero, a), _HERO_NAME.sub(hero, b)
+    return a, b, gap_a or gap_b
+
+
+_NUMBER = re.compile(r'\d+(?:\.\d+)?')
+
+
+def _numbers(s) -> list[float]:
+    return [float(x) for x in _NUMBER.findall(str(s or ''))]
+
+
+def numbers_only(a: str, b: str, changes: list[dict]) -> bool:
+    """The two texts differ only in numbers, and each moved number is a change row of the same patch ("30s Cooldown"
+    → "28s Cooldown" beside the row "Cooldown 30s → 28s"): the description says nothing the rows don't."""
+    if _NUMBER.sub('#', a) != _NUMBER.sub('#', b):
+        return False
+    moved = [(x, y) for x, y in zip(_numbers(a), _numbers(b)) if x != y]
+    if not moved:
+        return False
+    pairs = [(set(map(abs, _numbers(c.get('old_s')))), set(map(abs, _numbers(c.get('new_s'))))) for c in changes]
+    return all(any(abs(x) in old and abs(y) in new for old, new in pairs) for x, y in moved)
 
 
 def _canon_key(m: re.Match) -> str:
@@ -99,8 +137,7 @@ def _marked(a: str, b: str) -> tuple[str, str]:
 def text_kind(texts: list[dict]) -> str | None:
     """The band banner's word for an entity's text changes ("renamed" / "description"), None when there are none or
     they only fix the wording."""
-    real = [t for t in texts if _plain(t.get('old')) and _plain(t.get('new'))
-            and not cosmetic(_plain(t.get('old')), _plain(t.get('new')))]
+    real = [t for t in texts for a, b, _ in [sides(t)] if a and b and not cosmetic(a, b)]
     if any(t['part'] == 'name' for t in real):
         return 'renamed'
     return 'description changed' if real else None
@@ -109,15 +146,14 @@ def text_kind(texts: list[dict]) -> str | None:
 _HERO_NAME = re.compile(r'\[hero ?name\]', re.I)
 
 
-def text_rows(texts: list[dict], hero: str | None = None) -> str:
+def text_rows(texts: list[dict], hero: str | None = None, changes: list[dict] | None = None) -> str:
     """The rows of one entity's text changes in one patch, names first. `hero`: the page's hero, whose name the game
-    fills into "[Hero name]" (61 rows showed the token; review 2026-10-05)."""
+    fills into "[Hero name]" (61 rows showed the token; review 2026-10-05). `changes`: the entity's change rows of the
+    same patch (`numbers_only`)."""
     from .cards import row
     out = []
     for t in sorted(texts, key=lambda t: list(PART_LABEL).index(t['part']) if t['part'] in PART_LABEL else 9):
-        a, b = _plain(t.get('old')), _plain(t.get('new'))
-        if hero:
-            a, b = _HERO_NAME.sub(hero, a), _HERO_NAME.sub(hero, b)
+        a, b, gap = sides(t, hero)
         if not a or not b or a == b:
             continue
         label = PART_LABEL.get(t['part'], 'Text changed')
@@ -132,10 +168,11 @@ def text_rows(texts: list[dict], hero: str | None = None) -> str:
             # there — the owner wants every change, but it is no description change
             label = label.replace('description changed', 'wording fixed').replace('Description changed', 'Wording fixed')
         head = row('text', '', esc(label), '')
-        # a short text opens on its old and new versions, like a tooltip card side by side — not one with values the
-        # game fills in (`unfilled`): its "[Sleep Duration]" placeholders are no reading
-        opened = (' open' if len(a) <= SHORT_DIFF and len(b) <= SHORT_DIFF
-                  and not unfilled(t.get('old'), hero) and not unfilled(t.get('new'), hero) else '')
+        # a short text opens on its old and new versions, like a tooltip card side by side, with the values the game
+        # filled in at each build — not one with a value no build record knows (its gaps are no reading), nor one whose
+        # only change is numbers the patch's rows already say
+        opened = (' open' if len(a) <= SHORT_DIFF and len(b) <= SHORT_DIFF and not gap
+                  and not numbers_only(a, b, changes or []) else '')
         out.append(f'<details class="txt"{opened}><summary>{head}</summary><div class="txt-diff">'
                    f'<p class="txt-old">{old}</p><p class="txt-new">{new}</p></div></details>')
     return ''.join(out)
