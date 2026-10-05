@@ -234,3 +234,33 @@ def test_a_name_column_sorts_both_ways_as_aria_sort_says(browser):
     assert th.get_attribute('aria-sort') == 'descending' and page.evaluate(order) == ['Row 2', 'Row 1', 'Row 0']
     th.click()
     assert th.get_attribute('aria-sort') == 'ascending' and page.evaluate(order) == ['Row 0', 'Row 1', 'Row 2']
+
+
+def test_a_strip_card_says_the_net_of_the_patch(browser):
+    """Review 2026-10-05: a strip tile's card carries the band's weighed net (weights.net_of) as one chip after the
+    counts; a patch whose rows take no side carries none."""
+    from builders.history_view import patch_strip, tile_card
+    row = {'op': 'change', 'cat': 'balance', 'label': 'Radius', 'old_s': '3m', 'new_s': '4m', 'dir': 'buff', 'pct': 33.0,
+           'status': 'documented', 'path': 'x'}
+    hdr = [{'id': f'p{i}', 'date': f'2026-0{i}-01', 'title': f'0{i}-01-2026 Update'} for i in (1, 2)]
+    items = [('p2', hdr[1], {'buff': 1}, 0, tile_card([(('', '', '', 0), [row])]), 'buff'),
+             ('p1', hdr[0], {'buff': 1}, 0, tile_card([(('', '', '', 0), [row])]), '')]
+    page, errors = _open(browser, patch_strip(items))
+    page.hover('.ps-tile[data-k="0"]')
+    chip = page.locator('.dyn-tip.on .dt-counts .net-chip')
+    assert chip.count() == 1 and chip.text_content() == 'net buff' and 'net-buff' in chip.get_attribute('class')
+    page.hover('.ps-tile[data-k="1"]')
+    assert page.locator('.dyn-tip.on .dt-counts').count() == 1 and page.locator('.dyn-tip.on .net-chip').count() == 0
+    assert not errors
+
+
+def test_matrix_row_icons_load_with_the_page_not_under_a_scroll(browser):
+    """Perf 2026-10-05: each lazy row icon arriving mid-scroll cost a layout, a repaint and a new layering of the sticky
+    name cells (items/changes in-p95 50 ms on a 4x slower CPU, 17 ms with the icons in). At `load` the matrices' icons
+    load; other lazy images stay lazy."""
+    gif = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw=='
+    page, errors = _open(browser, f'<table class="dyn"><tbody><tr><td class="name"><a href="#"><img src="{gif}" alt="" '
+                                  f'loading="lazy">X</a></td></tr></tbody></table><img id="other" src="{gif}" alt="" '
+                                  f'loading="lazy">')
+    got = page.evaluate("() => [document.querySelector('table.dyn img').loading, document.getElementById('other').loading]")
+    assert got == ['eager', 'lazy'] and not errors

@@ -752,6 +752,17 @@
     });
   });
 
+  /* ---------- change matrices: the row icons load once the page has loaded, not one by one under a scroll ---------- */
+  /* a lazy icon arriving mid-scroll cost a layout, a repaint and a new layering of the ~200 sticky name cells:
+     scrolling inside items/changes.html ran at p95 50 ms on a 4x slower CPU, 17 ms with the icons in (perf
+     2026-10-05, tools/perf_probe.py --throttle 4). The first screen keeps its lazy start: the rest follow at `load` */
+  safe('dyn-icons', function () {
+    var imgs = document.querySelectorAll('table.dyn td.name img[loading="lazy"]');
+    if (!imgs.length) return;
+    function all() { imgs.forEach(function (i) { i.loading = 'eager'; }); }
+    if (document.readyState === 'complete') all(); else window.addEventListener('load', all, { once: true });
+  });
+
   /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
   safe('table-fade', function () {
     document.querySelectorAll('.table-fade > .table-scroll').forEach(function (sc) {
