@@ -99,7 +99,7 @@ def test_band_title_stays_on_the_page_and_groups_have_a_plate():
                          ults=frozenset({'abilities.vdata:ab_ult'}))
     band = html.split('id="p-p3"')[1].split('</summary>')[0]
     assert '<span class="bt"><span class="pdate solo">' in band       # plain text: a click opens the band
-    assert 'class="pnotes" href="../patches/p3.html"' in band          # the archive on purpose
+    assert 'class="pnotes" href="../patches/p3.html#c-hero_atlas"' in band   # the archive on purpose, at Abrams
     assert '<span class="ec-n">3 not in notes</span>' in band          # the eye count scripts.js recounts
     assert html.count('class="hgroup has-ic') >= 3 and '<div class="hg-b">' in html
     # the gold corner marks the ultimate; no tooltip beside its written name (AGENTS.md, review 2026-10-04)

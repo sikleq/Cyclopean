@@ -113,11 +113,12 @@ def json_attr(name: str, value) -> str:
     return f" {name}='{html.escape(raw, quote=False).replace(chr(39), '&#x27;')}'"
 
 
-def mark(status: str) -> str:
-    """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it."""
+def mark(status: str, tip: str | None = None) -> str:
+    """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it (`tip`: a
+    row's own words, e.g. when the change shipped silently after the patch)."""
     if status not in STATUS_MARK:
         return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
-    return f'<span class="mark {status}" data-tooltip="{esc(STATUS_MARK[status][1])}"></span>'
+    return f'<span class="mark {status}" data-tooltip="{esc(tip or STATUS_MARK[status][1])}"></span>'
 
 
 @lru_cache(maxsize=1)

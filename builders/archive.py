@@ -40,7 +40,48 @@ def gameplay(pid: str) -> list[dict]:
     return gameplay_entities(patch(pid)['entities'])
 
 
+def builds_of(pid: str) -> list[dict]:
+    """The patch's builds ([{build, date, file}], its window), none for a patch the archive does not hold."""
+    try:
+        return patch(pid).get('builds') or []
+    except (OSError, KeyError):
+        return []
+
+
+@lru_cache(maxsize=None)
+def note_lines(pid: str) -> tuple[dict[str, tuple[int, ...]], tuple[tuple[str, str, int], ...]]:
+    """(change key -> the indices of the patch-note lines that name it, the lines as (text, status, how many
+    entities they cover)): which of Valve's lines a row comes from (the match's own link, sections[].lines[].changes)."""
+    try:
+        p = patch(pid)
+    except (OSError, KeyError):
+        return {}, ()
+    keys: dict[str, list[int]] = {}
+    lines: list[tuple[str, str, int]] = []
+    for s in p.get('sections') or ():
+        for ln in s.get('lines') or ():
+            ch = ln.get('changes') or ()
+            if not ch:
+                continue
+            ents = {':'.join(k.split(':', 2)[:2]) for k in ch}
+            for k in ch:
+                keys.setdefault(k, []).append(len(lines))
+            lines.append((ln['text'], ln.get('status') or '', len(ents)))
+    return {k: tuple(v) for k, v in keys.items()}, tuple(lines)
+
+
+@lru_cache(maxsize=None)
+def note_anchors(pid: str) -> frozenset[str]:
+    """The ids with a card in the patch page's Patch notes tab (notes_view.note_anchors); none for a patch the
+    archive does not hold (a test's)."""
+    from .notes_view import note_anchors as anchors
+    try:
+        return frozenset(anchors(patch(pid)))
+    except (OSError, KeyError):         # no such file, or a test's fixture data without it
+        return frozenset()
+
+
 def clear() -> None:
     """Forget everything (tests that swap data/ for fixtures)."""
-    for f in (index, by_date, patch, gameplay):
+    for f in (index, by_date, patch, gameplay, note_anchors, note_lines):
         f.cache_clear()

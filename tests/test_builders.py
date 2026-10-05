@@ -840,8 +840,79 @@ def test_player_terms_and_the_strip_puts_the_newest_on_the_right():
     assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in notes' in html
 
 
+def test_an_entity_page_puts_its_strip_under_the_head():
+    """Review 2026-10-05: History started 1365-2096 px down a hero page (Sloppy's first band: y=312); the strip
+    is the row under the head on hero, item and unit pages, its data blob with it."""
+    from builders.history_view import head_strip, history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
+    key = 'abilities.vdata:upgrade_x'
+    by_ent = {key: [(r1, [ch(key='a', status='documented')]), (r2, [ch(key='b')])]}
+    told: dict = {}
+    html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../', facts_out=told)
+    assert 'patch-strip' not in html and 'strip-data' not in html
+    row = head_strip(told)
+    assert row.startswith('<div class="head-strip">') and 'patch-strip' in row and 'strip-data' in row
+    assert 'patch-strip' in history_table([(key, 'X', None)], ['X'], by_ent, {}, '../')    # a Game page keeps it
+
+
+def test_a_bands_patch_link_lands_on_the_entity(monkeypatch):
+    """Review 2026-10-05: "patch ↗" opened the top of the patch page (Sloppy lands on the hero's block): it goes to
+    what the notes said about the entity (#n-) when they name it, else to its card under All changes (#c-)."""
+    from builders import archive
+    from builders.history_view import history_table, patch_href
+    monkeypatch.setattr(archive, 'note_anchors', lambda pid: frozenset({'upgrade_x'}) if pid == 'p2' else frozenset())
+    assert patch_href('p2', '../', 'upgrade_x') == '../patches/p2.html#n-upgrade_x'
+    assert patch_href('p1', '../', 'upgrade_x') == '../patches/p1.html#c-upgrade_x'
+    assert patch_href('p1', '../') == '../patches/p1.html'
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    key = 'abilities.vdata:upgrade_x'
+    html = history_table([(key, 'X', None)], ['X'], {key: [(r1, [ch(key='a')])]}, {}, '../')
+    assert 'href="../patches/p1.html#c-upgrade_x"' in html
+    game = history_table([('game:urn', 'Urn', None), (key, 'X', None)], ['Urn'], {key: [(r1, [ch(key='a')])]}, {}, '../')
+    assert 'href="../patches/p1.html"' in game                         # a Game system: the page itself
+
+
+def test_valves_words_sit_under_the_rows_they_cover(monkeypatch):
+    """Review 2026-10-05: a described row looked like any other — Valve's line is a quiet note under the ability's
+    rows; a line about many entities ("Spirit Power scaling globally reduced by -7%") is said once per band;
+    a documented row gets none (its line repeats "label old → new"). A change that shipped in a later build of
+    the window says so on its eye."""
+    from builders import archive
+    from builders.history_view import history_table
+    idx = {'abilities.vdata:a:x': (0, 1), 'abilities.vdata:a:y': (2,), 'abilities.vdata:a:z': (3,)}
+    lines = (('Alpha: Wake Up delay no longer increases with spirit scaling', 'described', 1),
+             ('Spirit Power scaling globally reduced by -7%', 'described', 40),
+             ('Alpha: Range increased from 10m to 12m', 'documented', 1),
+             ('Alpha: Wake Up delay no longer increases with spirit scaling', 'described', 1))
+    monkeypatch.setattr(archive, 'note_lines', lambda pid: (idx, lines))
+    monkeypatch.setattr(archive, 'builds_of', lambda pid: [{'build': 100, 'date': '2026-03-06T00:00:00Z'},
+                                                           {'build': 104, 'date': '2026-03-09T00:00:00Z'}])
+    r1 = {'id': 'p1', 'date': '2026-03-06', 'title': '03-06-2026 Update'}
+    rows = [ch(key='abilities.vdata:a:x', path='x', label='Wake Up Delay', status='described'),
+            ch(key='abilities.vdata:a:y', path='y', label='Range', status='documented'),
+            ch(key='abilities.vdata:a:z', path='z', label='Radius', status='described'),
+            ch(key='abilities.vdata:a:w', path='w', label='Width', status='hidden', builds=[104])]
+    keys = [('heroes.vdata:h', 'Base stats', None), ('abilities.vdata:a', 'Alpha', None)]
+    html = history_table(keys, ['Hero'], {'abilities.vdata:a': [(r1, rows)]}, {}, '../')
+    notes = re.findall(r'class="vnote"><span class="vn-l">Patch notes</span>([^<]*)', html)
+    assert notes == ['Spirit Power scaling globally reduced by -7%', 'Wake Up delay no longer increases with spirit scaling']
+    assert html.index('class="vnotes"') < html.index('class="hgroup')          # the band's line first
+    assert 'shipped silently 2026-03-09, build 104' in html
+
+
+def test_a_patch_pages_item_and_unit_cards_carry_anchors():
+    """The item's / unit's card under All changes is where its page's "patch ↗" lands (#c-<id>)."""
+    from builders.patches_pages import _changes_table
+    item = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item', 'name': 'X', 'owner': None,
+            'changes': [ch(key='abilities.vdata:upgrade_x:a', file='abilities.vdata')]}
+    html = _changes_table([item, {**item}], '../', 'p1')
+    assert html.count('id="c-upgrade_x"') == 1
+
+
 def test_one_hidden_change_is_never_all_of_one():
-    """Review 2026-10-05: "ALL 1 NOT IN NOTES"; and every hidden row keeps its eye, also in an all-hidden band."""
+    """Review 2026-10-05: "ALL 1 NOT IN NOTES"; an all-hidden band keeps ONE eye, on its banner (advisor round 2,
+    confirmed by the review: its rows keep the stripe)."""
     from builders.history_view import history_table
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
     key = 'abilities.vdata:upgrade_x'
@@ -849,7 +920,7 @@ def test_one_hidden_change_is_never_all_of_one():
     assert '>1 not in notes<' in html and 'all 1 not in' not in html
     from pathlib import Path
     css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.pblock.all-hidden .erow .st .mark { visibility: hidden; }' not in css
+    assert '.pblock.all-hidden .erow .st .mark { visibility: hidden; }' in css
 
 
 def test_the_strip_never_scrolls():

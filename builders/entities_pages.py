@@ -6,7 +6,7 @@ from collections import defaultdict
 from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
 from .cards import GAMEPLAY
 from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
-from .history_view import hidden_link, now_fold
+from .history_view import head_strip, hidden_link, now_fold
 from .render import KIND_LABEL, tag_badge
 
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -116,7 +116,8 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             f'{first_seen(it["first"])}</div></div>')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
     # 2026-10-04: nothing folded by default)
-    return page(name, head + now_fold('Current values', sections) + history, rel, 'items', cls='entity')
+    return page(name, head + head_strip(told) + now_fold('Current values', sections) + history, rel, 'items',
+                cls='entity')
 
 
 UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'Tier III'), ('abil', 'Abilities'))
@@ -179,7 +180,8 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
             f'{first_seen(u["first"])}</div></div>')
-    return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
+    return page(name, head + head_strip(told) + now_fold('Current stats', stats_html) + hist, rel, 'units',
+                cls='entity')
 
 
 def redirect_page(target: str, name: str) -> str:

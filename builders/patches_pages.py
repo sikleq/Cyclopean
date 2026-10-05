@@ -205,6 +205,8 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
         out.append(card(head, ''.join(body), hidden=is_hidden(player_facing(all_ch)),
                         dev=any(c.get('status') == 'unreleased' for c in all_ch),
                         search=hname.lower(), anchor=f'c-{hid}'))
+    # an item's or unit's card is a place to land too ("patch ↗" on its page: history_view.patch_href), once per id
+    anchored = set(by_owner)
     for e in rest:
         name = _display_name(e)
         if e.get('targets') and not e.get('target_keys'):      # a block named by shared_rows.block_name has its count
@@ -212,8 +214,10 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
         ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
         head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), _counted(e),
                          trail=trail_html(f"{e['file']}:{e['id']}", pid, rel))
+        anchor = '' if e['id'] in anchored or e['id'] == '@shared' else f'c-{e["id"]}'
+        anchored.add(e['id'])
         out.append(card(head, change_rows(e['changes'], added=e.get('status') == 'added'),
-                        hidden=is_hidden(player_facing(e['changes'])), search=name.lower()))
+                        hidden=is_hidden(player_facing(e['changes'])), search=name.lower(), anchor=anchor))
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 

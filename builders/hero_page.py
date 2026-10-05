@@ -397,7 +397,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     hist = history_table(keys, [name], hist_ents, by_subject, rel, areas=areas, gone=gone,
                          in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults,
                          every_label='For all heroes', chip_of=chip_of, facts_out=told)
-    from .history_view import hidden_link
+    from .history_view import head_strip, hidden_link
     chips.append(hidden_link(told.get('hidden', 0)))
     head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
             f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
@@ -405,6 +405,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             f'{first_seen(h["first"])}'
             f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
             f'</div></div>')
-    body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
+    # the patch strip right under the head: the first screen shows what changed (History sat at y=1365-2096)
+    body = head + head_strip(told) + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',
                 cls='entity')

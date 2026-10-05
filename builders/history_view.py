@@ -129,6 +129,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     hints = {key: history_hints(ch) for key, ch in every.items()}
     blocks, facts = [], {'tags': set(), 'hidden': 0, 'dev': 0, 'areas': set(), 'abs': set()}
     year = None
+    # "patch ↗" lands on the page's own entity in the patch (a Game system is no entity of the files)
+    link_id = own.partition(':')[2] if own.partition(':')[0].endswith('.vdata') else None
     for pid in sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True):
         slot = per_patch[pid]
         # every band with the entity's own changes stands open, like Sloppy's (86% loaded folded, review
@@ -138,7 +140,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                  if (in_dev or c.get('status') != 'unreleased') and not is_every(c)]
         real = bool(slot['lines']) or bool(slot.get('texts')) or bool(player_facing(shown))
         block = _patch_block(pid, slot, order, meta, names, rel, real, not real, areas, in_dev,
-                             facts, merge, headless_own=enhanced, hints=hints, ults=ults)
+                             facts, merge, headless_own=enhanced, hints=hints, ults=ults, entity_id=link_id)
         if not block:
             continue
         y = slot['row']['date'][:4]
@@ -148,10 +150,21 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
             year = y
         blocks.append(block)
     bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults, every_label, chip_of)
-    if facts_out is not None:          # the page head's "N not in patch notes" link (hidden_link)
+    strip = patch_strip(facts.get('strip', []))
+    if facts_out is not None:
+        # the page head's "N not in patch notes" link (hidden_link), and the strip: a hero, item or unit page puts
+        # it right under its head (Sloppy's sits in the head row at y=312; ours was under History, 1365-2096 px
+        # down — review 2026-10-05)
         facts_out['hidden'] = facts['hidden']
+        facts_out['strip'], strip = strip, ''
     cls = 'hblocks' + (' show-dev' if in_dev else '')
-    return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
+    return f'{heading}{strip}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
+
+
+def head_strip(told: dict) -> str:
+    """The entity's patch strip (and the hover cards' data blob) as a row of its own under the page head."""
+    strip = told.get('strip') or ''
+    return f'<div class="head-strip">{strip}</div>' if strip else ''
 
 
 STRIP_MAX = 40            # the latest patches in the strip (one row that never scrolls: tiles shrink to fit)
@@ -405,11 +418,51 @@ def every_groups(rows: list[dict]) -> dict[str, list[dict]]:
     return out
 
 
-def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = ()) -> tuple[str, str]:
+NOTED_LOOSELY = ('described', 'mismatch')  # rows a patch-note line covers without its exact numbers
+BAND_NOTE_MIN = 3         # a line covering this many entities is said once per band, not under each ability
+
+
+def valve_notes(pid: str, rows: list[dict]) -> tuple[dict[str, str], dict[str, str]]:
+    """Valve's own words for the rows a line covers without exact numbers (described / mismatch): (lines about
+    this group, lines about many entities said once for the band), each {its words, lower-cased: text} — a line
+    Valve posted twice is said once. A documented row needs none: its line only repeats "label old → new".
+    Sloppy's rows ARE the patch-note lines; ours showed none, so a described row looked like any other (review
+    2026-10-05: Haze's 67 described rows)."""
+    from . import archive
+    idx, lines = archive.note_lines(pid)
+    mine: dict[str, str] = {}
+    wide: dict[str, str] = {}
+    for c in rows:
+        if c.get('status') not in NOTED_LOOSELY:
+            continue
+        for i in idx.get(str(c.get('key') or ''), ()):
+            text, _, n_ents = lines[i]
+            (wide if n_ents >= BAND_NOTE_MIN else mine).setdefault(' '.join(text.lower().split()), text)
+    return mine, wide
+
+
+def _vnote(text: str) -> str:
+    """One patch-note line under the rows it covers, quiet: a note, never a row (no counter or filter counts it)."""
+    return f'<div class="vnote"><span class="vn-l">Patch notes</span>{esc(text)}</div>'
+
+
+def patch_href(pid: str, rel: str, entity_id: str | None = None) -> str:
+    """The patch page, at the entity when there is one: its card in the Patch notes tab (what Valve said about it,
+    `#n-<id>`) when the notes name it, else its card under All changes (`#c-<id>`; scripts.js tabs opens the
+    tab). Sloppy's band lands on the hero's block inside the patch (review 2026-10-05)."""
+    from . import archive
+    base = f'{rel}patches/{esc(pid)}.html'
+    if not entity_id:
+        return base
+    return f'{base}#{"n" if entity_id in archive.note_anchors(pid) else "c"}-{esc(entity_id)}'
+
+
+def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = (),
+            entity_id: str | None = None) -> tuple[str, str]:
     """(the band's <summary>, its has-hidden classes). The title is plain text, so a click opens the band in
-    place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose. The counters
-    and the eye count are what scripts.js recounts while a filter is on. `every`: the rows of rules for every
-    hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
+    place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose, at the entity
+    (`patch_href`). The counters and the eye count are what scripts.js recounts while a filter is on. `every`:
+    the rows of rules for every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
     from .render import not_in_notes, tag_summary
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
     # every hidden row carries its eye, also in a band the notes never mentioned (the stripe alone said nothing:
@@ -427,22 +480,26 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     cls = ' named' if patch_name(hdr['title']) else ''
     summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
                f'<span class="bc">{tag_summary(counted_all)}{chips}'
-               f'<a class="pnotes" href="{rel}patches/{esc(pid)}.html">patch ↗</a></span></summary>')
+               f'<a class="pnotes" href="{patch_href(pid, rel, entity_id)}">patch ↗</a></span></summary>')
     return summary, hidden_cls
 
 
 def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str], rel: str, open_: bool,
                  lazy: bool, areas: dict | None, in_dev: bool, facts: dict, merge=None,
-                 headless_own: bool = False, hints: dict | None = None, ults: frozenset[str] = frozenset()) -> str:
+                 headless_own: bool = False, hints: dict | None = None, ults: frozenset[str] = frozenset(),
+                 entity_id: str | None = None) -> str:
     """One patch = its banner + ONE full-width panel: per part its icon on a plate in a column of its own,
     then its name and rows (Sloppy's ability block). `hints`: part key -> its cards.history_hints."""
-    from .cards import ability_plate, disambiguate, every_links, is_hidden, player_facing, sub_head
+    from . import archive
+    from .cards import ability_plate, disambiguate, every_links, is_hidden, patch_builds, player_facing, sub_head
     from .render import not_in_notes, tag_of
     hdr = slot['row']
     from .game_systems import SECTION
     every_href = lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}'      # noqa: E731
     own_slot, every_all = split_every(slot, in_dev)
-    groups = _groups(own_slot, order, meta, names, hints, merge)
+    with patch_builds(archive.builds_of(pid)):           # the eye says when a change shipped silently later
+        groups = _groups(own_slot, order, meta, names, hints, merge)
+    band_notes: dict[str, str] = {}
     counted_all, all_dev, card = [], True, []
     band_seen: set[tuple] = set()
     single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
@@ -491,9 +548,12 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         plate = '' if headless else ability_plate(ic, glyph_for(file, eid), ult)
         head = '' if headless else sub_head(nm, ic, glyph_for(file, eid), counted, hidden, icon=False)
         cls = 'hgroup' + (' has-ic' if plate else '') + (' has-hidden' if hidden else '') + (' dev-only' if group_dev else '')
+        mine, wide = valve_notes(pid, counted)
+        band_notes.update(wide)
+        notes = ''.join(_vnote(_drop_prefix(t, names + [nm])) for t in mine.values())
         # every id of a merged group: a filter or a link to its second entry ("Breakable lion statue") found none
         parts.append(f'<div class="{cls}" data-ab="{esc(ids)}" data-area="{esc(area)}">{plate}'
-                     f'<div class="hg-b">{head}{g["rows"]}</div></div>')
+                     f'<div class="hg-b">{head}{g["rows"]}{notes}</div></div>')
         ref = ('' if headless else nm, ic or '', ids, int(ult))
         card.append((ref, disambiguate(fresh, (hints or {}).get(key))))
     # a rule for every hero is ONE block of link rows for the whole band, after its groups: it sat under each of
@@ -503,6 +563,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
                      f'{every_links(every_all, every_href)}</div></div>')
     if not parts:
         return ''
+    if band_notes:                    # a line about many entities, said once for the band ("…globally reduced by 7%")
+        parts.insert(0, '<div class="vnotes">' + ''.join(_vnote(t) for t in band_notes.values()) + '</div>')
     every_only = not groups
     # the entity's patch strip above the toolbar: what this patch did, by tag, and its hover card (dev-only
     # bands excluded). A band that holds only a rule for every hero gets no tile, as in the matrices and the trail
@@ -516,7 +578,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
                                               tile_card(card)))
     if every_only:
         facts['every'] = facts.get('every', 0) + 1
-    summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all)
+    summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id)
     dev_cls = ' dev-only' if all_dev and not in_dev and not every_only else ''
     dev_cls += ' every-only' if every_only else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'

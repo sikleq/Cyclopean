@@ -212,12 +212,20 @@ def build_all(by_ent: dict, by_subject: dict, cat: dict, pages: set[str] | None 
     write(f'{SECTION}/index.html', index_page(entries, hist))
     write(f'{SECTION}/rules.html', rules_page(by_ent.get(RAW_CONVARS, [])))
     write(f'{SECTION}/changes.html', matrix_page())
-    return n, search_rows(entries)
+    return n, search_rows(entries, hist)
 
 
-def search_rows(entries: dict) -> list[list[str]]:
-    """site_search rows: every system, and every named Game entry with a history (an entry opens its system's page
-    filtered to it, #ab-<id>, as an ability opens its hero's). `entries`: `collect`'s."""
+def _shows_rows(hist: list) -> bool:
+    """A history a page shows: some row a player reads that is no work before release (a search link to an entry
+    with none — only technical rows — opened its system page filtered to nothing: 22 of 84 empty links, review
+    2026-10-05)."""
+    from .cards import player_facing
+    return any(c.get('status') != 'unreleased' for _, ch in hist for c in player_facing(ch))
+
+
+def search_rows(entries: dict, hist: dict | None = None) -> list[list[str]]:
+    """site_search rows: every system, and every named Game entry with a history a player reads (an entry opens its
+    system's page filtered to it, #ab-<id>, as an ability opens its hero's). `entries`, `hist`: `collect`'s."""
     from .game_systems import icon_url
     rows = []
     for s in systems():
@@ -228,7 +236,7 @@ def search_rows(entries: dict) -> list[list[str]]:
         rows.append([s.name, f'{SECTION}/{s.href}', 'Game', ic])
         for got in parts.values():
             for k, nm, kind in got:
-                if k.startswith('game:') or not nm:
+                if k.startswith('game:') or not nm or (hist is not None and not _shows_rows(hist.get(k, ()))):
                     continue
                 file, _, eid = k.partition(':')
                 rows.append([nm, f'{SECTION}/{s.href}#ab-{eid}', f'{s.name} · Game',

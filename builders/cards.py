@@ -7,6 +7,7 @@ from __future__ import annotations
 import difflib
 import re
 from contextlib import contextmanager
+from contextvars import ContextVar
 
 from pipeline import flags as flag_rules
 
@@ -23,6 +24,38 @@ ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', '
 def is_hidden(changes: list[dict]) -> bool:
     """Something here was not in the patch notes (the eye; `render.NOT_IN_NOTES`)."""
     return any(c.get('status', 'hidden') in NOT_IN_NOTES for c in changes)
+
+
+# the builds of the patch whose rows are being written: (the window's first build, build -> date); set by
+# `patch_builds` around one band (history_view), read by `change_row` for the eye's tooltip
+_PATCH_BUILDS: ContextVar[tuple[int, dict[int, str]] | None] = ContextVar('patch_builds', default=None)
+
+
+@contextmanager
+def patch_builds(builds: list[dict]):
+    """While a patch's rows are written: its builds ([{build, date}], oldest first), so a change that shipped in a
+    later build of the window than the patch itself says so (a silent hotfix: 1,389 rows; review 2026-10-05)."""
+    got = sorted((b for b in builds or () if b.get('build')), key=lambda b: b['build'])
+    tok = _PATCH_BUILDS.set((got[0]['build'], {b['build']: str(b.get('date') or '')[:10] for b in got})
+                            if got else None)
+    try:
+        yield
+    finally:
+        _PATCH_BUILDS.reset(tok)
+
+
+def hidden_tip(c: dict) -> str | None:
+    """The eye's words for one row: the default, or when it came in a later build of the patch's window than the
+    patch itself, "shipped silently <date>, build N" (the proof: that build's page and the tracker's commit)."""
+    ctx = _PATCH_BUILDS.get()
+    if ctx is None or c.get('status') != 'hidden':
+        return None
+    first, dates = ctx
+    builds = [b for b in c.get('builds') or () if isinstance(b, int)]
+    if not builds or min(builds) == first or min(builds) not in dates:
+        return None
+    b = min(builds)
+    return f'Not in the patch notes — shipped silently {dates[b]}, build {b}'
 
 
 def card_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], sub: str = '', trail: str = '',
@@ -62,8 +95,9 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
     return f'<div class="{cls}">{plate}<span class="nm">{esc(name)}</span>{counters}</div>'
 
 
-def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '') -> str:
-    m = mark(status) if status in ROW_MARKS else ''
+def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
+        tip: str | None = None) -> str:
+    m = mark(status, tip) if status in ROW_MARKS else ''
     hid = ' is-hidden' if status in NOT_IN_NOTES else ''
     return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
             f'<span class="tg">{tag}</span><span class="tx">{text_html}</span><span class="vv">{values_html}</span></div>')
@@ -432,7 +466,8 @@ def change_row(c: dict) -> str:
     # a replaced tier lists both bonus sets: they go on their own full-width line under the
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
-    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra)
+    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra,
+               tip=hidden_tip(c))
 
 
 def shared_chip(c: dict) -> str:

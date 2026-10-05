@@ -254,6 +254,17 @@ def test_search_finds_the_systems_and_their_named_entries():
         [r[:3] for r in rows]
 
 
+def test_search_skips_an_entry_whose_history_shows_nothing():
+    """Review 2026-10-05: 22 search links (game/other.html#ab-modifier_pause_unpause …) opened a system page
+    filtered to an entry with no row a player reads (only technical ones): the history emptied."""
+    from builders.game_pages import collect, search_rows
+    by_ent = _game_by_ent()
+    by_ent['misc.vdata:citadel_idol_cashin'][0][1][0]['new_s'] = '1000'       # "1000 → 1000": nothing to read
+    entries, hist = collect(by_ent, {})
+    assert 'game/urn.html#ab-citadel_idol_cashin' in [r[1] for r in search_rows(entries)]
+    assert 'game/urn.html#ab-citadel_idol_cashin' not in [r[1] for r in search_rows(entries, hist)]
+
+
 # ---- the archive's console variables -----------------------------------------------------------------------------
 
 def test_the_archive_lists_every_console_variable_or_says_how_many_more():

@@ -497,6 +497,8 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
               2px 0 0 var(--frame-line), 0 8px 18px var(--shadow-deep);
 }
 .ecard.plain { background: var(--bg-panel); column-span: all; margin-bottom: 16px; }
+/* a card an entity page's "patch ↗" lands on (#n- / #c-): its head clears the site bar and the sticky tabs */
+.ecard[id] { scroll-margin-top: calc(var(--nav-h) + 72px); }
 /* one header height for every card (design review: 70px and 44px headers side by side looked
    unfinished): 36px icon, name, then counters and the strip on one line */
 .ecard-h { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 11px; align-items: center;
@@ -685,6 +687,15 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 .txt-diff del { color: var(--tag-del); text-decoration-color: var(--arrow); }
 .txt-diff ins { color: var(--text-bright); text-decoration: none; box-shadow: inset 0 -2px 0 var(--patina); }
 .hblocks.filtering-rows details.txt, .hblocks.filtering-rows .erow.st-text { display: none; }
+/* Valve's own line under the rows it covers without exact numbers (history_view.valve_notes): a quiet note,
+   never a row; a tag or eye filter that picks rows drops it */
+.vnote { margin: 2px 12px 6px 46px; padding: 4px 10px; font-size: 13px; line-height: 1.4; color: var(--text-dim);
+  border-left: 2px solid var(--line-soft); }
+.vnote .vn-l { font: 600 11px/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em;
+  margin-right: 8px; }
+.vnotes { padding: 6px 0 2px; border-bottom: 2px solid var(--frame-line); }
+.vnotes .vnote { margin-left: 14px; }
+.hblocks.filtering-rows .vnote, .hblocks.filtering-rows .vnotes { display: none; }
 @media (max-width: 700px) {
   .txt-diff { grid-template-columns: minmax(0, 1fr); margin-left: 12px; }
 }
@@ -703,9 +714,16 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
   -webkit-mask: var(--mask-eye) center / contain no-repeat; mask: var(--mask-eye) center / contain no-repeat; }
 .ps-tile:hover, .ps-tile:focus-visible { z-index: 2; transform: scale(1.18); outline: 2px solid var(--text-bright); outline-offset: 1px; }
 @media (max-width: 760px) { .ps-tile:nth-last-child(n+16) { display: none; } }
+/* on a hero, item or unit page the strip is the row under the head (history_view.head_strip): the first screen
+   shows what changed, as Sloppy's head row does (review 2026-10-05) */
+.head-strip { margin: -4px 0 14px; }
+.head-strip .patch-strip { margin: 0; }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
+/* a patch the notes never mentioned: one eye on its banner, none on its rows (advisor round 2, kept by the
+   2026-10-05 review); the stripe and the row tint still mark each row */
+.hblocks .pblock.all-hidden .erow .st .mark { visibility: hidden; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }
 .hblocks .f-out { display: none !important; }

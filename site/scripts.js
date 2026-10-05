@@ -1527,6 +1527,11 @@
       var chip = Array.prototype.filter.call(bar.querySelectorAll('[data-f-ab]'), function (b) {
         return b.getAttribute('data-f-ab').split(' ').indexOf(id) >= 0;
       })[0];
+      // no chip and no group or band of the page names the id (a Game page has no chips): a filter nothing could
+      // clear would empty the history, so the link just opens the page
+      if (!chip && !Array.prototype.some.call(box.querySelectorAll('[data-ab], [data-abs]'), function (el) {
+        return ((el.getAttribute('data-ab') || '') + ' ' + (el.getAttribute('data-abs') || '')).split(' ').indexOf(id) >= 0;
+      })) return;
       state.ab = chip ? chip.getAttribute('data-f-ab') : id;
       if (chip && chip.classList.contains('gone')) {
         chip.parentNode.classList.add('show-gone');
