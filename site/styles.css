@@ -675,11 +675,11 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 }
 /* a removed value (DEL: the old value alone) reads struck through */
 .hblocks .erow .vals > .old:first-child:nth-last-child(2) { text-decoration: line-through; text-decoration-color: var(--arrow); }
-/* the entity's patch strip (history_view.patch_strip): newest first like the history below it, ONE row —
-   older tiles scroll in from the right; a tile lifts on hover and its card says what the patch did */
-.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px; overflow-x: auto;
-  scrollbar-width: thin; }
-.ps-tile { position: relative; flex: none; display: block; width: 30px; height: 30px; transition: transform .08s;
+/* the entity's patch strip (history_view.patch_strip): oldest → newest, the newest on the right like the
+   matrices (owner 2026-10-05); ONE row with no scrollbar — 40 tiles shrink to fit the column, a phone
+   keeps the newest 15; a tile lifts on hover and its card says what the patch did */
+.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px; overflow: hidden; }
+.ps-tile { position: relative; flex: 0 1 30px; min-width: 14px; display: block; height: 30px; transition: transform .08s;
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
 .ps-tile .dn { position: absolute; right: 2px; bottom: 1px; font: 700 11px/1 var(--font-ui); color: var(--bg-page); }
 /* not in the notes: the site's eye on a dark plate in the corner (it was an orange 7px square) */
@@ -687,6 +687,7 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 .ps-tile.hid::after { content: ""; position: absolute; left: 2px; top: 1px; width: 11px; height: 11px; background: var(--eye);
   -webkit-mask: var(--mask-eye) center / contain no-repeat; mask: var(--mask-eye) center / contain no-repeat; }
 .ps-tile:hover, .ps-tile:focus-visible { z-index: 2; transform: scale(1.18); outline: 2px solid var(--text-bright); outline-offset: 1px; }
+@media (max-width: 760px) { .ps-tile:nth-last-child(n+16) { display: none; } }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }

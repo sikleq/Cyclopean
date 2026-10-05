@@ -140,7 +140,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
 
 
-STRIP_MAX = 40            # the latest patches in the strip (one row; older tiles scroll in from the right)
+STRIP_MAX = 40            # the latest patches in the strip (one row that never scrolls: tiles shrink to fit)
 TILE_SAMPLES = 6          # a strip tile's hover card lists the patch's biggest changes…
 GROUP_SAMPLES = 3         # …and keeps an ability's own biggest ones for its trail squares' card
 
@@ -215,9 +215,11 @@ def strip_data(items: list[tuple]) -> dict:
 
 
 def patch_strip(items: list[tuple]) -> str:
-    """The entity's patches as ONE row of tiles, newest first like the history below it (advisor 10-03:
-    the strip ran the other way): stripes in tag colours, the number of changes, the eye when something was
-    not in the notes; a tile opens that patch below (#p-<patch>), its hover card says what it changed.
+    """The entity's patches as ONE row of tiles, oldest → newest: the newest on the right, as in the change
+    matrices and the trail squares (owner 2026-10-05: "новые справа везде"; data-k still indexes the
+    newest-first blob). Stripes in tag colours, the number of changes, the eye when something was not in
+    the notes; a tile opens that patch below (#p-<patch>), its hover card says what it changed. The row
+    never scrolls: tiles shrink to fit the column, a phone shows the newest ones (styles.css).
     The data blob comes even without a strip (one patch): the ability cards' trail squares read it too."""
     from .common import plural
     from .dynamics_page import stripes
@@ -237,6 +239,7 @@ def patch_strip(items: list[tuple]) -> str:
         tiles.append(f'<a class="ps-tile{cls}" href="#p-{esc(pid)}" data-k="{k}" '
                      f'aria-label="{esc(text)}" style="background:{stripes(tally)}">'
                      f'<span class="dn">{sum(tally.values())}</span></a>')
+    tiles.reverse()                                        # oldest left, newest right
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(strip_data(items), ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     strip = f'<div class="patch-strip">{"".join(tiles)}</div>' if tiles else ''
