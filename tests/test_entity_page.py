@@ -58,8 +58,9 @@ def test_strip_tiles_carry_a_card_of_what_the_patch_changed():
     assert strip.count('data-k=') == 3 and 'aria-label="2026-03-01 update: 5 changes, 3 not in patch notes"' in strip
     d = _blob(html)
     assert [t[0] for t in d['t']] == ['p3', 'p2', 'p1'] and d['t'][1][2] is True       # strip order; a named patch
-    pid, title, named, counts, hidden, groups = d['t'][0]
+    pid, title, named, counts, hidden, groups, net = d['t'][0]
     assert counts == {'nerf': 4, 'buff': 1} and hidden == 3
+    assert net == 'nerf' and d['nets']['nerf'] == 'net nerf'        # the band's weighed net (weights.net_of)
     # every group's counts add up to the tile; groups name their ability, carry its icon and ultimate flag
     total = {}
     for g in groups:

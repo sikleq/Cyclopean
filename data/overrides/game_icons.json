@@ -1,0 +1,35 @@
+{
+  "_why": "Game systems' entries and tiles whose vdata names no art of their own (tools/extract_icons.py game_icons, review 2026-10-05: Game tiles and groups were site glyphs). Each gets the art the game itself shows for that same thing elsewhere: its minimap marker, its ping-wheel icon (scripts/ping_wheel_messages.vdata), its HUD icon. Rules are regexes on '<file>:<id>', first match wins; an entry's own art from the vdata always wins. Paths are under panorama/images/ as Source2Viewer-CLI extracts them (a .psd/.png becomes <name>_psd.png / <name>_png.png). A minimap marker drawn small on an empty canvas is cut to its art (TRIM_BELOW). Nothing here is drawn or fetched: where no game art fits, the site keeps its pixel glyph (AGENTS rule 8).",
+  "_why_systems": "Art for the Game index tiles and system page heads (game_systems.json 'icon': 'game/<name>'): the crate the minimap marks crate spawns with (Breakables & crates), the level-up icon the HUD shows for a new ability point (Hero progression), Street Brawl's own HUD icon (Modes: its only mode), the Soul Urn as the minimap shows it (Urn & Unstable Rift; its old icon was ability_golden_idol's, which the files borrow from Wraith's Telekinesis).",
+  "systems": [
+    "minimap/item_crate_spawn_psd.png",
+    "hud/levelup_ap_icon.svg",
+    "hud/brawl/icon_brawl.svg",
+    "minimap/soul_jar_marker_psd.png"
+  ],
+  "rules": [
+    ["^misc\\.vdata:citadel_idol_cashin$", "minimap/soul_jar_marker_return_psd.png", "where the Urn is delivered: the minimap's Urn return marker"],
+    ["^modifiers\\.vdata:modifier_citadel_idol_return$", "minimap/soul_jar_marker_return_psd.png", "the Urn going back: its return marker"],
+    ["^misc\\.vdata:xp_orb_idol_dropoff$", "minimap/soul_jar_marker_return_psd.png", "the souls an Urn delivery pays"],
+    ["^misc\\.vdata:citadel_item_pickup_idol$", "minimap/soul_jar_marker_psd.png", "the Soul Urn on the minimap"],
+    ["^modifiers\\.vdata:modifier_(citadel_holding_golden_idol|citadel_idol_walkback|idol_pickup_aura|idol_comeback)$", "minimap/soul_jar_marker_psd.png", "carrying / picking up the Soul Urn"],
+    ["^misc\\.vdata:(citadel_koth_cashin|citadel_item_koth_spawner|xp_orb_koth_giveup)$", "minimap/minimap_icon_koth.svg", "the Unstable Rift ('koth' in the files) on the minimap"],
+    ["^misc\\.vdata:souls_powerup_pickup$", "minimap/powerup_souls_png.png", "the souls powerup on the minimap"],
+    ["^misc\\.vdata:((small|big|extra)_gold_pickup|citadel_item_punchable_gold)$", "minimap/gold_psd.png", "a soul pickup ('gold' in the files) on the minimap"],
+    ["^modifiers\\.vdata:modifier_(early|neutral)_gold_pickup_aura$", "minimap/gold_psd.png", "the aura of a soul pickup"],
+    ["^misc\\.vdata:xp_orb", "hud/core/icon_soul.svg", "a soul orb: the HUD's soul"],
+    ["^modifiers\\.vdata:modifier_rejuv_pickup_(aura|punchable)$", "hud/modifiers/icon_rejuvenator.svg", "the Rejuvenator buff's own HUD icon"],
+    ["^misc\\.vdata:citadel_breakable_item_container$", "minimap/item_crate_spawn_psd.png", "a crate: the minimap's crate spawn marker"],
+    ["^misc\\.vdata:neutral_camp_weak(_herotest)?$", "minimap/neutral_small_psd.png", "a tier I camp: the minimap's small camp marker"],
+    ["^misc\\.vdata:neutral_camp_medium(_herotest)?$", "minimap/neutral_medium_psd.png", "a tier II camp: the medium camp marker"],
+    ["^misc\\.vdata:neutral_camp_strong(_herotest)?$", "minimap/neutral_large_psd.png", "a tier III camp: the large camp marker"],
+    ["^misc\\.vdata:neutral_camp_vaults(_herotest)?$", "minimap/neutral_vault_psd.png", "the vault camp: the minimap's vault marker (the 'Sinner's Here' ping icon)"],
+    ["^misc\\.vdata:neutral_camp_midboss$", "minimap/super_neutral_marker_psd.png", "the Mid-Boss camp: the Mid-Boss marker (the 'Enemy Taking Mid Boss' ping icon)"],
+    ["^abilities\\.vdata:citadel_ability_(trooper_)?zip_line$", "hud/zipline_icon_psd.png", "riding a zipline: the HUD's zipline icon"],
+    ["^abilities\\.vdata:citadel_ability_melee_parry$", "hud/modifiers/icon_parry.svg", "Parry: the parry effect's own HUD icon"],
+    ["^abilities\\.vdata:citadel_ability_mantle$", "hud/ledge_climb_psd.png", "Mantle: the HUD's ledge-climb prompt"],
+    ["^modifiers\\.vdata:citadel_modifier_teleport$", "hud/teleport_icon_psd.png", "'Teleporting': the HUD's teleport icon"],
+    ["^modifiers\\.vdata:modifier_citadel_knockdown$", "hud/modifiers/icon_stun.svg", "the knockdown, named 'Stunned' in the game's text: the stun effect's HUD icon"],
+    ["^(misc\\.vdata:zipline_speed_pickup|modifiers\\.vdata:modifier_(zipline_speed_.+|street_brawl_round_start_zipline_boost))$", "hud/zipline_icon_psd.png", "a zipline speed bonus"]
+  ]
+}

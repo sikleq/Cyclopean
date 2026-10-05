@@ -11,6 +11,11 @@ Serves dist/ on a local port, loads each page in headless Chromium (1600 x 900) 
     python tools/perf_probe.py                       # the default pages
     python tools/perf_probe.py --urls heroes/nano.html items/changes.html
     python tools/perf_probe.py --label before        # .cache/perf/<date>_before.json
+    python tools/perf_probe.py --throttle 4 --urls items/changes.html   # a 4x slower CPU (CDP), see below
+
+--throttle N slows the page's main thread N times after it loads (CDP Emulation.setCPUThrottlingRate): on a fast PC
+a main-thread cost hides under one 16.7 ms frame and shows only when the PC is busy (items/changes in-p95 read 16.7
+or 33.4 ms run to run, 2026-10-05); throttled, the same scroll reads 50 ms before the matrix icons fix and 17 after.
 
 Exits 1 when a page's p95 frame time is over the budget (default 25 ms).
 """
@@ -158,9 +163,10 @@ def serve() -> tuple[http.server.ThreadingHTTPServer, str]:
     return srv, f'http://127.0.0.1:{srv.server_address[1]}'
 
 
-def run_one(page, context, url: str, budget: float, inner_scroll: bool = True) -> dict:
+def run_one(page, context, url: str, budget: float, inner_scroll: bool = True, throttle: float = 1.0) -> dict:
     cdp = context.new_cdp_session(page)
     cdp.send('Performance.enable')
+    cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})          # the load runs at full speed
     errors: list[str] = []                       # a script error fails the page too
     on_console = lambda m: errors.append(m.text) if m.type == 'error' else None   # noqa: E731
     on_error = lambda e: errors.append(str(e))                                     # noqa: E731
@@ -169,6 +175,8 @@ def run_one(page, context, url: str, budget: float, inner_scroll: bool = True) -
     page.goto(url, wait_until='networkidle', timeout=60000)
     page.wait_for_timeout(200)
     dom = page.evaluate(DOM_STATS)
+    if throttle != 1:
+        cdp.send('Emulation.setCPUThrottlingRate', {'rate': throttle})
     before = {m['name']: m['value'] for m in cdp.send('Performance.getMetrics')['metrics']}
     res = page.evaluate(SCROLL)
     after = {m['name']: m['value'] for m in cdp.send('Performance.getMetrics')['metrics']}
@@ -176,6 +184,8 @@ def run_one(page, context, url: str, budget: float, inner_scroll: bool = True) -
     frames = res['frames']
     p95 = round(percentile(frames, 95), 1)
     inner = page.evaluate(INNER_SCROLL) if inner_scroll else None
+    if throttle != 1:
+        cdp.send('Emulation.setCPUThrottlingRate', {'rate': 1})
     page.remove_listener('console', on_console)
     page.remove_listener('pageerror', on_error)
     # Google Fonts may be unreachable offline: that is the network, not the page
@@ -202,6 +212,8 @@ def main() -> int:
     ap.add_argument('--label', default=None)
     ap.add_argument('--budget-p95', type=float, default=25.0)
     ap.add_argument('--no-inner', action='store_true', help='skip the scroll inside wide tables')
+    ap.add_argument('--throttle', type=float, default=1.0,
+                    help='slow the main thread N times for the scrolls (CDP CPU throttling; 1 = off)')
     args = ap.parse_args()
     if not DIST.exists():
         print('build the site first: python build_site.py')
@@ -219,13 +231,15 @@ def main() -> int:
             page = context.new_page()
             for rel in args.urls:
                 try:
-                    results.append(run_one(page, context, f'{base}/{rel}', args.budget_p95, not args.no_inner))
+                    results.append(run_one(page, context, f'{base}/{rel}', args.budget_p95, not args.no_inner,
+                                           args.throttle))
                 except Exception as exc:                  # keep going, report it
                     results.append({'url': rel, 'error': str(exc), 'pass': False})
             browser.close()
     finally:
         srv.shutdown()
-    out_path.write_text(json.dumps({'date': stamp, 'budget_p95_ms': args.budget_p95, 'results': results}, indent=2),
+    out_path.write_text(json.dumps({'date': stamp, 'budget_p95_ms': args.budget_p95, 'cpu_throttle': args.throttle,
+                                    'results': results}, indent=2),
                         encoding='utf-8')
     head = (f"{'page':40} {'elems':>6} {'DCL':>5} {'p95':>6} {'>16.7%':>7} {'long':>5} {'layout':>7} {'style':>7} "
             f"{'script':>7} {'in-p95':>7} {'in-long':>7}")
@@ -244,7 +258,8 @@ def main() -> int:
               + ('' if r['pass'] else '  FAIL'))
         for e in r['errors'][:3]:
             print(f'    JS error: {e[:120]}')
-    print(f'\nbudget p95 <= {args.budget_p95} ms · {out_path.relative_to(ROOT)}')
+    slow = f' · CPU {args.throttle:g}x slower' if args.throttle != 1 else ''
+    print(f'\nbudget p95 <= {args.budget_p95} ms{slow} · {out_path.relative_to(ROOT)}')
     return 0 if all(r['pass'] for r in results) else 1
 
 

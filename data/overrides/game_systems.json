@@ -1,12 +1,12 @@
 {
-  "_why": "Coverage audit 2026-10-05 (owner: 'I want to see ALL changes to everything in the game'): 2,040 gameplay changes (1,340 not in the patch notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04, crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables). They are the Game section (builders/game_systems.py): a system is a page like a unit family's, its parts are groups of entries. Every rule is a regex tried from the start of a subject, systems and parts in this order, the first match wins. Subjects: an entry 'file:id#kind' ('misc.vdata:citadel_breakable_item_container#global'), a row of a rule for every hero or ability 'file:@all:path' ('heroes.vdata:@all:m_mapLevelInfo.10…'), a console variable 'convar:name'. Whatever no system names falls to 'other' (nothing is lost); a console variable only shows when a part names it (UI, bots and debug switches stay in the patch archive). Names: the game's files give most of these entries no text, so the site names them here (never their ids); icons come from the game files (icons/…) or the site's pixel glyphs ('glyph:…'), never invented art.",
+  "_why": "Coverage audit 2026-10-05 (owner: 'I want to see ALL changes to everything in the game'): 2,040 gameplay changes (1,340 not in the patch notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04, crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables). They are the Game section (builders/game_systems.py): a system is a page like a unit family's, its parts are groups of entries. Every rule is a regex tried from the start of a subject, systems and parts in this order, the first match wins. Subjects: an entry 'file:id#kind' ('misc.vdata:citadel_breakable_item_container#global'), a row of a rule for every hero or ability 'file:@all:path' ('heroes.vdata:@all:m_mapLevelInfo.10…'), a console variable 'convar:name'. Whatever no system names falls to 'other' (nothing is lost); a console variable only shows when a part names it (UI, bots and debug switches stay in the patch archive). Names: the game's files give most of these entries no text, so the site names them here (never their ids); icons come from the game files (icons/…; art a system has no field for is picked in game_icons.json and stored under icons/game/) or the site's pixel glyphs ('glyph:…'), never invented art.",
   "_why_display": "The order the pages list the systems in (the 'systems' order below is the regexes' precedence: the Urn's soul orbs before every soul orb).",
   "display": ["souls", "respawn", "progression", "urn", "pickups", "breakables", "troopers", "camps", "shop", "combat", "modes", "other"],
   "systems": [
     {
       "id": "urn",
       "name": "Urn & Unstable Rift",
-      "icon": "abilities/ability_golden_idol.webp",
+      "icon": "game/soul_jar_marker.webp",
       "subjects": ["Soul Urn", "Urn", "Unstable Rift", "Rift", "Idol"],
       "parts": [
         {"id": "urn", "name": "Soul Urn", "match": [
@@ -35,7 +35,7 @@
     {
       "id": "breakables",
       "name": "Breakables & crates",
-      "icon": "glyph:loot",
+      "icon": "game/item_crate_spawn.webp",
       "subjects": ["Crate", "Crates", "Breakables", "Breakable", "Buff Containers"],
       "parts": [
         {"id": "crates", "name": "Crates & breakables", "match": [
@@ -86,7 +86,7 @@
     {
       "id": "progression",
       "name": "Hero progression",
-      "icon": "glyph:heroes",
+      "icon": "game/levelup_ap_icon.svg",
       "subjects": ["Boon", "Boons", "Level", "Levels"],
       "parts": [
         {"id": "levels", "name": "Level curve", "match": ["heroes[.]vdata:@all:(m_mapLevelInfo|level:)"]},
@@ -165,7 +165,7 @@
     {
       "id": "modes",
       "name": "Modes",
-      "icon": "glyph:rules",
+      "icon": "game/icon_brawl.svg",
       "subjects": ["Street Brawl"],
       "parts": [
         {"id": "brawl", "name": "Street Brawl", "match": [

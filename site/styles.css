@@ -599,6 +599,17 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 /* "renamed" / "description changed": words of the band's text rows, which a tag or eye filter hides with them */
 .banner .txt-chip { color: var(--text-dim); }
 .hblocks.filtering-rows .banner .txt-chip { display: none; }
+/* what a patch did to one entity on balance (builders/weights.net_of — the change matrices' "Buff vs nerf"): ONE
+   quiet chip in the tag colours after a band's counters and in a hover card's counts (strip tile, home icon, matrix
+   tile); a filter recounts the band's counters, so its chip steps aside until the filter clears */
+.net-chip { --c: var(--tag-changed); display: inline-flex; align-items: center; padding: 3px 6px 2px;
+  font: 600 11px/1 var(--font-ui); letter-spacing: .03em; text-transform: uppercase; white-space: nowrap;
+  color: color-mix(in srgb, var(--c) 85%, var(--text-main));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent); }
+.net-chip.net-buff { --c: var(--tag-buff); }
+.net-chip.net-nerf { --c: var(--tag-nerf); }
+.hblocks.filtering .banner .net-chip { display: none; }
+.dt-counts .net-chip { margin-left: auto; align-self: center; }
 /* the band's rules for every hero: ONE block after its groups (history_view.split_every), quieter than a group */
 .hgroup.shr-band { background: var(--bg-panel-2); padding: 2px 0; }
 /* a band that holds only such rules waits behind "For all heroes" (toolbar), in place */
