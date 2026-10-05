@@ -1122,6 +1122,14 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .sc-row .v.spirit { color: var(--tag-rework); }
 .sc-row .v.has-hist { cursor: help; }
 .sc-row .v.has-hist.recent::after { content: ""; display: inline-block; width: 4px; height: 4px; margin-left: 5px; vertical-align: 3px; background: var(--patina-dim); }
+/* a Game system's values today (builders/game_now.py): its entries' panels, then its console variables across the
+   width in columns (61 of Souls' in one 280px panel was a 1,500px column) */
+.now-flow { margin-bottom: 0; }
+.stat-panel.now-cv { flex: 1 1 100%; }
+.cv-rows { columns: 330px auto; column-gap: 0; column-rule: 1px solid var(--line-soft); }
+.cv-rows .sc-row { break-inside: avoid; }
+.cv-rows .sc-row .k code { min-width: 0; font-size: 12px; color: var(--text-main); overflow-wrap: anywhere; }
+.cv-rows .sc-row .v.has-hist { text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
 
 table.kvt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 table.kvt caption { text-align: left; font: 600 13px/1 var(--font-ui); color: var(--text-bright); padding: 8px 8px 6px; background: var(--bg-panel-2); caption-side: top; }

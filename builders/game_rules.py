@@ -44,19 +44,29 @@ def ledger(raw: list) -> dict[str, dict]:
     return out
 
 
-def rules_rows(raw: list) -> dict[str, list[tuple[str, dict]]]:
-    """system id -> [(name, ledger entry)] of the variables a game reads that exist today, by name."""
-    out: dict[str, list] = {}
-    for name, slot in sorted(ledger(raw).items()):
+def convar_parts(led: dict) -> dict[str, dict[str, list[tuple[str, dict]]]]:
+    """system id -> part id -> [(name, ledger entry)] of the variables a game reads that exist today, by name
+    (`led`: `ledger`); a system page's "now" block lists them per part (game_now), this table per system."""
+    out: dict = {}
+    for name, slot in sorted(led.items()):
         hit = convar_place({'name': name, 'flags': slot['flags']})
         if hit and slot['value'] is not None:
-            out.setdefault(hit[0], []).append((name, slot))
+            out.setdefault(hit[0], {}).setdefault(hit[1], []).append((name, slot))
     return out
 
 
-def _cell(name: str, slot: dict) -> str:
-    """The value now in the game's units (game_systems.convar_value: 2165.35 engine units read 55m) and its
-    history on hover on the same scale (`data-unit`)."""
+def rules_rows(raw: list, led: dict | None = None) -> dict[str, list[tuple[str, dict]]]:
+    """system id -> [(name, ledger entry)] of the variables a game reads that exist today, by name. `led`: the
+    ledger of `raw` when the caller has it already."""
+    parts = convar_parts(ledger(raw) if led is None else led)
+    return {sid: sorted((x for got in by_part.values() for x in got), key=lambda x: x[0])
+            for sid, by_part in parts.items()}
+
+
+def value_parts(name: str, slot: dict) -> tuple[str, str, str]:
+    """(class, attributes, text) of a console variable's value now in the game's units (game_systems.convar_value:
+    2165.35 engine units read 55m) with its history on hover on the same scale (`data-unit`) — the Game rules table
+    and a system page's "now" block (game_now) print it alike."""
     unit = convar_unit(name)[0]
 
     def scaled(v):
@@ -68,7 +78,12 @@ def _cell(name: str, slot: dict) -> str:
     if hist:
         cls += ' has-hist'
         attrs += json_attr('data-hist', hist) + f' data-title="{esc(name)}"'
-    return f'<td class="{cls}"{attrs}>{esc(convar_value(name, slot["value"]))}</td>'
+    return cls, attrs, esc(convar_value(name, slot['value']))
+
+
+def _cell(name: str, slot: dict) -> str:
+    cls, attrs, text = value_parts(name, slot)
+    return f'<td class="{cls}"{attrs}>{text}</td>'
 
 
 DASH = '<span class="dash">—</span>'
@@ -86,11 +101,11 @@ def _row(name: str, slot: dict) -> str:
             f'<td>{count}</td><td>{last}</td></tr>')
 
 
-def rules_page(raw: list) -> str:
+def rules_page(raw: list, led: dict | None = None) -> str:
     from .game_pages import section_tabs
     from .game_systems import icon_html
     rel = '../'
-    rows = rules_rows(raw)
+    rows = rules_rows(raw, led)
     body = []
     for s in shown():                 # ONE table: a band row per system (its page), its variables below
         got = rows.get(s.id)

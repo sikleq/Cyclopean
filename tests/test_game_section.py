@@ -133,6 +133,18 @@ def test_console_variables_become_history_rows():
     assert spawn['label'] == 'citadel_player_spawn_time_max_ramp_1'     # the one id a page shows (AGENTS)
 
 
+def test_a_console_variables_unit_comes_from_whole_words_of_its_name():
+    """The config's "ratio" (a bare number) matched inside "du-ratio-n": every *_duration read as a bare number (the Soul
+    Urn's decay "45" for 45s, Soul rewards' neutral gold "180"), "celebration_delay" too."""
+    from builders.game_systems import convar_unit, convar_value
+    assert convar_value('citadel_idol_decay_duration', '45') == '45s'
+    assert convar_value('citadel_player_neutral_gold_duration', '180') == '180s'
+    assert convar_unit('citadel_trooper_celebration_delay') == ('s', '')
+    assert convar_unit('citadel_trooper_instant_gold_ratio_laning') == ('', '')        # a real ratio stays bare
+    assert convar_value('citadel_bounty_aoe_radius', '2165.35') == '55m'
+    assert convar_unit('citadel_strange_thing') == ('', '')                              # "range" inside a word
+
+
 def test_a_console_variable_without_a_side_moves_up_or_down():
     from builders.game_systems import convar_change, convar_side
     assert convar_side('citadel_player_gold_comeback_multiplier') == 0
@@ -228,6 +240,71 @@ def test_a_system_page_is_a_history_of_its_entries():
     # a rule for every hero is the part's own row, with how many it touches
     prog = system_page('progression', entries['progression'], hist, {})
     assert 'Level curve' in prog and 'all 61 heroes' in prog and 'shr-all' not in prog
+
+
+def test_an_entrys_numbers_today_are_the_newest_values_of_its_history():
+    """Review 2026-10-05: a system page had no "now" block. A field's newest value in the history is its value today
+    (the history holds every move); a field removed since, a switch or a name, and work before release are no number
+    of it; the newest move first."""
+    from builders.game_now import entry_values
+    r1 = {'id': '2026-03-01', 'date': '2026-03-01'}
+    r2 = {'id': '2026-06-04', 'date': '2026-06-04'}
+    hist = [(r2, [ch(label='Bounty', old_s='1000', new_s='800', path='m_flBounty'),
+                  ch(label='Radius', op='remove', old_s='3m', new_s='', path='m_flRadius'),
+                  ch(label='Enabled', old_s='no', new_s='yes', path='m_bEnabled'),
+                  ch(label='Secret', old_s='1', new_s='2', status='unreleased', path='m_flSecret')]),
+            (r1, [ch(label='Bounty', old_s='900', new_s='1000', path='m_flBounty'),
+                  ch(label='Radius', old_s='2m', new_s='3m', path='m_flRadius'),
+                  ch(label='Delay', old_s='5s', new_s='6s', path='m_flDelay')])]
+    assert entry_values(hist) == [('Bounty', '800', '2026-06-04'), ('Delay', '6s', '2026-03-01')]
+    # a newer move that is no number (a reworked list) leaves no stale number behind
+    later = ({'id': '2026-09-01', 'date': '2026-09-01'}, [ch(label='Delay', op='rework', old_s='6s', new_s='A, B')])
+    assert [v[0] for v in entry_values(hist + [later])] == ['Bounty']
+
+
+def test_entries_with_the_same_numbers_share_one_panel_whenever_they_moved():
+    from builders.game_now import entry_panels
+    r1, r2 = {'id': '2026-03-01', 'date': '2026-03-01'}, {'id': '2026-06-04', 'date': '2026-06-04'}
+    hist = {'misc.vdata:a': [(r1, [ch(label='Respawn Time', old_s='120s', new_s='180s')])],
+            'misc.vdata:b': [(r2, [ch(label='Respawn Time', old_s='150s', new_s='180s')])],
+            'misc.vdata:c': [(r2, [ch(label='Respawn Time', old_s='150s', new_s='90s')])]}
+    got = entry_panels([[('misc.vdata:a', 'Crate', ''), ('misc.vdata:b', 'Barrel', ''),
+                         ('misc.vdata:c', 'Vase', '')]], hist, {})
+    assert [names for names, _ in got] == [['Crate', 'Barrel'], ['Vase']]
+
+
+def test_a_system_opens_on_its_values_today(monkeypatch):
+    """The system page's "now" block (builders/game_now.py), open above its history like a unit's "Current stats":
+    its entries' numbers (entries with the same numbers in one panel) and every console variable it reads with its
+    value today in the game's unit and its history on hover."""
+    import builders.game_systems as gs
+    from builders.game_now import now_block
+    from builders.game_pages import collect, system_page
+    from builders.game_rules import convar_parts, ledger, rules_rows
+    monkeypatch.setattr(gs, 'convar_start', lambda: 6395)
+    raw = [({'id': '2026-03-10', 'date': '2026-03-10'},
+            [cv('citadel_koth_warning_time', op='add', new='25', build=6395),
+             cv('citadel_koth_capture_radius', op='add', new='393.7', build=6395),
+             cv('citadel_hud_scale', op='add', new='1', build=6395, flags='clientdll')]),
+           ({'id': '2026-06-04', 'date': '2026-06-04'}, [cv('citadel_koth_warning_time', old='25', new='20')])]
+    cvs = convar_parts(ledger(raw))
+    assert set(cvs) == {'urn'} and [n for n, _ in cvs['urn']['rift']] == ['citadel_koth_capture_radius',
+                                                                          'citadel_koth_warning_time']
+    assert [n for n, _ in rules_rows(raw)['urn']] == [n for n, _ in cvs['urn']['rift']]     # the rules table's rows
+    entries, hist = collect(_game_by_ent(), {})
+    block = now_block('urn', entries['urn'], hist, {}, cvs['urn'])
+    text = re.sub(r'<[^>]+>', ' ', block)
+    assert 'Soul Urn delivery' in text and re.search(r'Bounty\s+800', text)
+    assert re.search(r'citadel_koth_capture_radius\s*</code>', block) and '10m' in text and '20s' in text
+    assert re.search(r'data-hist=.*?\[6601,"2026-06-04",25,20\]', block)
+    page = system_page('urn', entries['urn'], hist, {}, {}, cvs['urn'])
+    assert page.index('<details class="now px-frame" open><summary>Current values') < page.index('id="history"')
+    # an entry removed from the game shows no numbers of today
+    gone = now_block('urn', entries['urn'], hist, {'misc.vdata:citadel_idol_cashin': {'alive': False}}, {})
+    assert gone == ''
+    # twelve breakables with one edit: one panel naming them (the merged label of the history)
+    crates = now_block('breakables', entries['breakables'], hist, {}, {})
+    assert crates.count('class="stat-panel') == 1 and 'Primary Drop Chance' in crates
 
 
 def test_the_index_rules_and_matrix_are_the_sections_three_tabs():

@@ -128,8 +128,12 @@ def _keys(sys_id: str, parts: dict, rel: str) -> tuple[list, dict]:
     return keys, areas
 
 
-def system_page(sys_id: str, parts: dict, hist: dict, by_subject: dict) -> str:
-    from .history_view import history_table
+def system_page(sys_id: str, parts: dict, hist: dict, by_subject: dict, cat: dict | None = None,
+                convars: dict | None = None) -> str:
+    """A system's page: its head, what it is today (game_now: its entries' numbers and its console variables, open,
+    like a unit's "Current stats") and its history. `convars`: game_rules.convar_parts of this system."""
+    from .history_view import history_table, now_fold
+    from .game_now import now_block
     from .game_systems import icon_html
     rel = '../'
     sys_ = system(sys_id)
@@ -139,9 +143,10 @@ def system_page(sys_id: str, parts: dict, hist: dict, by_subject: dict) -> str:
     head = (f'<div class="crumbs"><a href="index.html">Game</a> / {esc(sys_.name)}</div>'
             f'<div class="page-head">{icon_html(sys_, rel, "head-icon px px-frame")}<div><h1>{esc(sys_.name)}</h1>'
             f'</div></div>')
+    now = now_fold('Current values', now_block(sys_id, parts, hist, cat or {}, convars or {}))
     body = history_table(keys, list(sys_.subjects), hist, by_subject, rel, line_names=False, areas=areas,
                          area_labels=labels, merge=merged_label)
-    return page(sys_.name, head + body, rel, SECTION, cls='entity',
+    return page(sys_.name, head + now + body, rel, SECTION, cls='entity',
                 description=f'Deadlock: every change to {sys_.name.lower()}, from the game files')
 
 
@@ -204,13 +209,17 @@ def build_all(by_ent: dict, by_subject: dict, cat: dict, pages: set[str] | None 
     if bad:              # AGENTS rule 8: a missing icon fails the build, never a silent stand-in
         raise SystemExit(f'game_systems.json: icons not in icons/: {", ".join(bad)}')
     entries, hist = collect(by_ent, cat, pages)
+    from .game_rules import convar_parts, ledger
+    raw = by_ent.get(RAW_CONVARS, [])
+    led = ledger(raw)             # read once: every system's "now" block and the Game rules table
+    cvs = convar_parts(led)
     n = 0
     for s in systems():
         if entries.get(s.id):
-            write(f'{SECTION}/{s.href}', system_page(s.id, entries[s.id], hist, by_subject))
+            write(f'{SECTION}/{s.href}', system_page(s.id, entries[s.id], hist, by_subject, cat, cvs.get(s.id)))
             n += 1
     write(f'{SECTION}/index.html', index_page(entries, hist))
-    write(f'{SECTION}/rules.html', rules_page(by_ent.get(RAW_CONVARS, [])))
+    write(f'{SECTION}/rules.html', rules_page(raw, led))
     write(f'{SECTION}/changes.html', matrix_page())
     return n, search_rows(entries, hist)
 
