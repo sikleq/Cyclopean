@@ -83,7 +83,9 @@
             });
             keyed.sort(function (a, b) {
               var ea = isNaN(a[1]), eb = isNaN(b[1]);
-              if (ea && eb) return String(a[0]).localeCompare(String(b[0]));
+              // words follow the direction too: a Name column read A→Z on every click while aria-sort
+              // announced "descending" (review 2026-10-05)
+              if (ea && eb) return String(a[0]).localeCompare(String(b[0])) * -state.dir;
               if (ea) return 1;
               if (eb) return -1;
               return state.dir === 1 ? b[1] - a[1] : a[1] - b[1];
@@ -127,7 +129,7 @@
 
   /* ---------- history tooltip for cells with data-hist ---------- */
   /* drawn once per cell (moving between a cell's children redrew it: 2 forced layouts a move), also on
-     keyboard focus: the cells take the tab order, the tip describes the focused one */
+     keyboard focus: the values take the tab order, the tip describes the focused one */
   safe('hist-tip', function () {
     if (!document.querySelector('[data-hist]')) return;
     var tip = document.createElement('div'), current = null;
@@ -135,8 +137,65 @@
     tip.id = 'hist-tip';
     tip.setAttribute('role', 'tooltip');
     document.body.appendChild(tip);
-    // Item Stats builds more cells later (its stat columns): they copy the attribute (item-filter)
-    document.querySelectorAll('[data-hist]').forEach(function (el) { el.tabIndex = 0; });
+    /* a table's values are ONE tab stop (a roving tabindex): Tab enters the table at the value visited last
+       (else its first shown one), the arrow keys move between its values — Hero Stats had ~1,100 tab stops,
+       Item Stats ~1,000 (review 2026-10-05). A value outside a table is a stop of its own. Item Stats'
+       stat-column cells, built later, join their table's moves (item-filter). */
+    var grids = [];
+    document.querySelectorAll('[data-hist]').forEach(function (el) {
+      var t = el.closest('table');
+      if (!t) { el.tabIndex = 0; return; }
+      if (t.__hist) return;
+      t.__hist = el;
+      el.tabIndex = 0;
+      grids.push(t);
+    });
+    function shown(el) { return el.getClientRects().length > 0; }
+    function enter(t, el) {
+      if (t.__hist && t.__hist !== el) t.__hist.tabIndex = -1;
+      t.__hist = el;
+      el.tabIndex = 0;
+    }
+    // the stop must be a value one can see: a filter or a folded group may have hidden it since
+    function entryOf(t) {
+      if (t.__hist && t.contains(t.__hist) && shown(t.__hist)) return t.__hist;
+      var all = t.querySelectorAll('[data-hist]');
+      for (var i = 0; i < all.length; i++) if (shown(all[i])) return all[i];
+      return null;
+    }
+    // ←/→ the previous / next value in reading order (rows move in the DOM when sorted), ↑/↓ the same
+    // column's value in the nearest shown row above / below
+    function moveFrom(el, key) {
+      var t = el.closest('table');
+      if (!t) return null;
+      if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        var all = Array.prototype.filter.call(t.querySelectorAll('[data-hist]'), shown);
+        var i = all.indexOf(el);
+        return all[i + (key === 'ArrowRight' ? 1 : -1)] || null;
+      }
+      var col = el.getAttribute('data-col'), tr = el.closest('tr');
+      if (!col || !tr) return null;
+      var sel = '[data-hist][data-col="' + col + '"]';
+      for (var r = tr; (r = key === 'ArrowDown' ? r.nextElementSibling : r.previousElementSibling);) {
+        var c = r.querySelector(sel);
+        if (c && shown(c)) return c;
+      }
+      return null;
+    }
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Tab') {
+        grids.forEach(function (t) { var e = entryOf(t); if (e && e !== t.__hist) enter(t, e); });
+        return;
+      }
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight' && ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+      var el = document.activeElement;
+      if (!el || !el.hasAttribute || !el.hasAttribute('data-hist')) return;
+      var next = moveFrom(el, ev.key);
+      if (!next) return;
+      ev.preventDefault();
+      enter(next.closest('table'), next);
+      next.focus();
+    });
     function show(td) {
       if (td === current) return;
       var hist;
@@ -1163,7 +1222,6 @@
         var v = chip.getAttribute(a);
         if (v !== null) td.setAttribute(a, v);
       });
-      if (td.hasAttribute('data-hist')) td.tabIndex = 0;          // its history on keyboard focus (hist-tip)
       if (chip.classList.contains('has-hist')) td.classList.add('has-hist');
       if (chip.classList.contains('recent')) td.classList.add('recent');
       if (chip.classList.contains('gone')) return td;

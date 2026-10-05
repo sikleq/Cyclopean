@@ -139,3 +139,110 @@ def test_the_fonts_stylesheet_is_switched_on_after_it_loads(browser):
     page, _ = _open(browser, '<p>x</p>', head='<link rel="stylesheet" href="data:text/css,p%7Bcolor:red%7D" '
                                              'media="print" data-fonts>')
     page.wait_for_function("() => document.querySelector('link[data-fonts]').media === 'all'")
+
+
+# a hover card's values (review 2026-10-05): "overflow-wrap: anywhere" split numbers between digits when a
+# long field name took the card's width (the value column shrank below its numbers: Walker's "12880 → 8"
+# + "000"); a long REWORK list must still wrap inside the card (it ran past the right edge before)
+CARD_NUMBERS = (('nerf', 'Max Health', '12880', '8000'), ('nerf', 'Bonus Fire Rate', '30%', '20%'),
+                ('buff', 'Bonus Health Regeneration Per Second While Out Of Combat After Taking No Damage', '3', '4'),
+                ('buff', 'Slow', '-50%', '-45%'), ('nerf', 'Bullet Speed', '635m/s', '571.5m/s'),
+                ('buff', 'Interval', '0.0003', '0.00035'))
+CARD_REWORK = (('nerf', 'Max Health', '12880', '8000'),
+               ('rework', 'Tier 3', '+20% Weapon Damage, +8 Spirit Power, -15% Cooldown',
+                '+25% Weapon Damage, +10 Spirit Power, +1 Charge, -20% Cooldown, +2m Radius'))
+
+# every word of the card's table on one line, and the table inside the card
+SPLIT_WORDS = r"""() => {
+  const out = [], tip = document.querySelector('.dyn-tip'), table = tip.querySelector('table');
+  const walker = document.createTreeWalker(table, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walker.nextNode());) {
+    const re = /\S+/g;
+    for (let m; (m = re.exec(n.data));) {
+      const r = document.createRange();
+      r.setStart(n, m.index);
+      r.setEnd(n, m.index + m[0].length);
+      const lines = new Set([...r.getClientRects()].map(x => Math.round(x.top)));
+      if (lines.size > 1) out.push(m[0]);
+    }
+  }
+  return {split: out, over: table.getBoundingClientRect().right > tip.getBoundingClientRect().right + 0.5};
+}"""
+
+
+@pytest.mark.parametrize('width', [1440, 390])
+@pytest.mark.parametrize('card', [CARD_NUMBERS, CARD_REWORK], ids=['numbers', 'rework'])
+def test_hover_card_never_splits_a_number(browser, width, card):
+    rows = ''.join(f'<tr><td class="dt-tg"><span class="tag {t}">{t.upper()}</span></td><td class="dt-field">{f}</td>'
+                   f'<td class="dt-vals">{o}<i>→</i><b class="t-{t}">{n}</b></td></tr>' for t, f, o, n in card)
+    page, errors = _open(browser, '<div class="dyn-tip on" style="left:8px;top:8px"><div class="dt-head">'
+                                  '<span class="dt-name">Walker</span><span class="dt-patch">2026-09-16</span></div>'
+                                  f'<table class="dt-rows">{rows}</table></div>', width=width)
+    assert page.evaluate(SPLIT_WORDS) == {'split': [], 'over': False}
+    assert not errors
+
+
+def test_a_unit_card_without_art_shows_its_glyph_in_the_icon_square(browser):
+    """The glyph became an empty span (its shape a CSS mask): on the Units index nothing sized it and Shrine,
+    Overseer, Sinner's Sacrifice and Mini Turret lost their icon (0x0, review 2026-10-05)."""
+    from builders.common import visual
+    card = (f'<div class="grid units"><a class="card px-frame" href="#">{visual(None, "units")}'
+            '<span class="nm">Shrine</span><span class="sub">Building</span></a></div>')
+    page, _ = _open(browser, card)
+    box = page.evaluate("() => { const g = document.querySelector('.card .glyph');"
+                        " const r = g.getBoundingClientRect(), b = getComputedStyle(g, '::before');"
+                        " return [r.width, r.height, parseFloat(b.width) > 0]; }")
+    assert box == [72, 72, True]
+
+
+def test_a_table_of_values_is_one_tab_stop_walked_with_the_arrows(browser):
+    """Every value with a history was a tab stop: ~1,100 on Hero Stats before the next thing on the page."""
+    hist = json.dumps([[1, '2026-01-01', 10, 12]]).replace('"', '&quot;')
+
+    def cell(col: str, n: int) -> str:
+        return (f'<td data-col="{col}" class="has-hist" data-pol="1" data-digits="0" data-title="{col}{n}" '
+                f'data-hist="{hist}">{n}</td>')
+    rows = ''.join(f'<tr><td class="name">R{i}</td>{cell("a", i)}{cell("b", i)}</tr>' for i in range(3))
+    page, errors = _open(browser, '<button id="before">b</button><table class="stats"><tbody>'
+                                  f'{rows}</tbody></table><button id="after">a</button>')
+    title = "() => document.activeElement.getAttribute('data-title') || document.activeElement.id"
+    assert page.evaluate("() => [...document.querySelectorAll('[data-hist]')].filter(e => e.tabIndex === 0).length") == 1
+    page.focus('#before')
+    page.keyboard.press('Tab')
+    assert page.evaluate(title) == 'a0'
+    page.keyboard.press('ArrowRight')
+    assert page.evaluate(title) == 'b0'
+    page.keyboard.press('ArrowDown')
+    page.keyboard.press('ArrowDown')
+    assert page.evaluate(title) == 'b2'
+    assert 'b2' in page.locator('.hist-tip').inner_text()
+    page.keyboard.press('ArrowRight')                  # the last value: stays
+    page.keyboard.press('ArrowUp')
+    assert page.evaluate(title) == 'b1'
+    page.keyboard.press('Tab')                         # out of the table in one step
+    assert page.evaluate(title) == 'after'
+    page.keyboard.press('Shift+Tab')                   # back where the reader left it
+    assert page.evaluate(title) == 'b1'
+    # a filter hid that row: Tab enters at the first value still shown, the arrows skip the row
+    page.evaluate("() => { document.querySelectorAll('tbody tr')[1].style.display = 'none'; }")
+    page.focus('#before')
+    page.keyboard.press('Tab')
+    assert page.evaluate(title) == 'a0'
+    page.keyboard.press('ArrowDown')
+    assert page.evaluate(title) == 'a2'
+    assert not errors
+
+
+def test_a_name_column_sorts_both_ways_as_aria_sort_says(browser):
+    """Words always sorted A→Z while aria-sort announced "descending", then "ascending"."""
+    from builders.tables_pages import render_table
+    rows = [{'id': f'r{j}', 'name': f'Row {j}', 'history': {}, 'values': {'w': j}} for j in range(3)]
+    page, _ = _open(browser, render_table(
+        [{'key': 'w', 'label': 'W', 'group': 'Weapon', 'pol': 1, 'digits': 0}], rows,
+        lambda r: f'<td class="name" data-col="name" data-sort="{r["name"]}">{r["name"]}</td>', 'Name', table_id='t'))
+    th = page.locator('#t thead tr.cols th[data-col="name"]')
+    order = "() => [...document.querySelectorAll('#t tbody tr')].map(r => r.cells[0].textContent)"
+    th.click()
+    assert th.get_attribute('aria-sort') == 'descending' and page.evaluate(order) == ['Row 2', 'Row 1', 'Row 0']
+    th.click()
+    assert th.get_attribute('aria-sort') == 'ascending' and page.evaluate(order) == ['Row 0', 'Row 1', 'Row 2']

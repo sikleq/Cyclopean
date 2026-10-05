@@ -51,10 +51,10 @@ def _recent_cutoff() -> str:
 def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
     """The Hero Stats cell's history on the hero page's own tiles — the same helper as the table
     (tables_pages.hist_attrs), so steps the column's rounding cannot show drop here too (they had drifted:
-    8 such steps sat on hero heads, python audit 2026-10-04)."""
+    8 such steps sat on hero heads, python audit 2026-10-04); directed like the table's (tables_pages.directed)."""
     cls = ['spirit'] if col['key'] in row.get('spirit_scaled', []) else []
     hcls, hattrs = hist_attrs(row['history'].get(col['key']), col['digits'], f'{name} · {col["label"]}',
-                              _recent_cutoff())
+                              _recent_cutoff(), (row.get('odir') or {}).get(col['key']))
     return ' '.join(cls + hcls), f' data-pol="{col["pol"]}" data-digits="{col["digits"]}"' + hattrs
 
 

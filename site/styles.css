@@ -797,7 +797,8 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
 .grid.units { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 .card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 8px; color: var(--text-main); text-align: center; }
 .card:hover { background: var(--bg-hover); color: var(--text-bright); }
-.card img { width: 72px; height: 72px; object-fit: contain; }
+/* a unit without game art shows its glyph in the same square (an empty span has no size of its own) */
+.card img, .card .glyph { width: 72px; height: 72px; object-fit: contain; }
 .card .nm { font: 600 14px/1.15 var(--font-ui); }
 .card .sub { font: 17px/1 var(--font-label); color: var(--text-dimmer); text-transform: uppercase; }
 .card .sub:empty { display: none; }
@@ -916,7 +917,7 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .hist-tip li .o { text-align: right; color: var(--label); }
 .hist-tip li .arrow { padding: 0; }
 .hist-tip li .n { font-weight: 600; }
-.hist-tip li .n.dir-changed { color: var(--text-bright); }
+.hist-tip li .n.dir-changed, .hist-tip li .n.dir-up, .hist-tip li .n.dir-down { color: var(--text-bright); }
 .hist-tip li .p { text-align: right; }
 .hist-tip li .p .pct { margin-left: 0; }
 .hist-tip li .d { font: 500 13px/1.4 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
@@ -1544,9 +1545,10 @@ table.dt-rows td { padding: 4px 6px; text-align: center; border-top: 1px solid v
 table.dt-rows td:last-child { border-right: 0; }
 .dt-what { color: var(--text-bright); font-weight: 600; }
 .dt-field { color: var(--text-dim); }
-/* values wrap: a REWORK's bonus lists kept on one line pushed the table past the card's right edge and
-   squeezed the field names to a word a line */
-.dt-vals { white-space: normal; overflow-wrap: anywhere; color: var(--label); font-variant-numeric: tabular-nums; }
+/* values wrap between words: a REWORK's bonus lists kept on one line pushed the table past the card's right
+   edge. break-word, not anywhere: "anywhere" took the column's minimum width away and split numbers between
+   digits (Walker's "12880 → 8" + "000", review 2026-10-05); a word breaks only when it alone is too wide */
+.dt-vals { white-space: normal; overflow-wrap: break-word; color: var(--label); font-variant-numeric: tabular-nums; }
 .dt-vals i { font-style: normal; color: var(--arrow); padding: 0 3px; }
 .dt-vals b.t-buff { color: var(--tag-buff); }
 .dt-vals b.t-nerf { color: var(--tag-nerf); }

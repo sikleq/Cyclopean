@@ -177,7 +177,7 @@ def test_trail_squares_open_the_band_on_the_page(monkeypatch):
     monkeypatch.setattr(trail, '_index', lambda: (rows, hits))
     trail._positions.cache_clear()
     trail.trail_html.cache_clear()
-    local =trail.trail_html('abilities.vdata:ab_x', None, '../', local=True)
+    local = trail.trail_html('abilities.vdata:ab_x', None, '../', local=True)
     assert 'href="#p-p2" data-p="p2" data-ab="ab_x"' in local and 'data-tooltip' not in local
     assert 'aria-label="2026-02-01 update · 1 buff, 2 nerfs"' in local
     assert 'style="background:linear-gradient(' in local                  # striped, not REWORK purple

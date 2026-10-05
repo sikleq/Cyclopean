@@ -92,6 +92,46 @@ def hist_attrs(hist: list | None, digits: int, title: str, cutoff: str,
     return cls, json_attr('data-hist', hist) + f' data-title="{esc(title)}"' + extra
 
 
+def directed(row: dict, paths: dict[str, str], kind: str) -> dict:
+    """The row with each step of its histories directed as the entity pages' tags are: semantics.direction
+    on the game field the column reads (`paths`), the step's fifth element, and the whole history's as
+    `odir`. Item Stats does it in its pipeline; Hero and Unit Stats left it to the tooltip's polarity rule,
+    which the tags do not share for every field (a weapon's gravity, a camp's bounty: review 2026-10-05).
+    A computed column (DPS, reload) has no field: scripts.js keeps the column's polarity for it."""
+    from pipeline.semantics import direction
+    history, odir = {}, {}
+    for key, steps in (row.get('history') or {}).items():
+        path = paths.get(key)
+        if not path or not steps:
+            history[key] = steps
+            continue
+        history[key] = [[*h[:4], direction(path, h[2], h[3], kind)[0]] for h in steps]
+        first, last = steps[0][2], steps[-1][3]
+        if isinstance(first, (int, float)) and isinstance(last, (int, float)):
+            odir[key] = direction(path, first, last, kind)[0]
+    return {**row, 'history': history, 'odir': odir}
+
+
+def hero_paths() -> dict[str, str]:
+    """Hero Stats column -> the game field it reads (pipeline.hero_table.Col.path)."""
+    from pipeline.hero_table import COLUMNS
+    return {c.key: c.path for c in COLUMNS if c.path}
+
+
+def heroes_data() -> dict:
+    """data/tables/heroes.json with every history directed: the Hero Stats table and the hero pages' stat
+    tiles read the same steps."""
+    t = load_json('tables/heroes.json')
+    paths = hero_paths()
+    return {**t, 'heroes': [directed(h, paths, 'hero') for h in t['heroes']]}
+
+
+def unit_paths() -> dict[str, str]:
+    """Unit Stats column -> its first candidate field (the fields moved, their names did not change sense)."""
+    from pipeline.unit_table import COLUMNS
+    return {key: paths[0] for key, _, _, paths, *_ in COLUMNS}
+
+
 def _head_label(c: dict, rel: str) -> str:
     """The header's text; an item column also shows the game's property icon and its unit
     ("Weapon Damage %", "Cooldown s"), so the cells can stay plain numbers."""
@@ -232,7 +272,7 @@ def boon_attrs(r: dict, c: dict) -> str:
 
 def heroes_table() -> str:
     rel = '../'
-    t = load_json('tables/heroes.json')
+    t = heroes_data()
 
     def name_cell(h):
         ic = hero_icon(h['id'], rel)
@@ -336,7 +376,7 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
         by_t = {}
         for u in sorted(us, key=lambda u: u['id']):
             by_t.setdefault(tier_of(u), u)
-        values, history = {}, {}
+        values, history, odir = {}, {}, {}
         for c in fam_cols:
             base, _, t = c['key'].partition('@')
             src = by_t.get(t) if t else by_t.get(tiers[0])
@@ -344,8 +384,10 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
                 values[c['key']] = src['values'].get(base)
                 if (src.get('history') or {}).get(base):
                     history[c['key']] = src['history'][base]
+                if (src.get('odir') or {}).get(base):
+                    odir[c['key']] = src['odir'][base]
         first = by_t.get(tiers[0]) or us[0]
-        fam_rows.append({**first, 'name': name, 'values': values, 'history': history})
+        fam_rows.append({**first, 'name': name, 'values': values, 'history': history, 'odir': odir})
     out = []
     if tier_rows:
         out.append(('neutral', f'{title} · tiers', tier_rows))
@@ -410,9 +452,11 @@ def units_table() -> str:
                 f'{img_html}{esc(label)}{copies}</a></td>')
 
     groups = []
+    paths = unit_paths()
+    units = [directed(u, paths, u['kind']) for u in t['units']]
     for kind, title in UNIT_SECTIONS:
         # what the Units index shows: named units (unit_families.is_named) with a stat besides a placeholder
-        rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
+        rows = [u for u in units if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
                 and has_stats(u) and is_named(u)]
         if kind == 'neutral':
             groups += neutral_groups(rows, t['columns'], title)

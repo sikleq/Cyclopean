@@ -121,3 +121,52 @@ def test_sync_tree_copies_only_what_changed(tmp_path):
     os.utime(src / 'b.svg', (st.st_atime, st.st_mtime + 5))
     assert build_site.sync_tree(src, dst) == 1
     assert (dst / 'b.svg').read_bytes() == b'<svg></svg>'
+
+
+def test_stats_tooltips_take_the_tags_direction():
+    """Hero and Unit Stats left a step's colour to the tooltip's polarity rule, which the entity pages' tags
+    (semantics.direction) do not share for every field: a gun's gravity 0.8 -> 0 (column without polarity) is
+    the hero page's BUFF, a camp's bounty 44 -> 42 its NERF. A computed column keeps the rule (review 10-05)."""
+    from builders.tables_pages import directed, hero_paths, hist_attrs, unit_paths
+    paths = hero_paths()
+    assert paths['hp'] == 'm_mapStartingStats.EMaxHealth'
+    assert paths['spirit_resist_lvl'] == 'm_mapStandardLevelUpUpgrades.MODIFIER_VALUE_TECH_RESIST'
+    assert paths['gravity'] == 'm_WeaponInfo.m_flBulletGravityScale'
+    assert paths['ground_dash'] == 'm_mapStartingStats.EGroundDashDuration'
+    assert 'dps' not in paths and 'reload' not in paths                    # computed: no field
+    hero = {'id': 'hero_x', 'history': {
+        'bullet_resist': [[1, '2026-01-01', -20, -15], [2, '2026-02-01', -15, -18]],
+        'gravity': [[1, '2026-01-01', 0.8, 0.0]],
+        'dps': [[1, '2026-01-01', 50, 40]],
+        'hp': [[1, '2026-01-01', None, 500], [2, '2026-02-01', 500, 550]]}}
+    row = directed(hero, paths, 'hero')
+    assert row['history']['bullet_resist'] == [[1, '2026-01-01', -20, -15, 'buff'], [2, '2026-02-01', -15, -18, 'nerf']]
+    assert row['odir']['bullet_resist'] == 'buff'                          # −20 → −18 overall
+    assert row['history']['gravity'][0][4] == 'buff'
+    assert row['history']['dps'] == [[1, '2026-01-01', 50, 40]] and 'dps' not in row['odir']
+    assert [h[4] for h in row['history']['hp']] == ['changed', 'buff'] and 'hp' not in row['odir']
+    assert hero['history']['gravity'] == [[1, '2026-01-01', 0.8, 0.0]]     # the loaded table is not touched
+    _, attrs = hist_attrs(row['history']['bullet_resist'], 0, 'X · Bullet Resist', '2030-01-01',
+                          row['odir']['bullet_resist'])
+    assert '"buff"' in attrs and 'data-odir="buff"' in attrs
+    upaths = unit_paths()
+    camp = directed({'id': 'neutral_x', 'history': {'bounty': [[1, '2026-01-01', 44, 42]],
+                                                    'hp': [[1, '2026-01-01', 100, 200]]}}, upaths, 'neutral')
+    assert camp['history']['bounty'][0][4] == 'nerf' and camp['odir']['bounty'] == 'nerf'
+    assert camp['history']['hp'][0][4] == 'up'                             # no owner side: which way it went
+
+
+def test_every_tool_imports_and_the_icon_preview_draws_masks():
+    """tools/pixel_icons_preview.py imported the removed pixel_icons.tag_svg and failed with ImportError; no
+    test imported the tools."""
+    import importlib.util
+    for path in sorted((ROOT / 'tools').glob('*.py')):
+        spec = importlib.util.spec_from_file_location(f'_tool_{path.stem}', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)                                       # raises on a broken import
+        if path.stem == 'pixel_icons_preview':
+            from builders.common import GLYPHS, MARK_ART
+            from builders.pixel_icons import TAG_ART, tag_mask
+            html = mod.page()
+            assert '<svg' not in html and tag_mask('buff') in html
+            assert html.count('<tr><th>') == 1 + len(TAG_ART) + len(MARK_ART) + len(GLYPHS)   # + the sizes row

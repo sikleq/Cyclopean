@@ -11,11 +11,22 @@ The site never uses font glyphs for meaning-bearing symbols: fallback fonts diff
 ## Where they live
 
 - `builders/pixel_icons.py` — `TAG_ART` (10×10 ASCII grids, `#` ink, `.` empty), `art_path()` turns
-  rows into one SVG path of horizontal runs, `tag_svg(tag)` returns the inline `<svg class="ti">`.
-- `builders/render.py` — `pip(cls, n)` (icon + count) and `tag_html` (icon + word) use them;
-  plain-text places (tooltips, `<title>`) use words (`render.TAG_WORDS`, `counts_text`), never glyphs.
-- Category glyphs for rows without game art: `builders/common.py` `GLYPHS` (16×16 paths, evenodd).
-- Colours: only `currentColor`; the tag colour comes from CSS (`.tag.buff`, `.pip.nerf` set `--c`).
+  rows into one SVG path of horizontal runs, `svg_mask(d, view, evenodd)` turns a path into a CSS mask
+  image (`url("data:image/svg+xml,…")`), `tag_mask(tag)` = the tag's mask.
+- **No inline SVG on pages.** The markup is an empty element; `site/styles.css` draws the shape with
+  `::before` as a mask in the element's own colour (`currentColor`):
+  - tags and counters: `render.tag_badge` / `tag_html` (`<span class="tag buff">BUFF</span>`) and
+    `render.pip(cls, n)` (`<span class="pip nerf">2</span>`); the rule per tag is
+    `.tag.<t>, .pip.<t> { --ti-content: ""; --ti: <tag_mask(t)>; }`;
+  - status marks: `common.mark(status)` → `.mark.<status> { --mk-on: ""; --mk: <svg_mask(MARK_ART[shape])>; }`
+    (`common.MARK_ART`, 16×16 paths; the eye is the `--mask-eye` token);
+  - category glyphs for rows without game art: `common.visual` → `<span class="px glyph g-<name>">`,
+    `.glyph.g-<name> { --gl: <svg_mask(GLYPHS[name], evenodd=True)>; }` (`common.GLYPHS`, 16×16, evenodd).
+    The glyph span has no size of its own: every place that shows one sizes it next to its `img`.
+- Tests keep the CSS rules equal to the art: `tests/test_entity_page.py::test_one_tag_badge_everywhere`
+  (tags) and `tests/test_perf.py::test_marks_counters_and_glyphs_are_css_masks_in_sync` (marks, glyphs).
+- Plain-text places (tooltips, `<title>`) use words (`render.TAG_WORDS`, `counts_text`), never glyphs.
+- Colours: only the element's colour (`currentColor`), set by the tag / status classes from `:root` tokens.
 
 ## Drawing rules
 
@@ -44,7 +55,10 @@ patch summary hero chips (`.hchip`, 8px icons — the tightest place).
 
 ## Adding an icon
 
-1. Add the grid to `TAG_ART` (or a new dict for another family) with a comment saying what it means.
-2. Run `python -m pytest tests/test_builders.py -q` (grid shape test) and the review loop above.
-3. Use it through `tag_svg` / `pip`; never paste the SVG into templates by hand.
-4. Note the meaning in `docs/architecture.md` (Tags) if it is a new tag.
+1. Add the grid to `TAG_ART` (or the path to `MARK_ART` / `GLYPHS`) with a comment saying what it means.
+2. Add its CSS rule to `site/styles.css` next to the others, with the mask printed by `tag_mask` /
+   `svg_mask` (e.g. `python -c "from builders.pixel_icons import tag_mask; print(tag_mask('buff'))"`).
+3. Run `python -m pytest tests/test_builders.py tests/test_entity_page.py tests/test_perf.py -q` (grid
+   shape, CSS in sync with the art) and the review loop above.
+4. Use it through `tag_badge` / `pip` / `mark` / `visual`; never paste an SVG into templates by hand.
+5. Note the meaning in `docs/architecture.md` (Tags) if it is a new tag.

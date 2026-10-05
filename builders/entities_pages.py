@@ -192,7 +192,8 @@ def _context() -> dict:
     data = load_json('entities.json')
     ents = {f"{e['file']}:{e['id']}": e for e in data['entities']}
     by_ent, by_subject = _history()
-    return {'ents': ents, 'by_ent': by_ent, 'by_subject': by_subject, 'heroes_t': load_json('tables/heroes.json'),
+    from .tables_pages import heroes_data
+    return {'ents': ents, 'by_ent': by_ent, 'by_subject': by_subject, 'heroes_t': heroes_data(),
             'units_t': load_json('tables/units.json'), 'cards': load_json('abilities.json')['abilities'], 'rel': '../',
             'by_id': {e['id']: e for e in ents.values() if e['file'] == 'abilities.vdata'}}
 
