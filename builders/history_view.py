@@ -66,7 +66,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                   line_names: bool = True, areas: dict[str, str] | None = None, gone: set[str] = frozenset(),
                   in_dev: bool = False, area_labels: tuple[tuple[str, str], ...] = AREAS,
                   merge=None, enhanced: bool = False, ults: frozenset[str] = frozenset(),
-                  every_label: str = 'For all') -> str:
+                  every_label: str = 'For all', chip_of: dict[str, str] | None = None) -> str:
     """The History section: heading, toolbar, blocks. keys: [(entity key, display name, icon url)] in
     display order, the page's own entity first; names: subjects whose note lines belong here.
     `line_names`: the other keys' names pull note lines in too (a hero's abilities do; a boss's "Rocket
@@ -78,7 +78,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     `enhanced`: an item page — its "Enhanced: …" rows (the Enhanced version, 14% of item rows) are their
     own group under "Enhanced version", the parts Base / Enhanced. `ults`: keys of the hero's ultimate (its
     icon gets the corner mark). `every_label`: the toolbar button that shows the bands holding only rules for
-    every hero / item ("For all heroes")."""
+    every hero / item ("For all heroes"). `chip_of`: a sub-ability's key -> its parent's, whose toolbar chip
+    holds it too (Ava's chip shows "Ava · trigger")."""
     order = {k: i for i, (k, _, _) in enumerate(keys)}
     meta = {k: (nm, ic) for k, nm, ic in keys}
     names_by_key = {k: nm for k, nm, _ in keys}
@@ -145,7 +146,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
             blocks.append(f'<h3 class="banner sub hyear"><span class="bt">{esc(y)}</span></h3>')
             year = y
         blocks.append(block)
-    bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults, every_label)
+    bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults, every_label, chip_of)
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
 
@@ -252,7 +253,7 @@ def patch_strip(items: list[tuple]) -> str:
 
 def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str,
             area_labels: tuple[tuple[str, str], ...] = AREAS, ults: frozenset[str] = frozenset(),
-            every_label: str = 'For all') -> str:
+            every_label: str = 'For all', chip_of: dict[str, str] | None = None) -> str:
     """Tags present (multi-select), the eye (only hidden), parts of a hero, its abilities as icons (the
     current ones in slot order, removed ones grey after a divider), "Before release". One compact row: the
     controls are badge-high (owner 2026-10-04). A chosen tag is aria-pressed, never the class "on" — that
@@ -275,16 +276,22 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
     if len(chips) > 1:
         # one chip per name (Calico's two "Queen of Shadows"), the current ones in slot order; removed ones
         # fold behind "Removed (N)" (13 of Calico's 18 chips, advisor 10-03); no art -> the name as text
+        meta = {k: (nm, ic) for k, nm, ic in keys}
+
         def merged(sel: list[tuple]) -> list[tuple[list[str], str, str | None]]:
             by_name: dict[str, list] = {}
             for k, nm, ic in sel:
+                base = (chip_of or {}).get(k)          # a sub-ability rides on its parent's chip
+                if base in meta:
+                    nm, ic = meta[base][0], meta[base][1] or ic
                 slot = by_name.setdefault(nm, [[], nm, ic])
                 slot[0].append(k)
                 slot[2] = slot[2] or ic
             return [tuple(v) for v in by_name.values()]
-        now = merged([c for c in chips if c[0] not in gone])
-        now_names = {c[1] for c in now}
-        old = [c for c in merged([c for c in chips if c[0] in gone]) if c[1] not in now_names]
+        # a removed namesake joins the current chip's ids (Viscous' removed "…_alt" had a chip of its own)
+        every_chip = merged(chips)
+        now = [c for c in every_chip if any(k not in gone for k in c[0])]
+        old = [c for c in every_chip if all(k in gone for k in c[0])]
 
         def chip(ks: list[str], nm: str, ic: str | None, cls: str = '') -> str:
             eids = ' '.join(k.partition(':')[2] for k in ks)

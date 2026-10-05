@@ -201,15 +201,55 @@ def test_hero_page_is_one_open_column(monkeypatch):
         ('dps', 'DPS', 'Damage'), ('bullet_speed', 'Bullet Speed (m/s)', 'Damage'), ('hp', 'Health', 'Vitality'),
         ('stamina_regen', 'Stamina Regen', 'Mobility')]]
     row = {'values': {'dps': 51.4, 'bullet_speed': 610, 'hp': 800, 'stamina_regen': 0.2}, 'history': {}, 'spirit_scaled': []}
-    cards = {'ult': {'id': 'ult', 'owner': 'hero_atlas', 'slot': 'Signature_4', 'kind': 'ability', 'name': 'Seismic Impact'},
-             'gun': {'id': 'gun', 'owner': 'hero_atlas', 'slot': 'Weapon_Primary', 'kind': 'weapon', 'name': 'Case Closed'}}
+    cards = {'ult': {'id': 'ult', 'owner': 'hero_atlas', 'slot': 'Signature_4', 'kind': 'ability', 'name': 'Seismic Impact',
+                     'desc': 'Leap and slam.'},
+             'sig1': {'id': 'sig1', 'owner': 'hero_atlas', 'slot': 'Signature_1', 'kind': 'ability', 'name': 'Bare'},
+             'gun': {'id': 'citadel_weapon_atlas_set', 'owner': 'hero_atlas', 'slot': 'Weapon_Primary', 'kind': 'weapon',
+                     'name': 'Case Closed'},
+             'alt': {'id': 'citadel_weapon_atlas_alt', 'owner': 'hero_atlas', 'slot': 'Weapon_Secondary',
+                     'kind': 'weapon', 'name': 'citadel_weapon_atlas_alt'}}
     h = {'id': 'hero_atlas', 'file': 'heroes.vdata', 'name': 'Abrams', 'alive': True, 'state': 'EHeroDevState_Release',
          'first': [1, '2024-06-06']}
-    html = hero_page.hero_page(h, cards, row, cols, {}, {}, {})
+    ents = {c['id']: {**c, 'file': 'abilities.vdata'} for c in cards.values()}
+    html = hero_page.hero_page(h, cards, row, cols, ents, {}, {})
     assert '<main class="page entity">' in html
     assert '<details' not in html.split('class="h2row"')[0]                # nothing folded above the history
     assert '<section class="now-open">' in html and '<div class="wb-cells">' in html and '<h2>Stats</h2>' in html
     assert 'class="ab-ic ult"' in html and 'href="#p-p9" data-p="p9" data-ab="ult"' in html
+    # review 2026-10-05: the alt fire is a line of the weapon block, never an (empty) ability card; a card with
+    # nothing to read is not drawn; the grid holds the ability slots only
+    grid = html.split('class="ability-grid"')[1].split('</section>')[0]
+    assert 'Alt weapon' not in html and 'citadel_weapon' not in grid and 'Bare' not in grid
+    assert '<span class="wb-alt-l">Alt fire</span>' in html
+    assert 'href="#ab-citadel_weapon_atlas_set"' in html.split('wb-alt-l')[1]      # its rows are the gun's group
+
+
+def test_alt_fire_rows_join_their_gun_and_sub_abilities_their_parent():
+    """Review 2026-10-05: Viscous' alt fire repeated the gun's "Ammo 20 → 21"; Calico's "Pounce instant" repeated
+    Pounce's "Movement Slow 30% → 24%" and "Catform trigger" read like an ability of its own."""
+    from builders.hero_page import alt_guns, drop_parent_rows, fold_alt, sub_parents
+    r = {'id': 'p1', 'date': '2024-07-18'}
+    row = lambda lab, a, b: {'label': lab, 'old_s': a, 'new_s': b}       # noqa: E731
+    ents = {i: {'id': i, 'owner': 'hero_viscous', 'kind': 'weapon', 'name': i}
+            for i in ('citadel_weapon_viscous_set', 'citadel_weapon_viscous_set_2', 'citadel_weapon_viscous_alt')}
+    assert alt_guns('hero_viscous', 'citadel_weapon_viscous_set', ents) == ['citadel_weapon_viscous_alt',
+                                                                             'citadel_weapon_viscous_set_2']
+    by_ent = {'abilities.vdata:citadel_weapon_viscous_set': [(r, [row('Ammo', '20', '21')])],
+              'abilities.vdata:citadel_weapon_viscous_set_2': [(r, [row('Ammo', '20', '21'), row('Damage', '40', '42')])]}
+    out = fold_alt(by_ent, 'citadel_weapon_viscous_set', ['citadel_weapon_viscous_set_2'])
+    [(_, rows)] = out['abilities.vdata:citadel_weapon_viscous_set']
+    assert [c['label'] for c in rows] == ['Ammo', 'Alt fire: Damage']
+    assert 'abilities.vdata:citadel_weapon_viscous_set_2' not in out and len(by_ent) == 2      # the input stays
+    nano = {i: {'id': i, 'owner': 'hero_nano', 'kind': 'ability', 'name': n} for i, n in (
+        ('ability_nano_pounce', 'Pounce'), ('ability_nano_pounce_instant', 'ability_nano_pounce_instant'),
+        ('ability_nano_catform', 'Ava'), ('ability_nano_catform_trigger', 'ability_nano_catform_trigger'))}
+    parents = sub_parents('hero_nano', [{'id': 'ability_nano_catform', 'slot': 'Signature_3'}], nano)
+    assert parents == {'ability_nano_pounce_instant': 'ability_nano_pounce',
+                       'ability_nano_catform_trigger': 'ability_nano_catform'}
+    slow = row('Movement Slow', '30%', '24%')
+    kept = drop_parent_rows({'abilities.vdata:ability_nano_pounce': [(r, [slow])],
+                             'abilities.vdata:ability_nano_pounce_instant': [(r, [dict(slow)])]}, parents)
+    assert kept['abilities.vdata:ability_nano_pounce_instant'] == []
 
 
 def test_item_and_unit_values_are_open():

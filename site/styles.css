@@ -1026,6 +1026,22 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wcell.top .l { order: 2; font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .05em; }
 .wcell.top .v { order: 1; font-size: 32px; }
 .wcell:hover { background: var(--bg-hover); }
+/* the gun's (and its alt fire's) last change, History link and trail — an ability card's head line */
+.wb-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 6px; font: 600 12px/1 var(--font-ui); }
+.wb-links .ac-last { color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wb-links .ac-last:hover { color: var(--text-bright); }
+.wb-links .ac-last .tsum { margin-left: 0; gap: 5px; vertical-align: -1px; }
+.wb-links .ac-last .pip { font-size: 16px; }
+.wb-links .ac-hist { color: var(--patina); }
+.wb-links .ac-hist:hover { color: var(--text-bright); }
+.wb-links .trail { flex-basis: 100%; }
+/* the alt fire: the files give it no name or numbers of its own here — one line under the gun's numbers */
+.wb-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 10px; background: var(--bg-panel);
+  outline: 1px solid var(--line-soft); }
+.wb-alt-l { font: 17px/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.wb-alt .wb-links { margin: 0; }
+.wb-alt .wb-links .trail { flex-basis: auto; }
+.wb-none { padding: 10px 12px; font-size: 13px; color: var(--text-dimmer); background: var(--bg-panel); outline: 1px solid var(--line-soft); }
 @media (max-width: 1100px) { .wb-top, .wb-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .weapon-block { grid-template-columns: minmax(0, 1fr); } }
 
