@@ -341,6 +341,24 @@ def test_weapon_panel_six_tiles_and_units_on_the_number():
     assert '<span class="u">m/s</span>' in html and '>Bullet Speed<' in html
 
 
+def test_a_description_diff_marks_words_not_confetti():
+    """Review 2026-10-05: Active Reload 2025-05-19 struck "Rate, Bullet Lifesteal." and re-added the same words when
+    only "Move Speed" came; Unstoppable's "Immune" → "immune" was a change; a band of a text change only read empty;
+    "infront" → "in front" looked like no change at all."""
+    from builders.text_rows import _marked, cosmetic, text_kind, text_rows
+    old, new = _marked('Grants Fire Rate, Bullet Lifesteal.', 'Grants Fire Rate, Bullet Lifesteal and Move Speed.')
+    assert '<del>' not in old and new.count('<ins>') == 1 and 'Move Speed' in new.split('<ins>')[1]
+    old, new = _marked('Immune to stuns', 'immune to stuns')
+    assert '<del>' not in old and '<ins>' not in new
+    assert cosmetic('Press [[Iv attack]] to fire', 'Press [Attack] to fire') and not cosmetic('infront', 'in front')
+    assert not cosmetic('+20 Damage', '+20% Damage')
+    html = text_rows([{'part': 'desc', 'old': 'Hits [[Iv attack]] twice', 'new': 'Hits [Attack] twice.'}])
+    assert 'Wording fixed' in html and '<details class="txt" open>' in html
+    assert text_kind([{'part': 'desc', 'old': 'A b', 'new': 'A c'}]) == 'description changed'
+    assert text_kind([{'part': 'name', 'old': 'A', 'new': 'B'}]) == 'renamed'
+    assert text_kind([{'part': 'desc', 'old': 'A b', 'new': 'a b.'}]) is None
+
+
 def test_one_band_never_shows_two_groups_of_one_name():
     """Review 2026-10-05: two "Weapon (shotgun)" groups with the same rows, Kelvin's "Frozen Shelter" for the ability
     and its trigger, Wrecker's old and new "Wrecking Ball": identical rows under one name are one group, other ones
@@ -588,16 +606,18 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     rows = [{'id': 'p1', 'date': '2024-01-01', 'title': '01-01-2024 Update'},
             {'id': 'p2', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}]
     cells = {'hero:hero_atlas': {'p2': {'buff': 2, 'nerf': 1}}, 'hero:hero_x': {'p1': {'new': 1}}}
-    samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf', 'abil']]}}
+    samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf', 'abil', 1]]}}
     parts = {'hero:hero_atlas': {'p2': {'abil': {'nerf': 1}, 'stats': {'buff': 2}}}}
     monkeypatch.setattr(dynamics_page, '_collect', lambda: {'rows': rows, 'cells': cells, 'parts': parts,
-                                                            'samples': samples})
+                                                            'samples': samples, 'hidden': {'hero:hero_atlas': {'p2': 1}}})
     html = dynamics_page.matrix_html([('hero:hero_atlas', 'Abrams', None, 'hero_atlas.html', ''),
                                       ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
                                       ('hero:hero_none', 'Nothing', None, 'n.html', '')], 'hero')
     assert 'Nothing' not in html                                   # a row with no changes is not listed
     # stripes as one gradient in tag order (buff before nerf), the nerf held at its 12% minimum share
     assert 'var(--tag-buff) 0% 66.7%,var(--tag-nerf) 66.7% 100%' in html and 'net-buff' in html
+    # review 2026-10-05: the eye in a tile's corner when the notes left something out, its count in the card's data
+    assert '<a class="dsq net-buff hid" style="background:' in html and '"eye":' in html
     # a tile of one tag is a class (.dsq.s-new), no inline gradient
     assert '<a class="dsq net-buff s-new" href="hero_x.html#p-p1" data-k="1">' in html
     from pathlib import Path

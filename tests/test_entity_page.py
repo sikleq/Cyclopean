@@ -355,6 +355,23 @@ def test_cards_put_a_new_thing_ahead_of_a_small_number():
     assert chip_card({'rows': [('', small), ('', added)], 'hidden': 2})[2][0][1] == 'Rat Swarm'
 
 
+def test_a_card_that_counts_hidden_changes_shows_one():
+    """Review 2026-10-05: Haze 2026-04-10's tile card said "2 not in patch notes" and listed six changes from the
+    notes (the biggest by %); one slot is the eye's, in the strip card, the trail card and the home card."""
+    from builders.history_view import TILE_SAMPLES, tile_card
+    from builders.home_page import chip_card
+    big = [ch(label=f'Thing {i}', status='documented', pct=50.0 - i, key=f'a:{i}') for i in range(7)]
+    flag = ch(label='Applies', status='hidden', pct=None, dir=None, old_s='a', new_s='b', key='a:f')
+    [(_, _, hidden, samples)] = tile_card([(('Bullet Dance', '', 'x', 0), big + [flag])])
+    assert hidden == 1
+    eye = next(s for s in samples if s[0] == 'Applies')
+    assert eye[4] == 1 and eye[5] < TILE_SAMPLES
+    rows = [('', c) for c in big[:3]] + [('', flag)]
+    assert [s[5] for s in chip_card({'rows': rows, 'hidden': 1})[2]].count(1) == 1
+    order = [s[0] for s in sorted(tile_card([(('', '', 'x', 0), big)])[0][3], key=lambda s: s[5])]
+    assert order[:2] == ['Thing 0', 'Thing 1']                  # no hidden change: the order stays
+
+
 def test_phone_tier_table_matrices_and_item_cards_css():
     """Review 2026-10-04: (1) the open "Current stats" put a 420px tier table on 45 neutral pages at 390px;
     (2) centring every wide table gave the change matrices a 20px sideways scroll at 1700-1920px — the

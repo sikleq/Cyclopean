@@ -215,13 +215,20 @@ def tile_card(groups: list[tuple[tuple, list[dict]]]) -> list[list]:
     from .shared_rows import is_every
     # a rule for every hero ranks after the entity's own changes: the card is about what changed on THIS one
     flat = sorted((c for _, cs in groups for c in cs), key=lambda c: (is_every(c), *_rank(c)))
+    # one slot is the eye's: a card that says "2 not in patch notes" lists one of them (review 2026-10-05: Haze
+    # 2026-04-10's six samples were all in the notes — the biggest by %)
+    if flat and not any(not_in_notes(c) for c in flat[:TILE_SAMPLES]):
+        i = next((i for i, c in enumerate(flat) if not_in_notes(c)), None)
+        if i is not None:
+            flat.insert(min(TILE_SAMPLES, len(flat)) - 1, flat.pop(i))
     rank = {id(c): r for r, c in enumerate(flat)}
     out = []
     for ref, cs in groups:
         if not cs:
             continue
         mine = sorted(cs, key=lambda c: rank[id(c)])
-        keep = [c for i, c in enumerate(mine) if i < GROUP_SAMPLES or rank[id(c)] < TILE_SAMPLES]
+        first_hidden = next((c for c in mine if not_in_notes(c)), None)
+        keep = [c for i, c in enumerate(mine) if i < GROUP_SAMPLES or rank[id(c)] < TILE_SAMPLES or c is first_hidden]
         counts: dict[str, int] = {}
         for c in cs:
             counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
@@ -494,7 +501,7 @@ def patch_href(pid: str, rel: str, entity_id: str | None = None) -> str:
 
 
 def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = (),
-            entity_id: str | None = None) -> tuple[str, str]:
+            entity_id: str | None = None, texts: str | None = None) -> tuple[str, str]:
     """(the band's <summary>, its has-hidden classes). The title is plain text, so a click opens the band in
     place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose, at the entity
     (`patch_href`). The counters and the eye count are what scripts.js recounts while a filter is on. `every`:
@@ -512,6 +519,10 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     # one short chip per kind: they wrap under the title on a phone (one long chip ran 145px off a 390px screen)
     chips += ''.join(f'<span class="chip shr-chip">+{len(rows)} for {esc(name.lower())}</span>'
                      for name, rows in every_groups(list(every)).items())
+    # a rename or a new description says so: a band that held only one read as an empty patch (Unstoppable
+    # 2024-09-26; review 2026-10-05) — words, no counter (text_rows are never counted)
+    if texts:
+        chips += f'<span class="chip txt-chip">{esc(texts)}</span>'
     hidden_cls = ' has-hidden' + (' all-hidden' if all_hidden else '') if n_hidden else ''
     cls = ' named' if patch_name(hdr['title']) else ''
     summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
@@ -616,7 +627,9 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
                                               tile_card(card)))
     if every_only:
         facts['every'] = facts.get('every', 0) + 1
-    summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id)
+    from .text_rows import text_kind
+    summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id,
+                                  text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]))
     dev_cls = ' dev-only' if all_dev and not in_dev and not every_only else ''
     dev_cls += ' every-only' if every_only else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'

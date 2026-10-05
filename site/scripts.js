@@ -455,21 +455,31 @@
           lastPart = s[5];
           rows += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
         }
-        rows += '<tr>' + (what ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
-          '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
+        // the eye on a change the notes left out, as in the strip's and the home page's cards (s[6])
+        rows += '<tr' + (s[6] ? ' class="dt-hid"' : '') + '>' + (what ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
+          '<td class="dt-field">' + (s[6] ? '<span class="dt-e">' + d.eye + '</span>' : '') + txt(s[1]) +
+          '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
       });
+      // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered
+      var whole = part === 'all' && !sel.length;
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
-                    counts: counts, d: d, rows: rows, more: total(counts) - samples.length,
+                    counts: counts, hidden: whole ? c[4] : 0, d: d, rows: rows, more: total(counts) - samples.length,
                     foot: 'click for its history at this patch' });
     }
 
     /* an entity page: a strip tile = the patch's biggest changes by ability; a trail square or an ability
        card's "last change" = that ability's own changes in that patch */
-    function rowsHtml(d, groups, pick, limit, heads) {
+    function rowsHtml(d, groups, pick, limit, heads, eyeSlot) {
       var html = '', shown = 0;
       groups.forEach(function (g) {
         var ref = d.g[g[0]];
-        var rows = g[3].filter(pick).sort(function (x, y) { return x[5] - y[5]; }).slice(0, limit);
+        var all = g[3].filter(pick).sort(function (x, y) { return x[5] - y[5]; });
+        var rows = all.slice(0, limit);
+        // `eyeSlot`: a group with changes the notes left out shows one of them (history_view.tile_card keeps it)
+        if (eyeSlot && g[2] && rows.length && !rows.some(function (s) { return s[4]; })) {
+          var h = all.filter(function (s) { return s[4]; })[0];
+          if (h) rows[rows.length - 1] = h;
+        }
         if (!rows.length) return;
         if (heads && ref[0]) {
           html += '<tr class="dt-grp"><td colspan="3">' + (ref[1] ? '<span class="dt-ic' + (ref[3] ? ' ult' : '') +
@@ -506,7 +516,7 @@
         Object.keys(g[1]).forEach(function (t) { counts[t] = (counts[t] || 0) + g[1][t]; });
         hidden += g[2];
       });
-      var own = rowsHtml(d, mine, function () { return true; }, d.per, false);
+      var own = rowsHtml(d, mine, function () { return true; }, d.per, false, true);
       return card({ icon: ref[1], name: ref[0], patch: tile[1], named: tile[2], counts: counts, hidden: hidden, d: d,
                     rows: own.html, more: total(counts) - own.shown, foot: foot });
     }
@@ -605,7 +615,8 @@
         tags.forEach(function (t) { total += counts[t]; });
         var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
         var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
-        var cls = 'dsq ' + (!total ? 'part-out' : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix');
+        var cls = 'dsq ' + (!total ? 'part-out' : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix') +
+          (total && c[4] && part === 'all' && !sel.length ? ' hid' : '');      // the built eye, while unfiltered
         // write only what changed: a text or class write re-lays the tile out
         if (a.className !== cls) a.className = cls;
         if (!total) return;

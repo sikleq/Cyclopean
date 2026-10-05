@@ -174,7 +174,11 @@ def chip_card(s: dict) -> list:
     counts: dict[str, int] = {}
     for _, c in s['rows']:
         counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
-    top = sorted(s['rows'], key=lambda wc: _rank(wc[1]))[:CHIP_SAMPLES]
+    ordered = sorted(s['rows'], key=lambda wc: _rank(wc[1]))
+    top = ordered[:CHIP_SAMPLES]
+    # one slot is the eye's when the card counts some not in the notes (review 2026-10-05)
+    if s['hidden'] and top and not any(not_in_notes(c) for _, c in top):
+        top[-1] = next(wc for wc in ordered if not_in_notes(wc[1]))
     return [counts, s['hidden'], [[w, str(c.get('label') or ''), *vals_text(c), tag_of(c)[0],
                                    int(not_in_notes(c))] for w, c in top]]
 
