@@ -199,8 +199,8 @@ def test_hero_page_is_one_open_column(monkeypatch):
     monkeypatch.setattr(hero_page, '_recent_cutoff', lambda: '2026-01-01')
     cols = [{'key': k, 'label': lbl, 'group': g, 'digits': 2, 'pol': 1} for k, lbl, g in [
         ('dps', 'DPS', 'Damage'), ('bullet_speed', 'Bullet Speed (m/s)', 'Damage'), ('hp', 'Health', 'Vitality'),
-        ('stamina_regen', 'Stamina Regen', 'Mobility')]]
-    row = {'values': {'dps': 51.4, 'bullet_speed': 610, 'hp': 800, 'stamina_regen': 0.2}, 'history': {}, 'spirit_scaled': []}
+        ('collision_r', 'Collision Radius', 'Vitality')]]
+    row = {'values': {'dps': 51.4, 'bullet_speed': 610, 'hp': 800, 'collision_r': 30}, 'history': {}, 'spirit_scaled': []}
     cards = {'ult': {'id': 'ult', 'owner': 'hero_atlas', 'slot': 'Signature_4', 'kind': 'ability', 'name': 'Seismic Impact',
                      'desc': 'Leap and slam.'},
              'sig1': {'id': 'sig1', 'owner': 'hero_atlas', 'slot': 'Signature_1', 'kind': 'ability', 'name': 'Bare'},

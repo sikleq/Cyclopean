@@ -201,16 +201,18 @@ COLUMNS: tuple[Col, ...] = (
     Col('bullet_dmg_max', 'Max Bullet DMG', 'Damage', max_bullet),
     Col('clip', 'Ammo', 'Damage', _wf('m_iClipSize'), digits=0, scaling_stat='EClipSize'),
     Col('full_clip', 'Full Clip (s)', 'Damage', full_clip, pol=0),
-    Col('reload', 'Reload (s)', 'Damage', reload_time, pol=-1, digits=4, scaling_stat='EReloadSpeed',
+    # reloads to 2 decimals like the game's panel ("1.0575" was a sum no screen prints; no step of the 31 is lost),
+    # fire intervals to 3 (2 dropped 7 real steps: Bebop 0.08 -> 0.084, Haze 0.1 -> 0.105; review 2026-10-05)
+    Col('reload', 'Reload (s)', 'Damage', reload_time, pol=-1, digits=2, scaling_stat='EReloadSpeed',
         note='Single-bullet reloaders: start delay + one bullet.'),
-    Col('reload_full', 'Full Reload (s)', 'Damage', full_reload, pol=-1, digits=4,
+    Col('reload_full', 'Full Reload (s)', 'Damage', full_reload, pol=-1, digits=2,
         note='Single-bullet reloaders: start delay + whole clip.'),
     Col('headshot', 'Headshot ×', 'Damage', _wf('m_flCritBonusStart')),
-    Col('cycle', 'Fire Interval (s)', 'Damage', _wf('m_flCycleTime'), pol=-1, digits=4),
+    Col('cycle', 'Fire Interval (s)', 'Damage', _wf('m_flCycleTime'), pol=-1, digits=3),
     Col('bps', 'Bullets / s', 'Damage', bullets_per_sec, scaling_stat='EFireRate'),
     Col('pellets', 'Pellets', 'Damage', _wf('m_iBullets'), digits=0),
     Col('burst', 'Burst', 'Damage', _wf('m_iBurstShotCount'), digits=0),
-    Col('burst_cycle', 'Burst Interval (s)', 'Damage', burst_cycle, pol=-1, digits=4),
+    Col('burst_cycle', 'Burst Interval (s)', 'Damage', burst_cycle, pol=-1, digits=3),
     Col('bullet_speed', 'Bullet Speed (m/s)', 'Damage', bullet_speed, digits=0),
     Col('bullet_radius', 'Bullet Radius', 'Damage', _wf('m_flBulletRadius')),
     Col('spread', 'Spread', 'Damage', _wf('m_Spread'), pol=-1),
@@ -240,11 +242,13 @@ COLUMNS: tuple[Col, ...] = (
         note='Removed from hero data in later builds; history ends there.'),
     Col('collision_h', 'Collision Height', 'Vitality', lambda h, w, g: _num(h.get('m_flCollisionHeight')), pol=-1),
     # --- Mobility ---
-    Col('move', 'Move Speed', 'Mobility', _stat('EMaxMoveSpeed'), scaling_stat='EMaxMoveSpeed'),
-    Col('sprint', 'Sprint', 'Mobility', _stat('ESprintSpeed'), scaling_stat='ESprintSpeed'),
+    # the unit in the label, like the gun's columns: the page puts it on the number (review 2026-10-05: "Crouch
+    # Speed 4.75", "Stamina Regen 0.222" bare)
+    Col('move', 'Move Speed (m/s)', 'Mobility', _stat('EMaxMoveSpeed'), scaling_stat='EMaxMoveSpeed'),
+    Col('sprint', 'Sprint (m/s)', 'Mobility', _stat('ESprintSpeed'), scaling_stat='ESprintSpeed'),
     Col('stamina', 'Stamina', 'Mobility', _stat('EStamina'), digits=0, scaling_stat='EStamina'),
-    Col('stamina_regen', 'Stamina Regen', 'Mobility', _stat('EStaminaRegenPerSecond'), digits=3, scaling_stat='EStaminaRegenPerSecond'),
-    Col('crouch', 'Crouch Speed', 'Mobility', _stat('ECrouchSpeed')),
+    Col('stamina_regen', 'Stamina Regen (/s)', 'Mobility', _stat('EStaminaRegenPerSecond'), digits=3, scaling_stat='EStaminaRegenPerSecond'),
+    Col('crouch', 'Crouch Speed (m/s)', 'Mobility', _stat('ECrouchSpeed')),
     Col('ground_dash', 'Ground Dash (s)', 'Mobility', _dash('EGroundDashDuration', 'AbilityDuration'), pol=-1),
     Col('air_dash', 'Air Dash (s)', 'Mobility', _dash('EAirDashDuration', 'AirDashTravelTime'), pol=-1),
     # --- Spirit ---
@@ -401,9 +405,13 @@ def build() -> dict:
             'spirit_scaled': spirit_scaled(hero),
             'scaling': scaling_detail(hero),
         })
+    # the table is as of the newest game build, like Items and Units (it said "build 6742" beside their 6746: the
+    # last build that changed a hero file, review 2026-10-05); that build is kept apart
+    head = tracker.head_build()
     data = {
-        'build': last_build.build,
-        'date': last_build.date,
+        'build': head.build or last_build.build,
+        'date': head.date if head.build else last_build.date,
+        'unchanged_since': last_build.build,
         'columns': [
             {'key': c.key, 'label': c.label, 'group': c.group, 'pol': c.pol, 'digits': c.digits, 'note': c.note}
             for c in COLUMNS

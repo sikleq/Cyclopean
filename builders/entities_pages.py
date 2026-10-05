@@ -5,7 +5,7 @@ from collections import defaultdict
 
 from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
 from .cards import GAMEPLAY
-from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
+from .hero_page import _split_unit, _unit_html, hero_page, history_table, prop_icon, prop_rows, stat_tables
 from .history_view import head_strip, hidden_link, now_fold
 from .render import KIND_LABEL, tag_badge
 
@@ -155,8 +155,11 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
             if all(v is None for v in vals) or vals in seen:
                 continue
             seen.append(vals)
-            body_rows.append(f'<tr><td>{esc(c["label"])}</td>' + ''.join(f'<td class="v">{_fmt(v, c["digits"])}</td>'
-                                                                       for v in vals) + '</tr>')
+            # the unit on the number, not in the label ("Fire Interval (s)", "Run Speed (m/s)")
+            label, unit = _split_unit(c['label'])
+            body_rows.append(f'<tr><td>{esc(label)}</td>' + ''.join(
+                f'<td class="v">{_fmt(v, c["digits"])}{_unit_html(unit) if v is not None else ""}</td>'
+                for v in vals) + '</tr>')
         head_row = '<tr><th></th>' + ''.join(f'<th>Tier {esc(t)}</th>' for t in tiers_sorted) + '</tr>'
         stats_html = f'<table class="kvt tier-grid"><thead>{head_row}</thead><tbody>{"".join(body_rows)}</tbody></table>'
     else:

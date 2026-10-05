@@ -140,7 +140,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                  if (in_dev or c.get('status') != 'unreleased') and not is_every(c)]
         real = bool(slot['lines']) or bool(slot.get('texts')) or bool(player_facing(shown))
         block = _patch_block(pid, slot, order, meta, names, rel, real, not real, areas, in_dev,
-                             facts, merge, headless_own=enhanced, hints=hints, ults=ults, entity_id=link_id)
+                             facts, merge, headless_own=enhanced, hints=hints, ults=ults, entity_id=link_id,
+                             gone=gone)
         if not block:
             continue
         y = slot['row']['date'][:4]
@@ -362,12 +363,47 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         rows += text_rows(texts.get(key, []))
         if not rows:
             continue
-        same = next((g for g in groups if merge and g['rows'] == rows), None)
-        if same:                             # the same rows on another member: one group, both named
+        # the same rows on another member: one group, both named (a family, a Game system); on any page the same rows
+        # under the same name are one group too (review 2026-10-05: Holliday's "Weapon (shotgun)" twice, Kelvin's
+        # "Frozen Shelter" twice with one row each)
+        same = next((g for g in groups if g['rows'] == rows and (merge or meta[g['keys'][0]][0] == nm)), None)
+        if same:
             same['keys'].append(key)
             continue
         groups.append({'keys': [key], 'rows': rows, 'changes': changes, 'lines': lines})
     return groups
+
+
+def _namesakes(groups: list[dict], meta: dict, gone: set[str] | frozenset[str] = frozenset()) -> dict[int, str]:
+    """Group index -> its header when an earlier group of the band has the same name and other rows (an ability and
+    its trigger, an old and a new version: Kelvin's two "Frozen Shelter", Wrecker's two "Wrecking Ball"; review
+    2026-10-05): a removed one is "(old version)", another says how its id differs ("Frozen Shelter · trigger")."""
+    by_name: dict[str, list[int]] = {}
+    for gi, g in enumerate(groups):
+        by_name.setdefault(meta[g['keys'][0]][0], []).append(gi)
+    out: dict[int, str] = {}
+    for nm, idx in by_name.items():
+        if len(idx) < 2:
+            continue
+        live = [gi for gi in idx if groups[gi]['keys'][0] not in gone]
+        for gi in idx:
+            if gi not in live:
+                out[gi] = f'{nm} (old version)'
+        if not live:
+            continue
+        a = groups[live[0]]['keys'][0].partition(':')[2]
+        for gi in live[1:]:
+            b = groups[gi]['keys'][0].partition(':')[2]
+            n = 0
+            while n < min(len(a), len(b)) and a[n] == b[n]:
+                n += 1
+            m = 0
+            while m < min(len(a), len(b)) - n and a[-1 - m] == b[-1 - m]:
+                m += 1
+            tail = b[n:len(b) - m].strip('_').replace('_', ' ')
+            if tail:
+                out[gi] = f'{nm} · {tail}'
+    return out
 
 
 def _dev_only(g: dict, in_dev: bool) -> bool:
@@ -487,7 +523,7 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
 def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str], rel: str, open_: bool,
                  lazy: bool, areas: dict | None, in_dev: bool, facts: dict, merge=None,
                  headless_own: bool = False, hints: dict | None = None, ults: frozenset[str] = frozenset(),
-                 entity_id: str | None = None) -> str:
+                 entity_id: str | None = None, gone: set[str] | frozenset[str] = frozenset()) -> str:
     """One patch = its banner + ONE full-width panel: per part its icon on a plate in a column of its own,
     then its name and rows (Sloppy's ability block). `hints`: part key -> its cards.history_hints."""
     from . import archive
@@ -499,6 +535,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     own_slot, every_all = split_every(slot, in_dev)
     with patch_builds(archive.builds_of(pid)):           # the eye says when a change shipped silently later
         groups = _groups(own_slot, order, meta, names, hints, merge)
+    namesakes = {} if merge else _namesakes(groups, meta, gone)
     band_notes: dict[str, str] = {}
     counted_all, all_dev, card = [], True, []
     band_seen: set[tuple] = set()
@@ -512,8 +549,9 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     for gi, g in enumerate(groups):
         key = g['keys'][0]
         nm, ic = meta[key]
-        if len(g['keys']) > 1:
+        if len(g['keys']) > 1 and merge:
             nm = merge([meta[k][0] for k in g['keys']])
+        nm = namesakes.get(gi, nm)
         file, _, eid = key.partition(':')
         rows = player_facing(g['changes'])
         dev = [c for c in rows if c.get('status') == 'unreleased']

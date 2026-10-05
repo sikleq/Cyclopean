@@ -336,8 +336,48 @@ def test_weapon_panel_six_tiles_and_units_on_the_number():
                            ('clip', 'Ammo'), ('reload', 'Reload (s)'), ('bullet_speed', 'Bullet Speed (m/s)')]]
     row = {'values': {c['key']: 1.5 for c in cols}, 'history': {}, 'spirit_scaled': []}
     html = hero_page.weapon_block({'name': 'Case Closed', 'id': 'w'}, row, cols, 'Abrams', '../')
-    assert html.count('wcell top') == 6 and 'Reload s' in html
+    # review 2026-10-05: every tile's unit rides on its number ("RELOAD S" beside "Full Reload 3.88 s")
+    assert html.count('wcell top') == 6 and '>Reload<' in html and '<span class="u">s</span>' in html
     assert '<span class="u">m/s</span>' in html and '>Bullet Speed<' in html
+
+
+def test_one_band_never_shows_two_groups_of_one_name():
+    """Review 2026-10-05: two "Weapon (shotgun)" groups with the same rows, Kelvin's "Frozen Shelter" for the ability
+    and its trigger, Wrecker's old and new "Wrecking Ball": identical rows under one name are one group, other ones
+    say which is which."""
+    from builders.history_view import history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    keys = [('heroes.vdata:h', 'Base stats', None), ('abilities.vdata:gun', 'Weapon (shotgun)', None),
+            ('abilities.vdata:gun_shared_base', 'Weapon (shotgun)', None), ('abilities.vdata:dome', 'Frozen Shelter', None),
+            ('abilities.vdata:dome_trigger', 'Frozen Shelter', None), ('abilities.vdata:ball', 'Wrecking Ball', None),
+            ('abilities.vdata:ball2', 'Wrecking Ball', None)]
+    same = [ch(key='x', path='falloff', label='Falloff Start', old_s='22m', new_s='19.99m')]
+    by_ent = {'abilities.vdata:gun': [(r1, same)], 'abilities.vdata:gun_shared_base': [(r1, [dict(c) for c in same])],
+              'abilities.vdata:dome': [(r1, [ch(key='d', path='r', label='Radius')])],
+              'abilities.vdata:dome_trigger': [(r1, [ch(key='t', path='w', label='Width')])],
+              'abilities.vdata:ball': [(r1, [ch(key='b', path='r', label='Radius')])],
+              'abilities.vdata:ball2': [(r1, [ch(key='b2', path='s', label='Speed')])]}
+    html = history_table(keys, ['Hero'], by_ent, {}, '../', gone={'abilities.vdata:ball'})
+    names = re.findall(r'<span class="nm">([^<]*)</span>', html)
+    assert names.count('Weapon (shotgun)') == 1 and 'data-ab="gun gun_shared_base"' in html
+    assert 'Frozen Shelter' in names and 'Frozen Shelter · trigger' in names
+    assert names.count('Wrecking Ball') == 1 and 'Wrecking Ball (old version)' in names
+
+
+def test_a_stat_at_its_default_says_nothing_unless_it_moved():
+    """Review 2026-10-05: "+Range / boon 0m" on 38 of 39 heroes, "Burst Interval 0s" on 32, "Pellets 1",
+    "Headshot Taken × 1"; hidden unless the value ever really changed (Mirage's pellets, Bookworm's burst)."""
+    from builders import hero_page
+    cols = [{'key': k, 'label': lbl, 'group': 'Damage', 'digits': 2, 'pol': 1} for k, lbl in [
+        ('dps', 'DPS'), ('range_lvl', '+Range / boon (m)'), ('pellets', 'Pellets'), ('pellet_spread', 'Pellet Spread'),
+        ('burst', 'Burst'), ('burst_cycle', 'Burst Interval (s)'), ('gravity', 'Bullet Gravity')]]
+    row = {'values': {'dps': 50, 'range_lvl': 0, 'pellets': 1, 'pellet_spread': 0, 'burst': 1, 'burst_cycle': 0,
+                      'gravity': 0}, 'history': {'burst': [[1, '2025-01-01', 3, 1]], 'range_lvl': [[1, '2025-01-01', None, 0]]},
+           'spirit_scaled': []}
+    html = hero_page.weapon_block({'name': 'Gun', 'id': 'w'}, row, cols, 'X', '../')
+    assert '+Range' not in html and 'Pellet' not in html and 'Burst Interval' not in html
+    assert '>Burst<' in html                     # it went 3 -> 1: a real step keeps it
+    assert 'Bullet Gravity' in html              # a real property: its zero means something
 
 
 def test_hero_page_cards_only_what_the_hero_binds_now():

@@ -18,11 +18,13 @@ ULT_SLOT = 'Signature_4'    # its icon carries the ultimate's corner mark (cards
 # the head strip: every main non-gun stat (survival, movement, melee, spirit growth); the rest of
 # the stats are open panels under the abilities, the gun's in the weapon block (user, 10-01; open 10-04)
 KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina',
-             'light_melee', 'heavy_melee', 'spirit_lvl')
+             'stamina_regen', 'ground_dash', 'air_dash', 'light_melee', 'heavy_melee', 'melee_lvl', 'spirit_lvl')
+# the same for every hero (Crouch Speed 4.75 on all 44): no hero's own number; its one step is in the history
+NOT_ON_HERO = ('crouch',)
 WEAPON_GROUP = 'Damage'
 # the six numbers a player compares first: one row of equal tiles with one-line labels
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
-              'clip': 'Ammo', 'reload': 'Reload s'}
+              'clip': 'Ammo', 'reload': 'Reload'}
 WEAPON_DIGITS = 2
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
@@ -58,6 +60,42 @@ def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
     return ' '.join(cls + hcls), f' data-pol="{col["pol"]}" data-digits="{col["digits"]}"' + hattrs
 
 
+def _real_steps(row: dict, key: str, digits: int) -> list:
+    """The steps of a stat's history a reader sees: a value that changed (not the field's first appearance, null →
+    value, and not a step its rounding hides)."""
+    out = []
+    for h in row.get('history', {}).get(key) or ():
+        if h[2] is None:
+            continue
+        if _fmt(h[2], digits) != _fmt(h[3], digits):
+            out.append(h)
+    return out
+
+
+# a stat at its neutral value says nothing (review 2026-10-05: "+Range / boon 0m" on 38 of 39 heroes,
+# "+Bullet Resist / boon 0", "Headshot Taken × 1" on 42): hidden unless it ever moved
+NEUTRAL = {'range_lvl': 0, 'bullet_resist_lvl': 0, 'spirit_resist_lvl': 0, 'headshot_taken': 1}
+# …and a gun's pellet / burst details when it fires one pellet / one bullet a burst
+NEEDS = {'pellet_spread': ('pellets', 1), 'pellets': ('pellets', 1), 'burst': ('burst', 1),
+         'burst_cycle': ('burst', 1)}
+
+
+def says_nothing(row: dict, c: dict) -> bool:
+    """A stat tile or row that would only print a default (`NEUTRAL`, `NEEDS`) with no real step in its history."""
+    k = c['key']
+    vals = row.get('values') or {}
+    if k in NEUTRAL:
+        v = vals.get(k)
+        dead = v is not None and float(v) == NEUTRAL[k]
+    elif k in NEEDS:
+        base, one = NEEDS[k]
+        v = vals.get(base)
+        dead = v is not None and float(v) == one
+    else:
+        return False
+    return dead and not _real_steps(row, k, c.get('digits', 2))
+
+
 def _stat_icon(key: str, rel: str) -> str:
     src = icon(f'StatDesc:{STAT_ICON[key]}', rel) if key in STAT_ICON else None
     return f'<img class="si" src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="si"></span>'
@@ -69,18 +107,19 @@ def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
     for k in KEY_STATS:
         c = by_key.get(k)
         v = row['values'].get(k)
-        if not c or v is None or (v == 0 and k.endswith('_resist')):     # base resists are 0 for most heroes
-            continue
+        if not c or v is None or (v == 0 and k.endswith('_resist')) or says_nothing(row, c):
+            continue                                     # base resists are 0 for most heroes
         cls, attrs = _hist_attrs(row, c, name)
-        out.append(f'<div class="keystat {cls}"{attrs}>{_stat_icon(k, rel)}<div class="v">{_fmt(row["values"][k], c["digits"])}</div>'
-                   f'<div class="l">{esc(c["label"])}</div></div>')
+        label, unit = _split_unit(c['label'])
+        out.append(f'<div class="keystat {cls}"{attrs}>{_stat_icon(k, rel)}<div class="v">{_fmt(row["values"][k], c["digits"])}'
+                   f'{_unit_html(unit)}</div><div class="l">{esc(label)}</div></div>')
     return '<div class="keystats">' + ''.join(out) + '</div>'
 
 
 def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
     """Secondary stats (per-boon growth of resists, dashes, collision…) as open panels below the abilities
     (owner 2026-10-04: nothing folded by default — they sat two clicks deep)."""
-    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS)
+    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
     if not panels:
         return ''
     return f'<h2>Stats</h2>{panels}'
@@ -90,11 +129,12 @@ def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
     out = []
     for c in cs:
         v = row['values'].get(c['key'])
-        if v is None:
+        if v is None or says_nothing(row, c):
             continue
         cls, attrs = _hist_attrs(row, c, name)
-        out.append(f'<div class="sc-row"><span class="k">{_stat_icon(c["key"], rel)}{esc(c["label"])}</span>'
-                   f'<span class="v {cls}"{attrs}>{_fmt(v, c["digits"])}</span></div>')
+        label, unit = _split_unit(c['label'])           # "Ground Dash 0.72 s", not "Ground Dash (s) 0.72"
+        out.append(f'<div class="sc-row"><span class="k">{_stat_icon(c["key"], rel)}{esc(label)}</span>'
+                   f'<span class="v {cls}"{attrs}>{_fmt(v, c["digits"])}{_unit_html(unit)}</span></div>')
     return ''.join(out)
 
 
@@ -139,11 +179,12 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
     top, rest = [], []
     for c in sorted(wcols, key=lambda c: top_order.index(c['key']) if c['key'] in WEAPON_TOP else len(top_order)):
         v = row['values'].get(c['key'])
-        if v is None:
+        if v is None or says_nothing(row, c):
             continue
         cls, attrs = _hist_attrs(row, c, name)
         is_top = c['key'] in WEAPON_TOP
-        label, unit = (WEAPON_TOP[c['key']], '') if is_top else _split_unit(c['label'])
+        # the unit rides on the number for every tile ("RELOAD S" beside "Full Reload 3.88 s")
+        label, unit = (WEAPON_TOP[c['key']], _split_unit(c['label'])[1]) if is_top else _split_unit(c['label'])
         # two decimals at most, like the game's panel: "Reload 1.0575" was a sum no screen prints (external
         # audit 2026-10-04); the full value stays in the cell's history
         cell = (f'<div class="wcell{" top" if is_top else ""} {cls}"{attrs}>{_stat_icon(c["key"], rel)}'
