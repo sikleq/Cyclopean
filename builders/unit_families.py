@@ -41,8 +41,13 @@ def _variant_words(members: list[dict]) -> dict[str, str]:
     out = {}
     for uid, t in toks.items():
         words = [w for w in t if w not in common and not (tiers[uid] and w in ('weak', 'normal', 'strong'))]
-        out[uid] = ' '.join(f'model {int(w)}' if w.isdigit() else w for w in words)
+        # words a reader reads as a label: "Alt Super", "Weak", "New model" (Walker's members read "weak · alt weak";
+        # 'ag2' is the copy on the new animation graph; review 2026-10-05)
+        out[uid] = ' '.join(f'Model {int(w)}' if w.isdigit() else _VARIANT_WORD.get(w, w.capitalize()) for w in words)
     return out
+
+
+_VARIANT_WORD = {'ag2': 'New model'}
 
 
 def families(units: list[dict]) -> dict[str, list[dict]]:

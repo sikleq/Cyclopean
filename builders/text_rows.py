@@ -92,12 +92,18 @@ def text_kind(texts: list[dict]) -> str | None:
     return 'description changed' if real else None
 
 
-def text_rows(texts: list[dict]) -> str:
-    """The rows of one entity's text changes in one patch, names first."""
+_HERO_NAME = re.compile(r'\[hero ?name\]', re.I)
+
+
+def text_rows(texts: list[dict], hero: str | None = None) -> str:
+    """The rows of one entity's text changes in one patch, names first. `hero`: the page's hero, whose name the game
+    fills into "[Hero name]" (61 rows showed the token; review 2026-10-05)."""
     from .cards import row
     out = []
     for t in sorted(texts, key=lambda t: list(PART_LABEL).index(t['part']) if t['part'] in PART_LABEL else 9):
         a, b = _plain(t.get('old')), _plain(t.get('new'))
+        if hero:
+            a, b = _HERO_NAME.sub(hero, a), _HERO_NAME.sub(hero, b)
         if not a or not b or a == b:
             continue
         label = PART_LABEL.get(t['part'], 'Text changed')

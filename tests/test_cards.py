@@ -143,6 +143,8 @@ def test_look_sound_and_engine_tuning_are_not_gameplay():
     assert category('m_flMaxMoveIterationScale', 1, 2) == 'technical'
     assert category('m_NpcAimingSpread', '1, 2', '2, 3') == 'technical'
     assert category('m_flRespawnTimeTest', 10, 20) == 'meta'
+    assert category('m_bSpawnOnGround', None, True) == 'technical'
+    assert category('m_sModifer.m_eBuffTypeValueUnit', 'a', 'b') == 'technical'
     for path in ('m_remapCapturersToCaptureTime', 'm_flDamageFalloffBias', 'm_flTrackingDampingCoefficient',
                  'm_flVerticalAimBias', 'm_flWallJumpPowerBias', p.format('ModelScaleGrowth'), 'm_flSweepingDuration',
                  'm_flGravityScale'):

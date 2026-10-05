@@ -677,7 +677,13 @@ def _hint(label: str, prop: str, skip: frozenset[str] | set[str] = _HINT_SKIP) -
 
     def said(w: str) -> bool:               # "heal" is in "Healing"
         return w in have or any(len(w) >= 4 and (h.startswith(w) or w.startswith(h)) for h in have if len(h) >= 4)
-    return ' '.join(w for w in (x.lower() for x in _CAMEL.findall(prop)) if not said(w) and w not in skip)
+    return ' '.join(w for w in (x.lower() for x in _CAMEL.findall(prop))
+                    if not said(w) and w not in skip and w not in _HINT_NEVER)
+
+
+# words a hint never is, even when nothing else tells two namesakes apart ("Incoming Damage Deferred · pct";
+# review 2026-10-05): the unit or the container a field name carries, not what it is about
+_HINT_NEVER = frozenset({'pct', 'percent', 'percentage', 'value', 'values', 'fl', 'str', 'm'})
 
 
 def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = None, every_href=None) -> str:

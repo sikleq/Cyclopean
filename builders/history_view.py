@@ -359,6 +359,8 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
     from .cards import entity_rows, row
     groups: list[dict] = []
     texts = slot.get('texts', {})
+    # a hero page fills "[Hero name]" in its texts with the hero's name
+    hero = names[0] if names and order and next(iter(order)).startswith('heroes.vdata:') else None
     for key in sorted(set(slot['ch']) | set(slot['lines']) | set(texts), key=lambda k: order.get(k, 999)):
         nm, _ = meta[key]
         changes = slot['ch'].get(key, [])
@@ -367,7 +369,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
-        rows += text_rows(texts.get(key, []))
+        rows += text_rows(texts.get(key, []), hero)
         if not rows:
             continue
         # the same rows on another member: one group, both named (a family, a Game system); on any page the same rows

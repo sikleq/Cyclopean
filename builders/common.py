@@ -202,7 +202,10 @@ def ids_to_names(s: str) -> str:
 
 
 def _ids_to_names(s: str, names: dict[str, str], known: dict[str, str | None], game: dict[str, str]) -> str:
-    s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
+    # an unnamed ability reads as its group header does, its owner's code dropped ("Boho bouncyprojectile" in a value
+    # beside the header "Bouncyprojectile"; review 2026-10-05)
+    s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0), known.get(m.group(0).lower())),
+                        s)
 
     def other(m: re.Match) -> str:
         w = m.group(0)

@@ -97,8 +97,9 @@ TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHul
                            # an editor check ("warn the designer if no ability is affected"), shown as NEW
                            # on five headshot items in 2026-01-30
                            r'm_bWarnIfNoAffectedAbilities|'
-                           # the movement solver's iterations, a bot's aim spread (review 2026-10-05)
-                           r'MaxMoveIterationScale|NpcAimingSpread)')
+                           # the movement solver's iterations, a bot's aim spread, where a unit is put down and the
+                           # type of a buff's value (review 2026-10-05: "Spawn On Ground yes" on Walker)
+                           r'MaxMoveIterationScale|NpcAimingSpread|m_bSpawnOnGround|BuffTypeValueUnit)')
 
 
 # whole entries that are scenery or presentation, not something a player plays with: the city's traffic

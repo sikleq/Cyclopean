@@ -287,6 +287,16 @@ def test_a_name_the_last_build_lost_comes_from_an_earlier_one(monkeypatch):
     assert names == {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Improved Bullet Armor',
                      'upgrade_duration_extender': 'Duration Extender', 'upgrade_frenzy': 'upgrade_frenzy',
                      'upgrade_toughness_3': 'Toughness (old)'}
+    # a removed unit with a living namesake joins its family: no "(old)" (Medic Trooper's ag2 copy)
+    unit = {'file': 'npc_units.vdata', 'id': 'trooper_medic_ag2', 'name': 'trooper_medic_ag2', 'alive': False}
+    live_unit = {'file': 'npc_units.vdata', 'id': 'trooper_medic', 'name': 'Medic Trooper', 'alive': True}
+
+    def scan(want):
+        unit['name'] = 'Medic Trooper'
+        return [unit]
+    monkeypatch.setattr(catalog, '_scan_names', scan)
+    catalog.earlier_names([unit], [unit, live_unit])
+    assert unit['name'] == 'Medic Trooper'
 
 
 # ---- ability cards ------------------------------------------------------------------------

@@ -160,8 +160,9 @@ def earlier_names(missing: list[dict], everyone=()) -> None:
     """An entity whose last build's text has no name for it gets the newest name an earlier build gave it (a removed
     item's key left the text before the item did: "Ablative coat", "Aoe silence" were EMP Grenade… on 57 item pages,
     review 2026-10-05). The text of each distinct state of the english files is read once, newest first. A
-    patch page keeps its own build's name (rule 4); this is the catalog's fallback. A found name another entity of
-    the file has too (the live "Toughness") is marked "(old)" on the removed one (`everyone`: all entities)."""
+    patch page keeps its own build's name (rule 4); this is the catalog's fallback. A found item / ability name another
+    entity has too (the live "Toughness") is marked "(old)" on the removed one (`everyone`: all entities); a unit's
+    joins its namesakes' family."""
     want = {e['id']: e for e in missing}
     if not want:
         return
@@ -171,7 +172,8 @@ def earlier_names(missing: list[dict], everyone=()) -> None:
         if e.get('name'):
             taken[(e['file'], e['name'])] = taken.get((e['file'], e['name']), 0) + 1
     for e in found:
-        if taken.get((e['file'], e['name']), 0) > 1 and not e.get('alive'):
+        # (a unit joins its living namesakes' family instead: unit_families)
+        if e['file'] == 'abilities.vdata' and taken.get((e['file'], e['name']), 0) > 1 and not e.get('alive'):
             e['name'] += ' (old)'
 
 
