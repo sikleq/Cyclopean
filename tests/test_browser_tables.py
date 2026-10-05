@@ -1,5 +1,5 @@
 """Stats tables and change matrices in a real browser: site/scripts.js + site/styles.css on pages built from
-fixtures (no dist/, no data). Skipped where Playwright or its Chromium is not installed (CI).
+fixtures (no dist/, no data). The `browser` fixture is tests/conftest.py's (CI installs Chromium).
 
 Review 2026-10-04: a folded column group never unfolded (Hero Stats 34 -> 21 -> 21 columns) and the
 track's own browser check only compared colspan sums, which still matched."""
@@ -7,21 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
-sync_api = pytest.importorskip('playwright.sync_api')
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_api.sync_playwright() as p:
-        try:
-            b = p.chromium.launch()
-        except Exception as e:                      # no browser binary on this machine
-            pytest.skip(f'chromium not available: {e}')
-        yield b
-        b.close()
 
 
 def _open(browser, body: str, width: int = 1400, height: int = 900):

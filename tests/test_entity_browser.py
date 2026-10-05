@@ -1,25 +1,10 @@
 """The entity page's CSS and scripts in a real browser, on pages built inside the test (no dist/ needed):
-a phone-width tier table, a trail square under a filter, a filtered band's counters. Skipped where
-Playwright or its Chromium is missing (CI runs pytest before any browser exists)."""
+a phone-width tier table, a trail square under a filter, a filtered band's counters. The `browser` fixture is
+tests/conftest.py's (CI installs Chromium)."""
 import shutil
 from pathlib import Path
 
-import pytest
-
-sync_api = pytest.importorskip('playwright.sync_api')
-
 ROOT = Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_api.sync_playwright() as p:
-        try:
-            b = p.chromium.launch(headless=True)
-        except Exception as e:          # no browser downloaded: not this test's business
-            pytest.skip(f'no Chromium for Playwright: {e}')
-        yield b
-        b.close()
 
 
 def _open(browser, tmp_path: Path, html: str, width: int, height: int = 900):
