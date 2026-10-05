@@ -446,6 +446,7 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .mark.unannounced { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9zM6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z'/%3E%3C/svg%3E"); }
 .mark.documented, .mark.rounded { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M13 3h2v2h-2zM11 5h2v2h-2zM9 7h2v2H9zM7 9h2v2H7zM3 7h2v2H3zM5 9h2v2H5z'/%3E%3C/svg%3E"); }
 .mark.mismatch { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M7 2h2v8H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
+.mark.unmatched { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v2H5zM4 3h1v2H4zM10 4h2v2h-2zM8 6h3v2H8zM7 8h2v2H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
 .mark.hidden { color: var(--eye); filter: drop-shadow(0 0 4px var(--eye-glow)); }
 .mark.documented { color: var(--patina); }
 .mark.described { color: var(--text-dim); }
@@ -497,6 +498,10 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
               2px 0 0 var(--frame-line), 0 8px 18px var(--shadow-deep);
 }
 .ecard.plain { background: var(--bg-panel); column-span: all; margin-bottom: 16px; }
+/* a card an entity page's "patch ↗" lands on (#n- / #c-): its head clears the site bar and the sticky tabs */
+.ecard[id], .ecard > .anc { scroll-margin-top: calc(var(--nav-h) + 72px); }
+/* a shared edit's card stands for each target without a card of its own (patches_pages.shared_anchor_ids) */
+.ecard > .anc { display: block; height: 0; }
 /* one header height for every card (design review: 70px and 44px headers side by side looked
    unfinished): 36px icon, name, then counters and the strip on one line */
 .ecard-h { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 11px; align-items: center;
@@ -558,6 +563,10 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .erow.rw .vals .new { color: var(--text-main); font-weight: 600; }
 .tag.topic-tag { --c: var(--text-dimmer); }
 .eye-chip { color: var(--eye); }
+/* the entity head's way to what the notes left out (history_view.hidden_link) */
+a.chip.eye-link { color: var(--eye); }
+a.chip.eye-link .mark, a.chip.eye-link .mark::before { width: 14px; height: 14px; }
+a.chip.eye-link:hover, a.chip.eye-link:focus-visible { color: var(--text-bright); box-shadow: inset 0 0 0 1px var(--eye); }
 /* the eye filter keeps what its number counts (builders/patch_counts.py): plumbing ("Technical") is not counted */
 .only-hidden .erow:not(.is-hidden), .only-hidden .ecard:not(.has-hidden), .only-hidden .esub:not(.has-hidden),
 .only-hidden details.tech, .only-hidden .hgroup:not(.has-hidden),
@@ -587,7 +596,18 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .erow .shr-go { margin-left: 8px; color: var(--patina); white-space: nowrap; }
 .erow.shr-all .vv { font-size: 13px; }
 .banner .shr-chip { color: var(--text-dimmer); }
-.ps-tile.shr { opacity: .55; }
+/* "renamed" / "description changed": words of the band's text rows, which a tag or eye filter hides with them */
+.banner .txt-chip { color: var(--text-dim); }
+.hblocks.filtering-rows .banner .txt-chip { display: none; }
+/* the band's rules for every hero: ONE block after its groups (history_view.split_every), quieter than a group */
+.hgroup.shr-band { background: var(--bg-panel-2); padding: 2px 0; }
+/* a band that holds only such rules waits behind "For all heroes" (toolbar), in place */
+.hblocks:not(.show-every) .pblock.every-only { display: none; }
+.hist-bar .hf-every .n { color: var(--text-dimmer); margin-left: 4px; }
+/* the year where it changes in a long history (no fold): the section banner's look, smaller */
+.hblocks .hyear { min-height: 30px; margin: 18px 0 8px; }
+.hblocks .hyear .bt { font-size: 18px; }
+.hblocks.filtering .hyear { display: none; }
 
 /* history strip: the last 12 patches, filled where the entity changed */
 .trail { display: inline-flex; flex-wrap: wrap; gap: 3px; max-width: 100%; }   /* a long history wraps on phones */
@@ -611,15 +631,22 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .pblock[open] > summary .bt::before { content: "-"; }
 .pblock .bc .tsum { margin-left: 0; }
 /* a link the page itself follows (a strip tile, a trail square) lands below the sticky site bar */
-.hblocks .pblock, .hblocks .hgroup { scroll-margin-top: calc(var(--nav-h) + 12px); }
+.hblocks .pblock, .hblocks .hgroup, #history { scroll-margin-top: calc(var(--nav-h) + 12px + var(--hist-bar-h, 0px)); }
+/* back to the top of a long history (Sloppy has one): shown past one screen (scripts.js hist-filter) */
+.back-to-top { position: fixed; right: 18px; bottom: 18px; z-index: var(--z-sticky); width: 40px; height: 40px;
+  display: none; align-items: center; justify-content: center; border: 0; cursor: pointer;
+  font: 22px/1 var(--font-ui); color: var(--text-bright); background: var(--bg-panel-3);
+  box-shadow: 0 0 0 2px var(--frame-line), 0 6px 14px var(--shadow-deep); }
+.back-to-top.on { display: flex; }
+.back-to-top:hover, .back-to-top:focus-visible { background: var(--bg-hover); box-shadow: 0 0 0 2px var(--patina); }
 .hblocks .pblock { margin-bottom: 6px; }
 .hblocks .pblock > .banner { margin: 0; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
 /* "patch ↗": the band's patch in the archive, on purpose (the title opens the band in place) */
 .banner .pnotes { font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); letter-spacing: 0; text-transform: none; margin-left: 4px; }
 .banner .pnotes:hover { color: var(--patina-strong); }
-/* a filter recounts the band's counters; a tag it left at zero goes (scripts.js hist-filter) */
-.hblocks .bc .n0 { display: none; }
+/* a filter recounts the band's counters and each ability head's; a tag it left at zero goes (scripts.js hist-filter) */
+.hblocks .bc .n0, .hblocks .esub .n0 { display: none; }
 /* one full-width panel per patch: per part its icon on a plate in a column of its own, the name and the
    rows beside it (Sloppy's ability block) */
 .hpanel {
@@ -641,7 +668,9 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hblocks .erow { grid-template-columns: 22px var(--tag-w) minmax(0, max-content) minmax(150px, 1fr); }
 .hblocks .erow .vv { max-width: none; text-align: left; }
 .hblocks .erow .vv .vals:not(.wrap):not(.flags) { display: flex; align-items: baseline; }
-.hblocks .erow .vv .vals.flags { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+/* flags follow their label like numbers do (Parry's "+STUNNED" sat 400px off its label: the right-aligned
+   `.vals.flags` is for the patch and build lists) */
+.hblocks .erow .vv .vals.flags { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: flex-start; max-width: none; }
 /* the ruler is the values' own ::after, ordered between old → new and the % (no markup: a span per row cost
    85 KB on a big patch page) */
 .hblocks .erow .vv .vals:not(.wrap):not(.flags)::after { content: ""; order: 1; flex: 1 1 auto; min-width: 12px;
@@ -664,6 +693,15 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 .txt-diff del { color: var(--tag-del); text-decoration-color: var(--arrow); }
 .txt-diff ins { color: var(--text-bright); text-decoration: none; box-shadow: inset 0 -2px 0 var(--patina); }
 .hblocks.filtering-rows details.txt, .hblocks.filtering-rows .erow.st-text { display: none; }
+/* Valve's own line under the rows it covers without exact numbers (history_view.valve_notes): a quiet note,
+   never a row; a tag or eye filter that picks rows drops it */
+.vnote { margin: 2px 12px 6px 46px; padding: 4px 10px; font-size: 13px; line-height: 1.4; color: var(--text-dim);
+  border-left: 2px solid var(--line-soft); }
+.vnote .vn-l { font: 600 11px/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em;
+  margin-right: 8px; }
+.vnotes { padding: 6px 0 2px; border-bottom: 2px solid var(--frame-line); }
+.vnotes .vnote { margin-left: 14px; }
+.hblocks.filtering-rows .vnote, .hblocks.filtering-rows .vnotes { display: none; }
 @media (max-width: 700px) {
   .txt-diff { grid-template-columns: minmax(0, 1fr); margin-left: 12px; }
 }
@@ -677,22 +715,33 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
 .ps-tile .dn { position: absolute; right: 2px; bottom: 1px; font: 700 11px/1 var(--font-ui); color: var(--bg-page); }
 /* not in the notes: the site's eye on a dark plate in the corner (it was an orange 7px square) */
-.ps-tile.hid::before { content: ""; position: absolute; left: 1px; top: 1px; width: 13px; height: 11px; background: var(--bg-page); }
-.ps-tile.hid::after { content: ""; position: absolute; left: 2px; top: 1px; width: 11px; height: 11px; background: var(--eye);
-  -webkit-mask: var(--mask-eye) center / contain no-repeat; mask: var(--mask-eye) center / contain no-repeat; }
+.ps-tile.hid::before, .dsq.hid::before { content: ""; position: absolute; left: 1px; top: 1px; width: 13px; height: 11px;
+  background: var(--bg-page); }
+.ps-tile.hid::after, .dsq.hid::after { content: ""; position: absolute; left: 2px; top: 1px; width: 11px; height: 11px;
+  background: var(--eye); -webkit-mask: var(--mask-eye) center / contain no-repeat; mask: var(--mask-eye) center / contain no-repeat; }
 .ps-tile:hover, .ps-tile:focus-visible { z-index: 2; transform: scale(1.18); outline: 2px solid var(--text-bright); outline-offset: 1px; }
 @media (max-width: 760px) { .ps-tile:nth-last-child(n+16) { display: none; } }
+/* on a hero, item or unit page the strip is the row under the head (history_view.head_strip): the first screen
+   shows what changed, as Sloppy's head row does (review 2026-10-05) */
+.head-strip { margin: -4px 0 14px; }
+.head-strip .patch-strip { margin: 0; }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
-/* a patch the notes never mentioned: one eye on its banner, none on its rows */
-.hblocks .pblock.all-hidden .erow .st .mark { visibility: hidden; }
+/* a patch the notes never mentioned: one eye on its banner, none on its rows (advisor round 2, kept by the
+   2026-10-05 review); the stripe and the row tint still mark each row. A row that shipped silently in a later build
+   than its patch (.late, cards.hidden_tip) keeps its eye: its tooltip says when and in which build */
+.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { visibility: hidden; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }
 .hblocks .f-out { display: none !important; }
-/* the history toolbar scrolls away like Sloppy's (only the site bar stays): stuck, it took 82-102px of a
-   900px window (advisor round 3). ONE compact row: every control badge-high (owner 2026-10-04) */
-.hist-bar { position: static; flex-wrap: wrap; gap: 5px; padding: 6px; margin: 0 0 14px; }
+/* the history toolbar stays under the site bar like Sloppy's (its entity toolbar IS sticky: top 44px, z 80;
+   review 2026-10-05 — every filter change meant scrolling back up ~1500px). It is sticky from `.toolbar`; on a
+   phone, where it wraps to 3-4 rows, it scrolls away. scripts.js measures it into --hist-bar-h, so a jump to a
+   band (#p-…) or a filter's first match lands below it. ONE compact row: every control badge-high (owner
+   2026-10-04) */
+.hist-bar { flex-wrap: wrap; gap: 5px; padding: 6px; margin: 0 0 14px; scroll-margin-top: calc(var(--nav-h) + 8px); }
+@media (max-width: 760px) { .hist-bar { position: static; } }
 .hist-bar .sep { height: 20px; margin: 0; }
 .hist-bar .px-btn { margin: 0; }
 .hist-bar .px-btn .mark, .hist-bar .px-btn .mark::before { width: 14px; height: 14px; }
@@ -720,9 +769,11 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 .hf-abs.show-gone .hf-gone-btn { box-shadow: inset 0 -3px 0 var(--patina); }
 .hf-ab.txt { width: auto; padding: 0 8px; }
 .hf-txt { font: 600 12px/26px var(--font-ui); color: var(--text-main); white-space: nowrap; }
-@media (max-width: 760px) {     /* a phone: each chip row scrolls sideways instead of stacking 300px high */
-  .hist-bar .hf-tags, .hist-bar .hf-abs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: 2px; }
+@media (max-width: 760px) {     /* a phone: the ability chips scroll sideways instead of stacking 300px high */
+  .hist-bar .hf-abs { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding: 2px; }
   .hist-bar .hf-abs .hf-ab, .hist-bar .hf-tags .tag { flex: none; }
+  /* the tags (11 at most) wrap to a second row: scrolling cut one in half with no sign there was more */
+  .hist-bar .hf-tags { flex-wrap: wrap; max-width: 100%; padding: 2px; }
 }
 /* what the hero is today, open above its history: the gun, the abilities, the other stats */
 .now-open { margin: 0 0 8px; }
@@ -742,6 +793,10 @@ table.tier-grid { width: auto; min-width: 420px; border-collapse: collapse; }
 table.tier-grid th, table.tier-grid td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
 table.tier-grid td:first-child { text-align: left; color: var(--label); }
 table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bright); text-transform: uppercase; }
+/* the grid is also a kvt (its values were pushed right under centred headers: Stage Hand's TIER I header at 681,
+   its number at 780; review 2026-10-05) — centred values, the table centred in its box */
+table.kvt.tier-grid td.v { text-align: center; }
+@media (min-width: 761px) { table.kvt.tier-grid { width: auto; margin-inline: auto; } }
 /* a phone: the grid fits its box (420px in a 332px box cut the third tier off, frontend-audit 9) */
 @media (max-width: 760px) {
   table.tier-grid { min-width: 0; width: 100%; }
@@ -816,8 +871,13 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
   border-bottom: 1px solid var(--line-soft);
 }
 .note-lines > li:hover, .change-list > li:hover { background: var(--bg-hover); }
-.change-list .lbl { flex: 1; }
-.change-list .vals { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* a long variable name or description breaks; a long value goes to its own line, a short one stays on the right
+   (the console tab stretched a 390px page to 3010px, review 2026-10-05) */
+.change-list > li { flex-wrap: wrap; }
+.change-list .lbl { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.change-list .vals { white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; max-width: 100%; }
+.change-list .vals.wrap { white-space: normal; }
+@media (max-width: 600px) { .change-list .vals { white-space: normal; overflow-wrap: anywhere; } }
 .change-list .vals .old { color: var(--text-dim); }
 .change-list .vals .new { color: var(--text-bright); }
 
@@ -888,7 +948,9 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
 
 
 /* ---------- 09. Tables ---------- */
-.table-fade { position: relative; }
+/* a table's frame hugs it and sits centred, the fade on its own edge (review 2026-10-05: Unit Stats' 570px tables in
+   full-width frames, half empty) */
+.table-fade { position: relative; width: fit-content; max-width: 100%; margin-inline: auto; }
 .table-fade::after { content: ""; position: absolute; top: 2px; right: 2px; bottom: 2px; width: 44px; pointer-events: none;
   background: linear-gradient(90deg, transparent, var(--bg-page)); transition: opacity .2s; }
 .table-fade.at-end::after { opacity: 0; }
@@ -978,6 +1040,8 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .hero-head .meta { color: var(--text-dim); font-size: 13px; margin: 4px 0 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .keystats { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 6px; margin-top: 10px; }
+/* 13-15 tiles (the movement and melee extras joined the head, review 2026-10-05): two even rows on a desktop */
+@media (min-width: 900px) { .keystats { grid-template-columns: repeat(7, minmax(0, 1fr)); } }
 /* values centred in their tile; the stat icon sits in the corner, "changed lately" is a corner notch */
 .keystat { position: relative; min-height: 62px; padding: 8px 6px 7px; background: var(--bg-panel-2); text-align: center; }
 .keystat .si { position: absolute; left: 7px; top: 7px; width: 14px; height: 14px; opacity: .85; }
@@ -1018,12 +1082,30 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wcell.top .l { order: 2; font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .05em; }
 .wcell.top .v { order: 1; font-size: 32px; }
 .wcell:hover { background: var(--bg-hover); }
+/* the gun's (and its alt fire's) last change, History link and trail — an ability card's head line */
+.wb-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 6px; font: 600 12px/1 var(--font-ui); }
+.wb-links .ac-last { color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wb-links .ac-last:hover { color: var(--text-bright); }
+.wb-links .ac-last .tsum { margin-left: 0; gap: 5px; vertical-align: -1px; }
+.wb-links .ac-last .pip { font-size: 16px; }
+.wb-links .ac-hist { color: var(--patina); }
+.wb-links .ac-hist:hover { color: var(--text-bright); }
+.wb-links .trail { flex-basis: 100%; }
+/* the alt fire: the files give it no name or numbers of its own here — one line under the gun's numbers */
+.wb-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 10px; background: var(--bg-panel);
+  outline: 1px solid var(--line-soft); }
+.wb-alt-l { font: 17px/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.wb-alt .wb-links { margin: 0; }
+.wb-alt .wb-links .trail { flex-basis: auto; }
+.wb-none { padding: 10px 12px; font-size: 13px; color: var(--text-dimmer); background: var(--bg-panel); outline: 1px solid var(--line-soft); }
 @media (max-width: 1100px) { .wb-top, .wb-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .weapon-block { grid-template-columns: minmax(0, 1fr); } }
 
-/* stat groups: small panels flowing in columns, so a long group never leaves a hole */
-.stat-flow { columns: 4 250px; column-gap: 12px; }
-.stat-panel { break-inside: avoid; margin: 0 0 12px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--line-soft); }
+/* stat groups: small panels side by side, centred under the centred head; a panel never stretches, so a label and
+   its value stay close (review 2026-10-05: four columns left an empty fourth, a unit's panels stopped at 948 of 1544) */
+.stat-flow { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.stat-panel { flex: 0 1 280px; min-width: 0; margin: 0; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--line-soft); }
+.sc-row .v .u, .keystat .v .u, table.kvt td.v .u { margin-left: 2px; font: 13px/1 var(--font-label); color: var(--label); }
 .stat-panel h3 { margin: 0; padding: 7px 10px 6px; font-size: 15px; background: var(--bg-panel-2); }
 .sc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px; border-top: 1px solid var(--line-soft); font-size: 13px; }
 .sc-row:hover { background: var(--bg-hover); }
@@ -1060,12 +1142,16 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-hdr { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0; }
 .ability-card .ac-desc { padding: 6px 10px; font-size: 13px; color: var(--text-dim); }
 .ability-card table.kvt td { padding: 3px 10px; }
-.ability-card .scale { color: var(--tag-rework); font-size: 12px; margin-left: 6px; }
+/* the scaling rides under its number on a line of its own (nowrap from td.v), so the label keeps its width:
+   "Movement / Slow" broke beside "20 +0.6×Light Melee Damage" (52 rows, review 2026-10-05) */
+.ability-card .scale { display: block; margin-left: 0; color: var(--tag-rework); font-size: 11px; }
+/* a label that still wraps runs on under its text, not under the icon (14px icon + 6px gap) */
+.ability-card table.kvt td:first-child { padding-left: 30px; text-indent: -20px; }
 /* property icons from the in-game tooltip; spirit damage purple, bullet damage warm,
    healing green — the colours the game uses for those values */
 .pi { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; object-fit: contain; flex: none; }
 .chip .pi { width: 13px; height: 13px; margin-right: 3px; }
-.chip b { color: var(--text-bright); font-weight: 700; }
+.chip b { color: var(--text-bright); font-weight: 700; text-transform: none; }   /* "42s", "20m", not "42S" */
 .p-tech_damage td.v, .chip.p-tech_damage b { color: var(--spirit); }
 .p-bullet_damage td.v, .chip.p-bullet_damage b { color: var(--weapon); }
 .p-healing td.v, .chip.p-healing b { color: var(--tag-buff); }
@@ -1122,7 +1208,7 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; }
 .tab-panel { display: none; }
 .tab-panel.on { display: block; }
-.mark.untracked, .mark.nodata, .mark.repeated { color: var(--text-dimmer); }
+.mark.untracked, .mark.nodata, .mark.repeated, .mark.unmatched { color: var(--text-dimmer); }
 .cols-2 { column-count: 2; column-gap: 14px; }
 .cols-2 > * { break-inside: avoid; }
 @media (max-width: 1100px) { .cols-2 { column-count: 1; } }
@@ -1150,6 +1236,11 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .home-stats .hs.documented { box-shadow: inset 4px 0 0 var(--patina), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.documented .n { color: var(--patina); }
 .home-stats .hs.hidden { box-shadow: inset 4px 0 0 var(--eye), 0 0 0 2px var(--frame-line); }
+a.hs.hidden:hover, a.hs.hidden:focus-visible { background: var(--bg-hover); }
+/* "N not in patch notes" leads to what Valve did not say (scripts.js hidden-hash): a link, the same look */
+.sum-audit a.au-hidden { color: inherit; }
+a.au.au-hidden:hover, a.au.au-hidden:focus-visible { color: var(--text-bright); }
+a.au.au-hidden:hover b { text-decoration: underline; }
 .home-stats .hs.hidden .n { color: var(--eye); text-shadow: 0 0 12px var(--eye-glow); }
 .home-stats .hs.mismatch { box-shadow: inset 4px 0 0 var(--tag-mismatch), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.mismatch .n { color: var(--tag-mismatch); }
@@ -1162,7 +1253,6 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .htile .ht-n { font: 22px/1 var(--font-label); color: var(--label); }
 .htile .ht-art { grid-column: 1 / -1; display: flex; gap: 6px; }
 .htile .ht-art img { width: 40px; height: 40px; object-fit: cover; background: var(--bg-panel-4); }
-.htile.items .ht-art img { background: none; }
 /* the Game systems' icons are glyphs and small paintings from the game files: whole, not cropped */
 .htile.game .ht-art img { object-fit: contain; padding: 5px; }
 /* the Game section (builders/game_pages.py): a system's card holds its icon, glyph or painting, at one size */
@@ -1170,9 +1260,16 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .game-card .glyph { color: var(--label); }
 .dyn td.name .mx-g { display: inline-block; width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; color: var(--label); }
 /* Game rules: one table, a band row per system; centred cells and translucent lines both ways, names left */
-table.game-rules { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 560px; }
-table.game-rules th, table.game-rules td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
-table.game-rules thead th { font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
+/* the page is one centred column: heading, tabs, search and the table share its width; the table scrolls with the
+   page, its head sticks under the site bar (no box of its own: a double scroll over 200 rows) */
+.rules-col { width: fit-content; max-width: 100%; margin-inline: auto; }
+.rules-col > .toolbar { position: static; margin-bottom: 10px; }
+table.game-rules { border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums;
+  min-width: 560px; border-left: 1px solid var(--grid); border-top: 1px solid var(--grid); }
+table.game-rules th, table.game-rules td { padding: 5px 14px; text-align: center; border-right: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid); }
+table.game-rules thead th { position: sticky; top: var(--nav-h); z-index: var(--z-sticky); background: var(--bg-panel-2);
+  font: 600 13px/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
 table.game-rules td.nm { text-align: left; color: var(--text-main); }
 table.game-rules td.v { color: var(--text-bright); white-space: nowrap; }
 table.game-rules td.has-hist { cursor: help; text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
@@ -1194,6 +1291,10 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .lu-group { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 16px 0; }
 .lu-h { padding-top: 12px; font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
 .lu-h b { color: var(--text-bright); font-weight: 400; }
+/* a group whose icons all hold only changes the notes left out: one eye here, none on the icons */
+.lu-h .lu-all { display: block; margin-top: 5px; color: var(--eye); font: 600 11px/1.2 var(--font-ui); text-transform: none;
+  letter-spacing: 0; white-space: nowrap; }
+.lu-h .lu-all .mark { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 .lu-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .lu { position: relative; display: block; width: 44px; height: 44px; background: var(--bg-panel-4);
   box-shadow: 0 0 0 2px var(--frame-line), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
@@ -1238,8 +1339,13 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 }
 footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px 16px 40px; color: var(--text-dimmer); font-size: 13px; border-top: var(--px) solid var(--line-soft); }
 
-ul.gen-notes { margin: 0; padding-left: 18px; font-size: 13px; }
-ul.gen-notes li { margin: 2px 0; overflow-wrap: anywhere; }
+/* notes written from the files (written_notes): Valve's sections, one line per change with its tag badge */
+h3.gn-h { margin: 22px 0 8px; }
+h3.gn-h .n { font-size: 15px; color: var(--text-dim); margin-left: 6px; }
+ul.gen-notes { margin: 0; padding: 0; list-style: none; font-size: 13px; }
+ul.gen-notes li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
+ul.gen-notes li .tag { flex: none; }
+ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 /* phones: a notes row puts its values under the text; an ability header wraps (both widened the page) */
 @media (max-width: 600px) {
   .erow { grid-template-columns: 22px 80px minmax(0, 1fr); }
@@ -1247,6 +1353,11 @@ ul.gen-notes li { margin: 2px 0; overflow-wrap: anywhere; }
   .ability-card .ac-head { flex-wrap: wrap; }
   .ability-card, .ability-card .ac-head > * { min-width: 0; }
   .erow .tx, .ability-card .ac-head { overflow-wrap: anywhere; }
+  /* weapon tiles on a phone: the icon goes above the number (it sat on "109.2"), a label takes two lines
+     instead of "+Bullet DMG …" (review 2026-10-05) */
+  .wcell.top .si { position: static; }
+  .wb-cells .wcell .l { white-space: normal; text-align: center; display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; }
 }
 .home-brand { display: flex; align-items: center; gap: 16px; }
 .home-brand .mark { width: 64px; height: 64px; filter: drop-shadow(0 0 4px var(--eye-glow)) drop-shadow(0 0 10px var(--eye-53));
@@ -1265,13 +1376,18 @@ ul.gen-notes li { margin: 2px 0; overflow-wrap: anywhere; }
 .flag.bad { color: var(--tag-nerf); }
 .flag.even { color: var(--tag-changed); }
 table.hist td.ov { white-space: nowrap; min-width: 150px; }
-.item-hdr { margin-bottom: 10px; }
+.item-hdr { margin-bottom: 10px; justify-content: center; }
 /* an item's sections fill the panel (auto-fill left Veil Walker's right third empty); a lone card stops at
    half the panel, so a label and its value never sit a whole panel apart */
-.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
-.ability-grid.item-secs > .ability-card { max-width: 580px; }
+/* flex, not grid (review 2026-10-05): a one-row card no longer stretches to its neighbour's height (Active Reload's
+   Innate had 150px of nothing), a lone card sits centred under the chips, and a 390px phone keeps every card
+   inside the frame (the 330px grid track overflowed it by 10px) */
+.ability-grid.item-secs { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+.ability-grid.item-secs > .ability-card { flex: 1 1 330px; max-width: 580px; min-width: 0; }
 @media (max-width: 860px) {
   table.hist, table.kvt { display: block; max-width: 100%; overflow-x: auto; }
+  /* an ability card's table fits a phone: its rows and lines run the card's whole width */
+  .ability-card table.kvt { display: table; }
   .hero-head .portrait { width: 110px; }
 }
 
@@ -1521,6 +1637,8 @@ table.dyn.bvn .dsq.net-mix { background: var(--tag-changed) !important; }
 /* old columns: month headers by class; the cells by column number (scripts.js dyn-old) */
 table.dyn:not(.show-old) .old { display: none; }
 table.dyn:not(.show-extra) tr.extra { display: none; }
+table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
+.dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .dyn-bar { flex-wrap: wrap; row-gap: 8px; }
 .dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
 .dyn-tags .tag { min-width: 0; }      /* selected (aria-pressed): only these tags — the .tag rules */
@@ -1543,6 +1661,18 @@ table.stats td.xcol { padding-top: 3px; padding-bottom: 3px; }
 table.stats tr.f-out, table.stats .col-off { display: none; }
 table.per-soul th.cat[data-group="Stats"]::after { content: " · souls per point"; color: var(--patina); }
 .it-filter { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+/* a phone: Item Stats' filter rows scroll sideways, one row each, like the history bar's chips (they took ~280px of
+   an 844px screen; review 2026-10-05); the home feed keeps three rows of icons per section, the rest a click away */
+@media (max-width: 760px) {
+  .tbl-bar .it-filter { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tbl-bar .it-filter > * { flex: none; }
+  .tbl-bar > .sep { display: none; }
+}
+.lu-more { display: none; align-self: center; font: 600 13px/1 var(--font-ui); color: var(--patina); }
+@media (max-width: 600px) {
+  .lu-row:not(.named) .lu:nth-child(n+19) { display: none; }
+  .lu-row .lu-more { display: inline-block; }
+}
 .it-filter .cat-i { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
 table.stats td.name .it-act { margin: 0 0 0 6px; }
 .tbl-sec .cat-i { width: 20px; height: 20px; margin-right: 8px; vertical-align: -4px; }
@@ -1762,7 +1892,9 @@ table.stats th.sumc { cursor: pointer; }
 table.stats thead tr.cols th.sumc::after { content: "  \25B8  columns"; color: var(--patina); font-weight: 500; }
 table.per-soul th.cat.sumc::after, table.per-soul th.cat.stc::after { content: " \B7  souls per point"; color: var(--patina); }
 #items-table td.sumc, #items-table td.fxc { white-space: normal; padding: 3px 8px; }
-.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-width: 250px; max-width: 560px; margin: 0 auto; }
+/* Item Stats' chip cells only: the bare `.chips` also centred every entity head's role / tier chips in the
+   middle of nowhere (Abrams' BRAWLER 470px right of its name, review 2026-10-05) */
+#items-table .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-width: 250px; max-width: 560px; margin: 0 auto; }
 .sc, .fx { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 3px; position: relative;
   font: 500 11px/1.25 var(--font-ui); color: var(--label); white-space: nowrap;
   background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid); }
@@ -1798,7 +1930,7 @@ table.per-soul .sc b { color: var(--patina-strong); }
   #items-table td.name a { font-size: 12.5px; gap: 6px; }
   #items-table tr.sec td.name { letter-spacing: .06em; }
   #items-table tr.sec .cat-i { display: none; }
-  .chips { min-width: 200px; max-width: 260px; }
+  #items-table .chips { min-width: 200px; max-width: 260px; }
   /* change matrices: the names shrink to their icons (they took 210 of 390px) */
   table.dyn { --dyn-name: 44px; }
   table.dyn td.name a { font-size: 0; gap: 0; }

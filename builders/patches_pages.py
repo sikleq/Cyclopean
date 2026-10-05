@@ -5,12 +5,11 @@ import html
 import re
 from functools import lru_cache
 
-from .cards import GAMEPLAY
 from .notes_view import notes_table
 from .common import (build_href, esc, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
                      patch_title_text, pretty_id, write)
 
-FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
+HIDDEN_TAB = 'Not in patch notes'   # an update with notes: the tab of what they left out (its eye is the tab's mark)
 
 
 SUMMARY_TAGS = (('buff', 'Buffs'), ('nerf', 'Nerfs'), ('new', 'New'), ('del', 'Removed'), ('rework', 'Reworks'),
@@ -66,7 +65,9 @@ def _audit_line(p: dict) -> str:
                  ('hidden', c.get('not_in_notes', 0), 'not in patch notes'),
                  ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
                  ('code', lc.get('code', 0), "in the game's code"),
-                 ('fix', lc.get('fix', 0), 'bug fixes')]
+                 ('fix', lc.get('fix', 0), 'bug fixes'),
+                 # lines no change was found for: said, not hidden (review 2026-10-05)
+                 ('unmatched', lc.get('unmatched', 0), 'lines not found in the files')]
         if c.get('unreleased'):
             audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))
     else:
@@ -76,11 +77,15 @@ def _audit_line(p: dict) -> str:
     off = off_pages(c)
     html = ''
     for k, n, lbl in audit:
-        if n:
+        if n and k == 'hidden':
+            # the count opens the "All changes" tab with its "Not in patch notes" filter on (scripts.js hidden-hash)
+            html += f'<a class="au au-{k}" href="#hidden">{mark(k)}<b>{n}</b> {esc(lbl)}</a>'
+        elif n:
             html += f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>'
         if k == 'hidden' and n and off:
-            # their pages are the Game section's (the patch page and the list both live in patches/)
-            html += (f'<a class="au au-off" href="../game/index.html"><b>{off}</b> of them in game rules '
+            # their pages are the Game section's: its change matrix shows the update's column per system (the patch
+            # page and the list both live in patches/)
+            html += (f'<a class="au au-off" href="../game/changes.html"><b>{off}</b> of them in game rules '
                      f'&amp; map objects</a>')
     return html
 
@@ -202,6 +207,9 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
         out.append(card(head, ''.join(body), hidden=is_hidden(player_facing(all_ch)),
                         dev=any(c.get('status') == 'unreleased' for c in all_ch),
                         search=hname.lower(), anchor=f'c-{hid}'))
+    # an item's or unit's card is a place to land too ("patch ↗" on its page: history_view.patch_href), once per id;
+    # a shared edit's card is the place of each target with no card of its own (`change_anchors`)
+    used, taken = set(by_owner), own_anchors(ents)
     for e in rest:
         name = _display_name(e)
         if e.get('targets') and not e.get('target_keys'):      # a block named by shared_rows.block_name has its count
@@ -209,13 +217,51 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
         ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
         head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), _counted(e),
                          trail=trail_html(f"{e['file']}:{e['id']}", pid, rel))
+        anchor = ''
+        if e['id'] == '@shared':
+            ids = [i for i in shared_anchor_ids(e) if i not in taken]
+            taken.update(ids)
+            head = ''.join(f'<span class="anc" id="c-{esc(i)}"></span>' for i in ids) + head
+        elif e['id'] not in used:
+            anchor = f'c-{e["id"]}'
+            used.add(e['id'])
         out.append(card(head, change_rows(e['changes'], added=e.get('status') == 'added'),
-                        hidden=is_hidden(player_facing(e['changes'])), search=name.lower()))
+                        hidden=is_hidden(player_facing(e['changes'])), search=name.lower(), anchor=anchor))
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 
-def _key_changes(p: dict, rel: str) -> str:
-    rows = p.get('key_changes') or []
+def own_anchors(ents: list[dict]) -> set[str]:
+    """The ids with a card of their own under All changes (`c-<id>`): a hero (its base stats or anything it owns),
+    an item, a unit, a rule."""
+    return {e['id'] if e['file'] == 'heroes.vdata' or not e.get('owner') else e['owner']
+            for e in ents if e['id'] != '@shared'}
+
+
+def shared_anchor_ids(e: dict) -> list[str]:
+    """The ids a shared edit's card stands for: its targets, a hero's ability by its hero (the hero page's "patch ↗"
+    lands on the hero; review 2026-10-05: Holliday's "Air Dash Duration" was in a card for six heroes with no anchor of
+    hers, 308 hero bands and 172 unit bands opened the patch at its top)."""
+    from .shared_rows import catalog
+    cat = catalog()
+    out: list[str] = []
+    for k in e.get('target_keys') or ():
+        owner = str((cat.get(k) or {}).get('owner') or '')
+        for i in (k.partition(':')[2], owner if owner.startswith('hero_') else ''):
+            if i and i not in out:
+                out.append(i)
+    return out
+
+
+def change_anchors(ents: list[dict]) -> frozenset[str]:
+    """Every id the All changes tab has a `c-<id>` place for (`_changes_table`): own cards, then the targets of the
+    shared edits."""
+    own = own_anchors(ents)
+    return frozenset(own | {i for e in ents if e['id'] == '@shared' for i in shared_anchor_ids(e)})
+
+
+def _key_changes(p: dict, rel: str, only_hidden: bool = False) -> str:
+    from .render import not_in_notes
+    rows = [r for r in p.get('key_changes') or [] if not only_hidden or not_in_notes(r['change'])]
     if not rows:
         return ''
     from .render import key_change_rows
@@ -223,26 +269,24 @@ def _key_changes(p: dict, rel: str) -> str:
     return f'<h2>Biggest changes</h2><table class="hist px-frame">{trs}</table>'
 
 
-def _generated_notes(p: dict) -> str:
-    """Valve-style notes written from the files for updates without official numbers: the rows the
-    counters count (cards.player_facing), each entity by its name and values as the pages print them
-    — the stored sentences carried ids and engine enums (492 of 1500 lines in City Never Sleeps)."""
-    from pipeline.match import sentence
-    from .cards import player_facing
-    from .render import shown_value
-    lines = []
-    for e in p['entities']:
-        name = _display_name(e)
-        for c in player_facing(e['changes']):
-            if c.get('cat') in GAMEPLAY:
-                lines.append(sentence(name, {**c, 'old_s': shown_value(c.get('old_s')),
-                                             'new_s': shown_value(c.get('new_s'))}))
-    if not lines:
+def _generated_notes(p: dict, only_hidden: bool = False, pages: frozenset[str] | None = None) -> str:
+    """Valve-style notes written from the files (`written_notes`): exactly the rows the patch's counters count
+    (`patch_counts.counted_rows`, console variables too), each line with its tag and the values the entity pages
+    print. `only_hidden`: an update with patch notes — only what they left out (the tab "Not in patch notes"; it
+    repeated All changes, 833 and 833, and said "Valve published no numbers" for City Never Sleeps). `pages`: the
+    keys with a hero / item / unit page (`patch_counts.page_set`), which decide a line's section."""
+    from .patch_counts import counted_rows
+    from .render import not_in_notes
+    from .written_notes import notes_html
+    rows = [(e, c, on) for e, c, on in counted_rows(p, pages) if not only_hidden or not_in_notes(c)]
+    if not rows:
         return ''
-    lis = ''.join(f'<li>{esc(s)}</li>' for s in lines[:1500])
-    more = f'<p class="muted">+{len(lines) - 1500} more lines.</p>' if len(lines) > 1500 else ''
-    return (f'<h2>Patch notes written from the files</h2><p class="muted">Valve published no numbers for this update; '
-            f'every line below is read from the game files.</p><ul class="gen-notes cols-2">{lis}</ul>{more}')
+    body, _ = notes_html(rows, _display_name, hero_names())
+    intro = ("Valve's patch notes do not mention these changes; every line below is read from the game files."
+             if only_hidden else 'Valve published no patch notes for this update; every line below is read from '
+                                 'the game files.')
+    title = 'What the notes left out' if only_hidden else 'Patch notes written from the files'
+    return f'<h2>{title}</h2><p class="muted">{intro}</p>{body}'
 
 
 def _bar(c: dict) -> str:
@@ -283,11 +327,12 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
     from .cards import gameplay_entities
-    from .patch_counts import for_id
+    from .patch_counts import drop_inherited, for_id
     names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
-    # gameplay_entities copies each entity, so the owner's name is not written into the shared record
+    # gameplay_entities copies each entity, so the owner's name is not written into the shared record; a template's
+    # edits its heirs carry are on the heirs' cards only, as counted (patch_counts.drop_inherited)
     gameplay = [{**e, 'owner_name': names.get(e['owner'])} if e.get('owner') else e
-                for e in gameplay_entities(p['entities'])]
+                for e in drop_inherited(gameplay_entities(p['entities']))]
     # the tab counts what the tiles count (cards.player_facing), not raw rows: City Never Sleeps
     # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01) —
     # the one count of patch_counts, as on the patch list and the home page
@@ -303,16 +348,16 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         if iface:
             # interface, sound and settings lines: their own tab, a compact grid of features
             tabs.append(('interface', 'Interface & sound', sum(len(s['lines']) for s in iface), interface_table(iface)))
-        c = pc
-        # notes that say little about a big update (City Never Sleeps: 11 interface lines,
-        # 1,400+ gameplay changes): the files' own summary sits next to the official text
-        if c.get('hidden', 0) >= FILES_TAB_MIN and c.get('hidden', 0) > 3 * (c.get('documented', 0) + c.get('described', 0)):
-            # 'generated', not 'files': the asset tab "Game files" already uses id="files"
-            tabs.append(('generated', 'From the files', n_changes,
-                         _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
+        # what the notes left out, as readable lines next to Valve's (review 2026-10-05: the tab repeated All changes
+        # and a "#hidden" link pressed a raw filter whose first rows were engine words); 'generated', not 'files':
+        # the asset tab "Game files" already uses id="files"
+        if pc['not_in_notes']:
+            body = _key_changes(p, rel, only_hidden=True) + _generated_notes(p, only_hidden=True)
+            if body:
+                tabs.append(('generated', HIDDEN_TAB, pc['not_in_notes'], body))
     else:
         tabs.append(('notes', 'From the files', n_changes,
-                     _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
+                     _key_changes(p, rel) + _generated_notes(p)))
     # the eye filter keeps exactly the rows its number counts (patch_counts; it kept 1024 rows under 776)
     eye_btn = (f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#changes" '
                f'aria-pressed="false">{mark("hidden")}Not in patch notes <span class="n">{pc["not_in_notes"]}</span></button>'
@@ -323,10 +368,13 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     extra_parts = _extras_parts(p, rel)
     tabs += extra_parts
     parts.append('<div class="tabs toolbar">' + ''.join(
-        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}" aria-pressed="{"true" if i == 0 else "false"}">{esc(lbl)}<span class="count">{n}</span></button>'
+        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}" aria-pressed="{"true" if i == 0 else "false"}">'
+        f'{mark("hidden") if lbl == HIDDEN_TAB else ""}{esc(lbl)}<span class="count">{n}</span></button>'
         for i, (k, lbl, n, _) in enumerate(tabs)) + '</div>')
-    for i, (k, _, _, panel) in enumerate(tabs):
-        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{panel}</div>')
+    for i, (k, lbl, _, panel) in enumerate(tabs):
+        # "#hidden" opens this tab (scripts.js hidden-hash): readable lines, not a raw filter
+        mark_attr = ' data-hidden-tab' if lbl == HIDDEN_TAB else ''
+        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}"{mark_attr}>{panel}</div>')
     nav = []
     if prev:
         nav.append(f'<a class="px-btn" href="{esc(prev["id"])}.html">← {esc(patch_title_text(prev))}</a>')
@@ -478,8 +526,10 @@ def convar_li(x: dict) -> str:
         vals = f'<span class="new">{esc(new if new is not None else old)}</span>'
     st = x.get('status')
     m = mark(st) if st in ('documented', 'described', 'hidden') else ''
+    # a description change carries sentences, not numbers: they wrap (510 rows stretched a 390px page to 3010px)
+    wrap = ' wrap' if x.get('op') == 'desc' else ''
     return (f'<li class="st-{esc(st or "")}">{m}<span class="chip">{esc(x["op"])}</span><span class="lbl"><code>{esc(x["name"])}</code>{desc}</span>'
-            f'<span class="vals">{vals}</span></li>')
+            f'<span class="vals{wrap}">{vals}</span></li>')
 
 
 MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',

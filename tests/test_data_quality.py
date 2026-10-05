@@ -103,7 +103,8 @@ def test_describe_says_where_a_label_came_from_and_the_tooltips_sign():
     d = semantics.describe('m_mapAbilityProperties.BonusHealth.m_strValue', TOK, 'upgrade_x', 'item')
     assert (d['src'], d['sign']) == ('loc', '')
     d = semantics.describe('m_mapAbilityProperties.RegenIncomingDamagePercent.m_strValue', {}, 'x', 'ability')
-    assert (d['label'], d['src'], d['sign']) == ('Regen Incoming Damage Percent', 'fallback', None)
+    # the field's own "Percent" is the value's unit (review 2026-10-05: "Non Hero Heal Pct — → 40")
+    assert (d['label'], d['src'], d['sign'], d['unit']) == ('Regen Incoming Damage', 'fallback', None, '%')
     assert semantics.describe('m_mapWeaponInfos.primary.m_flBulletDamage', {})['src'] == 'curated'
     assert semantics.describe('m_projectileInfo.m_flHoverHeight', {})['src'] == 'fallback'
     # a tier's scaling bonus carries no sign: it is a coefficient
@@ -252,7 +253,72 @@ def test_stand_in_names_say_what_tells_them_apart():
     assert pretty_id('citadel_weapon_astro_hand_cannon', 'hero_astro') == 'Weapon (hand cannon)'
     assert pretty_id('citadel_weapon_frank_set', 'hero_frank') == 'Weapon'
     assert pretty_id('citadel_weapon_frank_set2', 'hero_frank') == 'Alt weapon'
-    assert pretty_id('citadel_ability_tier3boss_aoe_wave') == 'Aoe wave'
+    assert pretty_id('citadel_ability_tier3boss_aoe_wave') == 'AoE wave'
+    # review 2026-10-05: an item's, ability's or unit's stand-in is Title Case like the game's names
+    from builders.common import display_name
+    assert display_name({'file': 'abilities.vdata', 'id': 'ability_charged_bomb', 'name': 'ability_charged_bomb'}) \
+        == 'Charged Bomb'
+    assert display_name({'file': 'abilities.vdata', 'id': 'citadel_ability_tier2boss_aoe_wave'}) == 'AoE Wave'
+    assert display_name({'file': 'misc.vdata', 'id': 'citadel_breakable_prop_box'}) == 'Breakable prop box'
+
+
+def test_a_name_the_last_build_lost_comes_from_an_earlier_one(monkeypatch):
+    """Review 2026-10-05: 57 removed items read "Ablative coat", "Aoe silence" (EMP Grenade): their text key left
+    the files before they did. The newest earlier name, without "[Deprecated]"; "Bullet Resilience Disabled" is a
+    mark, not a name; "DEPRICATED" none; a name a live item has gets "(old)"."""
+    from types import SimpleNamespace
+    from pipeline import catalog, loc, tracker
+    builds = [SimpleNamespace(commit=c) for c in ('c1', 'c2', 'c3')]
+    toks = {'c1': {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Improved Bullet Armor',
+                   'upgrade_toughness_3': 'Toughness'},
+            'c2': {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Bullet Resilience Disabled',
+                   'upgrade_duration_extender': '[Deprecated] Duration Extender', 'upgrade_frenzy': 'DEPRICATED',
+                   'upgrade_toughness_3': 'Toughness'},
+            'c3': {}}
+    monkeypatch.setattr(tracker, 'builds', lambda: builds)
+    monkeypatch.setattr(loc, 'english_files', lambda rev: {'x': rev})
+    monkeypatch.setattr(loc, 'tokens', lambda rev: toks[rev])
+    ents = [{'file': 'abilities.vdata', 'id': i, 'name': i, 'alive': False} for i in
+            ('upgrade_aoe_silence', 'upgrade_bullet_armor_2', 'upgrade_duration_extender', 'upgrade_frenzy',
+             'upgrade_toughness_3')]
+    live = {'file': 'abilities.vdata', 'id': 'upgrade_toughness', 'name': 'Toughness', 'alive': True}
+    catalog.earlier_names(ents, ents + [live])
+    names = {e['id']: e['name'] for e in ents}
+    assert names == {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Improved Bullet Armor',
+                     'upgrade_duration_extender': 'Duration Extender', 'upgrade_frenzy': 'upgrade_frenzy',
+                     'upgrade_toughness_3': 'Toughness (old)'}
+    # a removed unit with a living namesake joins its family: no "(old)" (Medic Trooper's ag2 copy)
+    unit = {'file': 'npc_units.vdata', 'id': 'trooper_medic_ag2', 'name': 'trooper_medic_ag2', 'alive': False}
+    live_unit = {'file': 'npc_units.vdata', 'id': 'trooper_medic', 'name': 'Medic Trooper', 'alive': True}
+
+    def scan(want):
+        unit['name'] = 'Medic Trooper'
+        return [unit]
+    monkeypatch.setattr(catalog, '_scan_names', scan)
+    catalog.earlier_names([unit], [unit, live_unit])
+    assert unit['name'] == 'Medic Trooper'
+
+
+def test_items_out_of_the_shop_are_told_apart_from_their_namesakes():
+    """Review 2026-10-05: health_2 and toughness_3 were both "Toughness", clip_size_3 and clip_size_fixed_t3 both "Extra
+    Large Magazine" (all four out of the shop), twice each in the site search."""
+    from pipeline.catalog import dead_namesakes
+
+    def item(i, name, first='2024-06-06', tier='EModTier_2', alive=True, disabled=False):
+        return {'file': 'abilities.vdata', 'kind': 'item', 'id': i, 'name': name, 'alive': alive, 'disabled': disabled,
+                'first': [1, first], 'tier': tier}
+    ents = [item('upgrade_health_2', 'Toughness', first='2025-05-08', disabled=True),
+            item('upgrade_toughness_3', 'Toughness', disabled=True),
+            item('upgrade_clip_size_3', 'Extra Large Magazine', tier='EModTier_3', disabled=True),
+            item('upgrade_clip_size_fixed_t3', 'Extra Large Magazine', tier='EModTier_3', disabled=True),
+            item('upgrade_proc_silence', 'Silencer'), item('upgrade_silencer', 'Silencer (old)', alive=False),
+            item('upgrade_mega_spirit', 'Boundless Spirit', alive=False), item('upgrade_boundless', 'Boundless Spirit'),
+            item('upgrade_alone', 'Alone', alive=False)]
+    dead_namesakes(ents)
+    assert [e['name'] for e in ents] == [
+        'Toughness (old, added 2025-05-08)', 'Toughness (old, added 2024-06-06)', 'Extra Large Magazine (old, #1)',
+        'Extra Large Magazine (old, #2)', 'Silencer', 'Silencer (old)', 'Boundless Spirit (old)', 'Boundless Spirit',
+        'Alone']
 
 
 # ---- ability cards ------------------------------------------------------------------------

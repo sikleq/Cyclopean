@@ -211,9 +211,14 @@
       var esc = document.createElement('span');
       esc.textContent = head;                                  // names come from game text: never as HTML
       var html = '<div class="t-head">' + esc.innerHTML + '</div>';
+      // two negatives (a penalty, a slow) compare by size, as the item page does: −0.5 → −1 is +100%, not −100%
+      // (review 2026-10-05) — the steps and the "Overall" line alike
+      var pctOf = function (a, b) {
+        return a < 0 && b < 0 ? (Math.abs(b) - Math.abs(a)) / Math.abs(a) * 100 : (b - a) / Math.abs(a) * 100;
+      };
       var first = hist[0][2], last = hist[hist.length - 1][3];
       if (hist.length > 1 && typeof first === 'number' && typeof last === 'number' && first !== 0) {
-        var p = (last - first) / Math.abs(first) * 100;
+        var p = pctOf(first, last);
         var odir = td.getAttribute('data-odir');
         html += '<div class="t-overall">Overall: ' + fmtU(first, digits) + ' → ' + fmtU(last, digits) +
           ' <span class="' + (odir ? 'dir-' + odir : dirClass(first, last, pol)) + '">(' + (p > 0 ? '+' : '') +
@@ -228,18 +233,21 @@
         // the pill only when there is a real change to measure: a first value or a 0.0% step gets none
         var pill = '';
         if (typeof h[2] === 'number' && typeof h[3] === 'number' && h[2] !== 0) {
-          var q = (h[3] - h[2]) / Math.abs(h[2]) * 100;
+          var q = pctOf(h[2], h[3]);
           if (Math.abs(q) >= 0.05) {
             pill = '<span class="' + cls + ' pct" data-g="' + pctGrade(q) + '">' + (q > 0 ? '+' : '') + q.toFixed(1) + '%</span>';
           }
         }
-        // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row
+        // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row, "added"
+        // where the value was; a value that went says "removed" (a bare "—" read as no value)
         var firstStep = (h[2] === null || h[2] === undefined);
-        html += '<li><span class="d">' + h[1] + '</span>' +
-          '<span class="o">' + (firstStep ? '' : fmtU(h[2], digits)) + '</span>' +
+        var gone = (h[3] === null || h[3] === undefined);
+        esc.textContent = h[1];
+        html += '<li><span class="d">' + esc.innerHTML + '</span>' +
+          '<span class="o">' + (firstStep ? '<i>added</i>' : fmtU(h[2], digits)) + '</span>' +
           '<span class="arrow">' + (firstStep ? '' : '→') + '</span>' +
-          '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + fmtU(h[3], digits) + '</span>' +
-          '<span class="p">' + pill + '</span></li>';
+          '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + (gone ? '<i>removed</i>' : fmtU(h[3], digits)) +
+          '</span><span class="p">' + pill + '</span></li>';
       }
       html += '</ol>';
       tip.innerHTML = html;
@@ -374,6 +382,8 @@
     var ORDER = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
     var tip = null, current = null, strip, feed;
     function txt(s) { var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
+    // a value inside an attribute: its quotes too (innerHTML escapes & < > only)
+    function attr(s) { return txt(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function matrixData(id) {                   // shared with dyn-parts: each blob parsed once
       var all = window.__dyn = window.__dyn || {};
       if (!all[id]) {
@@ -414,7 +424,7 @@
     }
     /* o: icon, name, patch, named, counts, hidden, rows (table html), more, foot, d (words / icons / eye) */
     function card(o) {
-      var html = '<div class="dt-head">' + (o.icon ? '<img src="' + txt(o.icon) + '" alt="">' : '') +
+      var html = '<div class="dt-head">' + (o.icon ? '<img src="' + attr(o.icon) + '" alt="">' : '') +
         (o.name ? '<span class="dt-name">' + txt(o.name) + '</span>' : '') +
         '<span class="dt-patch' + (o.named ? ' named' : '') + '">' + txt(o.patch) + '</span></div>';
       if (o.counts) html += countsHtml(o.counts, o.d);
@@ -455,25 +465,35 @@
           lastPart = s[5];
           rows += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
         }
-        rows += '<tr>' + (what ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
-          '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
+        // the eye on a change the notes left out, as in the strip's and the home page's cards (s[6])
+        rows += '<tr' + (s[6] ? ' class="dt-hid"' : '') + '>' + (what ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
+          '<td class="dt-field">' + (s[6] ? '<span class="dt-e">' + d.eye + '</span>' : '') + txt(s[1]) +
+          '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
       });
+      // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered
+      var whole = part === 'all' && !sel.length;
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
-                    counts: counts, d: d, rows: rows, more: total(counts) - samples.length,
+                    counts: counts, hidden: whole ? c[4] : 0, d: d, rows: rows, more: total(counts) - samples.length,
                     foot: 'click for its history at this patch' });
     }
 
     /* an entity page: a strip tile = the patch's biggest changes by ability; a trail square or an ability
        card's "last change" = that ability's own changes in that patch */
-    function rowsHtml(d, groups, pick, limit, heads) {
+    function rowsHtml(d, groups, pick, limit, heads, eyeSlot) {
       var html = '', shown = 0;
       groups.forEach(function (g) {
         var ref = d.g[g[0]];
-        var rows = g[3].filter(pick).sort(function (x, y) { return x[5] - y[5]; }).slice(0, limit);
+        var all = g[3].filter(pick).sort(function (x, y) { return x[5] - y[5]; });
+        var rows = all.slice(0, limit);
+        // `eyeSlot`: a group with changes the notes left out shows one of them (history_view.tile_card keeps it)
+        if (eyeSlot && g[2] && rows.length && !rows.some(function (s) { return s[4]; })) {
+          var h = all.filter(function (s) { return s[4]; })[0];
+          if (h) rows[rows.length - 1] = h;
+        }
         if (!rows.length) return;
         if (heads && ref[0]) {
           html += '<tr class="dt-grp"><td colspan="3">' + (ref[1] ? '<span class="dt-ic' + (ref[3] ? ' ult' : '') +
-            '"><img src="' + txt(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) + '</td></tr>';
+            '"><img src="' + attr(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) + '</td></tr>';
         }
         rows.forEach(function (s) {
           shown++;
@@ -506,7 +526,7 @@
         Object.keys(g[1]).forEach(function (t) { counts[t] = (counts[t] || 0) + g[1][t]; });
         hidden += g[2];
       });
-      var own = rowsHtml(d, mine, function () { return true; }, d.per, false);
+      var own = rowsHtml(d, mine, function () { return true; }, d.per, false, true);
       return card({ icon: ref[1], name: ref[0], patch: tile[1], named: tile[2], counts: counts, hidden: hidden, d: d,
                     rows: own.html, more: total(counts) - own.shown, foot: foot });
     }
@@ -557,6 +577,34 @@
     window.addEventListener('scroll', hide, true);
   });
 
+  /* ---------- change matrices: rows by slot / tier (items) or role (heroes) — one choice per group, pressed again
+     to clear; a row out is `f-out` (dynamics_page.toolbar `.dyn-rows`, review 2026-10-05) ---------- */
+  safe('dyn-rows', function () {
+    document.querySelectorAll('.dyn-rows[data-target]').forEach(function (box) {
+      var table = document.querySelector(box.getAttribute('data-target'));
+      if (!table) return;
+      var chosen = {};
+      box.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('button[data-rowf]');
+        if (!btn) return;
+        var f = btn.getAttribute('data-rowf'), v = btn.getAttribute('data-v');
+        chosen[f] = chosen[f] === v ? null : v;
+        box.querySelectorAll('button[data-rowf="' + f + '"]').forEach(function (b) {
+          b.setAttribute('aria-pressed', chosen[f] === b.getAttribute('data-v') ? 'true' : 'false');
+        });
+        table.querySelectorAll('tbody tr').forEach(function (tr) {
+          var out = false;
+          // "*": a row of any value (a hero with no role yet, dynamics_page.hero_entries) no choice takes out
+          for (var k in chosen) {
+            var v = tr.getAttribute('data-' + k);
+            if (chosen[k] && v !== '*' && v !== chosen[k]) out = true;
+          }
+          tr.classList.toggle('f-out', out);
+        });
+      });
+    });
+  });
+
   /* ---------- hero changes: a filter narrows every tile to one part (stats / weapon / abilities) ---------- */
   /* the tiles follow both filters: the hero part (All / Stats / Weapon / Abilities) and the hidden
      tags — hiding BUFF used to drop the stripe but keep the tile's number */
@@ -576,10 +624,10 @@
         return 'var(--tag-' + (COLOUR[t] || t) + ') ' + a.toFixed(1) + '% ' + acc.toFixed(1) + '%';
       }).join(',') + ')';
     }
-    // `onlyTag`: a tag button touches only the tiles that have that tag; tiles out of sight (old columns,
-    // hidden rows) wait, marked dirty, until they show (2k tiles took 130 ms each click)
+    // tiles out of sight (old columns, hidden rows) wait, marked dirty, until they show (2k tiles took 130 ms each
+    // click); `onlyDirty`: redraw just those once they show
     var tiles = {};
-    function redraw(table, onlyTag, onlyDirty) {
+    function redraw(table, onlyDirty) {
       var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
       if (!blob) return;
       var all = window.__dyn = window.__dyn || {};          // shared with dyn-tip's hover card: parsed once
@@ -598,14 +646,19 @@
         var a = pair[0], c = pair[1];
         if (onlyDirty && !pair[4]) return;
         var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
-        if (onlyTag && !counts[onlyTag]) return;
         if ((pair[2] && !showOld) || (pair[3] && !showExtra)) { pair[4] = true; return; }
         pair[4] = false;
         var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = 0;
         tags.forEach(function (t) { total += counts[t]; });
         var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
         var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
-        var cls = 'dsq ' + (!total ? 'part-out' : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix');
+        // unfiltered, the cell's weighed net (builders/weights.py: c[5] = [net, volume]); a filter falls back to
+        // which side has more rows
+        var whole = part === 'all' && !sel.length, w = c[5];
+        var net = whole && w ? (Math.abs(w[0]) < 0.25 || (w[1] && Math.abs(w[0]) / w[1] < 0.2) ? 'net-mix'
+          : w[0] > 0 ? 'net-buff' : 'net-nerf') : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix';
+        var cls = 'dsq ' + (!total ? 'part-out' : net) +
+          (total && c[4] && whole ? ' hid' : '');      // the built eye, while unfiltered
         // write only what changed: a text or class write re-lays the tile out
         if (a.className !== cls) a.className = cls;
         if (!total) return;
@@ -644,7 +697,7 @@
       .forEach(function (inp) {
         inp.addEventListener('click', function () {
           var table = document.querySelector(inp.getAttribute('data-target'));
-          if (table && tiles[table.id]) setTimeout(function () { redraw(table, null, true); }, 0);
+          if (table && tiles[table.id]) setTimeout(function () { redraw(table, true); }, 0);
         });
       });
   });
@@ -1338,28 +1391,11 @@
       for (var i = 0; i < bs.length; i++) if (state.tags.indexOf(bs[i][0]) >= 0) return true;
       return false;
     }
-    // the banner's counters while a filter is on: the shown rows by tag (a code line is no counted change),
-    // the eye's count; the built numbers come back when the filters clear
-    function recount(b, active, onlyHidden) {
-      var bc = b.querySelector('summary .bc');
-      if (!bc) return;
-      var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
-      // "+34 for all heroes": only while its link row is shown (a tag or the eye never keeps it)
-      var shr = bc.querySelectorAll('.shr-chip');
-      if (!active) {
-        if (!b.__rc) return;
-        b.__rc = false;
-        pips.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
-        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
-        shr.forEach(function (c) { c.classList.remove('n0'); });
-        return;
-      }
-      b.__rc = true;
-      var allShown = !!b.querySelector('.erow.shr-all:not(.f-out)');
-      shr.forEach(function (c) { c.classList.toggle('n0', !allShown); });
+    // the shown rows by tag (a code line and a name / description change are no counted change) and how many of
+    // them are not in the notes — for a band's banner and for each ability's head alike
+    function countRows(rows, onlyHidden) {
       var counts = {}, hidden = 0;
-      b.querySelectorAll('.erow').forEach(function (r) {
-        // a code line and a name / description change (text_rows) are no counted change
+      rows.forEach(function (r) {
         if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.classList.contains('st-text') ||
             r.parentNode.tagName === 'SUMMARY' || inAll(r)) return;
         var bs = behind(r);
@@ -1375,6 +1411,9 @@
         counts[t] = (counts[t] || 0) + 1;
         if (r.classList.contains('is-hidden')) hidden++;       // render.NOT_IN_NOTES: hidden or no notes at all
       });
+      return { counts: counts, hidden: hidden };
+    }
+    function setPips(pips, counts) {
       pips.forEach(function (p) {
         if (!p.lastChild || p.lastChild.nodeType !== 3) return;
         if (p.__n === undefined) p.__n = p.lastChild.nodeValue;
@@ -1382,9 +1421,45 @@
         p.lastChild.nodeValue = n;
         p.classList.toggle('n0', !n);
       });
+    }
+    // the banner's counters while a filter is on, and each ability head's; the eye's count; the built numbers
+    // come back when the filters clear
+    function recount(b, active, onlyHidden) {
+      var bc = b.querySelector('summary .bc');
+      if (!bc) return;
+      var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
+      // an ability's own counters (its head) follow its shown rows too: Haze's Bullet Dance read 10 over 1 row.
+      // The head only: a link row's own "+N" pip (inside .vv) is not one of them
+      var gpips = b.querySelectorAll('.hgroup > .hg-b > .esub > .tsum .pip');
+      // "+34 for all heroes": only while its link row is shown (a tag or the eye never keeps it)
+      var shr = bc.querySelectorAll('.shr-chip');
+      if (!active) {
+        if (!b.__rc) return;
+        b.__rc = false;
+        [pips, gpips].forEach(function (ps) {
+          ps.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
+        });
+        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
+        shr.forEach(function (c) { c.classList.remove('n0'); });
+        return;
+      }
+      b.__rc = true;
+      var allShown = !!b.querySelector('.erow.shr-all:not(.f-out)');
+      shr.forEach(function (c) { c.classList.toggle('n0', !allShown); });
+      var got = countRows(b.querySelectorAll('.erow'), onlyHidden);
+      var counts = got.counts, hidden = got.hidden;
+      setPips(pips, counts);
+      b.querySelectorAll('.hgroup').forEach(function (g) {
+        var gp = g.querySelectorAll(':scope > .hg-b > .esub > .tsum .pip');
+        if (gp.length) setPips(gp, countRows(g.querySelectorAll('.erow'), onlyHidden).counts);
+      });
       if (eye) {
         if (eye.__t === undefined) eye.__t = eye.textContent;
-        eye.textContent = hidden + ' not in notes';
+        // the built wording (history_view._banner): "all N" when every shown row is out of the notes and N > 1
+        var shown = 0;
+        for (var t in counts) shown += counts[t];
+        eye.textContent = (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
+          hidden + ' not in notes';
         eye.parentNode.classList.toggle('n0', !hidden);
       }
     }
@@ -1411,8 +1486,11 @@
         var any = false;
         b.querySelectorAll('.hgroup').forEach(function (g) {
           // a merged group belongs to several parts ("t1 t2 t3": the same change on every tier)
+          // a merged group carries every member's id ("a b"): it matches when one of them is chosen
           var gok = (!state.area || (' ' + g.getAttribute('data-area') + ' ').indexOf(' ' + state.area + ' ') >= 0) &&
-                    (!state.ab || (' ' + state.ab + ' ').indexOf(' ' + g.getAttribute('data-ab') + ' ') >= 0);
+                    (!state.ab || (g.getAttribute('data-ab') || '').split(' ').some(function (id) {
+                      return id && (' ' + state.ab + ' ').indexOf(' ' + id + ' ') >= 0;
+                    }));
           var gany = false;
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
@@ -1440,6 +1518,35 @@
     }
     var bar = document.querySelector('.hist-bar');
     if (!bar) return;
+    // the bar is sticky on a desktop (styles.css): its height lets a jump to a band land below it
+    function barHeight() {
+      var stuck = getComputedStyle(bar).position === 'sticky';
+      document.documentElement.style.setProperty('--hist-bar-h', (stuck ? bar.offsetHeight : 0) + 'px');
+      return stuck ? bar.getBoundingClientRect().bottom : 0;
+    }
+    barHeight();
+    window.addEventListener('resize', barHeight, { passive: true });
+    // a filter chosen deep in the page: its first match starts just below the bar, not under it
+    function underBar() {
+      var bottom = barHeight();
+      var first = box.querySelector('details.pblock:not(.f-out)');
+      if (!first || !bottom) return;
+      var top = first.getBoundingClientRect().top;
+      if (top < bottom) window.scrollBy(0, top - bottom - 8);
+    }
+    // back to the top of a long history: a button past one screen (a passive listener; the class only on change)
+    var up = document.createElement('button');
+    up.type = 'button';
+    up.className = 'back-to-top';
+    up.setAttribute('aria-label', 'Back to top');
+    up.textContent = '↑';
+    up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
+    document.body.appendChild(up);
+    var upOn = false;
+    window.addEventListener('scroll', function () {
+      var on = window.scrollY > window.innerHeight;
+      if (on !== upOn) { upOn = on; up.classList.toggle('on', on); }
+    }, { passive: true });
     function pressAll(attr, value) {           // one of the part / ability buttons, or none
       bar.querySelectorAll('[' + attr + ']').forEach(function (b) {
         var on = b.getAttribute(attr) === value;
@@ -1473,6 +1580,11 @@
       var chip = Array.prototype.filter.call(bar.querySelectorAll('[data-f-ab]'), function (b) {
         return b.getAttribute('data-f-ab').split(' ').indexOf(id) >= 0;
       })[0];
+      // no chip and no group or band of the page names the id (a Game page has no chips): a filter nothing could
+      // clear would empty the history, so the link just opens the page
+      if (!chip && !Array.prototype.some.call(box.querySelectorAll('[data-ab], [data-abs]'), function (el) {
+        return ((el.getAttribute('data-ab') || '') + ' ' + (el.getAttribute('data-abs') || '')).split(' ').indexOf(id) >= 0;
+      })) return;
       state.ab = chip ? chip.getAttribute('data-f-ab') : id;
       if (chip && chip.classList.contains('gone')) {
         chip.parentNode.classList.add('show-gone');
@@ -1502,7 +1614,7 @@
         pressAll('data-f-ab', state.ab);
       }
       // "Not in patch notes" and "Before release" toggle a class on #history first (the generic toggle)
-      setTimeout(apply, 0);
+      setTimeout(function () { apply(); underBar(); }, 0);
     });
   });
 
@@ -1518,6 +1630,14 @@
       if (!x || x.offsetParent !== null) return;
       var reset = window.__histReset;
       if (reset) reset();
+      // a band of rules for every hero waits behind "For all heroes" (history_view.toolbar): show them
+      var only = x.closest('.every-only');
+      if (only && x.offsetParent === null) {
+        var hb = only.closest('.hblocks');
+        if (hb) hb.classList.add('show-every');
+        var eb = document.querySelector('.hist-bar .hf-every');
+        if (eb) { eb.classList.add('on'); eb.setAttribute('aria-pressed', 'true'); }
+      }
       if (x.offsetParent !== null || !(x.classList.contains('dev-only') || x.closest('.dev-only') ||
           x.querySelector('.st-unreleased'))) return;
       var hist = x.closest('.hblocks');
@@ -1537,7 +1657,7 @@
       }
       // an ability's square: its group in the band, lit for a moment
       var group = ab && Array.prototype.filter.call(el.querySelectorAll('.hgroup'), function (g) {
-        return g.getAttribute('data-ab') === ab;
+        return (g.getAttribute('data-ab') || '').split(' ').indexOf(ab) >= 0;
       })[0];
       if (group) {
         reveal(group);
@@ -1722,5 +1842,45 @@
       if (!input.parentNode.contains(ev.target)) shown(false);
     });
     input.addEventListener('focus', function () { if (list.childNodes.length) shown(true); });
+  });
+
+  /* ---------- #hidden: "what Valve did not say" in one link (review 2026-10-05: every "N not in patch notes"
+     was plain text, the filter sat in the 4th tab or two screens down). The page's eye button is pressed and
+     comes into view — on a patch page its tab opens first; pressing the eye writes #hidden, so the filtered
+     view survives a reload and can be shared. ---------- */
+  safe('hidden-hash', function () {
+    var eye = document.querySelector('.hf-hidden');
+    // a patch page with notes has a tab of what they left out, as readable lines (patches_pages HIDDEN_TAB): #hidden
+    // opens it rather than pressing the raw filter of All changes
+    var tabbed = document.querySelector('.tab-panel[data-hidden-tab]');
+    if (!eye && !tabbed) return;
+    var panel = eye && eye.closest('.tab-panel');
+    function show() {
+      if (location.hash !== '#hidden') return;
+      if (tabbed) {
+        var t = document.querySelector('[data-tab="' + tabbed.id + '"]');
+        if (t && !tabbed.classList.contains('on')) t.click();
+        try { history.replaceState(null, '', '#hidden'); } catch (e) { /* file:// */ }
+        (document.querySelector('.tabs') || tabbed).scrollIntoView({ block: 'start' });
+        return;
+      }
+      if (panel) {
+        var tab = document.querySelector('[data-tab="' + panel.id + '"]');
+        if (tab && !panel.classList.contains('on')) tab.click();
+      }
+      if (eye.getAttribute('aria-pressed') !== 'true') eye.click();
+      try { history.replaceState(null, '', '#hidden'); } catch (e) { /* file:// */ }
+      (eye.closest('.toolbar') || eye).scrollIntoView({ block: 'start' });
+    }
+    if (eye) eye.addEventListener('click', function () {
+      setTimeout(function () {
+        var on = eye.getAttribute('aria-pressed') === 'true';
+        var off = panel ? '#' + panel.id : location.pathname + location.search;
+        // where #hidden means the tab of lines, the pressed filter keeps its own tab's hash
+        try { history.replaceState(null, '', on && !tabbed ? '#hidden' : off); } catch (e) { /* file:// */ }
+      }, 0);
+    });
+    window.addEventListener('hashchange', show);
+    show();
   });
 })();

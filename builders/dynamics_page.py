@@ -13,11 +13,14 @@ shows, a rule for every hero or ability (once), the console variables a game rea
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, timedelta
 from functools import lru_cache
 
-from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, visual
-from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
+from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
+                     visual)
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, tag_badge, tag_of
+from .weights import net_class
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
 SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
@@ -35,15 +38,11 @@ def part_of(e: dict) -> str:
 def _sample_values(c: dict) -> tuple[str, str]:
     """(old, new) of a hover card's row: a flag field a player plays with reads as the bits that moved,
     in words ("+neutrals −doesn't interrupt melee", like its row on the page), not as two whole masks
-    in engine words (review 2026-10-04); everything else as the page prints it."""
-    from pipeline.flags import enum_words
-
-    from .render import flag_moves
-    path = str(c.get('path') or '')
-    moved = flag_moves(path, c.get('old_s'), c.get('new_s'))
-    if moved:
-        return '', ' '.join(moved)
-    return tuple(enum_words(path, v) or shown_value(v) for v in (c.get('old_s'), c.get('new_s')))
+    in engine words (review 2026-10-04); everything else as the page prints it — the row's own function
+    (render.shown_pair): "Channel Move Speed 6m/s → -1" and "Charge Delay 0s → -1s" read "no limit" / "default"
+    on the page (review 2026-10-05)."""
+    from .render import vals_text
+    return vals_text(c)
 
 
 def _display(e: dict) -> str:
@@ -58,9 +57,12 @@ def _collect() -> dict:
     rows       patch index rows, oldest first
     cells      {row key: {pid: {tag: n}}}
     parts      {row key: {pid: {part: {tag: n}}}}           (heroes: stats / weapon / abil)
-    samples    {row key: {pid: [[what, field, old, new, tag, part], ...]}}"""
+    samples    {row key: {pid: [[what, field, old, new, tag, part, hidden], ...]}}
+    hidden     {row key: {pid: n}}                          (not in the notes: render.not_in_notes)"""
     from . import archive
-    from .cards import player_facing
+    from .render import not_in_notes
+    from .weights import row_score
+    from .cards import disambiguate, player_facing
     rows = list(archive.by_date())
     ents = load_json('entities.json')['entities']
     # an NPC's own abilities count on its row (Walker's Stomp), as they do on its page
@@ -72,6 +74,8 @@ def _collect() -> dict:
     cells: dict = {}
     parts: dict = {}
     raw: dict = {}
+    hidden: dict = {}
+    scores: dict = {}
     once: set = set()
     from .game_systems import (convar_changes, convar_start, is_template, name_of, place, place_all_row, place_entity, system)
     from .shared_rows import FOLD_FILES, entities as spread_all, own
@@ -113,11 +117,15 @@ def _collect() -> dict:
             else:
                 continue
             found.append((keys, part_of(e), _display(e), e['changes'], e['file'] == 'abilities.vdata' and e['id']))
+        rules: dict[tuple[str, str], list[dict]] = {}
         for e in archive.gameplay(r['id']):       # the rules for every hero / ability, once
             if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
                 for c in e['changes']:
-                    sid, pid = place_all_row(e['file'], c)
-                    found.append(([f'game:{sid}'], pid, next(x.name for x in system(sid).parts if x.id == pid), [c], ''))
+                    rules.setdefault(place_all_row(e['file'], c), []).append(c)
+        # one list per part, as the system page reads them: a whole level added is one change (combine_levels),
+        # not three — the level curve read 38 in the matrix and 34 on its band (review 2026-10-05)
+        for (sid, pid), cs in rules.items():
+            found.append(([f'game:{sid}'], pid, next(x.name for x in system(sid).parts if x.id == pid), cs, ''))
         cvs = p.get('extras', {}).get('convars') or []
         for c in convar_changes(cvs, start):
             sid, pid = place(f'convar:{c["id"]}')
@@ -126,17 +134,30 @@ def _collect() -> dict:
             for key in keys:
                 cell = cells.setdefault(key, {}).setdefault(r['id'], {})
                 pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
-                for c in player_facing(changes):
-                    if key.startswith('unit:'):
-                        sig = (key, r['id'], abil, c.get('label'), c.get('old_s'), c.get('new_s'))
+                # two fields under one label say which is which, as on the entity's page ("Incoming Healing · receive"
+                # / "· regen": Healbane's card listed "Incoming Healing" twice; review 2026-10-05)
+                for c in disambiguate(player_facing(changes)):
+                    # the same change on several members of a family counts once; so does one edit spread over a
+                    # system's entries — the Breakables tile read 138 for 2026-09-29 where its band read 52 and
+                    # the home icon 50 (review 2026-10-05; the same signature as home_page.update_feed)
+                    if key.startswith(('unit:', 'game:')):
+                        sig = (key, r['id'], abil if key.startswith('unit:') else '', c.get('label'), c.get('old_s'),
+                               c.get('new_s'))
                         if sig in once:
                             continue
                         once.add(sig)
                     t = tag_of(c)[0]
                     for d in (cell, pcell):
                         d[t] = d.get(t, 0) + 1
+                    w, v = row_score(c)
+                    sc = scores.setdefault(key, {}).setdefault(r['id'], [0.0, 0.0])
+                    sc[0] += w
+                    sc[1] += v
+                    hid = int(bool(not_in_notes(c)))
+                    if hid:
+                        hidden.setdefault(key, {})[r['id']] = hidden.get(key, {}).get(r['id'], 0) + 1
                     s = (what, c.get('label') or '', *_sample_values(c),
-                         t, part, abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0)
+                         t, part, abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0, hid)
                     raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
     samples: dict = {}
     for k, per in raw.items():
@@ -147,10 +168,16 @@ def _collect() -> dict:
             for x in ranked:                      # the biggest per part, the parts in their order
                 if seen.get(x[5], 0) < limit:
                     seen[x[5]] = seen.get(x[5], 0) + 1
-                    picked.append(list(x[:6]))
+                    picked.append([*x[:6], x[7]])
+            # a cell whose card says "N not in patch notes" shows one of them (review 2026-10-05: the biggest by %
+            # were all in the notes)
+            if picked and not any(x[6] for x in picked):
+                first = next((x for x in ranked if x[7]), None)
+                if first is not None:
+                    picked[-1] = [*first[:6], first[7]]
             order = {p: i for i, (p, _) in enumerate(PARTS)}
             samples.setdefault(k, {})[pid] = sorted(picked, key=lambda x: order.get(x[5], 9))
-    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples}
+    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples, 'hidden': hidden, 'scores': scores}
 
 
 def _net(counts: dict[str, int]) -> str:
@@ -179,16 +206,22 @@ def stripes(counts: dict[str, int]) -> str:
     return f'linear-gradient({",".join(stops)})'
 
 
-def _cell(counts: dict[str, int], href: str, k: int | None, old: bool) -> str:
+def _cell(counts: dict[str, int], href: str, k: int | None, old: bool, hidden: int = 0,
+          score: list | None = None) -> str:
     """A tile of one colour is a class (`.dsq.s-<tag>`), not an inline gradient: 78% of the item matrix's
     tiles, ~95 KB of style attributes and a gradient to paint each (perf track 2026-10-05). scripts.js
     redraws a filtered tile with the inline gradient and its own classes."""
     data_k = f' data-k="{k}"' if k is not None else ''
     tags = [t for t in counts if counts[t]]
+    # the eye in the corner, as on a strip tile, when the notes left something of it out (review 2026-10-05: the
+    # matrices were the one view without it)
+    hid = ' hid' if hidden else ''
+    # "Buff vs nerf" by the weighed sum (builders/weights.py), not a majority of rows
+    net = net_class(*score) if score else _net(counts)
     if len(tags) == 1:
-        look = f'dsq {_net(counts)} s-{STRIPE_COLOUR.get(tags[0], tags[0])}"'
+        look = f'dsq {net}{hid} s-{STRIPE_COLOUR.get(tags[0], tags[0])}"'
     else:
-        look = f'dsq {_net(counts)}" style="background:{stripes(counts)}"'
+        look = f'dsq {net}{hid}" style="background:{stripes(counts)}"'
     return (f'<td{" class=old" if old else ""}><a class="{look} href="{esc(href)}"{data_k}>'
             f'<span class="dn">{sum(counts.values())}</span></a></td>')
 
@@ -223,7 +256,8 @@ def _head(rows: list[dict], cutoff: str, label: str) -> str:
 def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str) -> str:
     """entries: (row key, display name, icon url, page href, extra row class)."""
     d = _collect()
-    rows, cells, parts, samples = d['rows'], d['cells'], d['parts'], d['samples']
+    rows, cells, parts, samples, hidden = d['rows'], d['cells'], d['parts'], d['samples'], d['hidden']
+    scores = d.get('scores', {})
     cutoff = (date.fromisoformat(rows[-1]['date'][:10]) - timedelta(days=OLD_DAYS)).isoformat() if rows else ''
     pidx = {r['id']: i for i, r in enumerate(rows)}
     tips: list = []
@@ -240,30 +274,34 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             if not counts:
                 run, run_old = run + 1, old
                 continue
-            entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], [])]
-            if part_of_cell is not None:
-                entry.append(part_of_cell.get(r['id'], {}))     # {part: {tag: n}} for the filter
+            n_hid = hidden.get(key, {}).get(r['id'], 0)
+            score = [round(x, 2) for x in scores.get(key, {}).get(r['id'], [])] or None
+            # [patch, counts, samples, {part: {tag: n}} for the hero filter or None, not in the notes,
+            #  [net, volume] (builders/weights.py)]
+            entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], []),
+                     part_of_cell.get(r['id'], {}) if part_of_cell is not None else None, n_hid, score]
             tips.append(entry)
             # the row's own page at that patch (patch pages are off the bar since 2026-10-03)
-            out.append(_cell(counts, f'{href}#p-{r["id"]}', len(tips) - 1, old))
+            out.append(_cell(counts, f'{href}#p-{r["id"]}', len(tips) - 1, old, n_hid, score))
         if run:
             out.append(_gap(run, run_old))
         return ''.join(out)
 
-    for key, name, ic, href, extra in entries:
+    for key, name, ic, href, extra, *more in entries:
         mine = cells.get(key, {})
         if not mine:
             continue
+        attrs = ''.join(f' {k}="{esc(v)}"' for k, v in (more[0] if more else {}).items() if v)
         # a Game system without art from the game files has the site's glyph ('glyph:<name>', game_systems)
         img = (visual(None, ic[6:], 'mx-g') if ic and ic.startswith('glyph:') else
                f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else '')
         ic = '' if ic and ic.startswith('glyph:') else ic
-        body.append(f'<tr class="{esc(extra)}" data-search="{esc(name.lower())}" data-name="{esc(name)}" '
+        body.append(f'<tr class="{esc(extra)}"{attrs} data-search="{esc(name.lower())}" data-name="{esc(name)}" '
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
             'cells': tips, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
-            'parts': dict(PARTS)}
+            'parts': dict(PARTS), 'eye': EYE_MARK}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     n_old = sum(1 for r in rows if r['date'] < cutoff)
@@ -275,7 +313,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             f'<script type="application/json" class="dyn-data" data-for="dyn-{kind}">{blob}</script>')
 
 
-def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
+def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, ...] = ()) -> str:
     target = f'#dyn-{kind}'
     # a tag chip SELECTS (only these tags), the same as on a hero / item / unit page (advisor 10-03: here
     # "on" used to hide the tag)
@@ -287,10 +325,22 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
                    if n_hidden_rows else '')
     # which part of a hero the tiles show: everything, or only its stats / weapon / abilities
     parts_filter = ''
+    if kind == 'item':
+        # the shop's slots and tiers as filters (Item Stats has them; the matrix had none): one choice per group,
+        # pressed again to clear (scripts.js dyn-rows); Tier V too — 23 of the matrix's rows are tier 5
+        parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
+            f'<button class="px-btn" data-rowf="cat" data-v="{c}" aria-pressed="false">{esc(lbl)}</button>'
+            for _, c, lbl in ITEM_SLOTS) + '<span class="sep"></span>' + ''.join(
+            f'<button class="px-btn" data-rowf="tier" data-v="{t}" aria-pressed="false">{"I II III IV V".split()[i]}</button>'
+            for i, t in enumerate(ITEM_TIERS)) + '</span>')
+    elif kind == 'hero' and roles:
+        parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
+            f'<button class="px-btn" data-rowf="role" data-v="{esc(r.lower())}" aria-pressed="false">{esc(r)}</button>'
+            for r in roles) + '</span>')
     if kind == 'hero':
         parts_filter = ('<span class="sep"></span><span class="dyn-parts">' + ''.join(
             f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
-            for p, lbl in (('all', 'All'),) + PARTS) + '</span>')
+            for p, lbl in (('all', 'All'),) + PARTS) + '</span>' + parts_filter)
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
             f'<span class="sep"></span>'
             f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
@@ -300,14 +350,19 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
             f'<span class="sep"></span><span class="dyn-tags">{tags}</span></div>')
 
 
-def hero_entries(heroes: list[dict], rel: str) -> list[tuple]:
+def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list[tuple]:
+    """A row per hero; its role (Hero Stats' `type`, e.g. "…_Brawler") rides on the row for the role filter. A hero
+    the files give no role yet (Baba, Violet, Nurse Harrow… in development) is "*", which no role filter takes out
+    (scripts.js dyn-rows; they all dropped out under any role, review 2026-10-05)."""
     from .common import slug
     out = []
     for h in sorted(heroes, key=lambda h: display_name(h).lower()):
         pre = h.get('state') != 'EHeroDevState_Release'
+        role = str(((trow or {}).get(h['id']) or {}).get('type') or '').rsplit('_', 1)[-1].lower()
         # the page is heroes/atlas.html, not hero_atlas.html (every name link was a 404)
         out.append((f'hero:{h["id"]}', display_name(h), hero_icon(h['id'], rel),
-                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else ''))
+                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else '',
+                    {'data-role': role or '*'}))
     return out
 
 
@@ -336,13 +391,32 @@ def game_entries(rel: str) -> list[tuple]:
             for s in shown()]
 
 
+ITEM_SLOTS = (('WeaponMod', 'w', 'Weapon'), ('Armor', 'v', 'Vitality'), ('Tech', 's', 'Spirit'))
+ITEM_TIERS = ('1', '2', '3', '4', '5')
+
+
+def _item_slot_tier(it: dict) -> tuple[str, str]:
+    """('w' / 'v' / 's' / '', '1'-'5' / '') of a catalog item: its raw enums ('EItemSlotType_WeaponMod',
+    'EModTier_3') as the shop's slot letters and tier digits."""
+    slot = str(it.get('slot') or '').removeprefix('EItemSlotType_')
+    cat = next((c for raw, c, _ in ITEM_SLOTS if raw == slot), '')
+    m = re.search(r'(\d)$', str(it.get('tier') or ''))
+    return cat, m.group(1) if m else ''
+
+
 def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:
+    """A row per item in the shop's order — Weapon, Vitality, Spirit, then tier and name (it was alphabetical over 238
+    rows; review 2026-10-05) — each carrying its slot and tier for the toolbar's filters (`data-cat`, `data-tier`)."""
     from .common import slug
+    order = {c: i for i, (_, c, _) in enumerate(ITEM_SLOTS)}
     out = []
-    for it in sorted(items, key=lambda e: (e.get('name') or e['id']).lower()):
+    for it in sorted(items, key=lambda e: (order.get(_item_slot_tier(e)[0], 9), _item_slot_tier(e)[1] or '9',
+                                           (e.get('name') or e['id']).lower())):
         info = (cards.get(it['id']) or {}).get('item') or {}
         gone = not it.get('alive') or it.get('disabled') or info.get('disabled')
         name = display_name(it)
+        cat, tier = _item_slot_tier(it)
         out.append((f'item:{it["id"]}', name, entity_icon(it['file'], it['id'], 'item', rel),
-                    slug(it['file'], it['id']).split('/', 1)[1], 'extra' if gone else ''))
+                    slug(it['file'], it['id']).split('/', 1)[1], 'extra' if gone else '',
+                    {'data-cat': cat, 'data-tier': tier}))
     return out

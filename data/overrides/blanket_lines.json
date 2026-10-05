@@ -1,0 +1,73 @@
+{
+  "_why": "Patch-note lines that announce a whole feature in one sentence without numbers ('Full shop rework, including many new items'). The matcher cannot tie such a line to fields by words, so every change it announced kept the eye: the headline 'not in patch notes' of City Never Sleeps, Old Gods and the 2025-05-08 shop rework counted features Valve had announced (hidden-story review 2026-10-05). Each entry ties ONE line of ONE patch to the changes it announces, scoped by field and by kind of operation, never by a whole file: the numbers of a new or reworked entity that the notes do not give stay hidden — they are what the site is for. pipeline/match.py:blanket_lines applies them; a change it covers is 'described' and linked to the line.",
+  "_format": "patch: the patch id. line: a piece of the line's text (case-insensitive). why: the reason. match: a list of scopes; a change is covered when it fits one scope: file, path (regex on the field path, '@add' / '@remove' / '@return' for an entity's event), ops (add / remove / change / return), kinds (catalog kind), id (regex on the entity id).",
+  "lines": [
+    {
+      "patch": "2025-05-08",
+      "line": "All hero stats rebalanced alongside the shop rework",
+      "why": "Every hero's base stats and per-boon growth were retuned with the shop rework (Abrams Max Health 570 -> 720); the line names them all and gives no numbers.",
+      "match": [
+        {"file": "heroes.vdata", "path": "^m_mapStartingStats\\.|^m_mapStandardLevelUpUpgrades\\.", "ops": ["change", "add", "remove"]}
+      ]
+    },
+    {
+      "patch": "2025-05-08",
+      "line": "Adjusted objective health values",
+      "why": "Guardians, Walkers, Shrines and the Patron got new health values 'as part of damage value changes in the shop'; only their health fields, nothing else of the buildings.",
+      "match": [
+        {"file": "npc_units.vdata", "path": "^m_nMaxHealth$|^m_nPhase2Health$|^m_iMaxHealth(Generator|Final)$|^m_EmpoweredModifierLevel[12]\\.m_nMaxHealth$", "kinds": ["building"], "ops": ["change"]}
+      ]
+    },
+    {
+      "patch": "2025-05-08",
+      "line": "Full shop rework, including many new items",
+      "why": "The items added to and removed from the shop. Only the events: the numbers of the existing items are not in the notes and stay hidden (audit verdicts TRUE_HIDDEN: Extra Health 160 -> 175 and 48 others).",
+      "match": [
+        {"file": "abilities.vdata", "path": "^@(add|remove|return)$", "kinds": ["item"]}
+      ]
+    },
+    {
+      "patch": "2026-01-22",
+      "line": "an Enhanced or Legendary item might make an appearance",
+      "why": "Old Gods, New Blood gave the shop items an Enhanced version (the upgrade entry m_vecAbilityUpgrades[0]); bonuses that appear with it are what the line announces. Later tweaks of Enhanced bonuses (2026-03-21: 77 rows) are not covered.",
+      "match": [
+        {"file": "abilities.vdata", "path": "^m_vecAbilityUpgrades\\[0\\]\\.", "kinds": ["item"], "ops": ["add"]}
+      ]
+    },
+    {
+      "patch": "2026-01-22",
+      "line": "Behold the Patrons: NEW BOSSES, BASES, TROOPERS",
+      "why": "The new bosses, bases and troopers came and the old ones went: their add / remove events only. Their numbers (Patron Health 5625 -> 12000, Max Health Generator 7000 -> 9000) are not in the notes and keep the eye.",
+      "match": [
+        {"file": "npc_units.vdata", "path": "^@(add|remove|return)$", "kinds": ["building", "trooper"]}
+      ]
+    },
+    {
+      "patch": "2026-09-29",
+      "line": "you can exchange your high tier items for a Corrupted version",
+      "why": "City Never Sleeps: the Broker trades an item for its Corrupted version (m_CorruptedItemInfo: bonuses plus random penalties). A version that appears whole is what the line announces; the corrupted shop, its price per tier and its penalty table come with it.",
+      "match": [
+        {"file": "abilities.vdata", "path": "^m_CorruptedItemInfo", "kinds": ["item"], "ops": ["add"]},
+        {"path": "^@add$", "id": "(?i)corrupt"}
+      ]
+    },
+    {
+      "patch": "2026-09-29",
+      "line": "Street Brawl grants you a corrupted item after the item draft in Round 5",
+      "why": "The round is the new Street Brawl field m_iCorruptItemRound = 5 (a field that appears has no old value, so the line's lone number never paired with it).",
+      "match": [
+        {"file": "generic_data.vdata", "path": "^m_iCorruptItemRound$", "id": "^m_StreetBrawl$"}
+      ]
+    },
+    {
+      "patch": "2026-09-29",
+      "line": "Buff Containers: Revamped golden statues",
+      "why": "The golden statues' rewards were rebuilt: new permanent buffs (spirit resist, bullet resist, ability range, move speed) and the statue's reward pools moved into the new powerup loot table.",
+      "match": [
+        {"file": "misc.vdata", "path": "^@add$", "id": "_permanent_pickup"},
+        {"file": "misc.vdata", "path": "^m_vecPickups|^m_vecPrimaryPickups|^m_iMatchTimeMinsForLevel[23]Pickups$|^m_iLootListDeckSize$|^m_fl(Primary|Powerup)DropChance$", "id": "^citadel_breakable_(item_container|prop_drop_powerups)$"},
+        {"file": "generic_data.vdata", "path": "^@add$", "id": "^m_BreakablePowerupLootParams$"}
+      ]
+    }
+  ]
+}

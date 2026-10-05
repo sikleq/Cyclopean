@@ -70,6 +70,8 @@ MARK_ART = {
     'na': 'M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3z'
           'M12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7z'
           'M6 9h1v1H6zM5 10h1v1H5z',
+    # "?": a patch-note line no change of the files was found for
+    'question': 'M5 2h6v2H5zM4 3h1v2H4zM10 4h2v2h-2zM8 6h3v2H8zM7 8h2v2H7zM7 12h2v2H7z',
     # "</>": the change lives in the game's code, not in the data files compared here
     'code': 'M4 4h2v1H4zM3 5h2v1H3zM2 6h2v1H2zM1 7h2v2H1zM2 9h2v1H2zM3 10h2v1H3zM4 11h2v1H4z'
             'M10 4h2v1h-2zM11 5h2v1h-2zM12 6h2v1h-2zM13 7h2v2h-2zM12 9h2v1h-2zM11 10h2v1h-2zM10 11h2v1h-2z'
@@ -91,6 +93,10 @@ STATUS_MARK = {
     'rounded': ('check', 'Patch notes list rounded numbers; exact values from the files are shown'),
     'described': ('tilde', 'Covered by a patch-note line without exact numbers'),
     'mismatch': ('bang', 'Patch notes give different numbers than the game files'),
+    # a line the matcher linked to nothing: it said nothing at all (review 2026-10-05: "Tough Crates", "Buff
+    # Containers", The Broker ×3 sat as plain lines while their changes carried the eye)
+    'unmatched': ('question', "No change found in the game files for this line: it may live in the game's code, "
+                              'or the comparison missed it'),
 }
 # the eye without a tooltip (a hover card or a label already says it)
 EYE_MARK = '<span class="mark hidden"></span>'
@@ -113,11 +119,12 @@ def json_attr(name: str, value) -> str:
     return f" {name}='{html.escape(raw, quote=False).replace(chr(39), '&#x27;')}'"
 
 
-def mark(status: str) -> str:
-    """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it."""
+def mark(status: str, tip: str | None = None) -> str:
+    """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it (`tip`: a
+    row's own words, e.g. when the change shipped silently after the patch)."""
     if status not in STATUS_MARK:
         return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
-    return f'<span class="mark {status}" data-tooltip="{esc(STATUS_MARK[status][1])}"></span>'
+    return f'<span class="mark {status}" data-tooltip="{esc(tip or STATUS_MARK[status][1])}"></span>'
 
 
 @lru_cache(maxsize=1)
@@ -195,7 +202,10 @@ def ids_to_names(s: str) -> str:
 
 
 def _ids_to_names(s: str, names: dict[str, str], known: dict[str, str | None], game: dict[str, str]) -> str:
-    s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
+    # an unnamed ability reads as its group header does, its owner's code dropped ("Boho bouncyprojectile" in a value
+    # beside the header "Bouncyprojectile"; review 2026-10-05)
+    s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0), known.get(m.group(0).lower())),
+                        s)
 
     def other(m: re.Match) -> str:
         w = m.group(0)
@@ -214,15 +224,27 @@ _WEAPON_PLUMBING = re.compile(r'_?shared(?:_base|_weapon_info)?$')
 
 
 def display_name(e: dict) -> str:
-    """An entity's localized name, else a readable stand-in — never its id ('hero_airheart' sat in an h1)."""
+    """An entity's localized name, else a readable stand-in — never its id ('hero_airheart' sat in an h1). An item,
+    ability or unit's stand-in is in the game's Title Case like its real names ("Charged Bomb", not "Charged bomb";
+    review 2026-10-05); the Game section's names are written by hand and keep theirs (game_systems.name_of)."""
     name = e.get('name')
-    return name if name and name != e['id'] else pretty_id(e['id'], e.get('owner'))
+    if name and name != e['id']:
+        return name
+    return pretty_id(e['id'], e.get('owner'), title=e.get('file') in ('abilities.vdata', 'npc_units.vdata'))
 
 
-def pretty_id(eid: str, owner: str | None = None) -> str:
+def pretty_id(eid: str, owner: str | None = None, title: bool = False) -> str:
     """A readable stand-in for an entity that has no localized name yet (heroes in
     development): internal ids are never shown. 'citadel_weapon_frank_set' -> 'Weapon',
-    'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'."""
+    'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'. `title`: every word capitalised
+    ("Aoe wave" -> "AoE Wave"), as the game writes names."""
+    s = _pretty_id(eid, owner)
+    if title and s != eid:
+        s = ' '.join(w[:1].upper() + w[1:] for w in s.split(' '))
+    return re.sub(r'\bAoe\b', 'AoE', s)
+
+
+def _pretty_id(eid: str, owner: str | None = None) -> str:
     if eid.startswith('citadel_weapon_'):
         if eid.endswith(('_alt', '_set2', '_set_2')):
             return 'Alt weapon'

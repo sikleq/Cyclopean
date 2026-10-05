@@ -18,11 +18,13 @@ ULT_SLOT = 'Signature_4'    # its icon carries the ultimate's corner mark (cards
 # the head strip: every main non-gun stat (survival, movement, melee, spirit growth); the rest of
 # the stats are open panels under the abilities, the gun's in the weapon block (user, 10-01; open 10-04)
 KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina',
-             'light_melee', 'heavy_melee', 'spirit_lvl')
+             'stamina_regen', 'ground_dash', 'air_dash', 'light_melee', 'heavy_melee', 'melee_lvl', 'spirit_lvl')
+# the same for every hero (Crouch Speed 4.75 on all 44): no hero's own number; its one step is in the history
+NOT_ON_HERO = ('crouch',)
 WEAPON_GROUP = 'Damage'
 # the six numbers a player compares first: one row of equal tiles with one-line labels
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
-              'clip': 'Ammo', 'reload': 'Reload s'}
+              'clip': 'Ammo', 'reload': 'Reload'}
 WEAPON_DIGITS = 2
 # in-game stat icons (icons/stats/StatDesc) for the stat cells
 STAT_ICON = {
@@ -58,6 +60,42 @@ def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
     return ' '.join(cls + hcls), f' data-pol="{col["pol"]}" data-digits="{col["digits"]}"' + hattrs
 
 
+def _real_steps(row: dict, key: str, digits: int) -> list:
+    """The steps of a stat's history a reader sees: a value that changed (not the field's first appearance, null →
+    value, and not a step its rounding hides)."""
+    out = []
+    for h in row.get('history', {}).get(key) or ():
+        if h[2] is None:
+            continue
+        if _fmt(h[2], digits) != _fmt(h[3], digits):
+            out.append(h)
+    return out
+
+
+# a stat at its neutral value says nothing (review 2026-10-05: "+Range / boon 0m" on 38 of 39 heroes,
+# "+Bullet Resist / boon 0", "Headshot Taken × 1" on 42): hidden unless it ever moved
+NEUTRAL = {'range_lvl': 0, 'bullet_resist_lvl': 0, 'spirit_resist_lvl': 0, 'headshot_taken': 1}
+# …and a gun's pellet / burst details when it fires one pellet / one bullet a burst
+NEEDS = {'pellet_spread': ('pellets', 1), 'pellets': ('pellets', 1), 'burst': ('burst', 1),
+         'burst_cycle': ('burst', 1)}
+
+
+def says_nothing(row: dict, c: dict) -> bool:
+    """A stat tile or row that would only print a default (`NEUTRAL`, `NEEDS`) with no real step in its history."""
+    k = c['key']
+    vals = row.get('values') or {}
+    if k in NEUTRAL:
+        v = vals.get(k)
+        dead = v is not None and float(v) == NEUTRAL[k]
+    elif k in NEEDS:
+        base, one = NEEDS[k]
+        v = vals.get(base)
+        dead = v is not None and float(v) == one
+    else:
+        return False
+    return dead and not _real_steps(row, k, c.get('digits', 2))
+
+
 def _stat_icon(key: str, rel: str) -> str:
     src = icon(f'StatDesc:{STAT_ICON[key]}', rel) if key in STAT_ICON else None
     return f'<img class="si" src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="si"></span>'
@@ -69,18 +107,19 @@ def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
     for k in KEY_STATS:
         c = by_key.get(k)
         v = row['values'].get(k)
-        if not c or v is None or (v == 0 and k.endswith('_resist')):     # base resists are 0 for most heroes
-            continue
+        if not c or v is None or (v == 0 and k.endswith('_resist')) or says_nothing(row, c):
+            continue                                     # base resists are 0 for most heroes
         cls, attrs = _hist_attrs(row, c, name)
-        out.append(f'<div class="keystat {cls}"{attrs}>{_stat_icon(k, rel)}<div class="v">{_fmt(row["values"][k], c["digits"])}</div>'
-                   f'<div class="l">{esc(c["label"])}</div></div>')
+        label, unit = _split_unit(c['label'])
+        out.append(f'<div class="keystat {cls}"{attrs}>{_stat_icon(k, rel)}<div class="v">{_fmt(row["values"][k], c["digits"])}'
+                   f'{_unit_html(unit)}</div><div class="l">{esc(label)}</div></div>')
     return '<div class="keystats">' + ''.join(out) + '</div>'
 
 
 def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
     """Secondary stats (per-boon growth of resists, dashes, collision…) as open panels below the abilities
     (owner 2026-10-04: nothing folded by default — they sat two clicks deep)."""
-    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS)
+    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
     if not panels:
         return ''
     return f'<h2>Stats</h2>{panels}'
@@ -90,11 +129,12 @@ def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
     out = []
     for c in cs:
         v = row['values'].get(c['key'])
-        if v is None:
+        if v is None or says_nothing(row, c):
             continue
         cls, attrs = _hist_attrs(row, c, name)
-        out.append(f'<div class="sc-row"><span class="k">{_stat_icon(c["key"], rel)}{esc(c["label"])}</span>'
-                   f'<span class="v {cls}"{attrs}>{_fmt(v, c["digits"])}</span></div>')
+        label, unit = _split_unit(c['label'])           # "Ground Dash 0.72 s", not "Ground Dash (s) 0.72"
+        out.append(f'<div class="sc-row"><span class="k">{_stat_icon(c["key"], rel)}{esc(label)}</span>'
+                   f'<span class="v {cls}"{attrs}>{_fmt(v, c["digits"])}{_unit_html(unit)}</span></div>')
     return ''.join(out)
 
 
@@ -128,35 +168,62 @@ def _unit_html(unit: str) -> str:
     return f'<span class="u">{esc(unit)}</span>' if unit else ''
 
 
-def weapon_block(card: dict | None, row: dict, cols: list[dict], name: str, rel: str) -> str:
-    """The gun is not an ability: its own block, first, with every Damage-group number."""
-    wcols = [c for c in cols if c['group'] == WEAPON_GROUP]
+def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: str, rel: str,
+                 alt: dict | None = None) -> str:
+    """The gun is not an ability: its own block, first, with every Damage-group number. `alt`: the gun's alt fire
+    (a Weapon_Secondary card: the files give it no text) as a slim line in the block — what changed it lately, its
+    trail, its history (its rows are in the gun's group: hero_page.fold_alt). Without a stats row (a hero in
+    development) the block is the gun's name and that line, never an empty ability card."""
+    wcols = [c for c in cols if c['group'] == WEAPON_GROUP] if row else []
     top_order = list(WEAPON_TOP)
     top, rest = [], []
     for c in sorted(wcols, key=lambda c: top_order.index(c['key']) if c['key'] in WEAPON_TOP else len(top_order)):
         v = row['values'].get(c['key'])
-        if v is None:
+        if v is None or says_nothing(row, c):
             continue
         cls, attrs = _hist_attrs(row, c, name)
         is_top = c['key'] in WEAPON_TOP
-        label, unit = (WEAPON_TOP[c['key']], '') if is_top else _split_unit(c['label'])
+        # the unit rides on the number for every tile ("RELOAD S" beside "Full Reload 3.88 s")
+        label, unit = (WEAPON_TOP[c['key']], _split_unit(c['label'])[1]) if is_top else _split_unit(c['label'])
         # two decimals at most, like the game's panel: "Reload 1.0575" was a sum no screen prints (external
         # audit 2026-10-04); the full value stays in the cell's history
         cell = (f'<div class="wcell{" top" if is_top else ""} {cls}"{attrs}>{_stat_icon(c["key"], rel)}'
                 f'<span class="v">{_fmt(v, min(c["digits"], WEAPON_DIGITS))}{_unit_html(unit)}</span>'
                 f'<span class="l">{esc(label)}</span></div>')
         (top if is_top else rest).append(cell)
-    wname = (card or {}).get('name') or row.get('weapon_name') or ''
+    wname = (card or {}).get('name') or (row or {}).get('weapon_name') or ''
+    wid = (card or {}).get('id') or (row or {}).get('weapon')
+    if not wid:
+        # no gun of its own (a hero in development borrowing another's: `borrowed_gun`)
+        return ('<section class="weapon-block px-frame" id="weapon"><div class="wb-id">'
+                f'{img(None, "", "px", "abilities")}<div><div class="wb-kicker">Weapon</div>'
+                '<div class="wb-name unnamed">No gun of its own yet</div></div></div></section>')
     # heroes in development often have no localized gun name yet: never show the internal id
     name_html = (f'<div class="wb-name">{esc(wname)}</div>' if wname and not wname.startswith('citadel_weapon_')
                  else '<div class="wb-name unnamed">No in-game name yet</div>')
-    wid = (card or {}).get('id') or row.get('weapon')
     ic = entity_icon('abilities.vdata', wid, 'weapon', rel) if wid else None
     desc = f'<div class="wb-desc">{esc(card["desc"])}</div>' if card and card.get('desc') else ''
+    links = _gun_links(wid, wid, rel) if wid else ''
+    lines = ''
+    if alt:
+        lines += (f'<div class="wb-alt"><span class="wb-alt-l">Alt fire</span>'
+                  f'{_gun_links(alt["id"], wid or alt["id"], rel)}</div>')
+    if top or rest:
+        nums = f'<div class="wb-top">{"".join(top)}</div>{_more_weapon(rest)}'
+    else:
+        # Hero Stats lists playable heroes only (hero_table.PLAYABLE_STATES; a borrowed stand-in gun is no gun)
+        nums = '<div class="wb-none">Gun numbers come with Hero Stats once the hero is playable</div>'
     return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px", "abilities")}'
-            f'<div><div class="wb-kicker">Weapon</div>{name_html}{desc}</div></div>'
-            f'<div class="wb-nums"><div class="wb-top">{"".join(top)}</div>'
-            f'{_more_weapon(rest)}</div></section>')
+            f'<div><div class="wb-kicker">Weapon</div>{name_html}{links}{desc}</div></div>'
+            f'<div class="wb-nums">{nums}{lines}</div></section>')
+
+
+def _gun_links(aid: str, group: str, rel: str) -> str:
+    """A gun's (or its alt fire's) last change, trail squares and "History" — the ability card's head line.
+    `group`: the gun whose history group holds the rows (an alt fire's are in its gun's)."""
+    from .trail import trail_html
+    return (f'<div class="wb-links">{last_change(aid, group)}<a class="ac-hist" href="#ab-{esc(group)}">History</a>'
+            f'{trail_html("abilities.vdata:" + aid, None, rel, local=True)}</div>')
 
 
 def _more_weapon(cells: list[str]) -> str:
@@ -196,20 +263,11 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
         f'{esc(t["text"] or ", ".join(b["label"] + " " + b["value"] for b in t["bonuses"]))}</span></div>'
         for t in c.get('tiers', []) if t.get('text') or t.get('bonuses'))
     name = display_name(c)
-    # what happened to it lately: the last patch that touched it, and its 12-patch strip — both open that
-    # patch's band in the history below, not the patch archive (owner 2026-10-04)
     from .cards import ability_plate
-    from .render import TAG_ORDER, pip
-    from .trail import last_counts, trail_html
-    key = f'abilities.vdata:{c["id"]}'
-    last = last_counts(key)
-    last_html = ''
-    if last:
-        prow, counts = last
-        pips = ''.join(pip(t, n) for t, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
-        last_html = (f'<a class="ac-last" href="#p-{esc(prow["id"])}" data-p="{esc(prow["id"])}" '
-                     f'data-ab="{esc(c["id"])}"><span class="tsum">{pips}</span> {esc(prow["date"])}</a>')
+    from .trail import trail_html
+    last_html = last_change(c['id'])
     plate = ability_plate(ic, 'abilities', c.get('slot') == ULT_SLOT)
+    key = 'abilities.vdata:' + c['id']
     return (f'<div class="ability-card px-frame" id="{esc(c["id"])}"><div class="ac-head">{plate}'
             f'<div class="ac-id"><div class="ac-name">{esc(name)}</div><div class="ac-sub">{esc(slot_label)}{last_html}'
             f'<a class="ac-hist" href="#ab-{esc(c["id"])}">History</a></div>'
@@ -218,20 +276,117 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
 
 
-def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str) -> list[tuple]:
-    """History entities in page order: base stats, weapon, abilities by slot, the rest by name."""
+def last_change(aid: str, ab: str | None = None) -> str:
+    """What happened to an ability or gun lately: the last patch that touched it, its tag counters and date — it
+    opens that patch's band in the history below, not the patch archive (owner 2026-10-04). `ab`: the history group
+    it lands in (an alt fire's rows are in its gun's group)."""
+    from .render import TAG_ORDER, pip
+    from .trail import last_counts
+    last = last_counts(f'abilities.vdata:{aid}')
+    if not last:
+        return ''
+    prow, counts = last
+    pips = ''.join(pip(t, n) for t, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9)))
+    return (f'<a class="ac-last" href="#p-{esc(prow["id"])}" data-p="{esc(prow["id"])}" '
+            f'data-ab="{esc(ab or aid)}"><span class="tsum">{pips}</span> {esc(prow["date"])}</a>')
+
+
+def has_content(c: dict) -> bool:
+    """A card with something to read: text, header values, property rows or a tier (an alt fire and a gun in
+    development are bare: Viscous' "Alt weapon" was a 579 px empty card that pushed Goo Ball to a row of its own)."""
+    return bool(c.get('desc') or c.get('header') or c.get('important') or c.get('basic')
+                or any(t.get('text') or t.get('bonuses') for t in c.get('tiers', [])))
+
+
+def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str, skip: set[str] = frozenset(),
+                parents: dict[str, str] | None = None) -> list[tuple]:
+    """History entities in page order: base stats, weapon, abilities by slot, the rest by name. `skip`: ids whose
+    rows sit in another group (an alt fire's are its gun's); `parents`: a nameless sub-ability -> the ability it
+    belongs to ("Ava · trigger" with Ava's icon, not "Catform trigger")."""
     keys = [(f'heroes.vdata:{hid}', 'Base stats', hero_icon(hid, rel))]
     slot_of = {c['id']: c.get('slot') for c in mine}
-    owned = [e for e in ents_by_id.values() if e.get('owner') == hid]
+    owned = [e for e in ents_by_id.values() if e.get('owner') == hid and e['id'] not in skip]
+    parents = parents or {}
 
     def rank(e: dict) -> tuple:
         s = slot_of.get(e['id'])
         return (SLOT_ORDER.index(s) if s in SLOT_ORDER else len(SLOT_ORDER), e.get('name') or '')
     for e in sorted(owned, key=rank):
-        nm = display_name(e)                 # its owner is this hero
-        keys.append((f'abilities.vdata:{e["id"]}', nm,
-                     entity_icon('abilities.vdata', e['id'], e.get('kind', ''), rel, nm, hid)))
+        par = ents_by_id.get(parents.get(e['id'], ''))
+        if par:
+            nm = f'{display_name(par)} · {e["id"][len(par["id"]) + 1:].replace("_", " ")}'
+            ic = entity_icon('abilities.vdata', par['id'], par.get('kind', ''), rel, display_name(par), hid)
+        else:
+            nm = display_name(e)                 # its owner is this hero
+            ic = entity_icon('abilities.vdata', e['id'], e.get('kind', ''), rel, nm, hid)
+        keys.append((f'abilities.vdata:{e["id"]}', nm, ic))
     return keys
+
+
+_ALT_GUN = re.compile(r'^citadel_weapon_.+(?:_alt|_set_?2)$')
+
+
+def borrowed_gun(hid: str, gun: str | None, ents_by_id: dict) -> bool:
+    """The hero's gun belongs to another hero (the files give a hero in development a stand-in: five fired Infernus'
+    Incendiary Remarks, whose last change and "History" link on their pages pointed at nothing; review 2026-10-05)."""
+    owner = (ents_by_id.get(gun) or {}).get('owner') if gun else None
+    return bool(owner) and owner != hid
+
+
+def alt_guns(hid: str, gun: str | None, ents_by_id: dict) -> list[str]:
+    """The hero's alt fire guns (citadel_weapon_viscous_set_2, the removed …_alt): the files give them no name, and
+    their history repeated the gun's (Viscous 2024-07-18 "Ammo 20 → 21" twice)."""
+    return sorted(e['id'] for e in ents_by_id.values()
+                  if e.get('owner') == hid and e['id'] != gun and _ALT_GUN.match(e['id']))
+
+
+def sub_parents(hid: str, mine: list[dict], ents_by_id: dict) -> dict[str, str]:
+    """A nameless sub-ability no slot binds -> the owned ability whose id it extends (ability_nano_pounce_instant ->
+    …_pounce, …_catform_trigger -> …_catform): Calico's history showed "Pounce instant", "Catform trigger"."""
+    slotted = {c['id'] for c in mine}
+    owned = {e['id']: e for e in ents_by_id.values() if e.get('owner') == hid and e.get('kind') != 'weapon'}
+    out = {}
+    for eid, e in owned.items():
+        if eid in slotted or (e.get('name') and e['name'] != eid):
+            continue
+        cands = [p for p in owned if p != eid and eid.startswith(p + '_') and owned[p].get('name')
+                 and owned[p]['name'] != p]
+        if cands:
+            out[eid] = max(cands, key=len)
+    return out
+
+
+def _sig(c: dict) -> tuple:
+    return (str(c.get('label')), str(c.get('old_s')), str(c.get('new_s')))
+
+
+def fold_alt(by_ent: dict, gun: str, alts: list[str]) -> dict:
+    """by_ent with the alt fire's rows in its gun's group, "Alt fire: …" — a row the gun has in the same band with
+    the same label and values is said once. Returns a new mapping; `by_ent` is shared and stays as it is."""
+    gk = f'abilities.vdata:{gun}'
+    bands = {row['id']: (row, list(ch)) for row, ch in by_ent.get(gk, [])}
+    for a in alts:
+        for row, ch in by_ent.get(f'abilities.vdata:{a}', []):
+            row_, have = bands.setdefault(row['id'], (row, []))
+            seen = {_sig(c) for c in have}
+            have += [{**c, 'label': f'Alt fire: {c.get("label")}'} for c in ch if _sig(c) not in seen]
+    out = {**by_ent, gk: sorted(bands.values(), key=lambda rc: rc[0]['date'])}
+    for a in alts:
+        out.pop(f'abilities.vdata:{a}', None)
+    return out
+
+
+def drop_parent_rows(by_ent: dict, parents: dict[str, str]) -> dict:
+    """A sub-ability's row its parent shows in the same band with the same label and values goes (Calico's "Pounce"
+    and "Pounce · instant" both read "Movement Slow 30% → 24%" on 2026-09-16)."""
+    out = dict(by_ent)
+    for child, par in parents.items():
+        ck, pk = f'abilities.vdata:{child}', f'abilities.vdata:{par}'
+        mine = {row['id']: {_sig(c) for c in ch} for row, ch in by_ent.get(pk, [])}
+        rows = [(row, kept) for row, ch in by_ent.get(ck, [])
+                for kept in [[c for c in ch if _sig(c) not in mine.get(row['id'], ())]] if kept]
+        out[ck] = rows
+    return out
 
 
 def current_cards(cards: dict, hid: str) -> list[dict]:
@@ -267,30 +422,48 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     if was:          # renamed in development (Slork → Fathom): the names its history uses
         chips.append(f'<span class="chip">was {esc(" · ".join(was))}</span>')
     # the same head as an item's or a unit's: crumbs above, then name, chips, "First seen" (advisor 10-03)
-    head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
-            f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
-            f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(h["first"])}'
-            f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
-            f'</div></div>')
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
-    weapon = weapon_block(weapon_card, table_row, cols, name, rel) if table_row else ''
-    # without a stats row there is no weapon block: the gun stays an ordinary card
+    alt_card = next((c for c in mine if c.get('slot') == 'Weapon_Secondary'), None)
+    gun = (weapon_card or {}).get('id') or (table_row or {}).get('weapon')
+    if borrowed_gun(hid, gun, ents_by_id):
+        # a hero in development fires another hero's gun as a stand-in (Violet, Baba, Nurse Harrow: Infernus'
+        # Incendiary Remarks): no gun of its own — its name, last change and history are the other hero's
+        weapon_card, alt_card, gun = None, None, None
+        table_row = {**table_row, 'weapon': None, 'weapon_name': None} if table_row else None
+    alts = alt_guns(hid, gun, ents_by_id) if gun else []
+    # the guns are the weapon block (with a stats row its numbers, else its name): the ability grid holds the four
+    # ability slots only, so the ultimate never sits alone on a second row (Viscous' empty "Alt weapon" card)
+    weapon = (weapon_block(weapon_card, table_row if gun else None, cols, name, rel,
+                           alt_card if alt_card and alt_card['id'] in alts else None) if weapon_card or table_row else '')
     abil_cards = [ability_card(c, rel, SLOT_LABEL.get(c.get('slot', ''), c.get('slot', '')))
-                  for c in mine if c.get('slot') != 'Weapon_Primary' or not table_row]
+                  for c in mine if str(c.get('slot', '')).startswith('Signature_') and has_content(c)]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
     # the page is the history (owner, 2026-10-03), and what the hero is today stands open above it — the gun,
     # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
     now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
-    keys = _owned_keys(hid, mine, ents_by_id, rel)
+    parents = sub_parents(hid, mine, ents_by_id)
+    keys = _owned_keys(hid, mine, ents_by_id, rel, skip=set(alts) if gun else set(), parents=parents)
+    hist_ents = drop_parent_rows(fold_alt(by_ent, gun, alts) if gun and alts else by_ent, parents)
     ults = frozenset(f'abilities.vdata:{c["id"]}' for c in mine if c.get('slot') == ULT_SLOT)
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}
     areas |= {f'abilities.vdata:{e["id"]}': part_of(e) for e in ents_by_id.values() if e.get('owner') == hid}
     gone = {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
             and e['id'] not in {c['id'] for c in mine}}
-    hist = history_table(keys, [name], by_ent, by_subject, rel, areas=areas, gone=gone,
-                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults)
-    body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
+    chip_of = {f'abilities.vdata:{c}': f'abilities.vdata:{p}' for c, p in parents.items()}
+    told: dict = {}
+    hist = history_table(keys, [name], hist_ents, by_subject, rel, areas=areas, gone=gone,
+                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults,
+                         every_label='For all heroes', chip_of=chip_of, facts_out=told)
+    from .history_view import head_strip, hidden_link
+    chips.append(hidden_link(told.get('hidden', 0)))
+    head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
+            f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
+            f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(h["first"])}'
+            f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
+            f'</div></div>')
+    # the patch strip right under the head: the first screen shows what changed (History sat at y=1365-2096)
+    body = head + head_strip(told) + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',
                 cls='entity')

@@ -139,6 +139,63 @@ def _signed(v) -> str:
     return f'+{s}' if re.match(r'^\d', s) else s
 
 
+EXCLUDED = 'm_vecExcludedPenalties'
+
+
+@lru_cache(maxsize=1)
+def _penalty_names() -> dict[str, str]:
+    from .common import load_json
+    try:
+        return load_json('abilities.json').get('penalties') or {}
+    except FileNotFoundError:
+        return {}
+
+
+def penalty_words(v) -> str:
+    """'TechDuration, MoveSpeed' -> 'Ability Duration, Move Speed': a Corrupted item's penalties by the game's own
+    names (pipeline.abilities.corrupted_penalties; engine names sat on 38 rows, review 2026-10-05)."""
+    names = _penalty_names()
+    parts = [p.strip() for p in str(v or '').split(',') if p.strip()]
+    return ', '.join(names.get(p, re.sub(r'(?<=[a-z])(?=[A-Z])', ' ', p)) for p in parts)
+
+
+def _fold_version(changes: list[dict], mine: list[dict], prefix: str, label: str, path: str) -> list[dict]:
+    """Bonus rows of an item's other version that all appear (or all go) at once -> ONE row "<label>: A +1, B +2"
+    and one change for every counter (fold_corrupted, fold_enhanced). Two bonuses under one label with one value
+    are one ("Incoming Healing -25%, Incoming Healing -25%"), namesakes with other values say which is which
+    (cards.disambiguate: "Debuff Resist · innate +8%, Debuff Resist +15%"); the penalties a Corrupted version
+    never rolls close the list on their own ("· never rolls: Fire Rate, Move Speed"), not as a bonus."""
+    from .cards import disambiguate
+    ops = {c.get('op') for c in mine}
+    if len(mine) < CORRUPTED_MIN or len(ops) != 1 or ops & {'change'}:
+        return changes
+    op = ops.pop()
+    side = 'new_s' if op == 'add' else 'old_s'
+    # sub-fields ("… › Fixed Corrupted Bonus") are how the bonus rolls, not a bonus
+    bonuses = [c for c in mine if '›' not in str(c.get('label', '')) and not str(c.get('path', '')).endswith(EXCLUDED)]
+    excluded = [c for c in mine if str(c.get('path', '')).endswith(EXCLUDED)]
+    parts: list[str] = []
+    for c in disambiguate(bonuses):
+        part = f'{str(c.get("label", "")).removeprefix(prefix)} {_signed(c.get(side))}'.strip()
+        if part not in parts:
+            parts.append(part)
+    text = ', '.join(parts)
+    never = penalty_words(', '.join(str(c.get(side) or '') for c in excluded))
+    if never:
+        text += f' · never rolls: {never}'
+    status = min((c.get('status', 'hidden') for c in mine), key=lambda s: _STATUS_WEIGHT.get(s, 9))
+    first = changes.index(mine[0])
+    # the version is the item's own: one bonus another 9 items share made the whole row "shared ×10 items"
+    head = {k: v for k, v in mine[0].items() if not k.startswith('shared')}
+    row = {**head, 'op': op, 'cat': 'balance', 'label': label, 'path': path,
+           'old_s': text if op == 'remove' else '', 'new_s': text if op == 'add' else '',
+           'status': status, 'dir': 'changed', 'pct': None, 'folded': len(mine), 'bonus_list': True,
+           'shared': all(c.get('shared') for c in mine)}
+    folded = {id(c) for c in mine}
+    rest = [c for c in changes if id(c) not in folded]
+    return rest[:first] + [row] + rest[first:]     # where the first bonus row was
+
+
 def fold_corrupted(changes: list[dict]) -> list[dict]:
     """City Never Sleeps gave 97 items a Corrupted version (the Broker trades it for the item:
     bonuses plus random penalties, m_CorruptedItemInfo): ~5 bonus rows an item, 474 NEW rows in all.
@@ -146,22 +203,39 @@ def fold_corrupted(changes: list[dict]) -> list[dict]:
     Cooldown -4, Base Health +10" — and one change for the counters; a later tweak of a few bonuses
     stays row by row with its own direction."""
     mine = [c for c in changes if str(c.get('path') or '').startswith(CORRUPTED)]
-    ops = {c.get('op') for c in mine}
-    if len(mine) < CORRUPTED_MIN or len(ops) != 1 or ops & {'change'}:
+    return _fold_version(changes, mine, 'Corrupted: ', 'Corrupted version', CORRUPTED)
+
+
+ENHANCED = 'm_vecAbilityUpgrades[0].'
+ENHANCED_PREFIX = 'Enhanced: '
+
+
+def _enhanced(c: dict) -> bool:
+    """A bonus of an item's Enhanced version (its upgrade entry: "Enhanced: …"; an item page files them in their
+    own group with the prefix taken off, so the item id and the path say it there)."""
+    if str(c.get('label') or '').startswith(ENHANCED_PREFIX):
+        return True
+    key = str(c.get('key') or '')
+    return str(c.get('path') or '').startswith(ENHANCED) and ':upgrade_' in key
+
+
+def fold_enhanced(changes: list[dict]) -> list[dict]:
+    """Old Gods, New Blood gave the shop items an Enhanced version: ~3 bonus rows an item, 452 NEW rows that
+    one line of the notes announced. Like the Corrupted version, an Enhanced version whose bonuses all appear
+    (or all go) at once is ONE row "Enhanced version: Max Ammo +10%, Fire Rate +15%" and one change for every
+    counter (hidden-story review 2026-10-05: Old Gods read 902 not in the notes); a later tweak of a few bonuses
+    (2026-03-21) stays row by row. On the item page, inside its "Enhanced version" group, the row is "Bonuses"."""
+    mine = [c for c in changes if _enhanced(c)]
+    if not mine:
         return changes
-    op = ops.pop()
-    side = 'new_s' if op == 'add' else 'old_s'
-    # sub-fields ("… › Fixed Corrupted Bonus") are how the bonus rolls, not a bonus
-    parts = [f'{str(c.get("label", "")).removeprefix("Corrupted: ")} {_signed(c.get(side))}'.strip()
-             for c in mine if '›' not in str(c.get('label', ''))]
-    status = min((c.get('status', 'hidden') for c in mine), key=lambda s: _STATUS_WEIGHT.get(s, 9))
-    first = changes.index(mine[0])
-    row = {**mine[0], 'op': op, 'cat': 'balance', 'label': 'Corrupted version', 'path': CORRUPTED,
-           'old_s': ', '.join(parts) if op == 'remove' else '', 'new_s': ', '.join(parts) if op == 'add' else '',
-           'status': status, 'dir': 'changed', 'pct': None, 'folded': len(mine), 'bonus_list': True}
-    folded = {id(c) for c in mine}
-    rest = [c for c in changes if id(c) not in folded]
-    return rest[:first] + [row] + rest[first:]     # where the first bonus row was
+    prefixed = str(mine[0].get('label') or '').startswith(ENHANCED_PREFIX)
+    return _fold_version(changes, mine, ENHANCED_PREFIX, 'Enhanced version' if prefixed else 'Bonuses',
+                         ENHANCED.rstrip('.'))
+
+
+def fold_versions(changes: list[dict]) -> list[dict]:
+    """An item's Corrupted and Enhanced versions, each one row when they come or go whole."""
+    return fold_enhanced(fold_corrupted(changes))
 
 
 # the counters' icons are the site's own pixel art (builders/pixel_icons.py), not font glyphs;
@@ -388,29 +462,107 @@ def _same_unit(old: str, new: str) -> tuple[str, str]:
     return old, new
 
 
-def vals_html(c: dict) -> str:
+_LIST_NUM = re.compile(r'^[-+]?(?:\d+\.?\d*|\.\d+)(?:m|s|%|m/s)?$')
+# a [min, max] pair (review 2026-10-05: "Aiming Move Spread Penalty 0, 0.15 → —", "Horizontal Recoil -0.4, 0.4 → 0, 0")
+_RANGE_PAIR = re.compile(r'(Range|SpreadPenalty|Spread|Recoil|EnableTime|AimingSpread)\w*$', re.I)
+
+
+def _numbers(v) -> list[str] | None:
+    if not isinstance(v, str) or ', ' not in v:
+        return None
+    parts = [p.strip() for p in v.split(', ')]
+    return parts if len(parts) > 1 and all(_LIST_NUM.match(p) for p in parts) else None
+
+
+def _range_text(parts: list[str]) -> str:
+    a, b = parts
+    x, y = (float(re.sub(r'[^\d.+-]', '', v)) for v in (a, b))
+    if x == y == 0:
+        return 'none'
+    if x == -y:
+        return f'±{b.lstrip("+-")}'
+    return f'{a}–{b}'
+
+
+def number_lists(path: str, old, new) -> tuple | None:
+    """A field whose value is a list of numbers (229 rows read "0, 0.15 → —", "0, 500, 1250, 3000, 6000 → 0, 800, …";
+    review 2026-10-05): a [min, max] pair as a range ("0–0.15", "±0.4 → none"), equal lists by the positions that
+    moved ("#2 500 → 800 · #3 1250 → 1600"); ('steps', text) or ('pair', old, new), None for anything else."""
+    a, b = _numbers(old), _numbers(new)
+    if a is None and b is None:
+        return None
+    pair = _RANGE_PAIR.search(path.rsplit('.', 1)[-1] if '.' in path else path)
+    if pair and all(x is None or len(x) == 2 for x in (a, b)):
+        return ('pair', _range_text(a) if a else old, _range_text(b) if b else new)
+    if a is not None and b is not None and len(a) == len(b):
+        moved = [f'#{i + 1} {x} → {y}' for i, (x, y) in enumerate(zip(a, b)) if x != y]
+        if moved:
+            return ('steps', ' · '.join(moved))
+    if a is not None and b is not None and len(b) > len(a) and b[:len(a)] == a:
+        return ('steps', ' · '.join(f'new #{i + 1} {y}' for i, y in enumerate(b) if i >= len(a)))
+    return None
+
+
+def shown_pair(c: dict) -> tuple:
+    """A row's values as the page prints them — ONE function for the rows (vals_html), the hover cards (vals_text)
+    and the change matrices' cards (dynamics_page._sample_values); review 2026-10-05: three hand copies disagreed
+    on 840 rows ("no limit → −20s" where the row said "−1s → −20s", "castable while busy" for "castable during
+    other actions"). Returns ('none',), ('list', old, new) for a folded bonus list or tier swap, ('flags',
+    [(text, side class or '')]) for a flag set's moves, else ('pair', old, new)."""
+    if c.get('cat') in ('visual', 'audio', 'ui') or str(c.get('path', '')).startswith('@'):
+        return ('none',)
     op = c.get('op')
-    if c.get('cat') in ('visual', 'audio', 'ui'):
-        return f'<span class="vals muted">{esc(op)}</span>'
-    if str(c.get('path', '')).startswith('@'):
-        return ''                 # "Added to the game files": the event itself, no value (it read "· —")
-    old_s = c.get('old_s', c.get('old'))
-    new_s = c.get('new_s', c.get('new'))
-    if op == 'rework':            # folded tier swap: bonus lists, may wrap
-        return (f'<span class="vals wrap"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
-                f'<span class="new">{esc(new_s)}</span></span>')
-    if c.get('bonus_list'):       # folded corrupted version: one list of bonuses, may wrap
-        return f'<span class="vals wrap"><span class="{"new" if op == "add" else "old"}">{esc(new_s or old_s)}</span></span>'
+    old_s, new_s = c.get('old_s', c.get('old')), c.get('new_s', c.get('new'))
+    if op == 'rework' or c.get('bonus_list'):
+        return ('list', old_s or '', new_s or '')
     path = str(c.get('path') or '')
-    fl = flags_html(old_s, new_s, path)
-    if fl:
-        return fl
-    # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop
-    old_s, new_s = (flag_rules.enum_words(path, v) or v for v in (old_s, new_s))
+    if path.endswith(EXCLUDED):          # a Corrupted item's penalties by the game's names
+        old_s, new_s = (penalty_words(v) if v not in (None, '', '—') else v for v in (old_s, new_s))
+    d = flag_rules.diff(path, old_s, new_s) if path else None
+    if d is not None and (d[0] or d[1]):
+        return ('flags', [(f'+{w}', _SIDE_CLASS[s]) for w, s in d[0]] + [(f'−{w}', _SIDE_CLASS[-s]) for w, s in d[1]])
+    a, b = _flags(old_s), _flags(new_s)
+    if a is not None or b is not None:
+        none = ('', '—', None)                    # an absent side is no flag ("−—" on 41 rows)
+        a = set(a or ([old_s] if old_s not in none else []))
+        b = set(b or ([new_s] if new_s not in none else []))
+        return ('flags', [(f'+{_short_flag(f)}', 'add') for f in sorted(b - a)]
+                + [(f'−{_short_flag(f)}', 'rem') for f in sorted(a - b)])
+    lists = number_lists(path, old_s, new_s)
+    if lists:
+        return lists
+    # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop; the
+    # sentinels judge each side against the other's value BEFORE either is replaced
+    old_s, new_s = (flag_rules.enum_words(path, v) or ('—' if flag_rules.enum_none(path, v) else v)
+                    for v in (old_s, new_s))
     old_s, new_s = _clip(old_s), _clip(new_s)
     old_s, new_s = _sentinel(old_s, c, new_s), _sentinel(new_s, c, old_s)
     if not c.get('unit_switch'):     # "30% → 2": Valve dropped the unit, the old one is not the new one's
         old_s, new_s = _same_unit(old_s, new_s)
+    return ('pair', old_s, new_s)
+
+
+def vals_html(c: dict) -> str:
+    op = c.get('op')
+    if c.get('cat') in ('visual', 'audio', 'ui'):
+        return f'<span class="vals muted">{esc(op)}</span>'
+    v = shown_pair(c)
+    if v[0] == 'none':
+        return ''                 # "Added to the game files": the event itself, no value (it read "· —")
+    if v[0] == 'list':
+        if op == 'rework':        # folded tier swap: bonus lists, may wrap
+            return (f'<span class="vals wrap"><span class="old">{esc(v[1])}</span><span class="arrow">→</span>'
+                    f'<span class="new">{esc(v[2])}</span></span>')
+        # folded Corrupted / Enhanced version: one list of bonuses, may wrap
+        return f'<span class="vals wrap"><span class="{"new" if op == "add" else "old"}">{esc(v[2] or v[1])}</span></span>'
+    if v[0] == 'steps':            # a list by the positions that moved (number_lists)
+        return f'<span class="vals wrap"><span class="new">{esc(v[1])}</span></span>'
+    if v[0] == 'flags':
+        # a listed bit's chip takes the colour of the side it moved the owner to (pipeline.flags)
+        return '<span class="vals flags">' + ''.join(
+            f'<span class="flag {"add" if w.startswith("+") else "rem"}{"" if s in ("add", "rem") else " " + s}">'
+            f'{esc(w)}</span>' for w, s in v[1]) + '</span>'
+    old_s, new_s = v[1], v[2]
     # rows without a % pill keep its slot (.pct-pad, shown only in change rows), so the new
     # values of every row end on one vertical line
     if op == 'add':
@@ -426,25 +578,21 @@ def vals_html(c: dict) -> str:
 
 
 def vals_text(c: dict) -> tuple[str, str]:
-    """(old, new) as plain text the way vals_html prints them — names for ids, "no limit", the unit on both
-    sides, a flag list as its +added / −removed — for the hover cards (scripts.js renders them)."""
-    if c.get('cat') in ('visual', 'audio', 'ui') or str(c.get('path', '')).startswith('@'):
+    """(old, new) as plain text the way vals_html prints them (`shown_pair`) — names for ids, "no limit", the unit
+    on both sides, a flag list as its +added / −removed — for the hover cards (scripts.js renders them)."""
+    v = shown_pair(c)
+    if v[0] == 'none':
         return '', ''
-    op = c.get('op')
-    old_s, new_s = c.get('old_s', c.get('old')), c.get('new_s', c.get('new'))
-    if op == 'rework' or c.get('bonus_list'):
-        return _clip(old_s) if old_s else '', _clip(new_s) if new_s else ''
-    a, b = _flags(old_s), _flags(new_s)
-    if a is not None or b is not None:
-        none = ('', '—', None)
-        a = set(a or ([old_s] if old_s not in none else []))
-        b = set(b or ([new_s] if new_s not in none else []))
-        moved = [f'+{_short_flag(f)}' for f in sorted(b - a)] + [f'−{_short_flag(f)}' for f in sorted(a - b)]
-        text = ' '.join(moved)
+    if v[0] == 'list':
+        return _clip(v[1]) if v[1] else '', _clip(v[2]) if v[2] else ''
+    if v[0] == 'steps':
+        return '', v[1] if len(v[1]) <= LONG_VALUE else v[1][:LONG_VALUE - 1] + '…'
+    if v[0] == 'flags':
+        text = ' '.join(w for w, _ in v[1])
         return '', text if len(text) <= LONG_VALUE else text[:LONG_VALUE - 1] + '…'
-    old, new = _same_unit(_sentinel(_clip(old_s)), _sentinel(_clip(new_s)))
+    op = c.get('op')
     if op == 'add':
-        return '', new
+        return '', v[2]
     if op == 'remove':
-        return old, ''
-    return old, new
+        return v[1], ''
+    return v[1], v[2]

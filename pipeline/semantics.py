@@ -145,9 +145,12 @@ def direction(path: str, old, new, kind: str = '', drawback: bool = False,
                 if x == y:
                     return 'changed', pct
                 return ('buff' if (y > x) == (pol_ > 0) else 'nerf'), pct
-        if float(old) == float(new):
+        x, y = float(old), float(new)
+        if x == y:
             return 'changed', pct
-        return ('up' if float(new) > float(old) else 'down'), pct
+        # UP / DOWN say which way the number went, so the percent goes with its sign: "-35 → -50 DOWN +42.9%"
+        # contradicted itself on 76 unit rows (review 2026-10-05); it is -42.9%
+        return ('up' if y > x else 'down'), None if x == 0 else (y - x) / abs(x) * 100.0
     pol = polarity(path)
     if pol > 0 and path.startswith('m_mapStartingStats.'):
         # a hero's own base stat counts with its sign: a resist below zero is a penalty, so Pocket's
@@ -183,7 +186,9 @@ _ARMOR_INVEST = re.compile(r'^m_MapModCostBonuses\.EItemSlotType_Armor\W.*\.flBo
 # a property that hits the enemy, written as a negative: a bigger (more negative) tier bonus is a stronger
 # debuff even when the base value is 0 (Aura of Suffering T1 Enemy Dash Slow -25 -> -22 is a nerf)
 _ENEMY_DEBUFF = re.compile(r'(enemy|slow|shred|debuff|armordamagereduction|resistreduction)', re.I)
-SHARED_KINDS = ('trooper', 'building', 'neutral', 'unit', 'global')
+# (a 'helper' — the Hideout's copy of Sinner's Sacrifice, the bots — is a unit too: its rows read BUFF / NERF next
+# to the same rows UP / DOWN on the unit's page; review 2026-10-05)
+SHARED_KINDS = ('trooper', 'building', 'neutral', 'unit', 'global', 'helper')
 # fields of shared objects with a side after all: the player who takes the camp / pickup / respawn
 PLAYER_SIDE = (
     (re.compile(r'GoldReward|SoulReward|Bounty', re.I), 1),
@@ -273,7 +278,12 @@ FRACTION = 'fraction'      # a share written 0..1: shown ×100 with "%"
 # shares the game writes as fractions and the notes as percents: "Move speed while shooting 55% -> 70%"
 # read "0.55 -> 0.7", Boss Damage Scale "0.5 -> 0.2" (audit 2026-10-02, AB14)
 _FRACTION_FIELD = re.compile(r'^m_fl(ShootMoveSpeedPercent|ZoomMoveSpeedPercent|DamageFalloffEndScale|'
-                             r'BossDamageScale|NPCDamageScale|InstantGoldPercentage)$')
+                             r'BossDamageScale|NPCDamageScale|InstantGoldPercentage|'
+                             # the healing powerup's share of max health (review 2026-10-05: read "0.02")
+                             r'MaxHealthRegenPercent)$')
+# ability properties Valve keeps as fractions and the notes print as percents: Puddle Punch's later hits (2026-03-06
+# "Fourth Hit Damage Percentage → 0.26" is the notes' 26%)
+_FRACTION_PROP = re.compile(r'^(Second|Third|Fourth)HitDamagePercentage$')
 # engine floats Valve writes in metres / m/s already (the rope's climb speed 13 -> 14 in the 2024-09-12
 # notes; the dash's drag thresholds 12 / 14 m/s against a 10 m dash in 0.68 s)
 _ALREADY_MPS = re.compile(r'(ClimbSpeed|AirSpeedFor\w*Drag)')
@@ -412,6 +422,30 @@ UNIT_FIELDS = {
     'm_flSightRangePlayers': ('Sight range vs heroes', True),
 }
 
+# a trooper's old flat fields for its fight against a boss ("T1 Boss DPS Max Resist", 859 rows on 26 pages read
+# engine names; review 2026-10-05): by the boss's name, in the words the m_VS* structs that replaced them get on
+# the same pages ("Base DPS vs Guardian"), so old and new rows read alike. T1 = Guardian, T2 = Walker, T3 = Patron,
+# the barracks' boss = the Base Guardian (the site's name of npc_barrack_boss)
+_BOSS_FIELD = re.compile(r'^m_fl(Attack)?(T1Boss|T2Boss|T3Boss(?:Phase2)?|BarrackBoss|BarrackGuardian)(\w+)$')
+_BOSS_NAME = {'T1Boss': 'Guardian', 'T2Boss': 'Walker', 'T3Boss': 'Patron', 'T3BossPhase2': 'Patron Phase 2',
+              'BarrackBoss': 'Base Guardian', 'BarrackGuardian': 'Base Guardian'}
+# what the field is: (label, meters, unit)
+_BOSS_WHAT = {'DPS': ('DPS', False, ''), 'DPSBase': ('Base DPS', False, ''), 'DPSMax': ('End DPS', False, ''),
+              'DPSMaxTimeInSeconds': ('End DPS Time', False, 's'),
+              'DPSBaseResist': ('Damage Resist at start', False, '%'),
+              'DPSMaxResist': ('Damage Resist at most', False, '%'),
+              'DPSMaxResistTimeInSeconds': ('Time to most Damage Resist', False, 's'),
+              'DamageResistPct': ('Damage Resist', False, '%'), 'MaxRange': ('Max Range', True, '')}
+
+
+def boss_field(leaf: str) -> dict | None:
+    """{label, meters, unit} of a trooper's flat field against a boss (`_BOSS_FIELD`), else None."""
+    m = _BOSS_FIELD.match(leaf)
+    if not m or m.group(3) not in _BOSS_WHAT:
+        return None
+    label, meters, unit = _BOSS_WHAT[m.group(3)]
+    return {'label': f'{label} vs {_BOSS_NAME[m.group(2)]}', 'meters': meters, 'unit': unit}
+
 # 'm_' always goes; a Hungarian type prefix goes when a capital follows ('m_flBonus', 'flBonus',
 # 'nGoldThreshold'); 'm_projectileInfo' kept its 'm ' before (audit 2026-10-01: 193 labels)
 _PREFIX_RE = re.compile(r'^(?:m_)?(?:(?:fl|n|i|b|str|e|vec|map|un|s|v|h|ar|bits|sz)(?=[A-Z]))?')
@@ -430,7 +464,14 @@ _GAME_WORDS = ((re.compile(r'\bBullet Armor Damage (Resist|Reduction)\b'), 'Bull
                (re.compile(r'\bBullet Armor\b'), 'Bullet Resist'),
                (re.compile(r'\bTech Armor\b'), 'Spirit Resist'),
                (re.compile(r'\bTech\b'), 'Spirit'),
-               (re.compile(r'\bVerticall\b'), 'Vertical'))          # Valve's typo in a weapon field (12 rows)
+               (re.compile(r'\bVerticall\b'), 'Vertical'),          # Valve's typo in a weapon field (12 rows)
+               # field names in words a reader knows (review 2026-10-05): "Attack Time Phase01", "Look Ahead Dist",
+               # "Ao E Modifier", "Npc Aiming", Valve's "GroundFrictioNpercentage"
+               (re.compile(r'\bPhase ?0?(\d)\b'), r'Phase \1'),
+               (re.compile(r'\bDist\b'), 'Distance'),
+               (re.compile(r'\bNpc(s?)\b'), r'NPC\1'),
+               (re.compile(r'\bAo E\b'), 'AoE'),
+               (re.compile(r'\bFrictio Npercentage\b'), 'Friction Percentage'))
 
 
 def game_words(text: str) -> str:
@@ -529,7 +570,7 @@ def prop_sign(tok: dict[str, str], prop: str, token: str | None = None) -> str |
 # "Bullet Resist reduction (Heavy)"); a label that already says so stays
 _SAYS_LESS = re.compile(r'(slow|reduc|decreas|penalt|less\b|lower)', re.I)
 _MOVE_SPEED = re.compile(r'\bMove ?[Ss]peed\b|\bMovespeed\b|\bMovement Speed\b')
-_TIER_PREFIX = re.compile(r'^((?:T\d|Enhanced|Upgrade): )')
+_TIER_PREFIX = re.compile(r'^((?:T\d|Enhanced|Upgrade|Corrupted): )')
 
 
 def enemy_label(label: str, prop: str) -> str:
@@ -603,10 +644,15 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', s
     word = SCALE_STAT_WORDS.get(scaled_by or '')
     if word and '(spirit scaling' in d['label']:
         d = {**d, 'label': d['label'].replace('(spirit scaling', f'({word} scaling')}
-    if not d.get('unit') and d.get('meters') is False and d['group'] in _TIMED_GROUPS:
+    # a plain T1-T3 bonus to a time a tooltip gives no unit is seconds like the time itself (Doorman's "T3: Late
+    # Checkout Cooldown 13 → 15" is the notes' 10s → 13s; review 2026-10-05) — not a scaling coefficient
+    plain_tier = d['group'] == 'tier' and '·' not in d['label'] and 'scaling' not in d['label'] \
+        and '(% of base)' not in d['label']
+    if not d.get('unit') and d.get('meters') is False and (d['group'] in _TIMED_GROUPS or plain_tier):
         name = d.get('prop') or re.sub(r'\{.*\}|\[\d+\]', '', path.rsplit('.', 1)[-1])
-        if _TIME_FIELD.search(name):
+        if _TIME_FIELD.search(name) and not _NOT_SECONDS.search(name):
             d = {**d, 'unit': 's'}
+    d = _percent_word(d)
     # "Dash Jump Distance (m) 18m → 19m": the value carries the unit, the label need not say it
     if ' (m)' in d['label'] and (d.get('meters') in (METRES, True) or d.get('unit') == 'm'):
         d = {**d, 'label': d['label'].replace(' (m)', '')}
@@ -616,9 +662,35 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', s
 
 
 # a time the game keeps in seconds but no tooltip names (advisor round 4: Fire Interval, Reload Time,
-# Bullet Lifetime… 1,867 rows without "s"); a T1-T3 bonus or a corrupted value keeps its own unit
-_TIME_FIELD = re.compile(r'(Time|Duration|Delay|Interval|Cooldown|Lifetime|InSeconds)$')
+# Bullet Lifetime… 1,867 rows without "s"); a T1-T3 bonus or a corrupted value keeps its own unit. A time with
+# what it is of after it is one too ("Cooldown On Hit", "Time To Give Up", "Failed Execute Cooldown Penalty": 147
+# rows without "s", review 2026-10-05)
+_TIME_FIELD = re.compile(r'(Time|Duration|Delay|Interval|Cooldown|Lifetime|InSeconds)'
+                         r'(On[A-Z][a-z]\w*|To[A-Z][a-z]\w*|Penalty)?$')
+# …but not minutes, nor a distance or an amount the name ends with ("Cast Delay Max Dist 40" is a length)
+_NOT_SECONDS = re.compile(r'(Mins?|Minutes|Dist|Distance|Range|Radius|Percent|Pct|Scale|Mult|Count)$|InMinutes')
 _TIMED_GROUPS = ('weapon', 'unit', 'other', 'property', 'powerup')
+
+# a share whose field name says so and no tooltip gives a unit (review 2026-10-05: "Non Hero Heal Pct — → 40",
+# "Boss Damage Percent Outgoing 40 → 30", 336 + 193 rows): a trailing word is the value's unit; inside a label it
+# becomes "%" ("Damage Growth % Per Min"). The value is not scaled: "Cooldown Reduction Percentage 0.75" is 0.75%
+# (the Golden Statue), and a scaling coefficient is never a percent ("Deal Max Health Damage Pct (spirit scaling)
+# 0.035"). A share kept as a fraction is FRACTION by its field (`_FRACTION_FIELD`, `_FRACTION_PROP`).
+_PCT_TAIL = re.compile(r'\s+(?:Pct|Percent|Percentage)$')
+_PCT_WORD = re.compile(r'\b(?:Pct|Percent|Percentage)\b')
+
+
+def _percent_word(d: dict) -> dict:
+    label = d['label']
+    if d.get('src') == 'loc' or not _PCT_WORD.search(label) or 'scaling' in label:
+        return d
+    if _PCT_TAIL.search(label):
+        if d.get('meters') == FRACTION or d.get('unit') == '%':
+            return {**d, 'label': _PCT_TAIL.sub('', label)}            # the value says % already
+        if not d.get('unit') and d.get('meters') is False:
+            return {**d, 'label': _PCT_TAIL.sub('', label), 'unit': '%'}
+        return d
+    return {**d, 'label': _PCT_WORD.sub('%', label)}
 
 
 def _prop_label(tok: dict[str, str], prop: str, entity: str = '', token: str | None = None) -> tuple[str, str]:
@@ -639,10 +711,12 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]
-        label, src = _prop_label(tok, prop, entity)
-        # a corrupted bonus carries its property's unit like any bonus ("Incoming Healing -25" had none)
+        label, src = _prop_label(tok, prop, entity, token)
+        # a corrupted bonus carries its property's unit like any bonus ("Incoming Healing -25" had none), its
+        # tooltip name (m_strLocTokenOverride), a speed written "2m" reads m/s and an enemy slow its minus, as a
+        # T1-T3 bonus does (review 2026-10-05: "Sprint Speed +4.25m", Ultimate Burst's slow read "Move Speed")
         return {'label': f'Corrupted: {label}', 'meters': False, 'group': 'corrupted', 'prop': prop, 'src': src,
-                'unit': prop_unit(tok, prop)}
+                'unit': prop_unit(tok, prop, token), 'speed_m': speed_prop(prop), 'sign': prop_sign(tok, prop, token)}
     if path.startswith('m_CorruptedItemInfo.'):
         return {'label': 'Corrupted: ' + context_label(path.split('.', 1)[1], 2, tok), 'meters': False, 'group': 'corrupted',
                 'src': 'fallback'}
@@ -652,7 +726,8 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
         label, src = _prop_label(tok, prop, entity, token)
         if rest == 'm_strValue':
             unit = prop_unit(tok, prop, token)
-            return {'label': label, 'meters': SPEED if prop_speed(prop, unit) else False, 'group': 'property',
+            meters = FRACTION if not unit and _FRACTION_PROP.match(prop) else SPEED if prop_speed(prop, unit) else False
+            return {'label': label, 'meters': meters, 'group': 'property',
                     'prop': prop, 'unit': unit, 'speed_m': speed_prop(prop), 'src': src,
                     'sign': prop_sign(tok, prop, token)}
         if rest == 'm_strStreetBrawlValue':
@@ -733,6 +808,9 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
         return plain
     leaf = path.rsplit('.', 1)[-1]
     leaf = re.sub(r'\{.*\}|\[\d+\]', '', leaf)
+    boss = boss_field(leaf) if '.' not in path else None
+    if boss:
+        return {**boss, 'group': 'unit'}
     if leaf in UNIT_FIELDS:
         label, meters = UNIT_FIELDS[leaf]
         parent = path.rsplit('.', 2)[-2] if path.count('.') >= 1 else ''
@@ -745,7 +823,14 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
         if m:
             label = f'Weak point ({m.group(1)}): {label[:1].lower() + label[1:]}'
         return {'label': label, 'meters': meters, 'group': 'unit'}
-    return {'label': context_label(path, tok=tok), 'meters': engine_unit(leaf), 'group': 'other', 'src': 'fallback'}
+    # a modifier's resist value is a percent (Walker's passive "Bullet Resist 25 → 35"; review 2026-10-05) — not its
+    # per-hero reduction or a range
+    resist = _RESIST_VALUE.search(path)
+    return {'label': context_label(path, tok=tok), 'meters': engine_unit(leaf), 'group': 'other', 'src': 'fallback',
+            **({'unit': '%'} if resist else {})}
+
+
+_RESIST_VALUE = re.compile(r'm_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_)?[A-Z0-9_]*_RESIST\}\.m_value$')
 
 
 # ---- plain words for structures the game never labels (audit 2026-10-01) ----------------------
@@ -825,8 +910,11 @@ def _segment(seg: str, tok: dict[str, str] | None = None) -> str:
     if not field and _ID_KEY.match(name) and _id_name(name, tok):
         text = _id_name(name, tok)            # an item / ability id as a segment: its name
     else:
+        # a key without "m_" in CamelCase reads as words too ("CritDamageBonusScale", "fl_MaxExtraGravityScale",
+        # "ResourceType Blood"; review 2026-10-05)
+        bare = re.sub(r'^(?:fl|mp)_', '', _ENUM_PREFIX_RE.sub('', name))
         text = humanize(_ENUM_PREFIX_RE.sub('', name)) if field else \
-            game_words(_ENUM_PREFIX_RE.sub('', name).replace('_', ' ').strip())
+            game_words(_CAMEL_RE.sub(' ', bare.replace('_', ' ')).strip())
     if idx is not None:
         text += f' #{int(idx) + 1}'
     if key:
@@ -863,7 +951,11 @@ def _key_text(key: str, tok: dict[str, str] | None = None) -> str:
 CONTAINER_WORDS = {'m_projectileInfo': 'Projectile', 'm_mapAttacks': '', 'EAttackType_Heavy': 'Heavy melee',
                    'EAttackType_Light': 'Light melee', 'EAttackType_HeavyAir': 'Air heavy melee',
                    'EAttackType_Slide': 'Slide melee', 'm_deploymentInfo': 'Deploy', 'm_sModifer': 'Effect',
-                   'm_sModifier': 'Effect', 'm_ModifierProvidedByAura': 'Aura', 'm_FriendlyAuraModifier': 'Ally aura',
+                   # the effect an aura puts on who stands in it: its container says nothing ("Enemy Freeze Aura ›
+                   # Modifier Provided By Aura › …", 148 rows; review 2026-10-05) — the segment goes, and its
+                   # duration is how long the effect stays after leaving
+                   'm_sModifier': 'Effect', 'm_ModifierProvidedByAura': '',
+                   'm_flModifierProvidedByAuraDuration': 'Lingers after leaving', 'm_FriendlyAuraModifier': 'Ally aura',
                    'm_ObjectiveRegen': 'Regen', 'm_EnemyTrooperDamageReduction': 'Vs troopers',
                    # a unit's always-on modifier, by its id: "Intrinsic Modifiers boss intrinsic › …" (round 4)
                    'm_vecIntrinsicModifiers': 'Passive',
@@ -880,6 +972,8 @@ FLAG_FIELDS = {'m_AbilityBehaviorsBits': 'Behaviour', 'm_nAbilityBehaviors': 'Be
                'm_iAuraSearchType': 'Aura affects', 'm_eItemSlotType': 'Item slot', 'm_eAbilityActivation': 'Activation',
                # a crowd control that wears off faster on a target hit by it again (Air Drop's grab, 2026-09-29)
                'm_bDurationReducibleByCrowdControlDiminish': 'Reduced by CC diminishing returns'}
+_CONTAINER_WORDS_LOW = {k.lower(): v for k, v in CONTAINER_WORDS.items()}
+_FLAG_FIELDS_LOW = {k.lower(): v for k, v in FLAG_FIELDS.items()}
 _SCRIPT_VALUE = re.compile(r'^m_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_)?([A-Z0-9_]+)[^}]*\}$')
 # the value leaf under a script / modifier value ("Effect › Modifier Values MODIFIER_VALUE_STAMINA ›
 # Modifier Value" on powerups until 2026-10-02)
@@ -894,10 +988,12 @@ def _context_segment(seg: str, tok: dict[str, str] | None = None, container: boo
     if m:                                    # what the modifier changes: "Cooldown Reduction Percentage"
         return game_words(m.group(1).replace('_', ' ').title())
     base = re.sub(r'[\[{].*$', '', seg)
-    if base in FLAG_FIELDS:
-        return FLAG_FIELDS[base]
-    if base in CONTAINER_WORDS:
-        return CONTAINER_WORDS[base]
+    # Valve spells a field one way here, another there (m_modifierProvidedByAura / m_ModifierProvidedByAura)
+    low = base.lower()
+    if low in _FLAG_FIELDS_LOW:
+        return _FLAG_FIELDS_LOW[low]
+    if low in _CONTAINER_WORDS_LOW:
+        return _CONTAINER_WORDS_LOW[low]
     if container and base.startswith('m_') and _MODIFIER_TAIL.search(base):
         # a container named after its modifier says what it is without the word: "Grab › Duration", not
         # "Grab Modifier › Duration" (281 rows on 46 pages, audit 2026-10-04)
@@ -920,7 +1016,8 @@ def context_label(path: str, depth: int = 3, tok: dict[str, str] | None = None) 
         s = _context_segment(p, tok, container=i < len(tail) - 1)
         if s and (not shown or shown[-1] != s):
             shown.append(s)
-    return ' › '.join(shown)
+    # every segment a dropped container (an aura's effect alone): its own name, not nothing
+    return ' › '.join(shown) or humanize(re.sub(r'[\[{].*$', '', parts[-1]) if parts else path)
 
 
 _RAW_NUM = re.compile(r'^\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*(m|s|%|u)?\s*$')
@@ -994,6 +1091,26 @@ def metres_pair(old, new) -> tuple:
     if ub == '' and b not in SENTINELS and b != 0:
         return old, in_metres(b)
     return old, new
+
+
+_UNITS_ALWAYS = re.compile(r'^m_mapAbilityProperties\.ChannelMoveSpeed\.m_strValue$')
+
+
+def units_when_bare(path: str, old, new) -> tuple:
+    """(old, new) of a field whose bare numbers are engine units in every build: Channel Move Speed was written in
+    units until 2025-08-18 and in "m" after, so a bare side is units even when the other side carries no "m" —
+    "Channel Move Speed 50 → no limit" next to "1.27m/s → 1.3m/s" in the same band (24 rows, review 2026-10-05)."""
+    if not _UNITS_ALWAYS.match(path):
+        return old, new
+
+    def conv(v):
+        if isinstance(v, bool) or v is None:
+            return v
+        m = _RAW_NUM.match(str(v))
+        if not m or m.group(2) or float(m.group(1)) in SENTINELS or float(m.group(1)) == 0:
+            return v
+        return f'{float(f"{float(m.group(1)) / UNITS_PER_METER:.4g}"):g}m'
+    return conv(old), conv(new)
 
 
 def sign_flip(old, new) -> bool:

@@ -179,6 +179,14 @@ def enum_words(path: str, v) -> str | None:
 _NO_VALUE = re.compile(r'^(?:invalid|none|null|unset|count)$', re.I)
 
 
+def enum_none(path: str, v) -> bool:
+    """The enum's "no value" (CITADEL_ABILITY_TARGETING_LOCATION_NONE): a page prints "—", not the engine words
+    ("unit → Ability Targeting Location None", review 2026-10-05)."""
+    rx = ENUMS.get(leaf(path))
+    m = rx.match(str(v)) if rx and v is not None else None
+    return bool(m and _NO_VALUE.match(m.group(1)))
+
+
 def _truthy(v) -> bool:
     return str(v).strip().lower() in ('true', '1', 'yes')
 

@@ -7,22 +7,55 @@ from __future__ import annotations
 import difflib
 import re
 from contextlib import contextmanager
+from contextvars import ContextVar
 
 from pipeline import flags as flag_rules
 
 from .common import esc, mark, plural, visual
-from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_corrupted, fold_tier_swaps, not_in_notes, shown_value,
+from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold_versions, not_in_notes, shown_value,
                      sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
 from .shared_rows import is_every
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
-             'hidden', 'unreleased', 'unannounced')
+             'hidden', 'unreleased', 'unannounced', 'unmatched')
 
 
 def is_hidden(changes: list[dict]) -> bool:
     """Something here was not in the patch notes (the eye; `render.NOT_IN_NOTES`)."""
     return any(c.get('status', 'hidden') in NOT_IN_NOTES for c in changes)
+
+
+# the builds of the patch whose rows are being written: (the window's first build, build -> date); set by
+# `patch_builds` around one band (history_view), read by `change_row` for the eye's tooltip
+_PATCH_BUILDS: ContextVar[tuple[int, dict[int, str]] | None] = ContextVar('patch_builds', default=None)
+
+
+@contextmanager
+def patch_builds(builds: list[dict]):
+    """While a patch's rows are written: its builds ([{build, date}], oldest first), so a change that shipped in a
+    later build of the window than the patch itself says so (a silent hotfix: 1,389 rows; review 2026-10-05)."""
+    got = sorted((b for b in builds or () if b.get('build')), key=lambda b: b['build'])
+    tok = _PATCH_BUILDS.set((got[0]['build'], {b['build']: str(b.get('date') or '')[:10] for b in got})
+                            if got else None)
+    try:
+        yield
+    finally:
+        _PATCH_BUILDS.reset(tok)
+
+
+def hidden_tip(c: dict) -> str | None:
+    """The eye's words for one row: the default, or when it came in a later build of the patch's window than the
+    patch itself, "shipped silently <date>, build N" (the proof: that build's page and the tracker's commit)."""
+    ctx = _PATCH_BUILDS.get()
+    if ctx is None or c.get('status') != 'hidden':
+        return None
+    first, dates = ctx
+    builds = [b for b in c.get('builds') or () if isinstance(b, int)]
+    if not builds or min(builds) == first or min(builds) not in dates:
+        return None
+    b = min(builds)
+    return f'Not in the patch notes — shipped silently {dates[b]}, build {b}'
 
 
 def card_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], sub: str = '', trail: str = '',
@@ -62,9 +95,12 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
     return f'<div class="{cls}">{plate}<span class="nm">{esc(name)}</span>{counters}</div>'
 
 
-def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '') -> str:
-    m = mark(status) if status in ROW_MARKS else ''
-    hid = ' is-hidden' if status in NOT_IN_NOTES else ''
+def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
+        tip: str | None = None) -> str:
+    m = mark(status, tip) if status in ROW_MARKS else ''
+    # a row with words of its own on the eye (hidden_tip: "shipped silently …") keeps the eye where a band's rows
+    # show none (styles.css .all-hidden): the words are the proof
+    hid = (' is-hidden' if status in NOT_IN_NOTES else '') + (' late' if tip and m else '')
     return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
             f'<span class="tg">{tag}</span><span class="tx">{text_html}</span><span class="vv">{values_html}</span></div>')
 
@@ -283,7 +319,10 @@ _PLUMBING_PATH = re.compile(
     r'\.m_b(?:IsForMidBoss|KeepMaximumDurationOnRefresh|DurationAffectedByEffectiveness|DurationCanBeTimeScaled|'
     r'BuildupAffectedByEffectiveness|IsBuildup|RequiresTargetFilter|EndCreatedSequenceOnRemove|'
     r'RemoveProvidedModifierOnAuraRemoval|NetworkValuesForStatsPreview)$'
-    r'|^m_mapDependentAbilities\.|(?:^|\.)m_fl(?:Preview)?ModelScale$|Observer(?:Origin|Pitch)$|^m_deploymentInfo\.m_b')
+    r'|^m_mapDependentAbilities\.|(?:^|\.)m_fl(?:Preview)?ModelScale$|Observer(?:Origin|Pitch)$|^m_deploymentInfo\.m_b'
+    # which property a regen reads, and a property block's wait for an upgrade (review 2026-10-05: "Ability
+    # Properties Block #1 › Ability Properties BonusBulletSpeedPercent › Requires Ability Upgrade yes → —")
+    r'|m_strRegenAbilityPropertyName$|AbilityPropertiesBlock.*\.m_bRequiresAbilityUpgrade$')
 
 
 def is_engine(c: dict) -> bool:
@@ -387,7 +426,7 @@ def _player_facing(changes: list[dict]) -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for c in changes:
         groups.setdefault(':'.join(str(c.get('key') or '').split(':', 2)[:2]), []).append(c)
-    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(fold_corrupted(merge_renames(g))))
+    return [c for g in groups.values() for c in combine_levels(fold_tier_swaps(fold_versions(merge_renames(g))))
             if not is_engine(c) and not is_noop(c)]
 
 
@@ -432,7 +471,8 @@ def change_row(c: dict) -> str:
     # a replaced tier lists both bonus sets: they go on their own full-width line under the
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
-    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra)
+    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra,
+               tip=hidden_tip(c))
 
 
 def shared_chip(c: dict) -> str:
@@ -639,7 +679,13 @@ def _hint(label: str, prop: str, skip: frozenset[str] | set[str] = _HINT_SKIP) -
 
     def said(w: str) -> bool:               # "heal" is in "Healing"
         return w in have or any(len(w) >= 4 and (h.startswith(w) or w.startswith(h)) for h in have if len(h) >= 4)
-    return ' '.join(w for w in (x.lower() for x in _CAMEL.findall(prop)) if not said(w) and w not in skip)
+    return ' '.join(w for w in (x.lower() for x in _CAMEL.findall(prop))
+                    if not said(w) and w not in skip and w not in _HINT_NEVER)
+
+
+# words a hint never is, even when nothing else tells two namesakes apart ("Incoming Damage Deferred · pct";
+# review 2026-10-05): the unit or the container a field name carries, not what it is about
+_HINT_NEVER = frozenset({'pct', 'percent', 'percentage', 'value', 'values', 'fl', 'str', 'm'})
 
 
 def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = None, every_href=None) -> str:
@@ -652,7 +698,7 @@ def entity_rows(changes: list[dict], known: dict[tuple[str, str], str] | None = 
     if every:
         own = [c for c in changes if not is_every(c)]
         return (entity_rows(own, known) if own else '') + every_rows(every, every_href)
-    rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+    rows = disambiguate([c for c in sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
                          if not is_noop(c) and not is_engine(c)], known)
     if len(rows) > ADDED_KEY_LIMIT and all(c.get('op') == 'add' for c in rows):
         keep, _ = _added_split(rows)
@@ -670,15 +716,27 @@ def every_rows(changes: list[dict], every_href=None) -> str:
     page only: folded on every hero page they grew heroes/ from 13 to 37 MB (Haze 295 → 755 KB; review
     2026-10-05). Counted apart from the entity's own changes (history_view); `shr-all`: no tag or eye filter keeps
     the row, no band recount counts it (scripts.js hist-filter)."""
-    from .game_systems import place_all_row, system
-    rows = [c for c in sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+    rows = [c for c in sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
             if not is_noop(c) and not is_engine(c)]
-    by_sys: dict[str, list[dict]] = {}
+    return every_links(rows, every_href)
+
+
+def every_key(c: dict) -> tuple[str, str]:
+    """(Game system, noun) of a row of a rule for all: one link row each, so a link names what the reader finds
+    there ("All melee attacks" never merges into "All abilities & items", review 2026-10-05)."""
+    from .game_systems import place_all_row
+    return place_all_row(str(c.get('file') or ''), c)[0], str(c.get('shared_what') or 'entities')
+
+
+def every_links(rows: list[dict], every_href=None) -> str:
+    """The link rows of rules for all, from rows already as the counters count them (`player_facing`, one per
+    rule: history_view dedupes the copies a rule leaves on each of the entity's abilities)."""
+    from .game_systems import system
+    by_sys: dict[tuple[str, str], list[dict]] = {}
     for c in rows:
-        by_sys.setdefault(place_all_row(str(c.get('file') or ''), c)[0], []).append(c)
+        by_sys.setdefault(every_key(c), []).append(c)
     out = []
-    for sid, got in by_sys.items():
-        what = got[0].get('shared_what') or 'entities'
+    for (sid, what), got in by_sys.items():
         text = f'All {esc(what)}: {plural(len(got), "change")}'
         name = esc(system(sid).name)
         go = (f' <a class="shr-go" href="{esc(every_href(sid))}">{name} ›</a>' if every_href
@@ -705,7 +763,7 @@ def behind_attr(changes: list[dict], listed: list[dict]) -> str:
 
 
 def change_rows(changes: list[dict], added: bool = False) -> str:
-    rows = sort_changes(fold_tier_swaps(fold_corrupted(merge_renames(changes))))
+    rows = sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
     if added:
         keep, rest = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden') if rows else 'hidden',

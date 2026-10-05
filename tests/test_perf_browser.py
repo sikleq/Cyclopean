@@ -1,5 +1,5 @@
 """Front-end fixes of the perf track (2026-10-05) in a real browser: site/scripts.js + styles.css on fixture
-markup. Skipped where Playwright or its Chromium is not installed (CI)."""
+markup. The `browser` fixture is tests/conftest.py's (CI installs Chromium)."""
 from __future__ import annotations
 
 import json
@@ -8,18 +8,6 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-sync_api = pytest.importorskip('playwright.sync_api')
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_api.sync_playwright() as p:
-        try:
-            b = p.chromium.launch()
-        except Exception as e:                      # no browser binary on this machine
-            pytest.skip(f'chromium not available: {e}')
-        yield b
-        b.close()
 
 
 def _open(browser, body: str, head: str = '', width: int = 1400, height: int = 900, before=None):

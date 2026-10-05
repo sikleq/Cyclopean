@@ -274,14 +274,28 @@ def interface_table(sections: list[dict]) -> str:
     return ''.join(out)
 
 
+def _patch_ents(p: dict) -> dict[str, dict]:
+    patch_ents: dict[str, dict] = {}
+    for e in p['entities']:
+        if e.get('name') and e.get('id') != '@shared':
+            patch_ents.setdefault(e['name'].strip().lower(), e)
+    return patch_ents
+
+
+def note_anchors(p: dict) -> set[str]:
+    """The ids of the entities with a card of their own in the patch page's Patch notes tab (`n-<id>`, as
+    notes_table writes them): an entity page's "patch ↗" lands on what Valve said about it."""
+    play, _ = split_sections(p['sections'])
+    patch_ents = _patch_ents(p)
+    return {ent['id'] for s in play for subject, _ in _groups(s['lines']) if subject
+            for ent in [_subject_entity(subject, patch_ents)] if ent}
+
+
 def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
     """Each Valve section under a banner; its lines as entity cards (icon, name, history strip)."""
     from .cards import card, row, sub_head
     from .trail import trail_html
-    patch_ents = {}
-    for e in p['entities']:
-        if e.get('name') and e.get('id') != '@shared':
-            patch_ents.setdefault(e['name'].strip().lower(), e)
+    patch_ents = _patch_ents(p)
     out = []
     anchors: set[str] = set()       # an entity named in two sections: its #n- anchor on the first card only
     for s in p['sections']:

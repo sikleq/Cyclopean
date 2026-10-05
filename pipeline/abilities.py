@@ -282,6 +282,57 @@ def card(aid: str, a: dict, tok: dict[str, str], kind: str, owner: str | None, f
     }
 
 
+def corrupted_penalties(generic: dict, tok: dict[str, str]) -> dict[str, str]:
+    """The game's name of each Corrupted penalty (generic_data m_vecCorruptedPenaltyDefs: m_strName -> its first
+    shown effect's m_strLocTokenOverride -> that token's label): an item's "Excluded Penalties TechDuration" is
+    "Ability Duration" (review 2026-10-05: engine names on 38 Corrupted rows)."""
+    out = {}
+    for d in generic.get('m_vecCorruptedPenaltyDefs') or []:
+        if not isinstance(d, dict) or not d.get('m_strName'):
+            continue
+        shown = [e for e in d.get('m_vecEffects') or [] if isinstance(e, dict)
+                 and str(e.get('m_bDisplay', True)).lower() not in ('false', '0')]
+        token = (shown[0].get('m_strLocTokenOverride') if shown else '') or ''
+        label = tok.get(f'{token}_label'.lower()) if token else None
+        out[d['m_strName']] = loc.plain(label) if label else humanize(d['m_strName'])
+    return out
+
+
+def last_cards(have: set[str], fmap: dict) -> dict[str, dict]:
+    """A removed item's card as it was in the last build that had it, marked `last` = [build, date] (review
+    2026-10-05: Ablative Coat's page had only its history, no values). Each such build's files are read once."""
+    from . import catalog
+    try:
+        ents = catalog.load()
+    except FileNotFoundError:
+        return {}
+    gone = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e.get('kind') == 'item'
+            and not e.get('alive') and e['id'] not in have and e.get('last')]
+    commits = {b.build: b for b in tracker.builds() if b.build is not None}
+    out: dict[str, dict] = {}
+    by_build: dict[int, list[dict]] = {}
+    for e in gone:
+        by_build.setdefault(e['last'][0], []).append(e)
+    for build, group in by_build.items():
+        b = commits.get(build)
+        if b is None:
+            continue
+        abilities = cache.vdata(b.commit, tracker.SCRIPTS + 'abilities.vdata')
+        tok = loc.tokens(b.commit)
+        generic = cache.vdata(b.commit, tracker.SCRIPTS + 'generic_data.vdata')
+        prices = generic.get('m_nItemPricePerTier') or []
+        for e in group:
+            a = abilities.get(e['id'])
+            if not isinstance(a, dict):
+                continue
+            c = card(e['id'], a, tok, 'item', None, fmap)
+            if c['item'] and c['item']['tier'].isdigit() and int(c['item']['tier']) < len(prices):
+                c['item']['cost'] = prices[int(c['item']['tier'])]
+            c['last'] = [build, b.date[:10]]
+            out[e['id']] = c
+    return out
+
+
 def build() -> dict:
     head = tracker.head_build()
     tok = loc.tokens(head.commit)
@@ -309,7 +360,10 @@ def build() -> dict:
         if c['item'] and c['item']['tier'].isdigit() and int(c['item']['tier']) < len(prices):
             c['item']['cost'] = prices[int(c['item']['tier'])]
         out[aid] = c
-    OUT.write_text(json.dumps({'build': head.build, 'abilities': out}, ensure_ascii=False, separators=(',', ':')),
+    out.update(last_cards(set(out), fmap))
+    OUT.write_text(json.dumps({'build': head.build, 'abilities': out,
+                               'penalties': corrupted_penalties(generic, tok)},
+                              ensure_ascii=False, separators=(',', ':')),
                    encoding='utf-8', newline='\n')
     print(f'{len(out)} ability/item cards -> {OUT}')
     return out

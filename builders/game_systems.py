@@ -29,6 +29,7 @@ class Part:
     id: str
     name: str
     rules: tuple[re.Pattern, ...]
+    nouns: tuple[str, ...] = ()          # a rule for every … of these targets is this part's ('melee attacks')
 
 
 @dataclass(frozen=True)
@@ -53,7 +54,8 @@ def _config() -> dict:
 def systems() -> tuple[System, ...]:
     out = []
     for s in _config()['systems']:
-        parts = tuple(Part(p['id'], p['name'], tuple(re.compile(rx) for rx in p.get('match', ())))
+        parts = tuple(Part(p['id'], p['name'], tuple(re.compile(rx) for rx in p.get('match', ())),
+                           tuple(p.get('nouns', ())))
                       for p in s['parts'])
         out.append(System(s['id'], s['name'], s.get('icon', ''), tuple(s.get('subjects', ())), parts))
     return tuple(out)
@@ -110,21 +112,39 @@ def is_decor(e: dict) -> bool:
 
 
 DECOR_FILES = ('misc.vdata', 'generic_data.vdata')
+# the designers' test objects (review 2026-10-05: "Item projectile test 01, … + 4 more" led the Shop page, "Herotest
+# orbspawner" sat on Souls): no player meets them. Not "dummy" — the Hero Labs target dummy is real
+_DEV_ID = re.compile(r'herotest|(?:^|_)test(?:_|\d|$)|projectile_test|(?:^|_)debug(?:_|$)')
+
+
+def is_dev(e: dict) -> bool:
+    return bool(_DEV_ID.search(str(e.get('id', ''))))
 
 
 def place_entity(key: str, e: dict, pages: set[str] | frozenset[str] | None = None) -> tuple[str, str] | None:
     """The Game's (system, part) of an entry no page claims; None for a claimed one or scenery. `pages`: the keys
     the hero, item and unit pages show (entities_pages.page_keys) — where the pages are built, the Game takes exactly
     the rest; without it, what the files say (`claimed`: the change matrices, the home feed)."""
-    if (key in pages if pages is not None else claimed(e)) or is_decor(e):
+    if (key in pages if pages is not None else claimed(e)) or is_decor(e) or is_dev(e):
         return None
     return place(entity_subject(key, e.get('kind'))) or ('other', 'rest')
 
 
 def place_all_row(file: str, c: dict) -> tuple[str, str]:
     """A row of a rule for every hero or ability (the level curve, every melee's heavy attack, every item's slot
-    cost): its system and part by its path."""
-    return place(f'{file}:@all:{c.get("path") or ""}') or ('other', 'rest')
+    cost): its system and part — by what its targets are first (a part's `nouns`: a block on every melee attack is
+    "Every melee attack" whatever its path), then by its path. One path cannot tell: Charge Delay on every ability
+    and Melee Damage Taken Scale on every melee attack are both m_mapAbilityProperties (review 2026-10-05: 568 link
+    rows "All abilities & items" opened the "Every melee attack" group)."""
+    subject = f'{file}:@all:{c.get("path") or ""}'
+    what = c.get('shared_what')
+    if what:
+        head = file.replace('.', '[.]') + ':@all:'          # a part that takes rules for all of this file
+        for s in systems():
+            for p in s.parts:
+                if what in p.nouns and any(rx.pattern.startswith(head) for rx in p.rules):
+                    return s.id, p.id
+    return place(subject) or ('other', 'rest')
 
 
 # ---- names and icons --------------------------------------------------------------------------------------------

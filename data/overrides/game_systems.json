@@ -152,10 +152,10 @@
       "parts": [
         {"id": "moves", "name": "Every hero's abilities", "match": ["abilities[.]vdata:[a-z0-9_]+#shared$"]},
         {"id": "every", "name": "Every ability & item", "match": [
-          "abilities[.]vdata:@all:m_mapAbilityProperties[.]ChannelMoveSpeed[.]"]},
-        {"id": "melee", "name": "Every melee attack", "match": [
-          "abilities[.]vdata:@all:(m_mapAttacks|m_HeavyAttackData|m_HeavyAirAttackData|m_flHeavyMeleeMaxTurnRate|m_AirMeleeUpScale|m_flBackDashDodgeDist|m_flSideDashDodgeDist|m_mapAbilityProperties)"]},
-        {"id": "guns", "name": "Every gun", "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
+          "abilities[.]vdata:@all:m_mapAbilityProperties[.]"]},
+        {"id": "melee", "name": "Every melee attack", "nouns": ["melee attacks"], "match": [
+          "abilities[.]vdata:@all:(m_mapAttacks|m_HeavyAttackData|m_HeavyAirAttackData|m_flHeavyMeleeMaxTurnRate|m_AirMeleeUpScale|m_flBackDashDodgeDist|m_flSideDashDodgeDist)"]},
+        {"id": "guns", "name": "Every gun", "nouns": ["guns"], "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
         {"id": "rules", "name": "Combat rules", "match": [
           "abilities[.]vdata:@all:",
           "modifiers[.]vdata:(modifier_crowd_control_diminish_watcher|modifier_citadel_catapult_damage_watcher|modifier_zipline_|modifier_citadel_knockdown|modifier_speed_boost|modifier_citadel_unstick|modifier_combat_status|citadel_modifier_teleport|modifier_obscured_by_steam|modifier_bullet_shield_tracker|modifier_magic_shield_tracker|modifier_shield_tracker_base)#",
@@ -233,6 +233,22 @@
     "misc.vdata:citadel_breakable_prop_tough_crate": "Tough Crate",
     "misc.vdata:citadel_breakable_bell_chinatown": "Chinatown bell",
     "misc.vdata:citadel_breakable_prop_car": "Breakable car",
+    "misc.vdata:citadel_breakable_jar_01": "Decorative breakables",
+    "misc.vdata:citadel_breakable_lion_statue": "Decorative breakables",
+    "misc.vdata:citadel_breakable_prop_vase": "Decorative breakables",
+    "misc.vdata:citadel_breakable_sake_barrel": "Decorative breakables",
+    "misc.vdata:citadel_breakable_prop_box_multi": "Breakable box stack",
+    "misc.vdata:citadel_breakable_prop_wooden_crate": "Wooden crate",
+    "misc.vdata:citadel_breakable_wooden_crate_02": "Wooden crate",
+    "misc.vdata:citadel_breakable_wooden_crate_03": "Wooden crate",
+    "misc.vdata:citadel_breakable_prop_pumpkin01": "Halloween pumpkin",
+    "misc.vdata:citadel_breakable_prop_pumpkin02": "Halloween pumpkin",
+    "misc.vdata:citadel_breakable_prop_pumpkin03": "Halloween pumpkin",
+    "misc.vdata:citadel_breakable_prop_pumpkin04": "Halloween pumpkin",
+    "misc.vdata:citadel_breakable_prop_xmaspresent01": "Holiday present",
+    "misc.vdata:citadel_breakable_prop_xmaspresent02": "Holiday present",
+    "misc.vdata:citadel_breakable_prop_xmaspresent03": "Holiday present",
+    "misc.vdata:citadel_breakable_prop_pickup_base": "Breakable pickup template",
     "generic_data.vdata:m_BreakableSpawnTimeDesc": "Breakable spawn times",
     "generic_data.vdata:m_BreakablePowerupLootParams": "Breakable powerup loot",
     "generic_data.vdata:m_ObjectiveParams": "Objective bounties",

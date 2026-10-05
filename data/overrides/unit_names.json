@@ -2,12 +2,13 @@
   "_why": "Units whose vdata has no m_sLocUnitName are still named by the game elsewhere: the kill feed and the attacker-class strings of the same localization ('titan_unit' = Patron, 'Citadel_AttackerClass_CLASS_TROOPER_MEDIC' = Medic Trooper, 'Citadel_Hud_KillFeedSuperNeutral' = the Mid Boss). Rules are regexes on the unit id -> a localization key, first match wins; m_sLocUnitName always wins over a rule. Units the game never names keep a readable form of their id on the site (common.pretty_id), never the raw id.",
   "rules": [
     ["^(alt_)?npc_boss_tier3$", "titan_unit"],
-    ["^trooper_medic$", "Citadel_AttackerClass_CLASS_TROOPER_MEDIC"],
-    ["^trooper_melee$", "Citadel_AttackerClass_CLASS_TROOPER_MELEE"],
-    ["^trooper_normal$", "Citadel_AttackerClass_CLASS_TROOPER"],
+    ["^(alt_)?(super_)?trooper_medic(_ag2)?$", "Citadel_AttackerClass_CLASS_TROOPER_MEDIC"],
+    ["^(alt_)?(super_)?trooper_melee(_ag2)?$", "Citadel_AttackerClass_CLASS_TROOPER_MELEE"],
+    ["^(alt_)?(super_)?trooper_normal(_ag2)?$", "Citadel_AttackerClass_CLASS_TROOPER"],
     ["^npc_super_neutral$", "objective_midboss"],
     ["^destroyable_building$", "shrine_unit"],
     ["^npc_shielded_sentry$", "citadel_ability_shieldedsentry"]
   ],
-  "_why_2026_10_01": "audit: the Mid Boss reads 'Mid-Boss' (objective_midboss) rather than the kill feed's 'MidBoss'; the Shrine (destroyable_building) is 'shrine_unit'; McGinnis' turret unit takes its ability's name 'Mini Turret'"
+  "_why_2026_10_01": "audit: the Mid Boss reads 'Mid-Boss' (objective_midboss) rather than the kill feed's 'MidBoss'; the Shrine (destroyable_building) is 'shrine_unit'; McGinnis' turret unit takes its ability's name 'Mini Turret'",
+  "_why_2026_10_05": "review: the alt / super / ag2 copies of each trooper class are that class (the attacker-class string is per class): 'Trooper medic ag2', 'Alt super trooper medic' were id-named pages of their own; named so, unit_families folds them into the Medic / Melee / Trooper pages as member groups ('Alt Super', 'New model')"
 }

@@ -11,6 +11,7 @@ they had in game).
 from __future__ import annotations
 
 import json
+import re
 import time
 
 from . import cache, loc, tracker
@@ -126,11 +127,107 @@ def build() -> dict:
                 e['name'] = loc.entity_name(tok, e['id'], e.get('owner'))
     for e in ents.values():
         e['last'] = e['last'][:2]
+    # (not a gun: its text is its hero's, so an old variant would take the hero's gun name today)
+    earlier_names([e for e in ents.values() if e['file'] in ('abilities.vdata', 'npc_units.vdata')
+                   and (e.get('name') or e['id']) == e['id'] and e.get('kind') != 'weapon'
+                   and not e['id'].startswith('citadel_weapon_')], ents.values())
     drop_unit_names(ents.values())
+    dead_namesakes(ents.values())
     data = {'build': head.build, 'entities': sorted(ents.values(), key=lambda e: (e['file'], e['id']))}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     print(f"{len(ents)} entities, {time.time() - t0:.0f}s -> {OUT}")
     return data
+
+
+_DEPRECATED = re.compile(r'^\s*\[deprecated\]\s*|\s*-\s*deprecated\s*$', re.I)
+
+
+def name_in(tok: dict[str, str], e: dict) -> str | None:
+    """The entity's name in one build's text, without Valve's "[Deprecated]" marks; None when it has none there
+    ("DEPRICATED" is no name)."""
+    if e['file'] == 'npc_units.vdata':
+        name = loc.unit_name(tok, e['id'], {'m_sLocUnitName': e.get('loc_key', '')})
+    else:
+        name = loc.plain(loc.entity_name(tok, e['id'], e.get('owner')))
+    name = _DEPRECATED.sub('', name or '').strip()
+    # "Bullet Resilience Disabled": Valve marking a dead entry, not its name — an older build has it
+    if (not name or name == e['id'] or 'deprecated' in name.lower() or 'depricated' in name.lower()
+            or re.search(r'\bdisabled$', name, re.I)):
+        return None
+    return name
+
+
+def earlier_names(missing: list[dict], everyone=()) -> None:
+    """An entity whose last build's text has no name for it gets the newest name an earlier build gave it (a removed
+    item's key left the text before the item did: "Ablative coat", "Aoe silence" were EMP Grenade… on 57 item pages,
+    review 2026-10-05). The text of each distinct state of the english files is read once, newest first. A
+    patch page keeps its own build's name (rule 4); this is the catalog's fallback. A found item / ability name another
+    entity has too (the live "Toughness") is marked "(old)" on the removed one (`everyone`: all entities); a unit's
+    joins its namesakes' family."""
+    want = {e['id']: e for e in missing}
+    if not want:
+        return
+    found = _scan_names(want)
+    taken: dict[tuple[str, str], int] = {}
+    for e in everyone:
+        if e.get('name'):
+            taken[(e['file'], e['name'])] = taken.get((e['file'], e['name']), 0) + 1
+    for e in found:
+        # (a unit joins its living namesakes' family instead: unit_families)
+        if e['file'] == 'abilities.vdata' and taken.get((e['file'], e['name']), 0) > 1 and not e.get('alive'):
+            e['name'] += ' (old)'
+
+
+def _scan_names(want: dict[str, dict]) -> list[dict]:
+    found = []
+    seen: set[tuple] = set()
+    for b in reversed(tracker.builds()):
+        if not want:
+            break
+        state = tuple(sorted(loc.english_files(b.commit).values()))
+        if not state or state in seen:
+            continue
+        seen.add(state)
+        tok = loc.tokens(b.commit)
+        for eid, e in list(want.items()):
+            name = name_in(tok, e)
+            if name:
+                e['name'] = name
+                found.append(e)
+                del want[eid]
+    return found
+
+
+_OLD = re.compile(r'\s*\(old\)$')
+
+
+def dead_namesakes(ents) -> None:
+    """Shop items of one name, one of them out of the shop or more (removed from the files, or disabled there), are
+    told apart: one beside a namesake in the shop is "(old)"; several say what tells them apart — the day each came
+    into the game ("Toughness (old, added 2025-05-08)"), else the tier, else a number (review 2026-10-05: health_2 and
+    toughness_3 were both "Toughness", clip_size_3 and clip_size_fixed_t3 both "Extra Large Magazine", twice each in
+    the site search; "(old)" fired only beside a live namesake)."""
+    by: dict[str, list[dict]] = {}
+    for e in ents:
+        if e['file'] == 'abilities.vdata' and e.get('kind') == 'item' and e.get('name') and e['name'] != e['id']:
+            by.setdefault(_OLD.sub('', e['name']), []).append(e)
+    for name, group in by.items():
+        gone = sorted((e for e in group if not e.get('alive') or e.get('disabled')), key=lambda e: e['id'])
+        if len(group) < 2 or not gone:
+            continue
+        if len(gone) == 1:
+            gone[0]['name'] = f'{name} (old)'
+            continue
+        added = [str((e.get('first') or [None, ''])[1] or '')[:10] for e in gone]
+        tiers = [str(e.get('tier') or '').replace('EModTier_', '') for e in gone]
+        for i, e in enumerate(gone):
+            if len(set(added)) == len(gone) and all(added):
+                what = f'added {added[i]}'
+            elif len(set(tiers)) == len(gone) and all(tiers):
+                what = f'tier {tiers[i]}'
+            else:
+                what = f'#{i + 1}'
+            e['name'] = f'{name} (old, {what})'
 
 
 def drop_unit_names(ents) -> None:

@@ -54,8 +54,17 @@ def main() -> int:
     kept = th.get('hidden', 0) / (sum(th.values()) or 1)
     ng = table['NOT_GAMEPLAY']
     filt = sum(n for k, n in ng.items() if k in ('not_gameplay', 'gone')) / (sum(ng.values()) or 1)
-    print(f'\ncoverage {good_cov:.0%} · real hidden kept {kept:.0%} · non-gameplay filtered {filt:.0%}')
+    print(f'\ncoverage {good_cov:.0%} · real hidden kept {kept:.0%} · non-gameplay filtered {filt:.0%}'
+          f' · eye precision {eye_precision(table):.0%}')
     return 0
+
+
+def eye_precision(table: dict[str, collections.Counter]) -> float:
+    """Of the audited changes the matcher still calls hidden, the share that IS hidden (TRUE_HIDDEN): how often
+    the eye is right. Coverage and 'kept' alone let the eye sit on announced features (review 2026-10-05: 28%,
+    City Never Sleeps and Old Gods had no verdicts at all)."""
+    still = sum(c.get('hidden', 0) for c in table.values())
+    return table.get('TRUE_HIDDEN', collections.Counter()).get('hidden', 0) / (still or 1)
 
 
 if __name__ == '__main__':

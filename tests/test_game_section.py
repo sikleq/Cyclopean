@@ -100,6 +100,16 @@ def cv(name, op='change', old=None, new=None, build=6601, flags='developmentonly
     return {'name': name, 'op': op, 'old': old, 'new': new, 'build': build, 'flags': flags, 'status': status}
 
 
+def test_the_patch_count_holds_its_console_variables(monkeypatch):
+    """Review 2026-10-05: 2026-09-16's banner said 8 off the pages, its Game icons 12 — the console variables the
+    Game pages and icons show were in no count."""
+    from builders import game_systems, patch_counts
+    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
+    p = {'entities': [], 'extras': {'convars': [cv('citadel_player_spawn_time_max_ramp_1', old='35', new='37')]}}
+    c = patch_counts.count(p, frozenset())
+    assert c['changes'] == 1 and c['not_in_notes'] == 1 and patch_counts.off_pages(c) == 1
+
+
 def test_console_variables_become_history_rows():
     from builders.game_systems import convar_changes
     rows = [cv('citadel_player_spawn_time_max_ramp_1', old='35', new='37', build=6690, status='documented'),
@@ -146,6 +156,23 @@ def test_the_rules_table_has_todays_values_and_their_history(monkeypatch):
     assert spawn['value'] == '38' and [h[2:] for h in spawn['hist']] == [[30, 35], [35, 38]]
     assert 'citadel_player_spawn_time_max_ramp_1' in html and 'citadel_hud_scale' not in html
     assert re.search(r'data-hist=.*?\[6694,"2026-09-16",35,38\]', html)
+    # review 2026-10-05: a search over the variables, no scroll box of its own, a variable added since the
+    # tracking began reads NEW (not "—" beside a date)
+    assert 'data-search-target="table.game-rules tbody tr:not(.sec)"' in html and 'table-scroll' not in html
+    added = rules_page(raw + [({'id': '2026-09-20', 'date': '2026-09-20'},
+                               [cv('citadel_player_spawn_time_min', op='add', new='5', build=6700)])])
+    row = added.split('citadel_player_spawn_time_min</code>')[1].split('</tr>')[0]
+    assert 'class="tag new"' in row
+
+
+def test_the_designers_test_objects_are_on_no_game_page():
+    """Review 2026-10-05: "Item projectile test 01, … + 4 more" led the Shop page, "Herotest orbspawner" sat on
+    Souls; the Hero Labs target dummy is real."""
+    from builders.game_systems import is_dev, place_entity
+    for eid in ('item_projectile_test_01', 'citadel_herotest_orbspawner', 'neutral_camp_bug_herotest', 'x_debug'):
+        assert is_dev({'id': eid}) and place_entity(f'misc.vdata:{eid}', {'file': 'misc.vdata', 'id': eid}) is None
+    for eid in ('hero_targetdummy', 'citadel_breakable_latest', 'testament'):
+        assert not is_dev({'id': eid}), eid
 
 
 # ---- templates --------------------------------------------------------------------------------------------------
@@ -254,6 +281,17 @@ def test_search_finds_the_systems_and_their_named_entries():
         [r[:3] for r in rows]
 
 
+def test_search_skips_an_entry_whose_history_shows_nothing():
+    """Review 2026-10-05: 22 search links (game/other.html#ab-modifier_pause_unpause …) opened a system page
+    filtered to an entry with no row a player reads (only technical ones): the history emptied."""
+    from builders.game_pages import collect, search_rows
+    by_ent = _game_by_ent()
+    by_ent['misc.vdata:citadel_idol_cashin'][0][1][0]['new_s'] = '1000'       # "1000 → 1000": nothing to read
+    entries, hist = collect(by_ent, {})
+    assert 'game/urn.html#ab-citadel_idol_cashin' in [r[1] for r in search_rows(entries)]
+    assert 'game/urn.html#ab-citadel_idol_cashin' not in [r[1] for r in search_rows(entries, hist)]
+
+
 # ---- the archive's console variables -----------------------------------------------------------------------------
 
 def test_the_archive_lists_every_console_variable_or_says_how_many_more():
@@ -343,13 +381,14 @@ needs_data = pytest.mark.skipif(not _regenerated(), reason='data/patches predate
 @needs_data
 def test_every_gameplay_row_lands_on_a_hero_item_unit_or_game_page():
     """Except a template's change one of its heirs shows (the heir's page has it) and work on a hero in development
-    whose page waits (behind "Before release"); scenery (classify.decor_entity) is no gameplay."""
+    whose page waits (behind "Before release"); scenery (classify.decor_entity) and the designers' test objects
+    (game_systems.is_dev) are no gameplay."""
     from builders.cards import player_facing
     from builders.common import load_json
     from builders.entities_pages import _history, changed, page_entities, page_keys
     from builders.game_pages import _heir_sigs, collect
-    from builders.game_systems import is_decor, is_template
-    from builders.shared_rows import entities as spread_all
+    from builders.game_systems import is_decor, is_dev, is_template
+    from builders.shared_rows import entities as spread_all, is_every
     ents = {f"{e['file']}:{e['id']}": e for e in load_json('entities.json')['entities']}
     by_ent, _ = _history()
     trow = {r['id']: r for r in load_json('tables/heroes.json')['heroes']}
@@ -363,11 +402,11 @@ def test_every_gameplay_row_lands_on_a_hero_item_unit_or_game_page():
         for e in spread_all(p['entities']):
             info = {**e, **ents.get(e['key'], {})}
             rows = player_facing([c for c in e['changes'] if c['cat'] in ('balance', 'mechanic', 'availability')])
-            if not rows or e['key'] in pages or is_decor(info):
+            if not rows or e['key'] in pages or is_decor(info) or is_dev(info):
                 continue
             for c in rows:
-                if c.get('status') == 'unreleased':
-                    continue
+                if c.get('status') == 'unreleased' or is_every(c):
+                    continue                  # a rule for all is its part's own group ('game:…:all')
                 sig = (c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
                 if is_template(info) and sig in sigs.get((e['file'], row['id']), ()):
                     continue                  # a template's change an heir shows (the heir's page)
@@ -395,3 +434,20 @@ def test_the_soul_urn_rework_of_2026_06_04_is_on_its_page_and_the_feed():
     from builders.common import load_json
     feed = home_page.update_feed(load_json('patches/2026-06-04.json.gz'))
     assert 'game:urn' in feed.get('game', {})
+
+
+@needs_data
+def test_a_game_system_counts_one_edit_once_in_the_matrix_and_on_the_home_icon():
+    """Review 2026-10-05: Breakables 2026-09-29 read 138 in the change matrix (one edit over 15 crates counted 15
+    times), 52 on its band, 50 on the home icon; the level curve 38 / 34 (a whole level added is one change)."""
+    from builders import archive
+    from builders.dynamics_page import _collect
+    from builders.home_page import update_feed
+    cells = _collect()['cells']
+    off = []
+    for pid in [r['id'] for r in archive.by_date()][-25:]:
+        feed = update_feed(archive.patch(pid)).get('game', {})
+        for key, per in cells.items():
+            if key.startswith('game:') and pid in per and key in feed and sum(per[pid].values()) != feed[key]['n']:
+                off.append((key, pid, sum(per[pid].values()), feed[key]['n']))
+    assert not off, off

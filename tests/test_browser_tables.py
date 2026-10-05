@@ -1,5 +1,5 @@
 """Stats tables and change matrices in a real browser: site/scripts.js + site/styles.css on pages built from
-fixtures (no dist/, no data). Skipped where Playwright or its Chromium is not installed (CI).
+fixtures (no dist/, no data). The `browser` fixture is tests/conftest.py's (CI installs Chromium).
 
 Review 2026-10-04: a folded column group never unfolded (Hero Stats 34 -> 21 -> 21 columns) and the
 track's own browser check only compared colspan sums, which still matched."""
@@ -7,21 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
-
 ROOT = Path(__file__).resolve().parent.parent
-sync_api = pytest.importorskip('playwright.sync_api')
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_api.sync_playwright() as p:
-        try:
-            b = p.chromium.launch()
-        except Exception as e:                      # no browser binary on this machine
-            pytest.skip(f'chromium not available: {e}')
-        yield b
-        b.close()
 
 
 def _open(browser, body: str, width: int = 1400, height: int = 900):
@@ -125,6 +111,23 @@ def test_history_tip_takes_the_steps_own_direction(browser):
     tip = page.evaluate("() => [...document.querySelectorAll('.hist-tip li .n')].map(n => n.className)")
     assert tip == ['n dir-buff', 'n dir-nerf']
     assert page.evaluate("() => document.querySelector('.hist-tip .t-overall span').className") == 'dir-buff'
+
+
+def test_history_tip_reads_penalties_by_size_and_names_added_and_removed(browser):
+    """Review 2026-10-05: "Sharpshooter Move Speed -0.5 → -1 -100.0%" (it is twice the penalty: +100%), and "—"
+    for a value that went read as no value."""
+    page, _ = _open(browser, '<span class="fx has-hist" data-pol="1" data-digits="2" data-title="T" '
+                             'data-hist=\'[[1,"2026-01-01",null,-0.5],[2,"2026-02-01",-0.5,-1],[3,"2026-03-01",-1,null]]\'>x</span>')
+    page.hover('.fx')
+    text = page.locator('.hist-tip').inner_text()
+    assert '+100.0%' in text and '-100.0%' not in text
+    assert 'added' in text and 'removed' in text
+    # the "Overall" line reads the same way as its steps (it said −100% over steps of +50% and +33%)
+    page, _ = _open(browser, '<span class="fx has-hist" data-pol="1" data-digits="2" data-title="T" '
+                             'data-hist=\'[[1,"2026-01-01",-0.5,-0.75],[2,"2026-02-01",-0.75,-1]]\'>x</span>')
+    page.hover('.fx')
+    overall = page.locator('.hist-tip .t-overall').inner_text()
+    assert '(+100.0%)' in overall
 
 
 def test_souls_per_point_restored_on_back(browser):

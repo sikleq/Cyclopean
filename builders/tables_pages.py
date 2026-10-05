@@ -281,7 +281,12 @@ def heroes_table() -> str:
         return (f'<td class="name" data-col="name" data-sort="{esc(h["name"])}"><a href="{rel}heroes/'
                 f'{esc(h["id"].removeprefix("hero_"))}.html">{img_html}{esc(h["name"])}{pre}</a></td>')
 
-    table = render_table(laid_out(t['columns'], HERO_LAYOUT), t['heroes'], name_cell, 'Hero',
+    cols = laid_out(t['columns'], HERO_LAYOUT)
+    # a column no hero has a value in today waits under Details with its history (review 2026-10-05: Bullet res
+    # read "—" 44 times, Coll. height too); one with zeros stays, its zeros dimmed (.zero)
+    cols = sorted(({**c, 'group': DETAILS} if all(h['values'].get(c['key']) is None for h in t['heroes']) else c
+                   for c in cols), key=lambda c: c['group'] == DETAILS)
+    table = render_table(cols, t['heroes'], name_cell, 'Hero',
                          lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [], as_of=t.get('date'),
                          row_cls=lambda h: 'pre' if h['state'] == 'prerelease' else '', table_id='hero-stats',
                          cell_attrs=boon_attrs,

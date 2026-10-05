@@ -91,15 +91,18 @@ def test_one_patch_still_feeds_the_trail_cards():
     assert 'class="patch-strip"' not in html and _blob(html)['t'][0][0] == 'p3'
 
 
-def test_band_title_stays_on_the_page_and_groups_have_a_plate():
+def test_band_title_stays_on_the_page_and_groups_have_a_plate(monkeypatch):
     """Clicking a band's date left for the patch archive; ability icons were 28px bare glyphs."""
+    from builders import archive
     from builders.history_view import history_table
+    # the patch page's All changes has Abrams' card (history_view.patch_href links only a place that exists)
+    monkeypatch.setattr(archive, 'change_anchors', lambda pid: frozenset({'hero_atlas'}))
     keys, by_ent, areas = _history()
     html = history_table(keys, ['Abrams'], by_ent, {}, '../', areas=areas,
                          ults=frozenset({'abilities.vdata:ab_ult'}))
     band = html.split('id="p-p3"')[1].split('</summary>')[0]
     assert '<span class="bt"><span class="pdate solo">' in band       # plain text: a click opens the band
-    assert 'class="pnotes" href="../patches/p3.html"' in band          # the archive on purpose
+    assert 'class="pnotes" href="../patches/p3.html#c-hero_atlas"' in band   # the archive on purpose, at Abrams
     assert '<span class="ec-n">3 not in notes</span>' in band          # the eye count scripts.js recounts
     assert html.count('class="hgroup has-ic') >= 3 and '<div class="hg-b">' in html
     # the gold corner marks the ultimate; no tooltip beside its written name (AGENTS.md, review 2026-10-04)
@@ -199,17 +202,57 @@ def test_hero_page_is_one_open_column(monkeypatch):
     monkeypatch.setattr(hero_page, '_recent_cutoff', lambda: '2026-01-01')
     cols = [{'key': k, 'label': lbl, 'group': g, 'digits': 2, 'pol': 1} for k, lbl, g in [
         ('dps', 'DPS', 'Damage'), ('bullet_speed', 'Bullet Speed (m/s)', 'Damage'), ('hp', 'Health', 'Vitality'),
-        ('stamina_regen', 'Stamina Regen', 'Mobility')]]
-    row = {'values': {'dps': 51.4, 'bullet_speed': 610, 'hp': 800, 'stamina_regen': 0.2}, 'history': {}, 'spirit_scaled': []}
-    cards = {'ult': {'id': 'ult', 'owner': 'hero_atlas', 'slot': 'Signature_4', 'kind': 'ability', 'name': 'Seismic Impact'},
-             'gun': {'id': 'gun', 'owner': 'hero_atlas', 'slot': 'Weapon_Primary', 'kind': 'weapon', 'name': 'Case Closed'}}
+        ('collision_r', 'Collision Radius', 'Vitality')]]
+    row = {'values': {'dps': 51.4, 'bullet_speed': 610, 'hp': 800, 'collision_r': 30}, 'history': {}, 'spirit_scaled': []}
+    cards = {'ult': {'id': 'ult', 'owner': 'hero_atlas', 'slot': 'Signature_4', 'kind': 'ability', 'name': 'Seismic Impact',
+                     'desc': 'Leap and slam.'},
+             'sig1': {'id': 'sig1', 'owner': 'hero_atlas', 'slot': 'Signature_1', 'kind': 'ability', 'name': 'Bare'},
+             'gun': {'id': 'citadel_weapon_atlas_set', 'owner': 'hero_atlas', 'slot': 'Weapon_Primary', 'kind': 'weapon',
+                     'name': 'Case Closed'},
+             'alt': {'id': 'citadel_weapon_atlas_alt', 'owner': 'hero_atlas', 'slot': 'Weapon_Secondary',
+                     'kind': 'weapon', 'name': 'citadel_weapon_atlas_alt'}}
     h = {'id': 'hero_atlas', 'file': 'heroes.vdata', 'name': 'Abrams', 'alive': True, 'state': 'EHeroDevState_Release',
          'first': [1, '2024-06-06']}
-    html = hero_page.hero_page(h, cards, row, cols, {}, {}, {})
+    ents = {c['id']: {**c, 'file': 'abilities.vdata'} for c in cards.values()}
+    html = hero_page.hero_page(h, cards, row, cols, ents, {}, {})
     assert '<main class="page entity">' in html
     assert '<details' not in html.split('class="h2row"')[0]                # nothing folded above the history
     assert '<section class="now-open">' in html and '<div class="wb-cells">' in html and '<h2>Stats</h2>' in html
     assert 'class="ab-ic ult"' in html and 'href="#p-p9" data-p="p9" data-ab="ult"' in html
+    # review 2026-10-05: the alt fire is a line of the weapon block, never an (empty) ability card; a card with
+    # nothing to read is not drawn; the grid holds the ability slots only
+    grid = html.split('class="ability-grid"')[1].split('</section>')[0]
+    assert 'Alt weapon' not in html and 'citadel_weapon' not in grid and 'Bare' not in grid
+    assert '<span class="wb-alt-l">Alt fire</span>' in html
+    assert 'href="#ab-citadel_weapon_atlas_set"' in html.split('wb-alt-l')[1]      # its rows are the gun's group
+
+
+def test_alt_fire_rows_join_their_gun_and_sub_abilities_their_parent():
+    """Review 2026-10-05: Viscous' alt fire repeated the gun's "Ammo 20 → 21"; Calico's "Pounce instant" repeated
+    Pounce's "Movement Slow 30% → 24%" and "Catform trigger" read like an ability of its own."""
+    from builders.hero_page import alt_guns, drop_parent_rows, fold_alt, sub_parents
+    r = {'id': 'p1', 'date': '2024-07-18'}
+    row = lambda lab, a, b: {'label': lab, 'old_s': a, 'new_s': b}       # noqa: E731
+    ents = {i: {'id': i, 'owner': 'hero_viscous', 'kind': 'weapon', 'name': i}
+            for i in ('citadel_weapon_viscous_set', 'citadel_weapon_viscous_set_2', 'citadel_weapon_viscous_alt')}
+    assert alt_guns('hero_viscous', 'citadel_weapon_viscous_set', ents) == ['citadel_weapon_viscous_alt',
+                                                                             'citadel_weapon_viscous_set_2']
+    by_ent = {'abilities.vdata:citadel_weapon_viscous_set': [(r, [row('Ammo', '20', '21')])],
+              'abilities.vdata:citadel_weapon_viscous_set_2': [(r, [row('Ammo', '20', '21'), row('Damage', '40', '42')])]}
+    out = fold_alt(by_ent, 'citadel_weapon_viscous_set', ['citadel_weapon_viscous_set_2'])
+    [(_, rows)] = out['abilities.vdata:citadel_weapon_viscous_set']
+    assert [c['label'] for c in rows] == ['Ammo', 'Alt fire: Damage']
+    assert 'abilities.vdata:citadel_weapon_viscous_set_2' not in out and len(by_ent) == 2      # the input stays
+    nano = {i: {'id': i, 'owner': 'hero_nano', 'kind': 'ability', 'name': n} for i, n in (
+        ('ability_nano_pounce', 'Pounce'), ('ability_nano_pounce_instant', 'ability_nano_pounce_instant'),
+        ('ability_nano_catform', 'Ava'), ('ability_nano_catform_trigger', 'ability_nano_catform_trigger'))}
+    parents = sub_parents('hero_nano', [{'id': 'ability_nano_catform', 'slot': 'Signature_3'}], nano)
+    assert parents == {'ability_nano_pounce_instant': 'ability_nano_pounce',
+                       'ability_nano_catform_trigger': 'ability_nano_catform'}
+    slow = row('Movement Slow', '30%', '24%')
+    kept = drop_parent_rows({'abilities.vdata:ability_nano_pounce': [(r, [slow])],
+                             'abilities.vdata:ability_nano_pounce_instant': [(r, [dict(slow)])]}, parents)
+    assert kept['abilities.vdata:ability_nano_pounce_instant'] == []
 
 
 def test_item_and_unit_values_are_open():
@@ -315,6 +358,59 @@ def test_cards_put_a_new_thing_ahead_of_a_small_number():
     assert chip_card({'rows': [('', small), ('', added)], 'hidden': 2})[2][0][1] == 'Rat Swarm'
 
 
+def test_an_item_page_lists_each_value_once_and_a_removed_item_its_last_ones():
+    """Review 2026-10-05: Active Reload's head chips repeated its Passive's "Cooldown 12s"; a removed item (Ablative
+    Coat) had no values at all — it shows those of its last build, so titled."""
+    from builders.entities_pages import item_page
+    it = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item', 'name': 'X', 'alive': False,
+          'first': [1, '2024-06-06']}
+    card = {'item': {'slot': 'Armor', 'tier': '2', 'activation': 'Passive', 'cost': 1600},
+            'header': [{'prop': 'AbilityCooldown', 'label': 'Cooldown', 'value': '12s'},
+                       {'prop': 'AbilityCastPoint', 'label': 'Cast Time', 'value': '0.6s'}],
+            'sections': [{'type': 'Passive', 'props': [{'prop': 'AbilityCooldown', 'label': 'Cooldown', 'value': '12s'}]}],
+            'last': [5554, '2025-05-08']}
+    html = item_page(it, card, {}, {})
+    assert 'Last values (build 5554, 2025-05-08)' in html and 'Current values' not in html
+    hdr = html.split('class="chips item-hdr"')[1].split('</div>')[0]
+    assert 'Cast Time' in hdr and 'Cooldown' not in hdr
+    html = item_page({**it, 'alive': True}, {k: v for k, v in card.items() if k != 'last'}, {}, {})
+    assert 'Current values' in html
+
+
+def test_a_removed_items_card_comes_from_its_last_build(monkeypatch):
+    from types import SimpleNamespace
+    from pipeline import abilities, cache, catalog, loc, tracker
+    ents = {'abilities.vdata:upgrade_gone': {'file': 'abilities.vdata', 'id': 'upgrade_gone', 'kind': 'item',
+                                             'alive': False, 'last': [5554, '2025-05-08']},
+            'abilities.vdata:upgrade_live': {'file': 'abilities.vdata', 'id': 'upgrade_live', 'kind': 'item',
+                                             'alive': True, 'last': [6746, '2026-10-02']}}
+    monkeypatch.setattr(catalog, 'load', lambda: ents)
+    monkeypatch.setattr(tracker, 'builds', lambda: [SimpleNamespace(build=5554, commit='c5554', date='2025-05-08T00:00:00Z')])
+    files = {'abilities.vdata': {'upgrade_gone': {'m_eItemSlotType': 'EItemSlotType_Armor', 'm_iItemTier': 'EModTier_2'}},
+             'generic_data.vdata': {'m_nItemPricePerTier': [0, 800, 1600]}}
+    monkeypatch.setattr(cache, 'vdata', lambda commit, path: files[path.rsplit('/', 1)[-1]])
+    monkeypatch.setattr(loc, 'tokens', lambda commit: {'upgrade_gone': 'Gone Coat'})
+    out = abilities.last_cards({'upgrade_live'}, {})
+    assert set(out) == {'upgrade_gone'} and out['upgrade_gone']['last'] == [5554, '2025-05-08']
+
+
+def test_a_card_that_counts_hidden_changes_shows_one():
+    """Review 2026-10-05: Haze 2026-04-10's tile card said "2 not in patch notes" and listed six changes from the
+    notes (the biggest by %); one slot is the eye's, in the strip card, the trail card and the home card."""
+    from builders.history_view import TILE_SAMPLES, tile_card
+    from builders.home_page import chip_card
+    big = [ch(label=f'Thing {i}', status='documented', pct=50.0 - i, key=f'a:{i}') for i in range(7)]
+    flag = ch(label='Applies', status='hidden', pct=None, dir=None, old_s='a', new_s='b', key='a:f')
+    [(_, _, hidden, samples)] = tile_card([(('Bullet Dance', '', 'x', 0), big + [flag])])
+    assert hidden == 1
+    eye = next(s for s in samples if s[0] == 'Applies')
+    assert eye[4] == 1 and eye[5] < TILE_SAMPLES
+    rows = [('', c) for c in big[:3]] + [('', flag)]
+    assert [s[5] for s in chip_card({'rows': rows, 'hidden': 1})[2]].count(1) == 1
+    order = [s[0] for s in sorted(tile_card([(('', '', 'x', 0), big)])[0][3], key=lambda s: s[5])]
+    assert order[:2] == ['Thing 0', 'Thing 1']                  # no hidden change: the order stays
+
+
 def test_phone_tier_table_matrices_and_item_cards_css():
     """Review 2026-10-04: (1) the open "Current stats" put a 420px tier table on 45 neutral pages at 390px;
     (2) centring every wide table gave the change matrices a 20px sideways scroll at 1700-1920px — the
@@ -324,7 +420,8 @@ def test_phone_tier_table_matrices_and_item_cards_css():
     phone = [b for b in css.split('@media (max-width: 700px) {')[1:] if 'table.tier-grid' in b.split('\n}')[0]]
     assert phone and 'table.tier-grid { width: 100%; min-width: 0; }' in phone[0]
     assert '.page.wide .table-fade' not in css
-    assert '.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }' in css
+    # review 2026-10-05: flex, so a one-row card is not stretched and a lone card sits centred
+    assert '.ability-grid.item-secs { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; }' in css
     assert 'details.more' not in css and '.hist-bar .switch' not in css
     js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
     anchor = js.split("safe('patch-anchor'")[1].split("safe('tabs'")[0]

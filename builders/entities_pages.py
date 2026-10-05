@@ -5,8 +5,8 @@ from collections import defaultdict
 
 from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
 from .cards import GAMEPLAY
-from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
-from .history_view import now_fold
+from .hero_page import _split_unit, _unit_html, hero_page, history_table, prop_icon, prop_rows, stat_tables
+from .history_view import head_strip, hidden_link, now_fold
 from .render import KIND_LABEL, tag_badge
 
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -64,6 +64,14 @@ def _history() -> tuple[dict, dict]:
     return by_ent, by_subject
 
 
+def header_only(card: dict) -> list[dict]:
+    """The card's header values its sections do not list: a value belongs to its section (Active Reload's 12s
+    cooldown is its Passive's) — "Cooldown 12s · Duration 7s" sat over the card that said them again (review
+    2026-10-05; the rule pipeline/item_table.shown_props uses for Item Stats)."""
+    listed = {r.get('prop') for s in card.get('sections', []) for r in s.get('props', [])}
+    return [h for h in card.get('header', []) if h.get('prop') not in listed]
+
+
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
     name = display_name(it)
@@ -81,10 +89,6 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             chips.append('<span class="chip">Street Brawl only</span>')
         elif info.get('cost'):
             chips.append(f'<span class="chip">{esc(info["cost"])} souls</span>')
-    head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
-            f'<div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(it["first"])}</div></div>')
     sections = ''
     if card:
         blocks = []
@@ -94,18 +98,29 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             blocks.append(f'<div class="ability-card px-frame"><div class="ac-head"><div class="ac-name">{esc(s["type"])}</div></div>'
                           f'{desc}<table class="kvt">{rows}</table></div>')
         hdr = ''
-        if card.get('header'):
+        header = header_only(card)
+        if header:
             hdr = '<div class="chips item-hdr">' + ''.join(
                 f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
-                f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
+                f'<b>{esc(h["value"])}</b></span>' for h in header) + '</div>'
         # the sections side by side as cards, not full-width tables (a label and its value sat 1300px apart)
         grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
         sections = (hdr + grid) if blocks or hdr else ''
+    told: dict = {}
     history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
-                            enhanced=True)
+                            enhanced=True, every_label='For all items', facts_out=told)
+    chips.append(hidden_link(told.get('hidden', 0)))
+    head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
+            f'<div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(it["first"])}</div></div>')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
     # 2026-10-04: nothing folded by default)
-    return page(name, head + now_fold('Current values', sections) + history, rel, 'items', cls='entity')
+    # a removed item shows what it was in the last build that had it (pipeline.abilities.last_cards)
+    last = (card or {}).get('last')
+    title = f'Last values (build {last[0]}, {last[1]})' if last else 'Current values'
+    return page(name, head + head_strip(told) + now_fold(title, sections) + history, rel, 'items',
+                cls='entity')
 
 
 UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'Tier III'), ('abil', 'Abilities'))
@@ -127,10 +142,6 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     copies = len(members) // max(len(tiers), 1)
     if copies > 1:
         chips.append(f'<span class="chip">{copies} variants</span>')
-    head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
-            f'<div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(u["first"])}</div></div>')
     # today's stats above the history: a tiered family as ONE table, a stat per row, a tier per column
     # (three stacked panels repeated every label, advisor 10-03); others as before
     by_tier: dict[str, dict] = {}
@@ -147,8 +158,11 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
             if all(v is None for v in vals) or vals in seen:
                 continue
             seen.append(vals)
-            body_rows.append(f'<tr><td>{esc(c["label"])}</td>' + ''.join(f'<td class="v">{_fmt(v, c["digits"])}</td>'
-                                                                       for v in vals) + '</tr>')
+            # the unit on the number, not in the label ("Fire Interval (s)", "Run Speed (m/s)")
+            label, unit = _split_unit(c['label'])
+            body_rows.append(f'<tr><td>{esc(label)}</td>' + ''.join(
+                f'<td class="v">{_fmt(v, c["digits"])}{_unit_html(unit) if v is not None else ""}</td>'
+                for v in vals) + '</tr>')
         head_row = '<tr><th></th>' + ''.join(f'<th>Tier {esc(t)}</th>' for t in tiers_sorted) + '</tr>'
         stats_html = f'<table class="kvt tier-grid"><thead>{head_row}</thead><tbody>{"".join(body_rows)}</tbody></table>'
     else:
@@ -163,10 +177,17 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     abilities = {a['id']: a for m in members for a in bound.get(m['id'], [])}
     own = [(f'abilities.vdata:{a["id"]}', display_name(a), entity_icon(a['file'], a['id'], a['kind'], rel))
            for a in sorted(abilities.values(), key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
+    told: dict = {}
     hist = history_table(keys + own, [name] + [display_name(m) for m in members], by_ent, by_subject, rel,
                          line_names=False, areas=areas, area_labels=UNIT_AREAS,
-                         merge=lambda labels: merged_label(labels, len(members)))
-    return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
+                         merge=lambda labels: merged_label(labels, len(members)), facts_out=told)
+    chips.append(hidden_link(told.get('hidden', 0)))
+    head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
+            f'<div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(u["first"])}</div></div>')
+    return page(name, head + head_strip(told) + now_fold('Current stats', stats_html) + hist, rel, 'units',
+                cls='entity')
 
 
 def redirect_page(target: str, name: str) -> str:
@@ -247,11 +268,19 @@ def build_all() -> dict[str, int]:
     write(INDEX_FILE, search_json(found))
     from .dynamics_page import matrix_html, toolbar, unit_entries
     entries = unit_entries(units, UNIT_GROUPS, rel)
-    n_gone = sum(1 for e in entries if e[4])
+    n_gone = drawn_extra(entries)
     write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
                                      + toolbar('unit', n_gone, 'Removed & helpers') + matrix_html(entries, 'unit'),
                                      rel, 'units', wide=True))
     return {'heroes': len(heroes), 'items': len(items), 'units': len(fams), 'game': n_game}
+
+
+def drawn_extra(entries: list[tuple]) -> int:
+    """How many rows the matrix hides behind its switch ("Removed N") — of the rows it draws: one with no change is
+    no row (the item switch said 88 over 65 rows; review 2026-10-05)."""
+    from .dynamics_page import _collect
+    cells = _collect()['cells']
+    return sum(1 for e in entries if e[4] and cells.get(e[0]))
 
 
 def _context() -> dict:
@@ -291,9 +320,11 @@ def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
             + heroes_grid_html(live, other, trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
-    dyn = matrix_html(hero_entries(live, rel), 'hero')
+    dyn = matrix_html(hero_entries(live, rel, trow), 'hero')
+    # the roles Hero Stats filters by, as the matrix's row filter too (review 2026-10-05: it had none)
+    roles = tuple(sorted({str(r.get('type') or '').rsplit('_', 1)[-1] for r in trow.values()} - {''}))
     write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
-                                      + toolbar('hero', n_pre, 'Pre-release') + dyn, rel, 'heroes', wide=True))
+                                      + toolbar('hero', n_pre, 'Pre-release', roles) + dyn, rel, 'heroes', wide=True))
     return live
 
 
@@ -310,7 +341,7 @@ def _build_items(ctx: dict, items: list[dict]) -> None:
     body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard"></div>' + shop)
     entries = item_entries(items, cards, rel)
-    n_gone = sum(1 for e in entries if e[4])
+    n_gone = drawn_extra(entries)
     write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
                                      + toolbar('item', n_gone, 'Removed') + matrix_html(entries, 'item'),
                                      rel, 'items', wide=True))

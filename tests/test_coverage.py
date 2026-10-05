@@ -127,6 +127,20 @@ def test_a_shared_block_spreads_over_its_targets():
     assert len(entities([own, _block()], _cat(2))) == 3
 
 
+def test_a_shared_blocks_unit_copy_reads_up_or_down():
+    """Review 2026-10-05: one block over a hero's ability and the Medic trooper's heal judged both NERF
+    ("Cooldown 6s → 6.25s NERF" on the trooper's page); a unit's copy says which way the number went."""
+    from builders.shared_rows import spread
+    cat = {'abilities.vdata:ab': {'file': 'abilities.vdata', 'id': 'ab', 'kind': 'ability', 'owner': 'hero_0'},
+           'abilities.vdata:heal': {'file': 'abilities.vdata', 'id': 'heal', 'kind': 'ability_other', 'units': ['medic']}}
+    block = {'key': 'abilities.vdata:@shared', 'file': 'abilities.vdata', 'id': '@shared',
+             'target_keys': list(cat), 'changes': [ch(path='m_mapAbilityProperties.AbilityCooldown.m_strValue',
+                                                      label='Cooldown', old_s='6s', new_s='6.25s', dir='nerf', pct=4.2)]}
+    hero, unit = spread(block, cat)
+    assert hero['changes'][0]['dir'] == 'nerf'
+    assert unit['changes'][0]['dir'] == 'up' and unit['changes'][0]['pct'] == 4.2
+
+
 def test_the_archive_names_a_block_by_what_it_covers():
     """Every block read "All heroes (N)", nine heroes' Max Health too."""
     from builders.shared_rows import block_name
@@ -180,10 +194,47 @@ def test_a_rule_for_all_is_counted_apart_on_the_band_and_the_strip():
     assert 'Not in patch notes' not in html
 
 
-def test_a_band_with_only_a_rule_for_all_is_muted_and_stays_closed():
+def test_a_rule_for_all_is_one_link_row_per_band_whatever_it_touched():
+    """Review 2026-10-05: Calico's 2026-01-22 band repeated "All abilities & items: 1 change" under 15 abilities and
+    its chip read "+9 for all abilities & items" for ONE rule; a melee rule kept its own link and chip."""
+    from builders.history_view import history_table
+    r = {'id': 'p1', 'date': '2026-01-22', 'title': '01-22-2026 Update'}
+    rule = dict(path='m_mapAbilityProperties.AbilityCooldownBetweenCharge.m_strValue', label='Charge Delay',
+                old_s='0s', new_s='default', dir='changed', pct=None, file='abilities.vdata',
+                shared_all=True, shared_n=568, shared_what='abilities & items')
+    melee = dict(path='m_mapAbilityProperties.MeleeDamageTakenScale.m_strValue', label='Melee Damage Taken Scale',
+                 old_s='35', new_s='—', op='remove', file='abilities.vdata', shared_all=True, shared_n=53,
+                 shared_what='melee attacks')
+    keys = [('heroes.vdata:hero_nano', 'Base stats', None)] + [(f'abilities.vdata:ab_{i}', f'Ability {i}', None)
+                                                                for i in range(3)]
+    by_ent = {f'abilities.vdata:ab_{i}': [(r, [ch(key=f'abilities.vdata:ab_{i}:own', label='Cooldown'),
+                                              ch(key=f'abilities.vdata:ab_{i}:rule', **rule)]
+                                           + ([ch(key=f'abilities.vdata:ab_{i}:melee', **melee)] if i == 0 else []))]
+              for i in range(3)}
+    html = history_table(keys, ['Calico'], by_ent, {}, '../', areas={k: 'abil' for k, _, _ in keys})
+    band = html[html.index('id="p-p1"'):]
+    assert band.count('All abilities &amp; items: 1 change') == 1 and band.count('All melee attacks: 1 change') == 1
+    assert band.count('class="hgroup shr-band"') == 1
+    summary = band[:band.index('</summary>')]
+    assert '+1 for all abilities &amp; items' in summary and '+1 for all melee attacks' in summary
+    # the band's own counters: the three abilities' own rows, not the rules
+    assert 'class="pip nerf">3<' in summary
+
+
+def test_a_band_with_only_a_rule_for_all_waits_behind_its_button():
+    """Review 2026-10-05: 23% of the bands held only "+N for all heroes"; they stay in place, folded, behind
+    "For all" (like "Before release"), and get no strip tile — as in the matrices and the trail squares."""
     html = _bands(every_only=True)
-    assert re.search(r'<details class="pblock[^"]*" id="p-p2"(?![^>]*open)', html)
-    assert 'class="ps-tile shr"' in html and 'changes for all heroes' in html
+    assert re.search(r'<details class="pblock[^"]*every-only[^"]*" id="p-p2"(?![^>]*open)', html)
+    assert 'ps-tile' not in html                     # only the hero's own band p1 is left: no strip of one tile
+    # the button says what those bands hold (a unit page's read "For all 1": review 2026-10-05)
+    assert 'data-toggle-class="show-every"' in html and 'For all heroes <span class="n">1</span>' in html
+    # the band with the hero's own change stands open
+    assert re.search(r'<details class="pblock[^"]*" id="p-p1"[^>]* open', html)
+    # its "patch ↗" goes to the rule's Game band: the patch page has no card for the hero (1,476 of 1,503 such
+    # links opened the patch at its top)
+    band = html[html.index('id="p-p2"'):]
+    assert 'class="pnotes" href="../game/progression.html#p-p2"' in band[:band.index('</summary>')]
 
 
 def test_the_home_feed_spreads_some_and_skips_rules_for_all(monkeypatch):
@@ -272,7 +323,82 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     row = patches_pages._index_row({**p, 'has_notes': True, 'builds': 1}, {}, '../', False)
     assert re.search(r'au-hidden">.*?<b>3</b>', row)
     feed = home_page._feed([{'id': 'p1', 'title': p['title'], 'date': p['date']}], {}, frozenset(), {})
-    assert re.search(r'au-hidden">.*?<b>3</b> not in patch notes', feed)
+    # review 2026-10-05: the count is a way in — the patch page with its eye filter pressed
+    assert re.search(r'<a class="au au-hidden" href="patches/p1.html#hidden">.*?<b>3</b> not in patch notes', feed)
+    assert '<a class="au au-hidden" href="#hidden">' in audit
+    # review 2026-10-05: a group whose icons hold only changes the notes left out has ONE eye, on its label (the
+    # pickup's Game group here); an update with no notes has none below its banner, which says "no patch notes"
+    assert 'lu-all' in feed
+    quiet = home_page._feed([{'id': 'p1', 'title': p['title'], 'date': p['date'], 'has_notes': False}], {},
+                            frozenset(), {})
+    assert 'lu-all' not in quiet and 'lu-eye' not in quiet and 'no patch notes' in quiet
+    # a line nothing matched is counted on the patch page's check line
+    assert 'lines not found in the files' in patches_pages._audit_line({**p, 'line_counts': {'unmatched': 2}})
+
+
+def test_a_long_home_section_says_how_many_more_a_phone_hides(monkeypatch):
+    """Review 2026-10-05: on a phone City Never Sleeps' 102 item icons were 17 rows; three rows show, "+N more" opens
+    the patch page."""
+    from builders import archive, home_page, patch_counts
+    many = {f'abilities.vdata:upgrade_{i}': {'n': 1, 'hidden': 0, 'buff': 1, 'nerf': 0, 'kind': 'item', 'rows': []}
+            for i in range(home_page.PHONE_ICONS + 5)}
+    monkeypatch.setattr(home_page, 'update_feed', lambda *a, **k: {'items': many})
+    monkeypatch.setattr(archive, 'patch', lambda pid: {'entities': []})
+    monkeypatch.setattr(patch_counts, 'for_id', lambda pid: {'not_in_notes': 0, 'hidden_on_pages': 0})
+    rows = [{'id': f'p{i}', 'title': f'0{i}-01-2026 Update', 'date': f'2026-0{i}-01'} for i in (1, 2)]
+    feed = home_page._feed(rows, {}, frozenset(), {})
+    # the newest update (names under its icons) is whole; the older one says how many more
+    assert feed.count('class="lu-more"') == 1 and '>+5 more</a>' in feed and 'patches/p1.html#changes' in feed
+
+
+def test_the_home_icons_go_where_the_pages_are_and_count_like_the_banner(monkeypatch):
+    """Review 2026-10-05: the home icons routed by the patch record's name, so Medic Trooper and Neutral bug (name ==
+    id there) fell off the home page while their pages showed the rows (6736: banner 39, icons 27 + 2); one edit on a
+    family's members counted once on its icon and on every member in the banner."""
+    from builders import home_page, patch_counts, shared_rows
+    stomp = {'file': 'abilities.vdata', 'id': 'stomp', 'kind': 'ability_other', 'units': ['bot'], 'name': 'Stomp'}
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2, **{'abilities.vdata:stomp': stomp}))
+    monkeypatch.setattr(patch_counts, 'unit_main', lambda: {'bot': 'bot', 'bot_alt': 'bot', 'trooper_medic': 'trooper_medic'})
+    medic = {'key': 'npc_units.vdata:trooper_medic', 'file': 'npc_units.vdata', 'id': 'trooper_medic', 'kind': 'trooper',
+             'name': 'trooper_medic', 'changes': [ch(key='npc_units.vdata:trooper_medic:a', label='Sight range')]}
+    bots = [{'key': f'npc_units.vdata:{b}', 'file': 'npc_units.vdata', 'id': b, 'kind': 'helper', 'name': b,
+             'changes': [ch(key=f'npc_units.vdata:{b}:r', label='Respawn Time', old_s='30s', new_s='15s')]}
+            for b in ('bot', 'bot_alt')]
+    ab = {**stomp, 'key': 'abilities.vdata:stomp', 'changes': [ch(key='abilities.vdata:stomp:a', label='Radius')]}
+    p = {'entities': [medic, *bots, ab]}
+    pages = frozenset({'npc_units.vdata:trooper_medic', 'npc_units.vdata:bot', 'npc_units.vdata:bot_alt',
+                       'abilities.vdata:stomp'})
+    feed = home_page.update_feed(p, frozenset(), patch_counts.unit_main(), pages)
+    assert set(feed) == {'units'} and set(feed['units']) == {'npc_units.vdata:trooper_medic', 'npc_units.vdata:bot'}
+    assert feed['units']['npc_units.vdata:bot']['n'] == 2                       # Respawn Time once, Stomp's Radius
+    c = patch_counts.count(p, pages)
+    assert sum(v['hidden'] for v in feed['units'].values()) == c['hidden_on_pages'] == 3
+
+
+def test_a_templates_edit_its_heirs_carry_counts_on_the_heirs(monkeypatch):
+    """Review 2026-10-05: City Never Sleeps' banner said 360 over icons summing to 345 — trooper_base's and
+    neutral_base's edits counted for the template (a Game row no icon carries) and again on each heir; Rat King's said
+    "3 of them in game rules & map objects" over two Game icons of one change each."""
+    from builders import home_page, patch_counts, shared_rows
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
+    monkeypatch.setattr(patch_counts, 'unit_main', lambda: {'trooper_medic': 'trooper_medic'})
+    sight = dict(path='m_flSightRangeHeroes', label='Sight range vs heroes', old_s='17.78m', new_s='25.4m')
+    base = {'key': 'npc_units.vdata:trooper_base', 'file': 'npc_units.vdata', 'id': 'trooper_base', 'kind': 'trooper',
+            'name': 'trooper_base', 'changes': [ch(key='npc_units.vdata:trooper_base:s', **sight),
+                                                 ch(key='npc_units.vdata:trooper_base:o', path='m_own', label='Own')]}
+    medic = {'key': 'npc_units.vdata:trooper_medic', 'file': 'npc_units.vdata', 'id': 'trooper_medic',
+             'kind': 'trooper', 'name': 'Medic', 'changes': [ch(key='npc_units.vdata:trooper_medic:s', **sight)]}
+    p = {'entities': [base, medic]}
+    pages = frozenset({'npc_units.vdata:trooper_medic'})
+    c = patch_counts.count(p, pages)
+    feed = home_page.update_feed(p, frozenset(), patch_counts.unit_main(), pages)
+    icons = sum(s['hidden'] for sec in feed.values() for s in sec.values())
+    # the medic's copy on its page; the template's own row (no heir has it) on the Game's icon
+    assert c['not_in_notes'] == icons == 2 and c['hidden_on_pages'] == 1 and patch_counts.off_pages(c) == 1
+    # the patch page's All changes lists what is counted: the template keeps its own row only, as a copy
+    kept = patch_counts.drop_inherited([base, medic], pages)
+    assert [[x['label'] for x in e['changes']] for e in kept] == [['Own'], ['Sight range vs heroes']]
+    assert len(base['changes']) == 2
 
 
 # ---- on the real data (data/ regenerated with target_keys) ------------------------------------------------------
@@ -324,7 +450,8 @@ def test_victor_links_to_the_heavy_melee_of_2025_07_29(history):
     assert re.search(r'All melee attacks: \d+ changes\s+Movement &(?:amp;)? combat ›', band)
     by_ent, _ = history
     rows = [c for row, ch in by_ent['game:all:abilities.vdata'] if row['id'] == '2025-07-29' for c in ch]
-    assert any(c['label'] == 'Heavy melee › Cooldown On Hit' and c['old_s'] == '0.9' for c in rows)
+    # in seconds (review 2026-10-05: "Cooldown On Hit 0.9 → 1.03" had no unit)
+    assert any(c['label'] == 'Heavy melee › Cooldown On Hit' and c['old_s'] == '0.9s' for c in rows)
 
 
 def _hero_keys(hid: str) -> list[tuple]:

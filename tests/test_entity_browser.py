@@ -1,25 +1,10 @@
 """The entity page's CSS and scripts in a real browser, on pages built inside the test (no dist/ needed):
-a phone-width tier table, a trail square under a filter, a filtered band's counters. Skipped where
-Playwright or its Chromium is missing (CI runs pytest before any browser exists)."""
+a phone-width tier table, a trail square under a filter, a filtered band's counters. The `browser` fixture is
+tests/conftest.py's (CI installs Chromium)."""
 import shutil
 from pathlib import Path
 
-import pytest
-
-sync_api = pytest.importorskip('playwright.sync_api')
-
 ROOT = Path(__file__).resolve().parent.parent
-
-
-@pytest.fixture(scope='module')
-def browser():
-    with sync_api.sync_playwright() as p:
-        try:
-            b = p.chromium.launch(headless=True)
-        except Exception as e:          # no browser downloaded: not this test's business
-            pytest.skip(f'no Chromium for Playwright: {e}')
-        yield b
-        b.close()
 
 
 def _open(browser, tmp_path: Path, html: str, width: int, height: int = 900):
@@ -209,6 +194,157 @@ def test_a_rule_for_all_heroes_is_counted_apart_by_the_filters(browser, tmp_path
         pg.click('.hist-bar [data-f-tag="nerf"]')                         # cleared: everything back
         pg.wait_for_function("!document.getElementById('history').classList.contains('filtering')")
         assert not pg.locator('#p-p1 summary .shr-chip').evaluate('c => c.classList.contains("n0")')
+        assert not errors
+    finally:
+        ctx.close()
+
+
+def test_the_history_bar_stays_and_a_long_page_has_a_way_up(browser, tmp_path):
+    """Review 2026-10-05: the filters scrolled away (Sloppy's stay); #hidden presses the eye; a filter's first match
+    lands below the bar; a back-to-top button past one screen; on a phone the bar scrolls away."""
+    from builders.common import page
+    from builders.history_view import history_table
+    rows = [({'id': f'p{i}', 'date': f'2025-{i:02d}-01', 'title': f'{i:02d}-01-2025 Update'},
+             [ch(key=f'k{i}', label='Cooldown', status='documented' if i % 2 else 'hidden')]) for i in range(1, 13)]
+    hist = history_table([('abilities.vdata:x', 'X', None)], ['X'], {'abilities.vdata:x': rows}, {}, '../')
+    filler = '<div style="height:1500px"></div>'
+    ctx, pg, errors = _open(browser, tmp_path, page('X', filler + hist, '../', cls='entity'), 1440, 900)
+    try:
+        assert pg.evaluate("getComputedStyle(document.querySelector('.hist-bar')).position") == 'sticky'
+        pg.evaluate('window.scrollTo(0, 3000)')
+        pg.wait_for_function("document.querySelector('.back-to-top').classList.contains('on')")
+        bar = pg.evaluate("document.querySelector('.hist-bar').getBoundingClientRect().top")
+        assert 0 <= bar < 80                                               # stuck under the site bar
+        pg.click('.hist-bar [data-f-tag="nerf"]')
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        first = pg.evaluate("[...document.querySelectorAll('details.pblock')].find(b => !b.classList.contains('f-out'))"
+                            ".getBoundingClientRect().top")
+        bottom = pg.evaluate("document.querySelector('.hist-bar').getBoundingClientRect().bottom")
+        assert first >= bottom - 1
+        pg.click('.back-to-top')
+        pg.wait_for_function('window.scrollY === 0')
+        assert not errors
+    finally:
+        ctx.close()
+    ctx, pg, errors = _open(browser, tmp_path, page('X', hist, '../', cls='entity'), 390, 844)
+    try:
+        assert pg.evaluate("getComputedStyle(document.querySelector('.hist-bar')).position") == 'static'
+        pg.evaluate("location.hash = '#hidden'")
+        pg.wait_for_function("document.querySelector('.hf-hidden').getAttribute('aria-pressed') === 'true'")
+        assert pg.evaluate("document.getElementById('history').classList.contains('only-hidden')")
+        assert not errors
+    finally:
+        ctx.close()
+
+
+def test_a_merged_group_answers_to_each_of_its_members(browser, tmp_path):
+    """Review 2026-10-05: a group of identical rows of several entries kept only the first id, so #ab-<second>
+    (a search link: "Breakable lion statue") and the second entry's chip emptied the history."""
+    from builders.common import page
+    from builders.history_view import history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    keys = [('game:breakables', 'Breakables', None), ('misc.vdata:jar', 'Jar', None), ('misc.vdata:lion', 'Lion', None),
+            ('misc.vdata:crate', 'Crate', None)]
+    same = [ch(key='x:respawn', label='Respawn Time')]
+    by_ent = {'misc.vdata:jar': [(r1, same)], 'misc.vdata:lion': [(r1, [dict(c) for c in same])],
+              'misc.vdata:crate': [(r1, [ch(key='y', label='Health')])]}
+    areas = {k: 'abil' for k, _, _ in keys[1:]}
+    hist = history_table(keys, ['Breakables'], by_ent, {}, '../', areas=areas, merge=lambda names: ' · '.join(names))
+    ctx, pg, errors = _open(browser, tmp_path, page('Breakables', hist, '../', cls='entity'), 1440, 900)
+    try:
+        assert pg.locator('.hgroup[data-ab~="lion"]').count() == 1
+        pg.click('.hist-bar [data-f-ab="lion"]')
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        assert not pg.locator('#p-p1').evaluate('b => b.classList.contains("f-out")')
+        assert pg.locator('.hgroup[data-ab~="lion"]').is_visible()
+        assert not pg.locator('.hgroup[data-ab="crate"]').is_visible()
+        assert not errors
+    finally:
+        ctx.close()
+
+
+def test_a_matrix_row_filter_keeps_one_slot_and_clears(browser, tmp_path):
+    """Review 2026-10-05: the item matrix gets the shop's slot and tier filters (one choice per group)."""
+    from builders.common import page
+    body = ('<div class="toolbar dyn-bar"><span class="dyn-rows" data-target="#dyn-item">'
+            '<button class="px-btn" data-rowf="cat" data-v="w" aria-pressed="false">Weapon</button>'
+            '<button class="px-btn" data-rowf="cat" data-v="s" aria-pressed="false">Spirit</button>'
+            '<button class="px-btn" data-rowf="tier" data-v="1" aria-pressed="false">I</button></span></div>'
+            '<table class="dyn" id="dyn-item"><tbody>'
+            '<tr data-cat="w" data-tier="1"><td>A</td></tr><tr data-cat="w" data-tier="3"><td>B</td></tr>'
+            '<tr data-cat="s" data-tier="1"><td>C</td></tr></tbody></table>')
+    ctx, pg, errors = _open(browser, tmp_path, page('Items', body, '../'), 1440, 900)
+    shown = "[...document.querySelectorAll('#dyn-item tbody tr')].filter(r => getComputedStyle(r).display !== 'none').length"
+    try:
+        pg.click('[data-rowf="cat"][data-v="w"]')
+        assert pg.evaluate(shown) == 2
+        pg.click('[data-rowf="tier"][data-v="1"]')
+        assert pg.evaluate(shown) == 1                                   # Weapon AND tier I
+        pg.click('[data-rowf="cat"][data-v="s"]')
+        assert pg.evaluate(shown) == 1 and pg.get_attribute('[data-v="w"]', 'aria-pressed') == 'false'
+        pg.click('[data-rowf="cat"][data-v="s"]')
+        pg.click('[data-rowf="tier"][data-v="1"]')
+        assert pg.evaluate(shown) == 3                                   # all cleared
+        assert not errors
+    finally:
+        ctx.close()
+
+
+def test_hidden_opens_a_patch_pages_tab_of_what_the_notes_left_out(browser, tmp_path):
+    """Review 2026-10-05: on an update with notes, #hidden pressed the raw All changes filter (first rows: engine
+    words); it opens the "Not in patch notes" tab of readable lines; the filter keeps its own tab's hash."""
+    from builders.common import page
+    body = ('<div class="tabs toolbar"><button class="px-btn on" data-tab="notes" aria-pressed="true">Patch notes</button>'
+            '<button class="px-btn" data-tab="generated" aria-pressed="false">Not in patch notes</button>'
+            '<button class="px-btn" data-tab="changes" aria-pressed="false">All changes</button></div>'
+            '<div class="tab-panel on" id="notes">notes</div>'
+            '<div class="tab-panel" id="generated" data-hidden-tab><ul class="gen-notes"><li>line</li></ul></div>'
+            '<div class="tab-panel" id="changes"><div class="toolbar"><button class="px-btn hf-hidden" '
+            'data-toggle-class="only-hidden" data-target="#changes" aria-pressed="false">Not in patch notes</button>'
+            '</div></div>')
+    ctx, pg, errors = _open(browser, tmp_path, page('Patch', body, '../'), 1440, 900)
+    try:
+        pg.evaluate("location.hash = '#hidden'")
+        pg.wait_for_function("document.getElementById('generated').classList.contains('on')")
+        assert pg.get_attribute('.hf-hidden', 'aria-pressed') == 'false'
+        pg.click('[data-tab="changes"]')
+        pg.click('.hf-hidden')
+        pg.wait_for_function("document.querySelector('.hf-hidden').getAttribute('aria-pressed') === 'true'")
+        pg.wait_for_timeout(50)
+        assert pg.evaluate('location.hash') == '#changes'
+        assert not errors
+    finally:
+        ctx.close()
+
+
+def test_an_ability_head_counts_what_the_filter_shows(browser, tmp_path):
+    """Review 2026-10-05: under the eye, Haze's Bullet Dance head still read 10 over the 1 row shown (15 of 36
+    groups kept their built numbers); a filter recounts each head like the banner and puts it back after."""
+    from builders.common import page
+    from builders.history_view import history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    a_rows = [ch(key=f'abilities.vdata:a:{i}', path=f'a{i}', label=f'Thing {i}', dir='buff', pct=10.0,
+                 status='hidden' if i == 0 else 'documented') for i in range(5)]
+    b_rows = [ch(key=f'abilities.vdata:b:{i}', path=f'b{i}', label=f'Other {i}', status='hidden') for i in range(2)]
+    keys = [('heroes.vdata:h', 'Base stats', None), ('abilities.vdata:a', 'Alpha', None),
+            ('abilities.vdata:b', 'Beta', None)]
+    hist = history_table(keys, ['Hero'], {'abilities.vdata:a': [(r1, a_rows)], 'abilities.vdata:b': [(r1, b_rows)]},
+                         {}, '../')
+    ctx, pg, errors = _open(browser, tmp_path, page('Hero', hist, '../', cls='entity'), 1440, 900)
+    head = ".hgroup[data-ab='{}'] .esub .tsum .pip.{}"
+    pip = "document.querySelector(\"" + head.format('a', 'buff') + "\").lastChild.nodeValue"
+    try:
+        assert pg.evaluate(pip) == '5'
+        pg.click('.hist-bar .hf-hidden')
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        assert pg.evaluate(pip) == '1'                                   # Alpha's one row the notes left out
+        assert pg.evaluate("document.querySelector(\"" + head.format('b', 'nerf') + "\").lastChild.nodeValue") == '2'
+        pg.click('.hist-bar .hf-hidden')
+        pg.wait_for_function("!document.getElementById('history').classList.contains('filtering')")
+        assert pg.evaluate(pip) == '5'                                   # the built number back
+        pg.click('.hist-bar [data-f-tag="nerf"]')                        # Alpha has no NERF: its BUFF pip goes
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        assert pg.evaluate("getComputedStyle(document.querySelector(\"" + head.format('a', 'buff') + "\")).display") == 'none'
         assert not errors
     finally:
         ctx.close()
