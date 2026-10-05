@@ -1,6 +1,20 @@
 [
   {
     "date": "2026-10-05",
+    "title": "Announced features better tracked, rules for all shown once, histories clearer",
+    "items": [
+      "The eye marker no longer appears on Valve's announced additions: new camps like Tough Crates and Bell Tower, item versions marked as Enhanced or Corrupted from the start, and hero stat changes in major reworks. Hidden changes not in notes went from 6,811 to 6,000 across all patches.",
+      "An item's Enhanced or Corrupted version that appears or vanishes completely now shows as one line, not multiple rows. For Corrupted versions, the game's own penalty names appear (\"never rolls: Ability Duration\").",
+      "A change that affects every hero or item at once (like ability cooldown adjustments for all) shows once per patch at the end, instead of listed under every hero or item it touched. Rules for all heroes or items fold behind a \"For all heroes\" button.",
+      "Patches with direct changes to a hero or item stay open in the history; patches that only contain everyone-at-once rules fold and hide until you click. Long histories over 8 patches now display year markers between patches.",
+      "The patch strip at the top of each hero/item/unit history now runs newest on the right, matching the change matrices. It never scrolls and fits in one row on every screen size.",
+      "On entity pages, the patch link (patch ↗) now goes directly to that hero, item or unit on the patch archive page — even for shared changes. A change affecting all heroes opens the Game rules page instead.",
+      "Removed items and abilities keep their in-game names instead of showing raw ids (EMP Grenade, Shield Rush, not internal codes). Items with the same name show how they differ (e.g. \"Toughness (old, added 2024-06-06)\").",
+      "Description changes that include numbers from the game (like cooldown or health values) stay folded to avoid showing placeholder brackets like [Ability Cooldown]; the old and new text appear when you expand them."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "title": "Shared changes, Game section, coverage fixes, and performance",
     "items": [
       "Shared changes across many heroes or items now show on each affected page: Haze's Max Health cut on 2026-05-22, the dash changes of eleven heroes on 2026-07-28, the troopers' rework of 2026-04-30, and level-curve adjustments. A badge says \"shared ×10 heroes\"; rules for all heroes (level curve, investment bonuses) fold as one line that links to the Game page, so hero pages stay readable.",
