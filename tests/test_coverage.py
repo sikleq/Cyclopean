@@ -331,6 +331,21 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     assert 'lines not found in the files' in patches_pages._audit_line({**p, 'line_counts': {'unmatched': 2}})
 
 
+def test_a_long_home_section_says_how_many_more_a_phone_hides(monkeypatch):
+    """Review 2026-10-05: on a phone City Never Sleeps' 102 item icons were 17 rows; three rows show, "+N more" opens
+    the patch page."""
+    from builders import archive, home_page, patch_counts
+    many = {f'abilities.vdata:upgrade_{i}': {'n': 1, 'hidden': 0, 'buff': 1, 'nerf': 0, 'kind': 'item', 'rows': []}
+            for i in range(home_page.PHONE_ICONS + 5)}
+    monkeypatch.setattr(home_page, 'update_feed', lambda *a, **k: {'items': many})
+    monkeypatch.setattr(archive, 'patch', lambda pid: {'entities': []})
+    monkeypatch.setattr(patch_counts, 'for_id', lambda pid: {'not_in_notes': 0, 'hidden_on_pages': 0})
+    rows = [{'id': f'p{i}', 'title': f'0{i}-01-2026 Update', 'date': f'2026-0{i}-01'} for i in (1, 2)]
+    feed = home_page._feed(rows, {}, frozenset(), {})
+    # the newest update (names under its icons) is whole; the older one says how many more
+    assert feed.count('class="lu-more"') == 1 and '>+5 more</a>' in feed and 'patches/p1.html#changes' in feed
+
+
 def test_the_home_icons_go_where_the_pages_are_and_count_like_the_banner(monkeypatch):
     """Review 2026-10-05: the home icons routed by the patch record's name, so Medic Trooper and Neutral bug (name ==
     id there) fell off the home page while their pages showed the rows (6736: banner 39, icons 27 + 2); one edit on a
