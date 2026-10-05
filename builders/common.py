@@ -221,15 +221,27 @@ _WEAPON_PLUMBING = re.compile(r'_?shared(?:_base|_weapon_info)?$')
 
 
 def display_name(e: dict) -> str:
-    """An entity's localized name, else a readable stand-in — never its id ('hero_airheart' sat in an h1)."""
+    """An entity's localized name, else a readable stand-in — never its id ('hero_airheart' sat in an h1). An item,
+    ability or unit's stand-in is in the game's Title Case like its real names ("Charged Bomb", not "Charged bomb";
+    review 2026-10-05); the Game section's names are written by hand and keep theirs (game_systems.name_of)."""
     name = e.get('name')
-    return name if name and name != e['id'] else pretty_id(e['id'], e.get('owner'))
+    if name and name != e['id']:
+        return name
+    return pretty_id(e['id'], e.get('owner'), title=e.get('file') in ('abilities.vdata', 'npc_units.vdata'))
 
 
-def pretty_id(eid: str, owner: str | None = None) -> str:
+def pretty_id(eid: str, owner: str | None = None, title: bool = False) -> str:
     """A readable stand-in for an entity that has no localized name yet (heroes in
     development): internal ids are never shown. 'citadel_weapon_frank_set' -> 'Weapon',
-    'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'."""
+    'ability_druid_sprout' -> 'Sprout', 'ability_doorman_ult' -> 'Ultimate'. `title`: every word capitalised
+    ("Aoe wave" -> "AoE Wave"), as the game writes names."""
+    s = _pretty_id(eid, owner)
+    if title and s != eid:
+        s = ' '.join(w[:1].upper() + w[1:] for w in s.split(' '))
+    return re.sub(r'\bAoe\b', 'AoE', s)
+
+
+def _pretty_id(eid: str, owner: str | None = None) -> str:
     if eid.startswith('citadel_weapon_'):
         if eid.endswith(('_alt', '_set2', '_set_2')):
             return 'Alt weapon'

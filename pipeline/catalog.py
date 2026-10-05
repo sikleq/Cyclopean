@@ -11,6 +11,7 @@ they had in game).
 from __future__ import annotations
 
 import json
+import re
 import time
 
 from . import cache, loc, tracker
@@ -126,11 +127,72 @@ def build() -> dict:
                 e['name'] = loc.entity_name(tok, e['id'], e.get('owner'))
     for e in ents.values():
         e['last'] = e['last'][:2]
+    # (not a gun: its text is its hero's, so an old variant would take the hero's gun name today)
+    earlier_names([e for e in ents.values() if e['file'] in ('abilities.vdata', 'npc_units.vdata')
+                   and (e.get('name') or e['id']) == e['id'] and e.get('kind') != 'weapon'
+                   and not e['id'].startswith('citadel_weapon_')], ents.values())
     drop_unit_names(ents.values())
     data = {'build': head.build, 'entities': sorted(ents.values(), key=lambda e: (e['file'], e['id']))}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     print(f"{len(ents)} entities, {time.time() - t0:.0f}s -> {OUT}")
     return data
+
+
+_DEPRECATED = re.compile(r'^\s*\[deprecated\]\s*|\s*-\s*deprecated\s*$', re.I)
+
+
+def name_in(tok: dict[str, str], e: dict) -> str | None:
+    """The entity's name in one build's text, without Valve's "[Deprecated]" marks; None when it has none there
+    ("DEPRICATED" is no name)."""
+    if e['file'] == 'npc_units.vdata':
+        name = loc.unit_name(tok, e['id'], {'m_sLocUnitName': e.get('loc_key', '')})
+    else:
+        name = loc.plain(loc.entity_name(tok, e['id'], e.get('owner')))
+    name = _DEPRECATED.sub('', name or '').strip()
+    # "Bullet Resilience Disabled": Valve marking a dead entry, not its name — an older build has it
+    if (not name or name == e['id'] or 'deprecated' in name.lower() or 'depricated' in name.lower()
+            or re.search(r'\bdisabled$', name, re.I)):
+        return None
+    return name
+
+
+def earlier_names(missing: list[dict], everyone=()) -> None:
+    """An entity whose last build's text has no name for it gets the newest name an earlier build gave it (a removed
+    item's key left the text before the item did: "Ablative coat", "Aoe silence" were EMP Grenade… on 57 item pages,
+    review 2026-10-05). The text of each distinct state of the english files is read once, newest first. A
+    patch page keeps its own build's name (rule 4); this is the catalog's fallback. A found name another entity of
+    the file has too (the live "Toughness") is marked "(old)" on the removed one (`everyone`: all entities)."""
+    want = {e['id']: e for e in missing}
+    if not want:
+        return
+    found = _scan_names(want)
+    taken: dict[tuple[str, str], int] = {}
+    for e in everyone:
+        if e.get('name'):
+            taken[(e['file'], e['name'])] = taken.get((e['file'], e['name']), 0) + 1
+    for e in found:
+        if taken.get((e['file'], e['name']), 0) > 1 and not e.get('alive'):
+            e['name'] += ' (old)'
+
+
+def _scan_names(want: dict[str, dict]) -> list[dict]:
+    found = []
+    seen: set[tuple] = set()
+    for b in reversed(tracker.builds()):
+        if not want:
+            break
+        state = tuple(sorted(loc.english_files(b.commit).values()))
+        if not state or state in seen:
+            continue
+        seen.add(state)
+        tok = loc.tokens(b.commit)
+        for eid, e in list(want.items()):
+            name = name_in(tok, e)
+            if name:
+                e['name'] = name
+                found.append(e)
+                del want[eid]
+    return found
 
 
 def drop_unit_names(ents) -> None:

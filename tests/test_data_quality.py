@@ -253,7 +253,40 @@ def test_stand_in_names_say_what_tells_them_apart():
     assert pretty_id('citadel_weapon_astro_hand_cannon', 'hero_astro') == 'Weapon (hand cannon)'
     assert pretty_id('citadel_weapon_frank_set', 'hero_frank') == 'Weapon'
     assert pretty_id('citadel_weapon_frank_set2', 'hero_frank') == 'Alt weapon'
-    assert pretty_id('citadel_ability_tier3boss_aoe_wave') == 'Aoe wave'
+    assert pretty_id('citadel_ability_tier3boss_aoe_wave') == 'AoE wave'
+    # review 2026-10-05: an item's, ability's or unit's stand-in is Title Case like the game's names
+    from builders.common import display_name
+    assert display_name({'file': 'abilities.vdata', 'id': 'ability_charged_bomb', 'name': 'ability_charged_bomb'}) \
+        == 'Charged Bomb'
+    assert display_name({'file': 'abilities.vdata', 'id': 'citadel_ability_tier2boss_aoe_wave'}) == 'AoE Wave'
+    assert display_name({'file': 'misc.vdata', 'id': 'citadel_breakable_prop_box'}) == 'Breakable prop box'
+
+
+def test_a_name_the_last_build_lost_comes_from_an_earlier_one(monkeypatch):
+    """Review 2026-10-05: 57 removed items read "Ablative coat", "Aoe silence" (EMP Grenade): their text key left
+    the files before they did. The newest earlier name, without "[Deprecated]"; "Bullet Resilience Disabled" is a
+    mark, not a name; "DEPRICATED" none; a name a live item has gets "(old)"."""
+    from types import SimpleNamespace
+    from pipeline import catalog, loc, tracker
+    builds = [SimpleNamespace(commit=c) for c in ('c1', 'c2', 'c3')]
+    toks = {'c1': {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Improved Bullet Armor',
+                   'upgrade_toughness_3': 'Toughness'},
+            'c2': {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Bullet Resilience Disabled',
+                   'upgrade_duration_extender': '[Deprecated] Duration Extender', 'upgrade_frenzy': 'DEPRICATED',
+                   'upgrade_toughness_3': 'Toughness'},
+            'c3': {}}
+    monkeypatch.setattr(tracker, 'builds', lambda: builds)
+    monkeypatch.setattr(loc, 'english_files', lambda rev: {'x': rev})
+    monkeypatch.setattr(loc, 'tokens', lambda rev: toks[rev])
+    ents = [{'file': 'abilities.vdata', 'id': i, 'name': i, 'alive': False} for i in
+            ('upgrade_aoe_silence', 'upgrade_bullet_armor_2', 'upgrade_duration_extender', 'upgrade_frenzy',
+             'upgrade_toughness_3')]
+    live = {'file': 'abilities.vdata', 'id': 'upgrade_toughness', 'name': 'Toughness', 'alive': True}
+    catalog.earlier_names(ents, ents + [live])
+    names = {e['id']: e['name'] for e in ents}
+    assert names == {'upgrade_aoe_silence': 'EMP Grenade', 'upgrade_bullet_armor_2': 'Improved Bullet Armor',
+                     'upgrade_duration_extender': 'Duration Extender', 'upgrade_frenzy': 'upgrade_frenzy',
+                     'upgrade_toughness_3': 'Toughness (old)'}
 
 
 # ---- ability cards ------------------------------------------------------------------------

@@ -704,7 +704,7 @@ def test_added_and_removed_entities_that_matter():
 def test_readable_names_for_ids_and_stand_ins():
     from builders.common import pretty_id
     assert pretty_id('slork_ability_invis', 'hero_slork') == 'Invis'
-    assert pretty_id('citadel_ability_tier2boss_aoe_wave') == 'Aoe wave'
+    assert pretty_id('citadel_ability_tier2boss_aoe_wave') == 'AoE wave'
     assert pretty_id('hero_airheart') == 'Airheart'
     assert semantics.show('20%', semantics.FRACTION) == '20%'            # already a percent: not ×100
     fencer = semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{DashSpeed}.m_strBonus', {},
