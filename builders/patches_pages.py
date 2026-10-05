@@ -66,7 +66,9 @@ def _audit_line(p: dict) -> str:
                  ('hidden', c.get('not_in_notes', 0), 'not in patch notes'),
                  ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
                  ('code', lc.get('code', 0), "in the game's code"),
-                 ('fix', lc.get('fix', 0), 'bug fixes')]
+                 ('fix', lc.get('fix', 0), 'bug fixes'),
+                 # lines no change was found for: said, not hidden (review 2026-10-05)
+                 ('unmatched', lc.get('unmatched', 0), 'lines not found in the files')]
         if c.get('unreleased'):
             audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))
     else:

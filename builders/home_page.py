@@ -140,10 +140,12 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     return out
 
 
-def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = False, k: int | None = None) -> str:
+def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = False, k: int | None = None,
+          eye: bool = True) -> str:
     """`names`: entity key -> its name today (common.display_name: never an id). `named`: the name under
     the icon (the newest update; advisor round 4: names were in tooltips only). `k`: the icon's entry in the
-    feed's hover-card data (chip_card) — the card replaces the one-line tooltip."""
+    feed's hover-card data (chip_card) — the card replaces the one-line tooltip. `eye`: False when the group's
+    label carries the one eye (every icon of it all out of the notes)."""
     file, _, eid = key.partition(':')
     if file == 'game':                 # a Game system (game_systems): its icon from the game files or a site glyph
         from .game_systems import SECTION, icon_html, system
@@ -157,7 +159,7 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
     tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
     # with a card the eye says nothing of its own (its tooltip stacked on the card)
     eye_mark = mark('hidden') if k is None else EYE_MARK
-    eye = f'<span class="lu-eye">{eye_mark}</span>' if s['hidden'] else ''
+    eye = f'<span class="lu-eye">{eye_mark}</span>' if s['hidden'] and eye else ''
     label = f'<span class="lu-nm">{esc(name)}</span>' if named else ''
     hover = (f'aria-label="{esc(tip)}" data-name="{esc(name)}" data-k="{k}"' if k is not None
              else f'data-tooltip="{esc(tip)}"')
@@ -205,11 +207,17 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             got = sorted(feed.get(sec, {}).items(), key=lambda kv: (-kv[1]['n'], kv[0]))
             if got:
                 named = not blocks
+                # every icon of the group all out of the notes: ONE eye on the group's label, none on the icons,
+                # as one eye on an all-hidden band (review 2026-10-05: 171 of 246 icons had it, it marked nothing)
+                # (an update with no notes at all says so once, on its banner: no eye anywhere below)
+                notes = row.get('has_notes', True)
+                all_out = notes and all(s['hidden'] == s['n'] for _, s in got)
                 chips = []
                 for k, s in got:
-                    chips.append(_chip(k, s, row['id'], names, named, len(cards)))
+                    chips.append(_chip(k, s, row['id'], names, named, len(cards), eye=notes and not all_out))
                     cards.append([len(updates) - 1, *chip_card(s)])
-                groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b></span>'
+                whole = f'<span class="lu-all">{EYE_MARK}all not in notes</span>' if all_out else ''
+                groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b>{whole}</span>'
                               f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}</div></div>')
         # the update's one count (patch_counts: as its patch page and the patch list); what no icon below carries is
         # named apart — the game's rules and map objects only the patch page lists

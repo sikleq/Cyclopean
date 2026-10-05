@@ -18,7 +18,7 @@ from .shared_rows import is_every
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
-             'hidden', 'unreleased', 'unannounced')
+             'hidden', 'unreleased', 'unannounced', 'unmatched')
 
 
 def is_hidden(changes: list[dict]) -> bool:
