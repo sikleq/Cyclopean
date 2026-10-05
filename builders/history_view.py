@@ -433,6 +433,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     own_slot, every_all = split_every(slot, in_dev)
     groups = _groups(own_slot, order, meta, names, hints, merge)
     counted_all, all_dev, card = [], True, []
+    band_seen: set[tuple] = set()
     single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
     # a group of text changes only (a rename) is work before release when every other group of the band is
     # (heroes in development rename their abilities): it waits behind "Before release" with them
@@ -454,9 +455,15 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         # a rule for every hero (shared_rows.is_every) is not in the groups (split_every): the band's own counters,
         # its eye and the strip tile count what changed on THIS entity
         counted = rows if in_dev else live
-        counted_all += counted
+        # a family or a Game system: the same change on several members counts once in the band (its groups still
+        # list it), as in the change matrix and on the home icon (one edit over 15 breakables read 138 / 52 / 50)
+        fresh = counted
+        if merge:
+            fresh = [c for c in counted if (c.get('label'), c.get('old_s'), c.get('new_s')) not in band_seen]
+            band_seen.update((c.get('label'), c.get('old_s'), c.get('new_s')) for c in counted)
+        counted_all += fresh
         facts['tags'] |= {tag_of(c)[0] for c in rows}
-        facts['hidden'] += sum(1 for c in counted if not_in_notes(c))
+        facts['hidden'] += sum(1 for c in fresh if not_in_notes(c))
         facts['dev'] += len(dev)
         area = ' '.join(dict.fromkeys((areas or {}).get(k, 'abil') for k in g['keys']))
         facts['areas'] |= set(area.split())
@@ -477,7 +484,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         parts.append(f'<div class="{cls}" data-ab="{esc(ids)}" data-area="{esc(area)}">{plate}'
                      f'<div class="hg-b">{head}{g["rows"]}</div></div>')
         ref = ('' if headless else nm, ic or '', ids, int(ult))
-        card.append((ref, disambiguate(counted, (hints or {}).get(key))))
+        card.append((ref, disambiguate(fresh, (hints or {}).get(key))))
     # a rule for every hero is ONE block of link rows for the whole band, after its groups: it sat under each of
     # the hero's abilities it touched (Calico 2026-01-22: 15 copies of "All abilities & items: 1 change", ~1000 px)
     if every_all:

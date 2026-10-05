@@ -149,9 +149,12 @@ def _stats(hist: dict, keys: list[str]) -> tuple[int, str]:
     """(changes a player reads, the newest patch date) of a system: the history rows of its keys."""
     from .cards import player_facing
     n, last = 0, ''
+    seen: set[tuple] = set()          # one edit over several entries counts once (the band, matrix and home icon)
     for k in keys:
         for row, ch in hist.get(k, ()):
-            rows = [c for c in player_facing(ch) if c.get('status') != 'unreleased']
+            rows = [c for c in player_facing(ch) if c.get('status') != 'unreleased'
+                    and (row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) not in seen]
+            seen.update((row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows)
             n += len(rows)
             if rows:
                 last = max(last, row['date'][:10])

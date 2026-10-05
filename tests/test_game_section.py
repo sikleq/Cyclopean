@@ -395,3 +395,20 @@ def test_the_soul_urn_rework_of_2026_06_04_is_on_its_page_and_the_feed():
     from builders.common import load_json
     feed = home_page.update_feed(load_json('patches/2026-06-04.json.gz'))
     assert 'game:urn' in feed.get('game', {})
+
+
+@needs_data
+def test_a_game_system_counts_one_edit_once_in_the_matrix_and_on_the_home_icon():
+    """Review 2026-10-05: Breakables 2026-09-29 read 138 in the change matrix (one edit over 15 crates counted 15
+    times), 52 on its band, 50 on the home icon; the level curve 38 / 34 (a whole level added is one change)."""
+    from builders import archive
+    from builders.dynamics_page import _collect
+    from builders.home_page import update_feed
+    cells = _collect()['cells']
+    off = []
+    for pid in [r['id'] for r in archive.by_date()][-25:]:
+        feed = update_feed(archive.patch(pid)).get('game', {})
+        for key, per in cells.items():
+            if key.startswith('game:') and pid in per and key in feed and sum(per[pid].values()) != feed[key]['n']:
+                off.append((key, pid, sum(per[pid].values()), feed[key]['n']))
+    assert not off, off

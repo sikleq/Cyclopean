@@ -61,11 +61,14 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
         if is_template(info):
             rows = [c for c in rows if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in heirs]
         yield {**e, 'what': name_of(e['key'], info)}, rows, f'game:{hit[0]}', 'game'
+    rules: dict[tuple[str, str], tuple[dict, list[dict]]] = {}
     for e in gameplay_entities(p['entities']):
         if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
             for c in e['changes']:
-                sid, pid = place_all_row(e['file'], c)
-                yield {**e, 'what': part_name(sid, pid)}, [c], f'game:{sid}', 'game'
+                rules.setdefault(place_all_row(e['file'], c), (e, []))[1].append(c)
+    # one list per part, as the system page reads it (a whole level added is one change: combine_levels)
+    for (sid, pid), (e, cs) in rules.items():
+        yield {**e, 'what': part_name(sid, pid)}, cs, f'game:{sid}', 'game'
     for c in convar_changes(p.get('extras', {}).get('convars') or [], convar_start()):
         yield {'file': 'convars', 'id': c['id'], 'what': c['id']}, [c], f'game:{place("convar:" + c["id"])[0]}', 'game'
 

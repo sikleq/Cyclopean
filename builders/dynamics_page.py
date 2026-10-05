@@ -109,11 +109,15 @@ def _collect() -> dict:
             else:
                 continue
             found.append((keys, part_of(e), _display(e), e['changes'], e['file'] == 'abilities.vdata' and e['id']))
+        rules: dict[tuple[str, str], list[dict]] = {}
         for e in archive.gameplay(r['id']):       # the rules for every hero / ability, once
             if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
                 for c in e['changes']:
-                    sid, pid = place_all_row(e['file'], c)
-                    found.append(([f'game:{sid}'], pid, next(x.name for x in system(sid).parts if x.id == pid), [c], ''))
+                    rules.setdefault(place_all_row(e['file'], c), []).append(c)
+        # one list per part, as the system page reads them: a whole level added is one change (combine_levels),
+        # not three — the level curve read 38 in the matrix and 34 on its band (review 2026-10-05)
+        for (sid, pid), cs in rules.items():
+            found.append(([f'game:{sid}'], pid, next(x.name for x in system(sid).parts if x.id == pid), cs, ''))
         cvs = p.get('extras', {}).get('convars') or []
         for c in convar_changes(cvs, start):
             sid, pid = place(f'convar:{c["id"]}')
@@ -123,8 +127,12 @@ def _collect() -> dict:
                 cell = cells.setdefault(key, {}).setdefault(r['id'], {})
                 pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
                 for c in player_facing(changes):
-                    if key.startswith('unit:'):
-                        sig = (key, r['id'], abil, c.get('label'), c.get('old_s'), c.get('new_s'))
+                    # the same change on several members of a family counts once; so does one edit spread over a
+                    # system's entries — the Breakables tile read 138 for 2026-09-29 where its band read 52 and
+                    # the home icon 50 (review 2026-10-05; the same signature as home_page.update_feed)
+                    if key.startswith(('unit:', 'game:')):
+                        sig = (key, r['id'], abil if key.startswith('unit:') else '', c.get('label'), c.get('old_s'),
+                               c.get('new_s'))
                         if sig in once:
                             continue
                         once.add(sig)
