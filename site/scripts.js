@@ -380,6 +380,8 @@
     var ORDER = ['new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'up', 'down', 'mech', 'changed'];
     var tip = null, current = null, strip, feed;
     function txt(s) { var e = document.createElement('span'); e.textContent = s == null ? '' : String(s); return e.innerHTML; }
+    // a value inside an attribute: its quotes too (innerHTML escapes & < > only)
+    function attr(s) { return txt(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;'); }
     function matrixData(id) {                   // shared with dyn-parts: each blob parsed once
       var all = window.__dyn = window.__dyn || {};
       if (!all[id]) {
@@ -420,7 +422,7 @@
     }
     /* o: icon, name, patch, named, counts, hidden, rows (table html), more, foot, d (words / icons / eye) */
     function card(o) {
-      var html = '<div class="dt-head">' + (o.icon ? '<img src="' + txt(o.icon) + '" alt="">' : '') +
+      var html = '<div class="dt-head">' + (o.icon ? '<img src="' + attr(o.icon) + '" alt="">' : '') +
         (o.name ? '<span class="dt-name">' + txt(o.name) + '</span>' : '') +
         '<span class="dt-patch' + (o.named ? ' named' : '') + '">' + txt(o.patch) + '</span></div>';
       if (o.counts) html += countsHtml(o.counts, o.d);
@@ -489,7 +491,7 @@
         if (!rows.length) return;
         if (heads && ref[0]) {
           html += '<tr class="dt-grp"><td colspan="3">' + (ref[1] ? '<span class="dt-ic' + (ref[3] ? ' ult' : '') +
-            '"><img src="' + txt(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) + '</td></tr>';
+            '"><img src="' + attr(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) + '</td></tr>';
         }
         rows.forEach(function (s) {
           shown++;
@@ -616,10 +618,10 @@
         return 'var(--tag-' + (COLOUR[t] || t) + ') ' + a.toFixed(1) + '% ' + acc.toFixed(1) + '%';
       }).join(',') + ')';
     }
-    // `onlyTag`: a tag button touches only the tiles that have that tag; tiles out of sight (old columns,
-    // hidden rows) wait, marked dirty, until they show (2k tiles took 130 ms each click)
+    // tiles out of sight (old columns, hidden rows) wait, marked dirty, until they show (2k tiles took 130 ms each
+    // click); `onlyDirty`: redraw just those once they show
     var tiles = {};
-    function redraw(table, onlyTag, onlyDirty) {
+    function redraw(table, onlyDirty) {
       var blob = document.querySelector('script.dyn-data[data-for="' + table.id + '"]');
       if (!blob) return;
       var all = window.__dyn = window.__dyn || {};          // shared with dyn-tip's hover card: parsed once
@@ -638,7 +640,6 @@
         var a = pair[0], c = pair[1];
         if (onlyDirty && !pair[4]) return;
         var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
-        if (onlyTag && !counts[onlyTag]) return;
         if ((pair[2] && !showOld) || (pair[3] && !showExtra)) { pair[4] = true; return; }
         pair[4] = false;
         var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = 0;
@@ -690,7 +691,7 @@
       .forEach(function (inp) {
         inp.addEventListener('click', function () {
           var table = document.querySelector(inp.getAttribute('data-target'));
-          if (table && tiles[table.id]) setTimeout(function () { redraw(table, null, true); }, 0);
+          if (table && tiles[table.id]) setTimeout(function () { redraw(table, true); }, 0);
         });
       });
   });
