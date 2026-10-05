@@ -100,6 +100,16 @@ def cv(name, op='change', old=None, new=None, build=6601, flags='developmentonly
     return {'name': name, 'op': op, 'old': old, 'new': new, 'build': build, 'flags': flags, 'status': status}
 
 
+def test_the_patch_count_holds_its_console_variables(monkeypatch):
+    """Review 2026-10-05: 2026-09-16's banner said 8 off the pages, its Game icons 12 — the console variables the
+    Game pages and icons show were in no count."""
+    from builders import game_systems, patch_counts
+    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
+    p = {'entities': [], 'extras': {'convars': [cv('citadel_player_spawn_time_max_ramp_1', old='35', new='37')]}}
+    c = patch_counts.count(p, frozenset())
+    assert c['changes'] == 1 and c['not_in_notes'] == 1 and patch_counts.off_pages(c) == 1
+
+
 def test_console_variables_become_history_rows():
     from builders.game_systems import convar_changes
     rows = [cv('citadel_player_spawn_time_max_ramp_1', old='35', new='37', build=6690, status='documented'),

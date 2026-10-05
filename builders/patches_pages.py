@@ -82,8 +82,9 @@ def _audit_line(p: dict) -> str:
         elif n:
             html += f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>'
         if k == 'hidden' and n and off:
-            # their pages are the Game section's (the patch page and the list both live in patches/)
-            html += (f'<a class="au au-off" href="../game/index.html"><b>{off}</b> of them in game rules '
+            # their pages are the Game section's: its change matrix shows the update's column per system (the patch
+            # page and the list both live in patches/)
+            html += (f'<a class="au au-off" href="../game/changes.html"><b>{off}</b> of them in game rules '
                      f'&amp; map objects</a>')
     return html
 

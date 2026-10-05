@@ -40,25 +40,84 @@ def page_set() -> frozenset[str]:
     return frozenset(page_keys(ents, heroes, items, units))
 
 
+ALL_ROWS = '@all'          # _counted_as: a rule for every hero / ability, grouped row by row
+
+
+@lru_cache(maxsize=1)
+def unit_main() -> dict[str, str]:
+    """A unit id -> the id of its family's page (unit_families: the five Gutter Ghouls I are one page)."""
+    from .unit_families import families
+    ents = load_json('entities.json')['entities']
+    fams = families([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
+    return {m['id']: ms[0]['id'] for ms in fams.values() for m in ms}
+
+
+def _counted_as(e: dict, pages: frozenset[str] | set[str]) -> tuple[str | None, bool]:
+    """(the group inside which one edit counts once, whether a hero / item / unit page shows the rows) of a patch
+    entity — as the home icons route it (home_page.page_route / _feed_rows): a unit family's page, a Game system; a
+    rule for every hero or ability is its Game system's (on a hero page it is a link row, no row of its own)."""
+    from .game_systems import place_all_row, place_entity
+    from .home_page import page_route
+    from .shared_rows import FOLD_FILES, catalog
+    if e.get('id') == '@shared':
+        if e.get('scope') == 'all' and e['file'] in FOLD_FILES:
+            return ALL_ROWS, False                   # each row its own system's (place_all_row)
+        targets = e.get('target_keys') or []
+        if any(k in pages for k in targets):
+            return None, True
+        # one edit over map objects no page shows (sixteen breakables): their Game system's
+        cat = catalog()
+        for k in targets:
+            hit = place_entity(k, {**cat.get(k, {}), 'file': k.partition(':')[0], 'id': k.partition(':')[2]})
+            if hit:
+                return f'game:{hit[0]}', False
+        return None, False
+    info = {**e, **catalog().get(e['key'], {})}
+    where = page_route(e['key'], info, pages, unit_main())
+    if where:
+        return (where[0] if where[1] == 'units' else None), True
+    hit = place_entity(e['key'], info)
+    return (f'game:{hit[0]}' if hit else None), False
+
+
 def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, int]:
     """{'changes': n, '<status>': n per status, 'not_in_notes': n, 'hidden_on_pages': n} of one patch. `pages`: the
     keys the hero, item and unit pages show (`page_set`)."""
     from .cards import gameplay_entities, player_facing
     from .render import not_in_notes
+    from .game_systems import place_all_row
     from .shared_rows import spread
     if pages is None:
         pages = page_set()
     out: Counter = Counter()
+    once: set[tuple] = set()
     for e in gameplay_entities(p['entities']):
         rows = player_facing(e['changes'])
         if not rows:
             continue
-        on_page = any(x['key'] in pages for x in spread(e))
+        group, on_page = _counted_as(e, pages)
+        on_page = on_page and any(x['key'] in pages for x in spread(e))
         for c in rows:
+            if group is not None:
+                # one edit over a unit family's members or a Game system's entries counts once, as their pages, the
+                # change matrices and the home icons count it (Walker's four ids, twelve breakable props)
+                g = f'game:{place_all_row(e["file"], c)[0]}' if group == ALL_ROWS else group
+                sig = (g, c.get('label'), c.get('old_s'), c.get('new_s'))
+                if sig in once:
+                    continue
+                once.add(sig)
             out['changes'] += 1
             out[c.get('status', 'hidden')] += 1
             out['not_in_notes'] += not_in_notes(c)
             out['hidden_on_pages'] += bool(on_page and not_in_notes(c))
+    # the console variables a game reads: the Game pages and the home icons show them, so they count (2026-09-16:
+    # the banner said 8 off the pages, the Game icons 12; review 2026-10-05)
+    from .game_systems import convar_changes, convar_start
+    convars = (p.get('extras') or {}).get('convars') or []
+    for c in player_facing(convar_changes(convars, convar_start())) if convars else ():
+        out['changes'] += 1
+        out[c.get('status', 'hidden')] += 1
+        out['not_in_notes'] += not_in_notes(c)
     return {'changes': 0, 'hidden': 0, 'not_in_notes': 0, 'hidden_on_pages': 0, **out}
 
 

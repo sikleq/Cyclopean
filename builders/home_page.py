@@ -36,10 +36,40 @@ def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[st
     return None
 
 
-def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | None):
-    """(entity, its rows, page key, section) of one patch: a hero / item / unit page's (page_of), else the Game
-    system's (game_systems: map objects, rules, effects, abilities no hero owns, a template's change no heir shows,
-    a rule for every hero or ability — once —, console variables). Key of a Game row: 'game:<system>'."""
+def page_route(key: str, info: dict, pages: frozenset[str] | set[str], unit_main: dict[str, str] | None
+               ) -> tuple[str, str] | None:
+    """The page an entity's rows are on, by THE pages (patch_counts.page_set, entities_pages.page_keys) and the
+    catalog — not by the patch record: (page key, section). A hero's abilities and guns are the hero's, an item its
+    own, a unit (a helper too) its family's, an ability a unit binds that unit's family's. The record's name decided
+    before, so Medic Trooper and Neutral bug (name == id in the record) fell off the home page while their pages
+    showed the rows (review 2026-10-05: "Respawn Time 30s → 15s" was build 6736's biggest change)."""
+    if key not in pages:
+        return None
+    file, _, eid = key.partition(':')
+    main = unit_main or {}
+    if file == 'heroes.vdata':
+        return key, 'heroes'
+    if file == 'abilities.vdata':
+        owner = info.get('owner') or ''
+        if owner.startswith('hero_') and f'heroes.vdata:{owner}' in pages:
+            return f'heroes.vdata:{owner}', 'heroes'
+        if eid.startswith('upgrade_'):
+            return key, 'items'
+        for u in info.get('units') or ():
+            if f'npc_units.vdata:{u}' in pages:
+                return f'npc_units.vdata:{main.get(u, u)}', 'units'
+        return None
+    if file == 'npc_units.vdata':
+        return f'npc_units.vdata:{main.get(eid, eid)}', 'units'
+    return None
+
+
+def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | None,
+               pages: frozenset[str] | None = None):
+    """(entity, its rows, page key, section) of one patch: a hero / item / unit page's (`page_route` by `pages`;
+    without them the record's `page_of`), else the Game system's (game_systems: map objects, rules, effects,
+    abilities no hero owns, a template's change no heir shows, a rule for every hero or ability — once —, console
+    variables). Key of a Game row: 'game:<system>'."""
     from .cards import gameplay_entities
     from .game_systems import (convar_changes, convar_start, is_template, name_of, part_name, place, place_all_row,
                                place_entity)
@@ -50,11 +80,11 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
              for e in spread if not is_template(e) for c in e['changes']}
     for e in spread:
         rows = own(e['changes'])
-        where = page_of(e, templates, unit_main)
+        info = {**e, **cat.get(e['key'], {})}
+        where = page_of(e, templates, unit_main) if pages is None else page_route(e['key'], info, pages, unit_main)
         if where:
             yield e, rows, where[0], where[1]
             continue
-        info = {**e, **cat.get(e['key'], {})}
         hit = place_entity(e['key'], info)
         if not hit:
             continue
@@ -73,8 +103,8 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
         yield {'file': 'convars', 'id': c['id'], 'what': c['id']}, [c], f'game:{place("convar:" + c["id"])[0]}', 'game'
 
 
-def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
-                ) -> dict[str, dict[str, dict]]:
+def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None,
+                pages: frozenset[str] | None = None) -> dict[str, dict[str, dict]]:
     """section -> page key -> {n, hidden, buff, nerf, kind, rows}: what one update did to each page (rows:
     (what, change) for the icon's hover card).
     Counts are the player-facing rows (cards.player_facing) a page shows; work on unreleased heroes
@@ -86,7 +116,7 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     from .render import not_in_notes
     out: dict[str, dict[str, dict]] = {}
     once: set = set()
-    for e, rows, key, section in _feed_rows(p, templates, unit_main):
+    for e, rows, key, section in _feed_rows(p, templates, unit_main, pages):
         rows = [c for c in player_facing(rows) if c.get('status') != 'unreleased']
         if not rows:
             continue
@@ -149,9 +179,11 @@ def chip_card(s: dict) -> list:
                                    int(not_in_notes(c))] for w, c in top]]
 
 
-def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str]) -> str:
+def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str],
+          pages: frozenset[str] | None = None) -> str:
     """The latest updates' icons + ONE JSON blob of their hover cards (scripts.js dyn-tip, parsed on the first
-    hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed)."""
+    hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed). `pages`: THE pages
+    (patch_counts.page_set), so the icons route rows where the pages and the update's count put them."""
     import json
     from .common import patch_title_text
     from .patch_counts import for_id, off_pages
@@ -160,7 +192,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     for row in reversed(patches):
         if len(blocks) == LATEST_UPDATES:
             break
-        feed = update_feed(archive.patch(row['id']), templates, unit_main)
+        feed = update_feed(archive.patch(row['id']), templates, unit_main, pages)
         if not feed:
             continue
         updates.append([patch_title_text(row), bool(patch_name(row['title']))])
@@ -181,11 +213,15 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         eye = ''
         if pc['not_in_notes']:
             # a way in: the patch page with its "Not in patch notes" filter pressed (scripts.js hidden-hash)
+            # an update Valve posted no notes for says so, as its bands do (Rat King's build 6736: nothing was "left
+            # out" of notes that do not exist)
+            what = 'not in patch notes' if row.get('has_notes', True) else '· no patch notes'
             eye = (f'<a class="au au-hidden" href="patches/{esc(row["id"])}.html#hidden">{mark("hidden")}'
-                   f'<b>{pc["not_in_notes"]}</b> not in patch notes</a>')
+                   f'<b>{pc["not_in_notes"]}</b> {what}</a>')
             if off_pages(pc):
-                # they have pages now: the Game section's
-                eye += (f'<a class="au au-off" href="game/index.html"><b>{off_pages(pc)}</b> of them in game rules '
+                # they have pages now: the Game section's — its change matrix shows this update's column per system
+                # (the Game index said nothing about the update)
+                eye += (f'<a class="au au-off" href="game/changes.html"><b>{off_pages(pc)}</b> of them in game rules '
                         f'&amp; map objects</a>')
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
@@ -227,7 +263,7 @@ def build_all() -> int:
     names |= {f"npc_units.vdata:{ms[0]['id']}": name for name, ms in fams.items()}     # "Slum Shroom", not "… I"
     # the one count of every patch (patch_counts: the patch pages and the list say the same) — no engine plumbing,
     # no work on unreleased heroes (round 3: "8620 hidden" counted both)
-    from .patch_counts import for_id
+    from .patch_counts import for_id, page_set
     total = sum(for_id(row['id'])['changes'] - for_id(row['id']).get('unreleased', 0) for row in patches)
     total_hidden = sum(for_id(row['id'])['not_in_notes'] for row in patches)
     last_build = builds[-1] if builds else None
@@ -260,7 +296,7 @@ def build_all() -> int:
 </div>
 {_tiles(counts, faces, unit_art)}
 <h2 class="home-h">Latest changes</h2>
-{_feed(patches, names, templates, unit_main)}
+{_feed(patches, names, templates, unit_main, page_set())}
 '''
     write('index.html', page('Deadlock change history', body, '', '', build=last_build['build'] if last_build else None,
                              description='What changed on every Deadlock hero, item, unit and game rule, from the game '

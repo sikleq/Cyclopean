@@ -309,6 +309,30 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     assert '<a class="au au-hidden" href="#hidden">' in audit
 
 
+def test_the_home_icons_go_where_the_pages_are_and_count_like_the_banner(monkeypatch):
+    """Review 2026-10-05: the home icons routed by the patch record's name, so Medic Trooper and Neutral bug (name ==
+    id there) fell off the home page while their pages showed the rows (6736: banner 39, icons 27 + 2); one edit on a
+    family's members counted once on its icon and on every member in the banner."""
+    from builders import home_page, patch_counts, shared_rows
+    stomp = {'file': 'abilities.vdata', 'id': 'stomp', 'kind': 'ability_other', 'units': ['bot'], 'name': 'Stomp'}
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2, **{'abilities.vdata:stomp': stomp}))
+    monkeypatch.setattr(patch_counts, 'unit_main', lambda: {'bot': 'bot', 'bot_alt': 'bot', 'trooper_medic': 'trooper_medic'})
+    medic = {'key': 'npc_units.vdata:trooper_medic', 'file': 'npc_units.vdata', 'id': 'trooper_medic', 'kind': 'trooper',
+             'name': 'trooper_medic', 'changes': [ch(key='npc_units.vdata:trooper_medic:a', label='Sight range')]}
+    bots = [{'key': f'npc_units.vdata:{b}', 'file': 'npc_units.vdata', 'id': b, 'kind': 'helper', 'name': b,
+             'changes': [ch(key=f'npc_units.vdata:{b}:r', label='Respawn Time', old_s='30s', new_s='15s')]}
+            for b in ('bot', 'bot_alt')]
+    ab = {**stomp, 'key': 'abilities.vdata:stomp', 'changes': [ch(key='abilities.vdata:stomp:a', label='Radius')]}
+    p = {'entities': [medic, *bots, ab]}
+    pages = frozenset({'npc_units.vdata:trooper_medic', 'npc_units.vdata:bot', 'npc_units.vdata:bot_alt',
+                       'abilities.vdata:stomp'})
+    feed = home_page.update_feed(p, frozenset(), patch_counts.unit_main(), pages)
+    assert set(feed) == {'units'} and set(feed['units']) == {'npc_units.vdata:trooper_medic', 'npc_units.vdata:bot'}
+    assert feed['units']['npc_units.vdata:bot']['n'] == 2                       # Respawn Time once, Stomp's Radius
+    c = patch_counts.count(p, pages)
+    assert sum(v['hidden'] for v in feed['units'].values()) == c['hidden_on_pages'] == 3
+
+
 # ---- on the real data (data/ regenerated with target_keys) ------------------------------------------------------
 
 def _has_target_keys() -> bool:
