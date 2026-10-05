@@ -309,6 +309,8 @@ def entity_icon(file: str, eid: str, kind: str, rel: str, name: str | None = Non
         return icon(f'unit:{eid}', rel)
     if file == 'misc.vdata':
         return icon(f'misc:{eid}', rel)
+    if file == 'modifiers.vdata':          # an effect the Game pages list: its art by data/overrides/game_icons.json
+        return icon(f'modifier:{eid}', rel)
     return None
 
 

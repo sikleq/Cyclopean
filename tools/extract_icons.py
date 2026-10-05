@@ -1,4 +1,4 @@
-"""Extract hero / ability / item / unit icons from the local Deadlock VPK.
+"""Extract hero / ability / item / unit / Game section icons from the local Deadlock VPK.
 
 Icons come ONLY from the game files (no CDN, no fan art). Source2Viewer-CLI
 decompiles .vtex_c -> PNG and .vsvg_c -> SVG; we then convert PNGs to WebP and
@@ -56,6 +56,12 @@ PREFIXES = (
     'panorama/images/npcs/',
     'panorama/images/minimap/',
     'panorama/images/shop/catalog/',
+    # Game systems' art (data/overrides/game_icons.json, game_systems.json): file prefixes, not whole folders
+    'panorama/images/hud/brawl/icon_brawl',
+    'panorama/images/hud/levelup_',
+    'panorama/images/hud/zipline_icon',
+    'panorama/images/hud/ledge_climb',
+    'panorama/images/hud/teleport_icon',
 )
 # heroes/ root files are passed as an explicit list: the folder also holds
 # heroes/backgrounds/ (~1.7 GB) and -f has no exclude.
@@ -112,13 +118,33 @@ def _vrf(filter_arg: str) -> None:
     subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
 
 
-def _to_webp(src: Path, dst: Path, max_side: int) -> None:
+TRIM_BELOW = 0.35   # a rule's marker drawn small on an empty canvas (minimap: 20x24 px of 64x64) is cut to its art
+
+
+def trimmed(im):
+    """A marker whose art fills less than TRIM_BELOW of its canvas, cut to the art (+1 px) and centred on a square
+    transparent canvas; anything fuller is returned as it is (portraits keep their framing)."""
+    from PIL import Image
+    box = im.getchannel('A').getbbox()
+    if not box or (box[2] - box[0]) * (box[3] - box[1]) >= TRIM_BELOW * im.width * im.height:
+        return im
+    box = (max(box[0] - 1, 0), max(box[1] - 1, 0), min(box[2] + 1, im.width), min(box[3] + 1, im.height))
+    art = im.crop(box)
+    side = max(art.size)
+    out = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+    out.paste(art, ((side - art.width) // 2, (side - art.height) // 2))
+    return out
+
+
+def _to_webp(src: Path, dst: Path, max_side: int, trim: bool = False) -> None:
     from PIL import Image
     if dst.exists() and dst.stat().st_mtime >= src.stat().st_mtime:
         return                      # already converted from this raw file
     dst.parent.mkdir(parents=True, exist_ok=True)
     with Image.open(src) as im:
         im = im.convert('RGBA')
+        if trim:
+            im = trimmed(im)
         if max(im.size) > max_side:
             im.thumbnail((max_side, max_side), Image.LANCZOS)
         im.save(dst, 'WEBP', quality=92, method=4)
@@ -202,6 +228,7 @@ def convert(rev: str = 'HEAD') -> tuple[dict, list]:
     historical_icons(manifest, missing)
     unit_class_icons(manifest)
     external_icons(manifest, missing)
+    missing += [{'key': f'game-art:{rel}', 'ref': rel} for rel in game_icons(manifest)]
 
     stat_map = json.loads((ROOT / 'data' / 'reference' / 'stat_icons.json').read_text(encoding='utf-8'))
     for group, entries in stat_map.items():
@@ -302,33 +329,49 @@ def _find_field(node, name: str):
 
 
 UNIT_RULES = ROOT / 'data' / 'overrides' / 'unit_icons.json'
+GAME_RULES = ROOT / 'data' / 'overrides' / 'game_icons.json'
 _TIER_SUFFIX = re.compile(r'_(weak|normal|strong|heavy)$')
 _ROMAN = re.compile(r'\s+[IVX]+$')
+RULE_ART: dict[str, str] = {}       # a rule's image (path under panorama/images/) -> its file under icons/, stored once
+
+
+def rule_art(rel: str, sub: str) -> str | None:
+    """A rule's image stored once under icons/<sub>/ (the first rule to use it picks the folder): PNG -> WebP, a marker
+    lost on an empty canvas cut to its art (`trimmed`), SVG copied. None when the extracted VPK files lack it."""
+    if rel in RULE_ART:
+        return RULE_ART[rel]
+    src = RAW / 'panorama' / 'images' / rel
+    if not src.exists():
+        return None
+    stem = Path(rel).stem.removesuffix('_psd').removesuffix('_png')
+    if src.suffix == '.svg':
+        dst = ICONS / sub / f'{stem}.svg'
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(src, dst)
+    else:
+        dst = ICONS / sub / f'{stem}.webp'
+        _to_webp(src, dst, 128, trim=True)
+    RULE_ART[rel] = dst.relative_to(ICONS).as_posix()
+    return RULE_ART[rel]
 
 
 def unit_class_icons(manifest: dict) -> None:
     """Units without their own icon, every id the site has seen (removed ones too):
-    1. the class portrait the game's ping wheel uses (data/overrides/unit_icons.json);
+    1. the class portrait the game's ping wheel uses, or a summon's ability art (data/overrides/unit_icons.json);
     2. a neutral camp borrows its family's art: same id stem ('neutral_lantern_weak' ->
        'neutral_lantern_normal') or same name without the tier ('Gutter Ghoul I' -> II)."""
     rules = json.loads(UNIT_RULES.read_text(encoding='utf-8'))['rules']
     ents = [e for e in json.loads((ROOT / 'data' / 'entities.json').read_text(encoding='utf-8'))['entities']
             if e['file'] == 'npc_units.vdata']
-    shared: dict[str, str] = {}
     for e in ents:
         key = f'unit:{e["id"]}'
         if key in manifest:
             continue
         for pattern, rel in rules:
             if re.search(pattern, e['id']):
-                if rel not in shared:
-                    src = RAW / 'panorama' / 'images' / rel
-                    if not src.exists():
-                        break
-                    dst = ICONS / 'units' / '_class' / (Path(rel).stem.removesuffix('_psd') + '.webp')
-                    _to_webp(src, dst, 128)
-                    shared[rel] = dst.relative_to(ICONS).as_posix()
-                manifest[key] = shared[rel]
+                art = rule_art(rel, 'units/_class')
+                if art:
+                    manifest[key] = art
                 break
     by_stem = {_TIER_SUFFIX.sub('', e['id']): manifest[f'unit:{e["id"]}'] for e in ents if f'unit:{e["id"]}' in manifest}
     by_name = {_ROMAN.sub('', e.get('name') or ''): manifest[f'unit:{e["id"]}'] for e in ents
@@ -342,6 +385,32 @@ def unit_class_icons(manifest: dict) -> None:
             art = by_name.get(_ROMAN.sub('', e['name']))
         if art:
             manifest[key] = art
+
+
+GAME_KEYS = {'misc.vdata': 'misc', 'modifiers.vdata': 'modifier', 'abilities.vdata': 'ability'}
+
+
+def game_icons(manifest: dict) -> list[str]:
+    """The Game section's art (data/overrides/game_icons.json): its systems' tiles ('systems', stored under icons/game/
+    for game_systems.json) and its entries with no art of their own — map objects, effects, abilities no hero owns —
+    keyed as builders/common.entity_icon reads them ('misc:<id>', 'modifier:<id>', 'ability:<id>'). Returns the
+    images the VPK files lacked."""
+    cfg = json.loads(GAME_RULES.read_text(encoding='utf-8'))
+    lacking = [rel for rel in cfg.get('systems', []) if not rule_art(rel, 'game')]
+    ents = json.loads((ROOT / 'data' / 'entities.json').read_text(encoding='utf-8'))['entities']
+    for e in ents:
+        prefix = GAME_KEYS.get(e['file'])
+        if not prefix or f'{prefix}:{e["id"]}' in manifest or (prefix == 'ability' and f'item:{e["id"]}' in manifest):
+            continue
+        for pattern, rel, *_ in cfg['rules']:
+            if re.search(pattern, f'{e["file"]}:{e["id"]}'):
+                art = rule_art(rel, 'game')
+                if art:
+                    manifest[f'{prefix}:{e["id"]}'] = art
+                elif rel not in lacking:
+                    lacking.append(rel)
+                break
+    return lacking
 
 
 EXTERNAL = ROOT / 'data' / 'overrides' / 'external_icons.json'

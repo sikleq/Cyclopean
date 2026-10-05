@@ -1,12 +1,25 @@
 {
-  "_why": "Units whose vdata has no m_strCustomUnitIcon. The portraits are the ones the game itself shows for these unit classes in its ping wheel (scripts/ping_wheel_messages.vdata, build 6726): 'Push Patron' -> npcs/tier_3_boss, 'Push Shrine' -> npcs/shield_generator, Guardian -> npcs/tier_1_boss, Walker -> npcs/tier_2_boss, troopers -> npcs/trooper, 'Enemy Taking Mid Boss' -> minimap/super_neutral_marker. Base Guardians have no portrait of their own and share the Guardian one. Rules are regexes on the unit id, first match wins; a unit's own m_strCustomUnitIcon always wins over a rule.",
+  "_why": "Units whose vdata has no m_strCustomUnitIcon. The portraits are the ones the game itself shows for these unit classes in its ping wheel (scripts/ping_wheel_messages.vdata, build 6726): 'Push Patron' -> npcs/tier_3_boss, 'Push Shrine' -> npcs/shield_generator, Guardian -> npcs/tier_1_boss, Walker -> npcs/tier_2_boss, troopers -> npcs/trooper, 'Enemy Taking Mid Boss' -> minimap/super_neutral_marker, 'Sinner's Here' -> minimap/neutral_vault. Base Guardians have no portrait of their own and share the Guardian one. Rules are regexes on the unit id, first match wins; a unit's own m_strCustomUnitIcon always wins over a rule.",
+  "_why_summons": "Review 2026-10-05 (unit cards still had glyphs): a hero's summon or placed object takes the art of the hero ability that makes it, matched by its model and class (Mini Turret: models/heroes_wip/mcginnis/turret -> McGinnis' turret portrait heroes/engineer_turret; the Spectral Wall, Goo Ball, Bounce Pad, Familiar's helpers, Mirage's beetles -> their abilities' icons); Rat King's rats (model ratking_minion) and their swarm the HUD icon the files give the swarm's own effect (npc_neutral_bug_rat_swarm.m_SwarmModifier.m_strHudIcon: ratking_nibble, the art of his Rat Swarm); the zipline trooper is a trooper (class npc_trooper, base trooper_base); the shield escort (class npc_escort) the minimap's escort marker; the removed rejuvenator and soul pickup units the art their misc.vdata namesakes carry (game_icons.json for the soul pickup). No art fits Overseer (rooftop pigeon), the Hideout's toys, test bugs and the removed summons: they keep the site's glyph.",
   "rules": [
-    ["^(alt_)?(super_)?trooper_(normal|medic|melee|siege|base)(_ag2)?$", "npcs/trooper_psd.png"],
+    ["^(alt_)?(super_)?trooper_(normal|medic|melee|siege|base|zipline_container)(_ag2)?$", "npcs/trooper_psd.png"],
     ["^(alt_)?npc_boss_tier1", "npcs/tier_1_boss_psd.png"],
     ["^(alt_)?npc_boss_tier2", "npcs/tier_2_boss_psd.png"],
     ["^(alt_)?npc_boss_tier3", "npcs/tier_3_boss_psd.png"],
     ["^npc_barrack_boss", "npcs/tier_1_boss_psd.png"],
     ["^npc_base_defense_sentry$", "npcs/turret_psd.png"],
-    ["^npc_super_neutral", "minimap/super_neutral_marker_psd.png"]
+    ["^npc_super_neutral", "minimap/super_neutral_marker_psd.png"],
+    ["^destroyable_building$", "npcs/shield_generator_psd.png"],
+    ["^(neutral_sinners_sacrifice|npc_neutral_sinners_sacrifice_hideout|neutral_vault)$", "minimap/neutral_vault_psd.png"],
+    ["^npc_shielded_sentry$", "heroes/engineer_turret_psd.png"],
+    ["^citadel_fissure_wall$", "hud/abilities/engineer_fissure_2_psd.png"],
+    ["^citadel_viscous_ball$", "hud/abilities/viscous/viscous_goo_ball_psd.png"],
+    ["^citadel_bounce_pad$", "hud/abilities/astro/bounce_pad_psd.png"],
+    ["^npc_familiar_helper$", "hud/abilities/familiar/familiar_helpers_psd.png"],
+    ["^mirage_beetle_drone$", "hud/abilities/mirage/mirage_fire_beetles_psd.png"],
+    ["^(npc_ratking_rat|npc_neutral_bug_rat(_swarm)?)$", "hud/abilities/ratking/ratking_nibble_psd.png"],
+    ["^shield_escort$", "minimap/escort_friendly_psd.png"],
+    ["^citadel_item_pickup_rejuv(_herotest)?$", "upgrades/mods_armor/portable_rejuvenator_png.png"],
+    ["^citadel_item_punchable_gold$", "minimap/gold_psd.png"]
   ]
 }

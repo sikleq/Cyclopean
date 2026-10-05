@@ -94,6 +94,52 @@ def test_every_system_icon_is_in_the_game_files_or_a_site_glyph():
             assert s.icon[6:] in GLYPHS, s.id
 
 
+def test_game_and_unit_art_comes_from_the_extracted_game_files():
+    """Review 2026-10-05: unit cards, the Game tiles and their groups were site glyphs. The art they take now is the
+    game's own for the same thing (minimap marker, ping-wheel or HUD icon, the summoning ability's art), picked in
+    data/overrides/game_icons.json and unit_icons.json: every image a rule names is one extract_icons pulls from the
+    VPK, every manifest entry it made is a file in icons/, and the pages read the new keys."""
+    import json
+    import sys
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    sys.path.insert(0, str(root / 'tools'))
+    import extract_icons
+    from builders.common import entity_icon, icon_manifest
+    game = json.loads((root / 'data' / 'overrides' / 'game_icons.json').read_text(encoding='utf-8'))
+    units = json.loads((root / 'data' / 'overrides' / 'unit_icons.json').read_text(encoding='utf-8'))
+    images = game['systems'] + [r[1] for r in game['rules']] + [r[1] for r in units['rules']]
+    for rel in images:
+        assert any(f'panorama/images/{rel}'.startswith(p) for p in extract_icons.PREFIXES) or \
+            rel.startswith('heroes/') and '/' not in rel[len('heroes/'):], rel          # heroes/ root files: HERO_ROOT
+        assert not rel.startswith(('http', '//')) and rel.endswith(('_psd.png', '_png.png', '.svg')), rel
+    for pattern, *_ in game['rules'] + units['rules']:
+        re.compile(pattern)
+    man = icon_manifest()
+    for key, path in man.items():
+        if path.startswith(('game/', 'units/_class/')):
+            assert (root / 'icons' / path).exists(), key
+    assert man['unit:destroyable_building'] == 'units/_class/shield_generator.webp'         # 'Push Shrine' ping
+    assert man['misc:citadel_item_pickup_idol'] == 'game/soul_jar_marker.webp'              # the Urn on the minimap
+    assert entity_icon('modifiers.vdata', 'modifier_idol_pickup_aura', 'modifier', '../') == \
+        '../icons/game/soul_jar_marker.webp'
+
+
+def test_a_marker_lost_on_an_empty_canvas_is_cut_to_its_art():
+    """extract_icons.trimmed: a 20x24 minimap marker on a 64x64 canvas showed as a speck on a 44px unit card."""
+    import sys
+    from pathlib import Path
+    from PIL import Image
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
+    from extract_icons import trimmed
+    im = Image.new('RGBA', (64, 64), (0, 0, 0, 0))
+    im.paste(Image.new('RGBA', (20, 24), (255, 255, 255, 255)), (22, 20))
+    out = trimmed(im)
+    assert out.size == (26, 26) and out.getchannel('A').getbbox() == (3, 1, 23, 25)
+    full = Image.new('RGBA', (64, 64), (255, 0, 0, 255))                    # a portrait keeps its framing
+    assert trimmed(full) is full
+
+
 # ---- console variables ----------------------------------------------------------------------------------------
 
 def cv(name, op='change', old=None, new=None, build=6601, flags='developmentonly gamedll defensive', status='hidden'):
