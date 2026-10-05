@@ -66,7 +66,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                   line_names: bool = True, areas: dict[str, str] | None = None, gone: set[str] = frozenset(),
                   in_dev: bool = False, area_labels: tuple[tuple[str, str], ...] = AREAS,
                   merge=None, enhanced: bool = False, ults: frozenset[str] = frozenset(),
-                  every_label: str = 'For all', chip_of: dict[str, str] | None = None) -> str:
+                  every_label: str = 'For all', chip_of: dict[str, str] | None = None,
+                  facts_out: dict | None = None) -> str:
     """The History section: heading, toolbar, blocks. keys: [(entity key, display name, icon url)] in
     display order, the page's own entity first; names: subjects whose note lines belong here.
     `line_names`: the other keys' names pull note lines in too (a hero's abilities do; a boss's "Rocket
@@ -147,6 +148,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
             year = y
         blocks.append(block)
     bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults, every_label, chip_of)
+    if facts_out is not None:          # the page head's "N not in patch notes" link (hidden_link)
+        facts_out['hidden'] = facts['hidden']
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
 
@@ -154,6 +157,14 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
 STRIP_MAX = 40            # the latest patches in the strip (one row that never scrolls: tiles shrink to fit)
 TILE_SAMPLES = 6          # a strip tile's hover card lists the patch's biggest changes…
 GROUP_SAMPLES = 3         # …and keeps an ability's own biggest ones for its trail squares' card
+
+
+def hidden_link(n: int) -> str:
+    """The entity head's way to what Valve did not say about it: "N not in patch notes", a link that presses the
+    history's eye and scrolls there (scripts.js hidden-hash; the button sat 1.8 screens down on Haze)."""
+    if not n:
+        return ''
+    return f'<a class="chip eye-link" href="#hidden">{mark("hidden")}{n} not in patch notes</a>'
 
 
 def now_fold(summary: str, body: str) -> str:

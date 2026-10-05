@@ -558,6 +558,10 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .erow.rw .vals .new { color: var(--text-main); font-weight: 600; }
 .tag.topic-tag { --c: var(--text-dimmer); }
 .eye-chip { color: var(--eye); }
+/* the entity head's way to what the notes left out (history_view.hidden_link) */
+a.chip.eye-link { color: var(--eye); }
+a.chip.eye-link .mark, a.chip.eye-link .mark::before { width: 14px; height: 14px; }
+a.chip.eye-link:hover, a.chip.eye-link:focus-visible { color: var(--text-bright); box-shadow: inset 0 0 0 1px var(--eye); }
 /* the eye filter keeps what its number counts (builders/patch_counts.py): plumbing ("Technical") is not counted */
 .only-hidden .erow:not(.is-hidden), .only-hidden .ecard:not(.has-hidden), .only-hidden .esub:not(.has-hidden),
 .only-hidden details.tech, .only-hidden .hgroup:not(.has-hidden),
@@ -619,7 +623,14 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .pblock[open] > summary .bt::before { content: "-"; }
 .pblock .bc .tsum { margin-left: 0; }
 /* a link the page itself follows (a strip tile, a trail square) lands below the sticky site bar */
-.hblocks .pblock, .hblocks .hgroup { scroll-margin-top: calc(var(--nav-h) + 12px); }
+.hblocks .pblock, .hblocks .hgroup, #history { scroll-margin-top: calc(var(--nav-h) + 12px + var(--hist-bar-h, 0px)); }
+/* back to the top of a long history (Sloppy has one): shown past one screen (scripts.js hist-filter) */
+.back-to-top { position: fixed; right: 18px; bottom: 18px; z-index: var(--z-sticky); width: 40px; height: 40px;
+  display: none; align-items: center; justify-content: center; border: 0; cursor: pointer;
+  font: 22px/1 var(--font-ui); color: var(--text-bright); background: var(--bg-panel-3);
+  box-shadow: 0 0 0 2px var(--frame-line), 0 6px 14px var(--shadow-deep); }
+.back-to-top.on { display: flex; }
+.back-to-top:hover, .back-to-top:focus-visible { background: var(--bg-hover); box-shadow: 0 0 0 2px var(--patina); }
 .hblocks .pblock { margin-bottom: 6px; }
 .hblocks .pblock > .banner { margin: 0; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
@@ -698,9 +709,13 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }
 .hblocks .f-out { display: none !important; }
-/* the history toolbar scrolls away like Sloppy's (only the site bar stays): stuck, it took 82-102px of a
-   900px window (advisor round 3). ONE compact row: every control badge-high (owner 2026-10-04) */
-.hist-bar { position: static; flex-wrap: wrap; gap: 5px; padding: 6px; margin: 0 0 14px; }
+/* the history toolbar stays under the site bar like Sloppy's (its entity toolbar IS sticky: top 44px, z 80;
+   review 2026-10-05 — every filter change meant scrolling back up ~1500px). It is sticky from `.toolbar`; on a
+   phone, where it wraps to 3-4 rows, it scrolls away. scripts.js measures it into --hist-bar-h, so a jump to a
+   band (#p-…) or a filter's first match lands below it. ONE compact row: every control badge-high (owner
+   2026-10-04) */
+.hist-bar { flex-wrap: wrap; gap: 5px; padding: 6px; margin: 0 0 14px; scroll-margin-top: calc(var(--nav-h) + 8px); }
+@media (max-width: 760px) { .hist-bar { position: static; } }
 .hist-bar .sep { height: 20px; margin: 0; }
 .hist-bar .px-btn { margin: 0; }
 .hist-bar .px-btn .mark, .hist-bar .px-btn .mark::before { width: 14px; height: 14px; }
@@ -1183,6 +1198,11 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .home-stats .hs.documented { box-shadow: inset 4px 0 0 var(--patina), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.documented .n { color: var(--patina); }
 .home-stats .hs.hidden { box-shadow: inset 4px 0 0 var(--eye), 0 0 0 2px var(--frame-line); }
+a.hs.hidden:hover, a.hs.hidden:focus-visible { background: var(--bg-hover); }
+/* "N not in patch notes" leads to what Valve did not say (scripts.js hidden-hash): a link, the same look */
+.sum-audit a.au-hidden { color: inherit; }
+a.au.au-hidden:hover, a.au.au-hidden:focus-visible { color: var(--text-bright); }
+a.au.au-hidden:hover b { text-decoration: underline; }
 .home-stats .hs.hidden .n { color: var(--eye); text-shadow: 0 0 12px var(--eye-glow); }
 .home-stats .hs.mismatch { box-shadow: inset 4px 0 0 var(--tag-mismatch), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.mismatch .n { color: var(--tag-mismatch); }

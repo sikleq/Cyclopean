@@ -1447,6 +1447,35 @@
     }
     var bar = document.querySelector('.hist-bar');
     if (!bar) return;
+    // the bar is sticky on a desktop (styles.css): its height lets a jump to a band land below it
+    function barHeight() {
+      var stuck = getComputedStyle(bar).position === 'sticky';
+      document.documentElement.style.setProperty('--hist-bar-h', (stuck ? bar.offsetHeight : 0) + 'px');
+      return stuck ? bar.getBoundingClientRect().bottom : 0;
+    }
+    barHeight();
+    window.addEventListener('resize', barHeight, { passive: true });
+    // a filter chosen deep in the page: its first match starts just below the bar, not under it
+    function underBar() {
+      var bottom = barHeight();
+      var first = box.querySelector('details.pblock:not(.f-out)');
+      if (!first || !bottom) return;
+      var top = first.getBoundingClientRect().top;
+      if (top < bottom) window.scrollBy(0, top - bottom - 8);
+    }
+    // back to the top of a long history: a button past one screen (a passive listener; the class only on change)
+    var up = document.createElement('button');
+    up.type = 'button';
+    up.className = 'back-to-top';
+    up.setAttribute('aria-label', 'Back to top');
+    up.textContent = '↑';
+    up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
+    document.body.appendChild(up);
+    var upOn = false;
+    window.addEventListener('scroll', function () {
+      var on = window.scrollY > window.innerHeight;
+      if (on !== upOn) { upOn = on; up.classList.toggle('on', on); }
+    }, { passive: true });
     function pressAll(attr, value) {           // one of the part / ability buttons, or none
       bar.querySelectorAll('[' + attr + ']').forEach(function (b) {
         var on = b.getAttribute(attr) === value;
@@ -1509,7 +1538,7 @@
         pressAll('data-f-ab', state.ab);
       }
       // "Not in patch notes" and "Before release" toggle a class on #history first (the generic toggle)
-      setTimeout(apply, 0);
+      setTimeout(function () { apply(); underBar(); }, 0);
     });
   });
 
@@ -1737,5 +1766,34 @@
       if (!input.parentNode.contains(ev.target)) shown(false);
     });
     input.addEventListener('focus', function () { if (list.childNodes.length) shown(true); });
+  });
+
+  /* ---------- #hidden: "what Valve did not say" in one link (review 2026-10-05: every "N not in patch notes"
+     was plain text, the filter sat in the 4th tab or two screens down). The page's eye button is pressed and
+     comes into view — on a patch page its tab opens first; pressing the eye writes #hidden, so the filtered
+     view survives a reload and can be shared. ---------- */
+  safe('hidden-hash', function () {
+    var eye = document.querySelector('.hf-hidden');
+    if (!eye) return;
+    var panel = eye.closest('.tab-panel');
+    function show() {
+      if (location.hash !== '#hidden') return;
+      if (panel) {
+        var tab = document.querySelector('[data-tab="' + panel.id + '"]');
+        if (tab && !panel.classList.contains('on')) tab.click();
+      }
+      if (eye.getAttribute('aria-pressed') !== 'true') eye.click();
+      try { history.replaceState(null, '', '#hidden'); } catch (e) { /* file:// */ }
+      (eye.closest('.toolbar') || eye).scrollIntoView({ block: 'start' });
+    }
+    eye.addEventListener('click', function () {
+      setTimeout(function () {
+        var on = eye.getAttribute('aria-pressed') === 'true';
+        var off = panel ? '#' + panel.id : location.pathname + location.search;
+        try { history.replaceState(null, '', on ? '#hidden' : off); } catch (e) { /* file:// */ }
+      }, 0);
+    });
+    window.addEventListener('hashchange', show);
+    show();
   });
 })();

@@ -304,7 +304,9 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     row = patches_pages._index_row({**p, 'has_notes': True, 'builds': 1}, {}, '../', False)
     assert re.search(r'au-hidden">.*?<b>3</b>', row)
     feed = home_page._feed([{'id': 'p1', 'title': p['title'], 'date': p['date']}], {}, frozenset(), {})
-    assert re.search(r'au-hidden">.*?<b>3</b> not in patch notes', feed)
+    # review 2026-10-05: the count is a way in — the patch page with its eye filter pressed
+    assert re.search(r'<a class="au au-hidden" href="patches/p1.html#hidden">.*?<b>3</b> not in patch notes', feed)
+    assert '<a class="au au-hidden" href="#hidden">' in audit
 
 
 # ---- on the real data (data/ regenerated with target_keys) ------------------------------------------------------

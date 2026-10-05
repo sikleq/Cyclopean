@@ -180,7 +180,9 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         pc = for_id(row['id'])
         eye = ''
         if pc['not_in_notes']:
-            eye = f'<span class="au au-hidden">{mark("hidden")}<b>{pc["not_in_notes"]}</b> not in patch notes</span>'
+            # a way in: the patch page with its "Not in patch notes" filter pressed (scripts.js hidden-hash)
+            eye = (f'<a class="au au-hidden" href="patches/{esc(row["id"])}.html#hidden">{mark("hidden")}'
+                   f'<b>{pc["not_in_notes"]}</b> not in patch notes</a>')
             if off_pages(pc):
                 # they have pages now: the Game section's
                 eye += (f'<a class="au au-off" href="game/index.html"><b>{off_pages(pc)}</b> of them in game rules '
@@ -253,7 +255,7 @@ def build_all() -> int:
   {search_box()}
   <div class="home-stats">
     <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
-    <div class="hs hidden"><span class="n">{total_hidden}</span><span class="l">not in patch notes</span></div>
+    <a class="hs hidden" href="patches/index.html"><span class="n">{total_hidden}</span><span class="l">not in patch notes</span></a>
   </div>
 </div>
 {_tiles(counts, faces, unit_art)}

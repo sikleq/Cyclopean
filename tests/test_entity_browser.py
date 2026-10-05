@@ -214,6 +214,44 @@ def test_a_rule_for_all_heroes_is_counted_apart_by_the_filters(browser, tmp_path
         ctx.close()
 
 
+def test_the_history_bar_stays_and_a_long_page_has_a_way_up(browser, tmp_path):
+    """Review 2026-10-05: the filters scrolled away (Sloppy's stay); #hidden presses the eye; a filter's first match
+    lands below the bar; a back-to-top button past one screen; on a phone the bar scrolls away."""
+    from builders.common import page
+    from builders.history_view import history_table
+    rows = [({'id': f'p{i}', 'date': f'2025-{i:02d}-01', 'title': f'{i:02d}-01-2025 Update'},
+             [ch(key=f'k{i}', label='Cooldown', status='documented' if i % 2 else 'hidden')]) for i in range(1, 13)]
+    hist = history_table([('abilities.vdata:x', 'X', None)], ['X'], {'abilities.vdata:x': rows}, {}, '../')
+    filler = '<div style="height:1500px"></div>'
+    ctx, pg, errors = _open(browser, tmp_path, page('X', filler + hist, '../', cls='entity'), 1440, 900)
+    try:
+        assert pg.evaluate("getComputedStyle(document.querySelector('.hist-bar')).position") == 'sticky'
+        pg.evaluate('window.scrollTo(0, 3000)')
+        pg.wait_for_function("document.querySelector('.back-to-top').classList.contains('on')")
+        bar = pg.evaluate("document.querySelector('.hist-bar').getBoundingClientRect().top")
+        assert 0 <= bar < 80                                               # stuck under the site bar
+        pg.click('.hist-bar [data-f-tag="nerf"]')
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        first = pg.evaluate("[...document.querySelectorAll('details.pblock')].find(b => !b.classList.contains('f-out'))"
+                            ".getBoundingClientRect().top")
+        bottom = pg.evaluate("document.querySelector('.hist-bar').getBoundingClientRect().bottom")
+        assert first >= bottom - 1
+        pg.click('.back-to-top')
+        pg.wait_for_function('window.scrollY === 0')
+        assert not errors
+    finally:
+        ctx.close()
+    ctx, pg, errors = _open(browser, tmp_path, page('X', hist, '../', cls='entity'), 390, 844)
+    try:
+        assert pg.evaluate("getComputedStyle(document.querySelector('.hist-bar')).position") == 'static'
+        pg.evaluate("location.hash = '#hidden'")
+        pg.wait_for_function("document.querySelector('.hf-hidden').getAttribute('aria-pressed') === 'true'")
+        assert pg.evaluate("document.getElementById('history').classList.contains('only-hidden')")
+        assert not errors
+    finally:
+        ctx.close()
+
+
 def test_a_merged_group_answers_to_each_of_its_members(browser, tmp_path):
     """Review 2026-10-05: a group of identical rows of several entries kept only the first id, so #ab-<second>
     (a search link: "Breakable lion statue") and the second entry's chip emptied the history."""

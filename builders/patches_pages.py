@@ -76,7 +76,10 @@ def _audit_line(p: dict) -> str:
     off = off_pages(c)
     html = ''
     for k, n, lbl in audit:
-        if n:
+        if n and k == 'hidden':
+            # the count opens the "All changes" tab with its "Not in patch notes" filter on (scripts.js hidden-hash)
+            html += f'<a class="au au-{k}" href="#hidden">{mark(k)}<b>{n}</b> {esc(lbl)}</a>'
+        elif n:
             html += f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>'
         if k == 'hidden' and n and off:
             # their pages are the Game section's (the patch page and the list both live in patches/)

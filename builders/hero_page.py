@@ -369,12 +369,6 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     if was:          # renamed in development (Slork → Fathom): the names its history uses
         chips.append(f'<span class="chip">was {esc(" · ".join(was))}</span>')
     # the same head as an item's or a unit's: crumbs above, then name, chips, "First seen" (advisor 10-03)
-    head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
-            f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
-            f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(h["first"])}'
-            f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
-            f'</div></div>')
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
     alt_card = next((c for c in mine if c.get('slot') == 'Weapon_Secondary'), None)
     gun = (weapon_card or {}).get('id') or (table_row or {}).get('weapon')
@@ -399,9 +393,18 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     gone = {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
             and e['id'] not in {c['id'] for c in mine}}
     chip_of = {f'abilities.vdata:{c}': f'abilities.vdata:{p}' for c, p in parents.items()}
+    told: dict = {}
     hist = history_table(keys, [name], hist_ents, by_subject, rel, areas=areas, gone=gone,
                          in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults,
-                         every_label='For all heroes', chip_of=chip_of)
+                         every_label='For all heroes', chip_of=chip_of, facts_out=told)
+    from .history_view import hidden_link
+    chips.append(hidden_link(told.get('hidden', 0)))
+    head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
+            f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
+            f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(h["first"])}'
+            f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
+            f'</div></div>')
     body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',
                 cls='entity')

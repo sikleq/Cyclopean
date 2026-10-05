@@ -6,7 +6,7 @@ from collections import defaultdict
 from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
 from .cards import GAMEPLAY
 from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
-from .history_view import now_fold
+from .history_view import hidden_link, now_fold
 from .render import KIND_LABEL, tag_badge
 
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -89,10 +89,6 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             chips.append('<span class="chip">Street Brawl only</span>')
         elif info.get('cost'):
             chips.append(f'<span class="chip">{esc(info["cost"])} souls</span>')
-    head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
-            f'<div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(it["first"])}</div></div>')
     sections = ''
     if card:
         blocks = []
@@ -110,8 +106,14 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
         # the sections side by side as cards, not full-width tables (a label and its value sat 1300px apart)
         grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
         sections = (hdr + grid) if blocks or hdr else ''
+    told: dict = {}
     history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
-                            enhanced=True, every_label='For all items')
+                            enhanced=True, every_label='For all items', facts_out=told)
+    chips.append(hidden_link(told.get('hidden', 0)))
+    head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
+            f'<div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(it["first"])}</div></div>')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
     # 2026-10-04: nothing folded by default)
     return page(name, head + now_fold('Current values', sections) + history, rel, 'items', cls='entity')
@@ -136,10 +138,6 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     copies = len(members) // max(len(tiers), 1)
     if copies > 1:
         chips.append(f'<span class="chip">{copies} variants</span>')
-    head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
-            f'<div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(u["first"])}</div></div>')
     # today's stats above the history: a tiered family as ONE table, a stat per row, a tier per column
     # (three stacked panels repeated every label, advisor 10-03); others as before
     by_tier: dict[str, dict] = {}
@@ -172,9 +170,15 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     abilities = {a['id']: a for m in members for a in bound.get(m['id'], [])}
     own = [(f'abilities.vdata:{a["id"]}', display_name(a), entity_icon(a['file'], a['id'], a['kind'], rel))
            for a in sorted(abilities.values(), key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
+    told: dict = {}
     hist = history_table(keys + own, [name] + [display_name(m) for m in members], by_ent, by_subject, rel,
                          line_names=False, areas=areas, area_labels=UNIT_AREAS,
-                         merge=lambda labels: merged_label(labels, len(members)))
+                         merge=lambda labels: merged_label(labels, len(members)), facts_out=told)
+    chips.append(hidden_link(told.get('hidden', 0)))
+    head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
+            f'<div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(u["first"])}</div></div>')
     return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
 
 
