@@ -1248,7 +1248,6 @@ a.au.au-hidden:hover b { text-decoration: underline; }
 .htile .ht-n { font: 22px/1 var(--font-label); color: var(--label); }
 .htile .ht-art { grid-column: 1 / -1; display: flex; gap: 6px; }
 .htile .ht-art img { width: 40px; height: 40px; object-fit: cover; background: var(--bg-panel-4); }
-.htile.items .ht-art img { background: none; }
 /* the Game systems' icons are glyphs and small paintings from the game files: whole, not cropped */
 .htile.game .ht-art img { object-fit: contain; padding: 5px; }
 /* the Game section (builders/game_pages.py): a system's card holds its icon, glyph or painting, at one size */

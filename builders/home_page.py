@@ -245,14 +245,17 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     return ''.join(blocks) + f'<script type="application/json" class="feed-data">{blob}</script>'
 
 
-def _tiles(counts: dict[str, int], faces: list[str], units: list[str]) -> str:
+def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: list[str] = ()) -> str:
     """The four sections as big tiles (Sloppy's landing tiles, without blurbs). Game: its systems' icons that come
-    from the game files (the site glyphs stay on its own pages)."""
+    from the game files (the site glyphs stay on its own pages). Items: shop icons (the shop's tab glyphs when
+    none are known)."""
     from .game_systems import icon_url, shown
     game_art = [u for u in (icon_url(s, '') for s in shown()) if u]
+    item_art = (''.join(f'<img class="px" src="{esc(u)}" alt="" loading="lazy">' for u in items[:6]) if items else
+                '<img src="icons/shop/tab_weapon.webp" alt=""><img src="icons/shop/tab_spirit.webp" alt="">'
+                '<img src="icons/shop/tab_vitality.webp" alt="">')
     art = {'heroes': ''.join(f'<img class="px" src="{esc(f)}" alt="" loading="lazy">' for f in faces[:6]),
-           'items': '<img src="icons/shop/tab_weapon.webp" alt=""><img src="icons/shop/tab_spirit.webp" alt="">'
-                    '<img src="icons/shop/tab_vitality.webp" alt="">',
+           'items': item_art,
            'units': ''.join(f'<img class="px" src="{esc(u)}" alt="" loading="lazy">' for u in units[:6]),
            'game': ''.join(f'<img src="{esc(u)}" alt="" loading="lazy">' for u in game_art[:6])}
     return '<div class="home-tiles">' + ''.join(
@@ -290,6 +293,15 @@ def build_all() -> int:
               # the Game section's systems (game_systems: Souls & economy, Respawn, the Soul Urn…)
               'game': len(systems())}
     faces = [hero_icon(h['id'], '') or '' for h in heroes]
+    # the Items tile shows items like the other tiles show heroes and units (it showed three dim category glyphs):
+    # two of the dearest of each slot on sale now, by their shop icons
+    on_sale = sorted(((k, c['item']) for k, c in load_json('abilities.json')['abilities'].items()
+                      if c.get('item') and not c['item'].get('disabled') and not c['item'].get('street_brawl')
+                      and str(c['item'].get('tier')) in '1234'), key=lambda kc: (-int(kc[1].get('cost') or 0), kc[0]))
+    item_art: list[str] = []
+    for slot in ('WeaponMod', 'Armor', 'Tech'):
+        mine = [entity_icon('abilities.vdata', k, 'item', '') for k, i in on_sale if i.get('slot') == slot]
+        item_art += [u for u in mine if u][:2]
     # the units a player meets first: the objectives, then troopers and neutrals with their own icon
     order = {'building': 0, 'trooper': 1, 'neutral': 2}
     unit_art = [u for u in (entity_icon(e['file'], e['id'], e.get('kind') or '', '')
@@ -306,7 +318,7 @@ def build_all() -> int:
     <a class="hs hidden" href="patches/index.html"><span class="n">{total_hidden}</span><span class="l">not in patch notes</span></a>
   </div>
 </div>
-{_tiles(counts, faces, unit_art)}
+{_tiles(counts, faces, unit_art, item_art)}
 <h2 class="home-h">Latest changes</h2>
 {_feed(patches, names, templates, unit_main, page_set())}
 '''
