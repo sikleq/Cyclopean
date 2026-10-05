@@ -50,12 +50,22 @@ def net_class(net: float, volume: float) -> str:
 NET_WORDS = {'buff': 'net buff', 'nerf': 'net nerf', 'mix': 'mixed'}
 
 
-def net_of(rows) -> str:
-    """THE net mark of what one patch did to one entity: 'buff' / 'nerf' / 'mix' by the weighed sum (net_class), ''
-    when no row takes a side (only reworks, mechanics, plain changes: nothing to weigh). Every place that says it
-    reads this: a history band's banner, a strip tile's and a home feed icon's hover card, a change-matrix tile's
-    "Buff vs nerf" colour and its card (review 2026-10-05: the matrices weighed, the rest of the site did not say)."""
-    rows = list(rows)
+def weighed_rows(rows, in_dev: bool = False) -> list[dict]:
+    """The rows a net mark weighs — what a band counts: a rule for every hero / ability (shared_rows.is_every) is
+    counted apart everywhere, and work before release only on the page of an entity still in development. The change
+    matrices weighed both and disagreed with the band in 44 hero cells (Nano 2024-09-26: band "net nerf", tile buff
+    — eleven buffs of abilities still in development; review 2026-10-05)."""
+    from .shared_rows import is_every
+    return [c for c in rows if not is_every(c) and (in_dev or c.get('status') != 'unreleased')]
+
+
+def net_of(rows, in_dev: bool = False) -> str:
+    """THE net mark of what one patch did to one entity: 'buff' / 'nerf' / 'mix' by the weighed sum (net_class) of its
+    `weighed_rows`, '' when none of them takes a side (only reworks, mechanics, plain changes, or nothing released:
+    nothing to weigh). Every place that says it reads this: a history band's banner, a strip tile's and a home feed
+    icon's hover card, a change-matrix tile's "Buff vs nerf" colour and its card (review 2026-10-05: the matrices
+    weighed, the rest of the site did not say)."""
+    rows = weighed_rows(rows, in_dev)
     if not any(row_score(c)[0] for c in rows):
         return ''
     return net_class(*band_score(rows)).removeprefix('net-')

@@ -527,14 +527,17 @@ def patch_href(pid: str, rel: str, entity_id: str | None = None, also: tuple[str
 
 def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = (),
             entity_id: str | None = None, texts: str | None = None, href: str | None = None,
-            also: tuple[str, ...] | list[str] = ()) -> tuple[str, str]:
+            also: tuple[str, ...] | list[str] = (), net: str | None = None) -> tuple[str, str]:
     """(the band's <summary>, its has-hidden classes). The title is plain text, so a click opens the band in
     place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose, at the entity
     (`patch_href`; `href`: where it goes instead — a band holding only rules for all goes to its Game band). The
     counters and the eye count are what scripts.js recounts while a filter is on. `every`: the rows of rules for
-    every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
+    every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes"). `net`: the band's net mark
+    (weights.net_of of its counted rows, `_patch_block`); None weighs `counted_all` here."""
     from .render import not_in_notes, tag_summary
     from .weights import net_chip, net_of
+    if net is None:
+        net = net_of(counted_all)
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
     # the banner says how many rows the notes left out — "all N" only when N is more than one; a band the notes never
     # mentioned carries its one eye here and none on its rows (styles.css .all-hidden: advisor round 2, kept by the
@@ -557,7 +560,7 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     # what the patch did to this entity on balance, weighed as the change matrices weigh it (weights.net_of): one
     # small chip after the counters, none when no row takes a side
     summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
-               f'<span class="bc">{tag_summary(counted_all)}{net_chip(net_of(counted_all))}{chips}'
+               f'<span class="bc">{tag_summary(counted_all)}{net_chip(net)}{chips}'
                f'<a class="pnotes" href="{href or patch_href(pid, rel, entity_id, also)}">patch ↗</a></span></summary>')
     return summary, hidden_cls
 
@@ -648,6 +651,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     if band_notes:                    # a line about many entities, said once for the band ("…globally reduced by 7%")
         parts.insert(0, '<div class="vnotes">' + ''.join(_vnote(t) for t in band_notes.values()) + '</div>')
     every_only = not groups
+    # the band's net mark, ONE for its banner and its strip tile's card (the matrix cell weighs the same rows)
+    net = net_of(counted_all, in_dev)
     # the entity's patch strip above the toolbar: what this patch did, by tag, and its hover card (dev-only
     # bands excluded). A band that holds only a rule for every hero gets no tile, as in the matrices and the trail
     if not (all_dev and not in_dev) and counted_all:
@@ -657,7 +662,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         for name, rows in every_groups(every_all).items():
             card.append(((name, '', '', 0), rows))
         facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
-                                              tile_card(card), net_of(counted_all)))
+                                              tile_card(card), net))
     if every_only:
         facts['every'] = facts.get('every', 0) + 1
         facts.setdefault('every_names', set()).update(every_groups(every_all))
@@ -668,7 +673,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     also = [k.partition(':')[2] for g in groups for k in g['keys'] if k.partition(':')[0].endswith('.vdata')]
     summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id,
                                   text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]),
-                                  href=href, also=also if entity_id else ())
+                                  href=href, also=also if entity_id else (), net=net)
     dev_cls = ' dev-only' if all_dev and not in_dev and not every_only else ''
     dev_cls += ' every-only' if every_only else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'

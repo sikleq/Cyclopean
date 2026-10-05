@@ -103,6 +103,10 @@ def _collect() -> dict:
                 if ch:
                     found.append(([f'game:{game[0]}'], game[1], name_of(e['key'], info), ch, ''))
                 continue
+            # an ability removed in this patch carries no owner or kind in its record; the catalog still has them, and
+            # its hero's page lists its DEL rows (Holliday 2026-09-29: the band read 7 DEL, the matrix cell 1 — the
+            # band and the cell weighed different rows; review 2026-10-05)
+            e = {**e, 'owner': e.get('owner') or info.get('owner'), 'kind': e.get('kind') or info.get('kind')}
             if e['file'] == 'heroes.vdata':
                 keys = [f'hero:{e["id"]}']
             elif e.get('owner'):
@@ -173,6 +177,8 @@ def _collect() -> dict:
                     picked[-1] = [*first[:6], first[7]]
             order = {p: i for i, (p, _) in enumerate(PARTS)}
             samples.setdefault(k, {})[pid] = sorted(picked, key=lambda x: order.get(x[5], 9))
+    # the cell's net weighs what the row's page band counts (weights.weighed_rows: no rule for all, no work before
+    # release — every hero on a matrix is released or pre-release, so its page counts released rows only)
     nets = {k: {pid: net_of(cs) for pid, cs in per.items()} for k, per in weighed.items()}
     return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples, 'hidden': hidden, 'nets': nets}
 

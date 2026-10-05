@@ -1349,6 +1349,70 @@ def test_net_mark_is_one_rule_on_bands_cards_and_matrices(monkeypatch):
     assert 'class="dsq net-buff"' in html and '"nets":{' in html and ',"buff"]]' in html
 
 
+def test_band_chip_and_matrix_cell_weigh_the_same_rows(monkeypatch):
+    """Review 2026-10-05: 44 hero cells and 1 item cell had a matrix tile of one side and a band chip of another (or
+    none) — the cell weighed work on abilities still in development (Nano 2024-09-26: band "net nerf", tile buff)
+    and missed an ability removed in the patch (its record names no owner: Holliday 2026-09-29 read 7 DEL on the
+    band, 1 in the cell). One rule now (weights.weighed_rows): a rule for all and work before release are out of
+    the net in both, a removed ability counts on its hero in both."""
+    import re as _re
+    from builders import archive, dynamics_page, game_systems, history_view
+    rows = {r: {'id': r, 'date': f'2026-0{i}-01', 'title': f'0{i}-01-2026 Update'}
+            for i, r in enumerate(('p1', 'p2', 'p3', 'p4'), start=1)}
+
+    def c(ent, n, **kw):
+        return ch(**{'key': f'{ent}:{n}', 'path': n, 'label': f'Field {n}', 'status': 'hidden', **kw})
+    hero, ab, gone = 'heroes.vdata:hero_x', 'abilities.vdata:ab_x', 'abilities.vdata:ab_gone'
+    per = {   # patch -> entity key -> rows
+        'p1': {hero: [c(hero, 'a', dir='buff', pct=50.0),                      # +2.5
+                      c(hero, 'b', dir='nerf', pct=-60.0, shared_all=True, shared_what='heroes')],   # rule for all
+               ab: [c(ab, 'a', pct=-10.0), c(ab, 'b', pct=-10.0)]},             # -0.5 -0.5
+        'p2': {hero: [c(hero, 'c', pct=-10.0, status='documented')],             # -0.5 released
+               ab: [c(ab, n, dir='buff', pct=20.0, status='unreleased') for n in 'cde']},   # work before release
+        'p3': {hero: [c(hero, 'd', dir='buff', pct=5.0)],
+               gone: [c(gone, n, op='remove', dir=None, pct=None) for n in 'ab']},   # removed: -1 -1
+        'p4': {ab: [c(ab, 'f', cat='mechanic', dir='changed', pct=None)]},        # no side
+    }
+    want = {'p1': 'buff', 'p2': 'nerf', 'p3': 'nerf', 'p4': ''}
+    # the band: the hero page's history
+    by_ent = {}
+    for pid, ents in per.items():
+        for key, cs in ents.items():
+            by_ent.setdefault(key, []).append((rows[pid], cs))
+    keys = [(hero, 'Base stats', None), (ab, 'Ability X', None), (gone, 'Gone Ability', None)]
+    html = history_view.history_table(keys, ['X'], by_ent, {}, '../')
+    band = {}
+    for m in _re.finditer(r'<details class="pblock[^"]*" id="p-(\w+)"[^>]*>\s*<summary.*?</summary>', html, _re.S):
+        got = _re.search(r'net-chip net-(\w+)', m.group(0))
+        band[m.group(1)] = got.group(1) if got else ''
+    # the matrix: the same patches as the archive gives them (a removed ability's record has no owner, no kind)
+    cat = [{'file': 'heroes.vdata', 'id': 'hero_x', 'kind': 'hero', 'name': 'X'},
+           {'file': 'abilities.vdata', 'id': 'ab_x', 'kind': 'ability', 'owner': 'hero_x', 'name': 'Ability X'},
+           {'file': 'abilities.vdata', 'id': 'ab_gone', 'kind': 'ability', 'owner': 'hero_x', 'name': 'Gone Ability'}]
+
+    def record(key, cs):
+        file, _, eid = key.partition(':')
+        info = {'key': key, 'file': file, 'id': eid, 'changes': cs}
+        if eid == 'ab_gone':                     # removed in this patch: its record names no owner, no kind
+            return info
+        known = next(e for e in cat if e['id'] == eid)
+        return {**info, 'kind': known['kind'], **({'owner': known['owner']} if 'owner' in known else {})}
+    monkeypatch.setattr(archive, 'by_date', lambda: list(rows.values()))
+    monkeypatch.setattr(archive, 'patch', lambda pid: {'id': pid, 'extras': {}})
+    monkeypatch.setattr(archive, 'gameplay', lambda pid: [record(k, cs) for k, cs in per[pid].items()])
+    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: {'entities': cat})
+    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
+    dynamics_page._collect.cache_clear()
+    try:
+        nets = dynamics_page._collect()['nets']['hero:hero_x']
+        mx = dynamics_page.matrix_html([('hero:hero_x', 'X', None, 'x.html', '')], 'hero')
+    finally:
+        dynamics_page._collect.cache_clear()
+    tiles = {pid: mark for mark, pid in _re.findall(r'class="dsq net-(\w+)[^"]*"[^>]*href="x\.html#p-(\w+)"', mx)}
+    assert band == want and nets == want
+    assert tiles == {p: m or 'mix' for p, m in want.items()}            # '' (no side) is the matrix's mix colour
+
+
 def test_a_namesake_hint_is_never_a_unit_word():
     """Review 2026-10-05: "Incoming Damage Deferred · pct", "… · value" — hints made of property words."""
     from builders.cards import _hint
