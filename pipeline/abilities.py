@@ -298,6 +298,41 @@ def corrupted_penalties(generic: dict, tok: dict[str, str]) -> dict[str, str]:
     return out
 
 
+def last_cards(have: set[str], fmap: dict) -> dict[str, dict]:
+    """A removed item's card as it was in the last build that had it, marked `last` = [build, date] (review
+    2026-10-05: Ablative Coat's page had only its history, no values). Each such build's files are read once."""
+    from . import catalog
+    try:
+        ents = catalog.load()
+    except FileNotFoundError:
+        return {}
+    gone = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e.get('kind') == 'item'
+            and not e.get('alive') and e['id'] not in have and e.get('last')]
+    commits = {b.build: b for b in tracker.builds() if b.build is not None}
+    out: dict[str, dict] = {}
+    by_build: dict[int, list[dict]] = {}
+    for e in gone:
+        by_build.setdefault(e['last'][0], []).append(e)
+    for build, group in by_build.items():
+        b = commits.get(build)
+        if b is None:
+            continue
+        abilities = cache.vdata(b.commit, tracker.SCRIPTS + 'abilities.vdata')
+        tok = loc.tokens(b.commit)
+        generic = cache.vdata(b.commit, tracker.SCRIPTS + 'generic_data.vdata')
+        prices = generic.get('m_nItemPricePerTier') or []
+        for e in group:
+            a = abilities.get(e['id'])
+            if not isinstance(a, dict):
+                continue
+            c = card(e['id'], a, tok, 'item', None, fmap)
+            if c['item'] and c['item']['tier'].isdigit() and int(c['item']['tier']) < len(prices):
+                c['item']['cost'] = prices[int(c['item']['tier'])]
+            c['last'] = [build, b.date[:10]]
+            out[e['id']] = c
+    return out
+
+
 def build() -> dict:
     head = tracker.head_build()
     tok = loc.tokens(head.commit)
@@ -325,6 +360,7 @@ def build() -> dict:
         if c['item'] and c['item']['tier'].isdigit() and int(c['item']['tier']) < len(prices):
             c['item']['cost'] = prices[int(c['item']['tier'])]
         out[aid] = c
+    out.update(last_cards(set(out), fmap))
     OUT.write_text(json.dumps({'build': head.build, 'abilities': out,
                                'penalties': corrupted_penalties(generic, tok)},
                               ensure_ascii=False, separators=(',', ':')),

@@ -287,7 +287,8 @@ def build_all() -> int:
     total = sum(for_id(row['id'])['changes'] - for_id(row['id']).get('unreleased', 0) for row in patches)
     total_hidden = sum(for_id(row['id'])['not_in_notes'] for row in patches)
     last_build = builds[-1] if builds else None
-    shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
+    # (a removed item's last known card, `last`, is no item on sale)
+    shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item') and not c.get('last')]
     counts = {'heroes': len(heroes),
               # what the shop sells now (the tiers 1-4 on the Shop page)
               'items': sum(1 for i in shop if not i.get('disabled') and not i.get('street_brawl')
@@ -301,7 +302,8 @@ def build_all() -> int:
     # the Items tile shows items like the other tiles show heroes and units (it showed three dim category glyphs):
     # two of the dearest of each slot on sale now, by their shop icons
     on_sale = sorted(((k, c['item']) for k, c in load_json('abilities.json')['abilities'].items()
-                      if c.get('item') and not c['item'].get('disabled') and not c['item'].get('street_brawl')
+                      if c.get('item') and not c.get('last') and not c['item'].get('disabled')
+                      and not c['item'].get('street_brawl')
                       and str(c['item'].get('tier')) in '1234'), key=lambda kc: (-int(kc[1].get('cost') or 0), kc[0]))
     item_art: list[str] = []
     for slot in ('WeaponMod', 'Armor', 'Tech'):

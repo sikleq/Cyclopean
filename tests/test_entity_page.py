@@ -355,6 +355,42 @@ def test_cards_put_a_new_thing_ahead_of_a_small_number():
     assert chip_card({'rows': [('', small), ('', added)], 'hidden': 2})[2][0][1] == 'Rat Swarm'
 
 
+def test_an_item_page_lists_each_value_once_and_a_removed_item_its_last_ones():
+    """Review 2026-10-05: Active Reload's head chips repeated its Passive's "Cooldown 12s"; a removed item (Ablative
+    Coat) had no values at all — it shows those of its last build, so titled."""
+    from builders.entities_pages import item_page
+    it = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item', 'name': 'X', 'alive': False,
+          'first': [1, '2024-06-06']}
+    card = {'item': {'slot': 'Armor', 'tier': '2', 'activation': 'Passive', 'cost': 1600},
+            'header': [{'prop': 'AbilityCooldown', 'label': 'Cooldown', 'value': '12s'},
+                       {'prop': 'AbilityCastPoint', 'label': 'Cast Time', 'value': '0.6s'}],
+            'sections': [{'type': 'Passive', 'props': [{'prop': 'AbilityCooldown', 'label': 'Cooldown', 'value': '12s'}]}],
+            'last': [5554, '2025-05-08']}
+    html = item_page(it, card, {}, {})
+    assert 'Last values (build 5554, 2025-05-08)' in html and 'Current values' not in html
+    hdr = html.split('class="chips item-hdr"')[1].split('</div>')[0]
+    assert 'Cast Time' in hdr and 'Cooldown' not in hdr
+    html = item_page({**it, 'alive': True}, {k: v for k, v in card.items() if k != 'last'}, {}, {})
+    assert 'Current values' in html
+
+
+def test_a_removed_items_card_comes_from_its_last_build(monkeypatch):
+    from types import SimpleNamespace
+    from pipeline import abilities, cache, catalog, loc, tracker
+    ents = {'abilities.vdata:upgrade_gone': {'file': 'abilities.vdata', 'id': 'upgrade_gone', 'kind': 'item',
+                                             'alive': False, 'last': [5554, '2025-05-08']},
+            'abilities.vdata:upgrade_live': {'file': 'abilities.vdata', 'id': 'upgrade_live', 'kind': 'item',
+                                             'alive': True, 'last': [6746, '2026-10-02']}}
+    monkeypatch.setattr(catalog, 'load', lambda: ents)
+    monkeypatch.setattr(tracker, 'builds', lambda: [SimpleNamespace(build=5554, commit='c5554', date='2025-05-08T00:00:00Z')])
+    files = {'abilities.vdata': {'upgrade_gone': {'m_eItemSlotType': 'EItemSlotType_Armor', 'm_iItemTier': 'EModTier_2'}},
+             'generic_data.vdata': {'m_nItemPricePerTier': [0, 800, 1600]}}
+    monkeypatch.setattr(cache, 'vdata', lambda commit, path: files[path.rsplit('/', 1)[-1]])
+    monkeypatch.setattr(loc, 'tokens', lambda commit: {'upgrade_gone': 'Gone Coat'})
+    out = abilities.last_cards({'upgrade_live'}, {})
+    assert set(out) == {'upgrade_gone'} and out['upgrade_gone']['last'] == [5554, '2025-05-08']
+
+
 def test_a_card_that_counts_hidden_changes_shows_one():
     """Review 2026-10-05: Haze 2026-04-10's tile card said "2 not in patch notes" and listed six changes from the
     notes (the biggest by %); one slot is the eye's, in the strip card, the trail card and the home card."""

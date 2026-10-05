@@ -116,7 +116,10 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             f'{first_seen(it["first"])}</div></div>')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
     # 2026-10-04: nothing folded by default)
-    return page(name, head + head_strip(told) + now_fold('Current values', sections) + history, rel, 'items',
+    # a removed item shows what it was in the last build that had it (pipeline.abilities.last_cards)
+    last = (card or {}).get('last')
+    title = f'Last values (build {last[0]}, {last[1]})' if last else 'Current values'
+    return page(name, head + head_strip(told) + now_fold(title, sections) + history, rel, 'items',
                 cls='entity')
 
 
