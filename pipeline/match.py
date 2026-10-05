@@ -29,6 +29,7 @@ from . import match_rules as rules
 from . import patches as patches_mod
 from .classify import category, decor_entity
 from .patches import Patch, group
+from .shared_groups import SharedGroups, window_of
 
 OUT = tracker.ROOT / 'data' / 'patches'
 BUILDS = tracker.ROOT / 'data' / 'builds'
@@ -106,6 +107,7 @@ class MChange:
     shown: str = ''
     sign: str = ''                                # '-': the tooltip's own minus (an enemy slow), shown as a size
     retyped: bool = False                         # the property's provided type flipped with its sign (Riposte)
+    moved: bool = False                           # the same fact moved to another field (mark_availability_moves)
     # the old value's unit when Valve dropped or replaced the printed unit inside the window (labels.unit_switch):
     # "Extra Ammo Consumed 30% → 2" is CHANGED, no percent — 30% of a clip and 2 bullets do not compare
     old_unit: str | None = None
@@ -360,6 +362,30 @@ def mark_retyped(changes: list[MChange]) -> None:
             c.retyped = True
 
 
+_SELECTABLE = 'm_bPlayerSelectable'
+_DEV_STATE = 'm_eHeroDevelopmentState'
+_TRUTHY = ('true', '1', 'yes')
+
+
+def mark_availability_moves(changes: list[MChange]) -> None:
+    """A hero's availability written in another field, not a change: on 2026-09-29 heroes.vdata dropped
+    m_bPlayerSelectable and gained m_eHeroDevelopmentState, so 38 released heroes read "Hero Development State →
+    Release" (ON) and 43 "Player Selectable yes → —" in the newest band of their pages, counted as not in the
+    patch notes (Haze "seemed to be released on September 29", review 2026-10-05). Both rows of a hero are
+    `moved` (change_json 'same': no row, no count) when the old flag and the new state say the same — selectable
+    and a released state, or not selectable and a state that is not; a hero that changed availability keeps both."""
+    by_hero: dict[str, dict[str, MChange]] = {}
+    for c in changes:
+        if c.file == 'heroes.vdata' and c.path in (_SELECTABLE, _DEV_STATE):
+            by_hero.setdefault(c.eid, {})[c.path] = c
+    for fields in by_hero.values():
+        flag, state = fields.get(_SELECTABLE), fields.get(_DEV_STATE)
+        if not flag or not state or flag.op != 'remove' or state.op != 'add':
+            continue
+        if (str(flag.old).lower() in _TRUTHY) == (str(state.new) in RELEASED_STATES):
+            flag.moved = state.moved = True
+
+
 def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple[list[MChange], dict]:
     """Merge the builds of a window. Entities added inside the window are not
     diffed field by field (their whole data is "new"): they become one
@@ -421,6 +447,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
             era = {'speed_m': c.speed_m}
             c.old_unit, c.unit = (labels.display_unit(era, {'unit': u}) for u in sw)
     mark_retyped(changes)
+    mark_availability_moves(changes)
     # console variables take part in matching ("Respawn time … from 35s to 38s")
     for cv in extras['convars']:
         if cv.get('op') != 'change' or num(cv.get('old')) is None or num(cv.get('new')) is None:
@@ -886,7 +913,10 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
             result['_quiet'] = sorted(about)
     pool = [c for c in pool if c.cat in GAMEPLAY_CATS]
 
-    if (pairs or by_pct is not None) and pool:
+    # an inline name or alias whose entity did not move at all still gets the whole-patch pass below (the Dash
+    # ability had no change on 2026-07-28: "… ground dash time 0.7s to 0.72s" never reached it)
+    inline = bool(subject) and subject.kind in ('alias_inline', 'name_inline')
+    if (pairs or by_pct is not None) and (pool or inline):
         # a line without a subject must also share a word with the field label; so must one whose
         # subject is only named inside it ("Medic Trooper … heal 14% → 12%" is not its range 14 → 12 m).
         # Not an alias's: "Walker HP increased by 40%" shares no word ("HP", "damage" are not words here)
@@ -901,11 +931,19 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
         def enough(b) -> bool:
             return b >= 10 + need or (by_pct is not None and b >= 6 + need)
         scored, best = rank(pool, ability_hits)
-        if not enough(best) and subject and subject.kind == 'name_inline':
-            # the name was a coincidence ("Gun Powerup … Fire Rate" names the old item "Fire Rate"):
-            # the whole patch, as for a line without a subject
+        if not enough(best) and subject and subject.kind in ('name_inline', 'alias_inline'):
+            # the name was a coincidence ("Gun Powerup … Fire Rate" names the old item "Fire Rate"), or the
+            # alias was: "Stamina bucket 3 heroes … ground dash time increased from 0.7s to 0.72s" is not the
+            # Dash ability, "Heavy Melee cooldown increased from 0.9s to 1.0s" not the Parry — the pairs are
+            # every slow hero's / every melee's, one '@shared' block each (unmatched until review 2026-10-05).
+            # The whole patch, as for a line without a subject: a field must share a word with the line
+            own_pass = (scored, best, pool, ability_hits, need_word, need)
+            need_word, need = True, 1
             pool, ability_hits = [c for c in changes if c.cat in GAMEPLAY_CATS], set()
             scored, best = rank(pool, ability_hits)
+            if subject.kind == 'alias_inline' and not enough(best):
+                # nothing there either: a disagreement is judged on the alias's own fields, as before
+                scored, best, pool, ability_hits, need_word, need = own_pass
         if enough(best):
             hits = [c for s, c in scored if s == best]
             if len(pairs) > 1:
@@ -1142,7 +1180,9 @@ def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = ''
 
 def change_json(c: MChange) -> dict:
     kind = c.kind or ''
-    dirn, pct = semantics.direction(c.path, num(c.old), num(c.new), kind, c.drawback, c.neg_base)
+    # one side in metres, the other bare (engine units): both in metres, for the numbers and the % alike
+    old, new = semantics.metres_pair(c.old, c.new)
+    dirn, pct = semantics.direction(c.path, num(old), num(new), kind, c.drawback, c.neg_base)
     flag = flag_rules.is_flag_field(c.path)
     if flag and kind not in semantics.SHARED_KINDS:
         dirn = flag_rules.direction(c.path, c.old, c.new) or dirn     # "Can target: + neutrals" is a buff
@@ -1156,11 +1196,12 @@ def change_json(c: MChange) -> dict:
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.shown or c.label,
-        'old_s': semantics.show(c.old, shown, c.old_unit if switched else c.unit, c.invert, magnitude),
-        'new_s': semantics.show(c.new, shown, c.unit, c.invert, magnitude),
+        'old_s': semantics.show(old, shown, c.old_unit if switched else c.unit, c.invert, magnitude),
+        'new_s': semantics.show(new, shown, c.unit, c.invert, magnitude),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
-        'same': semantics.reencoded(c.old, c.new, c.path) or (c.retyped and semantics.sign_flip(c.old, c.new)),
+        'same': (semantics.reencoded(c.old, c.new, c.path) or (c.retyped and semantics.sign_flip(c.old, c.new))
+                 or c.moved),
         **({'flag': True} if flag else {}),
         **({'unit_switch': True} if switched else {}),
     }
@@ -1224,7 +1265,7 @@ def count_statuses(changes: list[MChange], events: list[dict]) -> dict[str, int]
     counts = {'documented': 0, 'described': 0, 'hidden': 0, 'unannounced': 0, 'unreleased': 0}
     seen_shared: set[tuple] = set()
     for c in changes:
-        if c.cat not in GAMEPLAY_CATS or c.file == 'convars':
+        if c.cat not in GAMEPLAY_CATS or c.file == 'convars' or c.moved:
             continue
         if c.shared:
             sig = (c.file, c.path, repr(c.old), repr(c.new), c.status)
@@ -1279,7 +1320,7 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}
     for cv in extras['convars']:
         cv['status'] = cv_status.get(cv['name'], 'unannounced' if not p.notes else 'hidden')
-    shared_groups: dict[tuple, dict] = {}
+    shared = SharedGroups()
     for c in changes:
         if c.file == 'convars':
             continue
@@ -1287,18 +1328,11 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
                           else loc.entity_name(tok, c.eid, cat.get(ent_key(c), {}).get('owner')))
                 if c.eid else c.eid)
         if c.shared:
-            # one edit copied into many entities (a global rule): one block, not N
-            sig = (c.file, c.path, repr(c.old), repr(c.new))
-            grp = shared_groups.get(sig)
-            if grp is None:
-                grp = shared_groups[sig] = {'change': change_json(c), 'targets': []}
-            grp['targets'].append(name)
-            cur = grp['change']['status']
-            # a rule for all heroes is "unreleased" only if every hero it touches is: a dev hero listed
-            # first had made 41 "All heroes" rows unreleased (audit 2026-10-01)
-            if STATUS_RANK[c.status] > STATUS_RANK[cur] or (cur == 'unreleased' and c.status != 'unreleased'
-                                                             and STATUS_RANK[c.status] == STATUS_RANK[cur]):
-                grp['change']['status'] = c.status
+            # one edit copied into many entities (a global rule): one block, not N — with the keys of the
+            # entities it hit, so their pages show it (pipeline/shared_groups.py)
+            # (a field that only moved for some of its targets is two blocks: no change / a change)
+            sig = (c.file, c.path, repr(c.old), repr(c.new), c.moved)
+            shared.add(sig, change_json(c) if sig not in shared else None, name, ent_key(c), c.status)
             continue
         k = ent_key(c)
         e = cat.get(k, {})
@@ -1312,14 +1346,8 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         ent = entities.setdefault(k, {'key': k, 'file': ev['file'], 'id': ev['id'], 'kind': ev.get('kind'),
                                       'owner': ev.get('owner'), 'name': ev['name'], 'changes': []})
         ent['changes'].insert(0, ev['change'])
-    for (file, *_), grp in shared_groups.items():
-        targets = sorted(set(grp['targets']))
-        label = SHARED_NAMES.get(file, 'Many entries')
-        key = f"@shared:{file}:{len(targets)}:{','.join(targets[:3])}"
-        ent = entities.setdefault(key, {'key': key, 'file': file, 'id': '@shared', 'kind': 'shared',
-                                        'owner': None, 'name': f'{label} ({len(targets)})',
-                                        'targets': targets, 'changes': []})
-        ent['changes'].append(grp['change'])
+    for ent in shared.entities(cat, window_of(p.builds), SHARED_NAMES):
+        entities[ent['key']] = ent
     for ent in entities.values():
         for c in ent['changes']:
             c['sentence'] = sentence(ent['name'], c)
@@ -1338,13 +1366,12 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         'sections': sections,
         'entities': ents,
         'key_changes': key_changes(ents),
-        'extras': slim_extras(extras),
+        'extras': slim_extras(extras, cat),
         'counts': counts,
         'line_counts': line_counts,
     }
 
 
-STATUS_RANK = {'hidden': 0, 'unannounced': 0, 'unreleased': 0, 'described': 1, 'documented': 2}
 RELEASED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
 
 
@@ -1415,12 +1442,17 @@ def key_changes(ents: list[dict]) -> list[dict]:
 LOC_GROUPS = ('citadel_heroes', 'citadel_mods', 'citadel_attributes', 'citadel_main',
               'citadel_gc_mod_names', 'citadel_gc_hero_names')
 LOC_LIMIT = 400
-CONVAR_LIMIT = 300
+# console variables are kept whole (coverage audit 2026-10-05: the list stopped at 300 of City Never Sleeps' 510
+# without a word, and the Game section reads respawn times and soul rewards from them); the noted ones first
+_CONVAR_ORDER = {'documented': 0, 'described': 0, 'rounded': 0, 'mismatch': 0}
+_CONVAR_OP = {'change': 0, 'desc': 1, 'remove': 2, 'add': 3}
 
 
-def slim_extras(extras: dict) -> dict:
-    """Patch pages show a capped list of text/convar changes and asset totals;
-    the full per-build detail stays on the build pages."""
+def slim_extras(extras: dict, cat: dict[str, dict] | None = None) -> dict:
+    """Patch pages show a capped list of text changes, every console variable and asset totals; the full
+    per-build detail stays on the build pages. `texts`: the name / description changes of the abilities, items
+    and heroes a page shows, uncapped (`pipeline/entity_texts.py`)."""
+    from .entity_texts import entity_texts
     loc_rows = [x for x in extras['loc'] if x.get('group') in LOC_GROUPS]
     totals: dict[str, dict[str, int]] = {}
     hero_models: set[str] = set()
@@ -1432,7 +1464,10 @@ def slim_extras(extras: dict) -> dict:
         hero_models |= set(a.get('hero_models', {}))
     return {
         'loc': loc_rows[:LOC_LIMIT], 'loc_total': len(loc_rows),
-        'convars': extras['convars'][:CONVAR_LIMIT], 'convars_total': len(extras['convars']),
+        'texts': entity_texts(extras['loc'], cat or {}),
+        'convars': sorted(extras['convars'], key=lambda x: (_CONVAR_ORDER.get(x.get('status'), 1),
+                                                            _CONVAR_OP.get(x.get('op'), 4), x.get('build') or 0)),
+        'convars_total': len(extras['convars']),
         'assets': {'counts': dict(sorted(totals.items())), 'hero_models': sorted(hero_models)},
     }
 

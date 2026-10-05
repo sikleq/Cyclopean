@@ -31,7 +31,7 @@ STEPS = (
 )
 # page folders each step owns: emptied first, so a patch that no longer exists
 # (merged or renamed window) leaves no stale page behind
-STEP_DIRS = {'patches': ('patches',), 'builds': ('builds',), 'entities': ('heroes', 'items', 'units'),
+STEP_DIRS = {'patches': ('patches',), 'builds': ('builds',), 'entities': ('heroes', 'items', 'units', 'game'),
              'tables': ('tables',)}
 
 

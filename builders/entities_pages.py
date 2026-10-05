@@ -15,15 +15,46 @@ SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vital
 
 
 def _history() -> tuple[dict, dict]:
-    """entity key -> [(patch row, changes)], note subject -> [(patch row, line)]."""
+    """entity key -> [(patch row, changes)], note subject -> [(patch row, line)]. A change one edit made in many
+    entities ('@shared') is on each of them (shared_rows.spread). For the Game section (game_systems) also: a rule
+    for every hero or ability as ONE block under 'game:all:<file>' (each hero shows it folded), and the console
+    variables a game reads under 'convars:<name>'; an entity's name / description changes under 'text:<key>'."""
+    from .game_pages import RAW_CONVARS
+    from .game_systems import ALL_PREFIX, CONVAR_PREFIX, convar_changes, convar_start
+    from .shared_rows import FOLD_FILES, catalog, entities as spread_all, noun
+    from .text_rows import TEXT_PREFIX
     by_ent: dict[str, list] = defaultdict(list)
     by_subject: dict[str, list] = defaultdict(list)
+    start = convar_start()           # the build that starts the console variables' tracking: a snapshot
     for row in load_json('patches/index.json'):
         p = load_json(f'patches/{row["id"]}.json.gz')
-        for e in p['entities']:
+        for e in spread_all(p['entities']):
             ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
-            if ch and e.get('id') != '@shared':
+            if ch:
                 by_ent[e['key']].append((row, ch))
+        for e in p['entities']:
+            if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
+                cat = catalog()
+                real = [k for k in e.get('target_keys') or [] if k in cat and not cat[k].get('template')]
+                what = noun(e['file'], real, cat)
+                ch = [{**c, 'shared_n': len(real), 'shared_what': what, 'shared_every': True}
+                      for c in e['changes'] if c['cat'] in GAMEPLAY]
+                if ch:
+                    by_ent[ALL_PREFIX + e['file']].append((row, ch))
+        cvs = p.get('extras', {}).get('convars') or []
+        if cvs:                       # as they are, for the Game rules table (values now and their history)
+            by_ent[RAW_CONVARS].append((row, cvs))
+        per: dict[str, list] = defaultdict(list)
+        for c in convar_changes(cvs, start):
+            per[CONVAR_PREFIX + c['id']].append(c)
+        for k, ch in per.items():
+            by_ent[k].append((row, ch))
+        # an ability's, item's or hero's name / description changes: rows of its history (text_rows)
+        texts: dict[str, list] = defaultdict(list)
+        for t in p.get('extras', {}).get('texts') or []:
+            texts[TEXT_PREFIX + t['ent']].append(t)
+        for k, ts in texts.items():
+            by_ent[k].append((row, ts))
         for s in p['sections']:
             for ln in s['lines']:
                 # a heading is a bare name, a repeated line lives on its later patch
@@ -162,10 +193,45 @@ def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
             f'<span class="sub">{esc(sub)}</span>{foot}</a>')
 
 
+def changed(by_ent: dict) -> set[str]:
+    """The keys with a change of their own (or shared with some others): a rule for every hero (the level curve)
+    alone gives no hero or item a page."""
+    from .shared_rows import is_every
+    return {k for k, hist in by_ent.items() if any(not is_every(c) for _, ch in hist for c in ch)}
+
+
+def page_entities(ents: dict[str, dict], own: set[str], trow: dict) -> tuple[list[dict], list[dict], list[dict]]:
+    """(heroes, items, units) that get a page: a hero released or pre-release, in Hero Stats or with changes of its
+    own or of an ability it owns (a hero in development whose kit moved: its abilities' rows were on no page,
+    coverage audit 2026-10-05); a shop item with a tier or changes of its own; every unit that is no template (a
+    family's page holds it)."""
+    owners_changed = {e.get('owner') for k, e in ents.items() if e['file'] == 'abilities.vdata' and k in own}
+    heroes = [e for e in ents.values() if e['file'] == 'heroes.vdata' and not e.get('template')
+              and (e.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease') or e['id'] in trow
+                   or f"heroes.vdata:{e['id']}" in own or e['id'] in owners_changed)]
+    items = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e['kind'] == 'item'
+             and e['id'].startswith('upgrade_') and not e.get('template')
+             and (e.get('tier') or f"abilities.vdata:{e['id']}" in own)]
+    units = [e for e in ents.values() if e['file'] == 'npc_units.vdata' and not e.get('template')]
+    return heroes, items, units
+
+
+def page_keys(ents: dict[str, dict], heroes: list[dict], items: list[dict], units: list[dict]) -> set[str]:
+    """The entity keys a hero, item or unit page shows (`page_entities`): the heroes and the abilities and guns they
+    own, the items, the units and the abilities they bind."""
+    hero_ids = {h['id'] for h in heroes}
+    unit_ids = {u['id'] for u in units}
+    out = {f"{e['file']}:{e['id']}" for e in heroes + items + units}
+    out |= {k for k, e in ents.items() if e['file'] == 'abilities.vdata'
+            and (e.get('owner') in hero_ids or set(e.get('units') or ()) & unit_ids)}
+    return out
+
+
 def build_all() -> dict[str, int]:
     data = load_json('entities.json')
     ents = {f"{e['file']}:{e['id']}": e for e in data['entities']}
     by_ent, by_subject = _history()
+    own = changed(by_ent)
     table = load_json('tables/heroes.json')
     trow = {r['id']: r for r in table['heroes']}
     units_t = load_json('tables/units.json')
@@ -174,9 +240,7 @@ def build_all() -> dict[str, int]:
     rel = '../'
     counts = {'heroes': 0, 'items': 0, 'units': 0}
 
-    heroes = [e for e in ents.values() if e['file'] == 'heroes.vdata' and not e.get('template')
-              and (e.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease') or e['id'] in trow
-                   or f"heroes.vdata:{e['id']}" in by_ent)]
+    heroes, items, units = page_entities(ents, own, trow)
     by_id = {e['id']: e for e in ents.values() if e['file'] == 'abilities.vdata'}
     for h in heroes:
         write(slug(h['file'], h['id']), hero_page(h, cards, trow.get(h['id']), table['columns'], by_id, by_ent, by_subject))
@@ -189,21 +253,18 @@ def build_all() -> dict[str, int]:
     from . import shared_page
     shared = shared_page.shared_entities(list(ents.values()))
     has_shared = shared_page.has_history(shared, by_ent)
-    if has_shared:
-        write(f'heroes/{shared_page.HREF}', shared_page.shared_page(shared, by_ent, by_subject))
+    if has_shared:          # jump, dash, parry… live in Game › Movement & combat now; the old address points there
+        write(f'heroes/{shared_page.HREF}', shared_page.redirect())
     body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
             f'<span class="sep"></span>{pre_release_switch(live)}{shared_page.index_link() if has_shared else ""}</div>'
             + heroes_grid_html(live, other, trow, rel))
     write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
-    dyn = matrix_html(hero_entries(live, rel) + ([shared_page.matrix_entry()] if has_shared else []), 'hero')
+    dyn = matrix_html(hero_entries(live, rel), 'hero')
     write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
                                       + toolbar('hero', n_pre, 'Pre-release') + dyn, rel, 'heroes', wide=True))
 
-    items = [e for e in ents.values() if e['file'] == 'abilities.vdata' and e['kind'] == 'item'
-             and e['id'].startswith('upgrade_') and not e.get('template')
-             and (e.get('tier') or f"abilities.vdata:{e['id']}" in by_ent)]
     for it in items:
         write(slug(it['file'], it['id']), item_page(it, cards.get(it['id']), by_ent, by_subject))
         counts['items'] += 1
@@ -222,7 +283,6 @@ def build_all() -> dict[str, int]:
     from .game_shop import FONTS as SHOP_FONTS
     write('items/index.html', page('Items', body, rel, 'items', fonts=SHOP_FONTS))
 
-    units = [e for e in ents.values() if e['file'] == 'npc_units.vdata' and not e.get('template')]
     bound = defaultdict(list)                  # unit id -> the abilities it binds (Walker's Stomp…)
     for e in by_id.values():
         for uid in e.get('units') or ():
@@ -278,8 +338,11 @@ def build_all() -> dict[str, int]:
     from .site_search import INDEX_FILE, search_json, search_rows
     named = [(n, ms[0]) for n, ms in fams.items() if group_of(ms) != 'helper']
     found = search_rows(live, items, named, cards, current_cards)
-    if has_shared:          # jump, dash, parry… open their own page (shared_page)
-        found = sorted(found + shared_page.search_rows(shared, by_ent), key=lambda r: (r[0].lower(), r[2]))
+    # the Game section: everything that is not one hero, item or unit (jump, dash, the Soul Urn, crates…)
+    from . import game_pages
+    counts['game'], game_rows = game_pages.build_all(by_ent, by_subject, ents,
+                                                     page_keys(ents, heroes, items, units))
+    found = sorted(found + game_rows, key=lambda r: (r[0].lower(), r[2]))
     write(INDEX_FILE, search_json(found))
     from .dynamics_page import unit_entries
     entries = unit_entries(units, UNIT_GROUPS, rel)

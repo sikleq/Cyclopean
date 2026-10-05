@@ -5,14 +5,19 @@ each stripe as tall as its share.
 A hero's tile holds everything the patch did to the hero — stats, weapon and abilities in one cell;
 a filter (All / Stats / Weapon / Abilities) narrows every tile to one part (owner, 2026-10-01: one
 cell, a filter, no split tiles). Switches: older patches, buff-vs-nerf (one net colour per cell), tag filters, pre-release heroes /
-removed items; a search over the rows; a hover card per cell (scripts.js, from the page's JSON)."""
+removed items; a search over the rows; a hover card per cell (scripts.js, from the page's JSON).
+
+The Game section's matrix (game/changes.html, coverage audit 2026-10-05) has a row per system (game_systems): what no
+hero, item or unit page shows — map objects, rules, effects, abilities no hero owns, a template's change no heir
+shows, a rule for every hero or ability (once), the console variables a game reads."""
 from __future__ import annotations
 
 import json
 from datetime import date, timedelta
 from functools import lru_cache
 
-from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id
+from .common import (display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id,
+                     visual)
 from .pixel_icons import tag_svg
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
 
@@ -21,7 +26,6 @@ MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on
 SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
 SAMPLES_ONE = 3           # … and of an item or unit (one part: the row itself)
 PARTS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
-SHARED_KEY = 'hero:@shared'     # the abilities every hero has: one row of their own (shared_page.MATRIX_KEY)
 WEAPON_KINDS = ('weapon', 'melee')
 
 
@@ -79,17 +83,37 @@ def _collect() -> dict:
     parts: dict = {}
     raw: dict = {}
     once: set = set()
+    from .game_systems import (convar_changes, convar_start, is_template, name_of, place, place_all_row, place_entity, system)
+    from .shared_rows import FOLD_FILES, entities as spread_all, own
+    cat = {f"{e['file']}:{e['id']}": e for e in ents}
+    start = convar_start()       # the console variables' first build: a snapshot, not changes (game_systems)
     for r in rows:
         p = load_json(f'patches/{r["id"]}.json.gz')
-        for e in gameplay_entities(p['entities']):
-            if e.get('id') == '@shared':
+        found: list[tuple[list[str], str, str, list[dict], str]] = []     # (row keys, part, what, rows, ability id)
+        spread = spread_all(gameplay_entities(p['entities']))
+        # a template's change an heir shows is the heir's (game_pages.template_rows)
+        heirs = {(e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
+                 for e in spread if not is_template(e) for c in e['changes']}
+        # a change one edit made in some heroes counts in each one's cell; a rule for every hero (the level
+        # curve) in none of theirs — it would fill a whole column (shared_rows) — but in its Game system's
+        for e in spread:
+            e = {**e, 'changes': own(e['changes'])}
+            if not e['changes']:
+                continue
+            info = {**e, **cat.get(e['key'], {})}
+            game = place_entity(e['key'], info)
+            if game:                                 # not a hero, item or unit: its Game system's row
+                ch = e['changes']
+                if is_template(info):
+                    ch = [c for c in ch if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
+                          not in heirs]
+                if ch:
+                    found.append(([f'game:{game[0]}'], game[1], name_of(e['key'], info), ch, ''))
                 continue
             if e['file'] == 'heroes.vdata':
                 keys = [f'hero:{e["id"]}']
             elif e.get('owner'):
                 keys = [f'hero:{e["owner"]}']
-            elif e.get('kind') == 'shared':          # jump, dash, parry…: every hero's (shared_page)
-                keys = [SHARED_KEY]
             elif e.get('kind') == 'item':
                 keys = [f'item:{e["id"]}']
             elif e['file'] == 'npc_units.vdata':
@@ -98,21 +122,30 @@ def _collect() -> dict:
                 keys = list(dict.fromkeys(f'unit:{fam.get(u, u)}' for u in npc[e['id']]))
             else:
                 continue
-            part = part_of(e)
+            found.append((keys, part_of(e), _display(e), e['changes'], e['file'] == 'abilities.vdata' and e['id']))
+        for e in gameplay_entities(p['entities']):       # the rules for every hero / ability, once
+            if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
+                for c in e['changes']:
+                    sid, pid = place_all_row(e['file'], c)
+                    found.append(([f'game:{sid}'], pid, next(x.name for x in system(sid).parts if x.id == pid), [c], ''))
+        cvs = p.get('extras', {}).get('convars') or []
+        for c in convar_changes(cvs, start):
+            sid, pid = place(f'convar:{c["id"]}')
+            found.append(([f'game:{sid}'], pid, 'Console variables', [c], ''))
+        for keys, part, what, changes, abil in found:
             for key in keys:
                 cell = cells.setdefault(key, {}).setdefault(r['id'], {})
                 pcell = parts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
-                for c in player_facing(e['changes']):
+                for c in player_facing(changes):
                     if key.startswith('unit:'):
-                        sig = (key, r['id'], e['file'] == 'abilities.vdata' and e['id'], c.get('label'),
-                               c.get('old_s'), c.get('new_s'))
+                        sig = (key, r['id'], abil, c.get('label'), c.get('old_s'), c.get('new_s'))
                         if sig in once:
                             continue
                         once.add(sig)
                     t = tag_of(c)[0]
                     for d in (cell, pcell):
                         d[t] = d.get(t, 0) + 1
-                    s = (_display(e), c.get('label') or '', *_sample_values(c),
+                    s = (what, c.get('label') or '', *_sample_values(c),
                          t, part, abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0)
                     raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
     samples: dict = {}
@@ -223,7 +256,10 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
         mine = cells.get(key, {})
         if not mine:
             continue
-        img = f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else ''
+        # a Game system without art from the game files has the site's glyph ('glyph:<name>', game_systems)
+        img = (visual(None, ic[6:], 'mx-g') if ic and ic.startswith('glyph:') else
+               f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else '')
+        ic = '' if ic and ic.startswith('glyph:') else ic
         body.append(f'<tr class="{esc(extra)}" data-search="{esc(name.lower())}" data-name="{esc(name)}" '
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
@@ -233,7 +269,9 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     n_old = sum(1 for r in rows if r['date'] < cutoff)
-    return (f'<div class="table-fade"><div class="table-scroll"><table class="dyn" id="dyn-{kind}" '
+    # a Game system's hover card names the entry of each change (scripts.js dyn-tip)
+    what = ' data-what' if kind == 'game' else ''
+    return (f'<div class="table-fade"><div class="table-scroll"><table class="dyn" id="dyn-{kind}"{what} '
             f'style="--n-all:{len(rows)};--n-new:{len(rows) - n_old}">{_head(rows, cutoff, kind.title())}'
             f'<tbody>{"".join(body)}</tbody></table></div></div>'
             f'<script type="application/json" class="dyn-data" data-for="dyn-{kind}">{blob}</script>')
@@ -291,6 +329,13 @@ def unit_entries(units: list[dict], groups: tuple[tuple[str, str], ...], rel: st
         out.append((f'unit:{u["id"]}', name, entity_icon(u['file'], u['id'], u.get('kind') or 'unit', rel),
                     slug(u['file'], u['id']).split('/', 1)[1], 'extra' if hidden else ''))
     return out
+
+
+def game_entries(rel: str) -> list[tuple]:
+    """A row per Game system (game_systems), in the config's order."""
+    from .game_systems import shown
+    return [(f'game:{s.id}', s.name, s.icon if s.icon.startswith('glyph:') else f'{rel}icons/{s.icon}', s.href, '')
+            for s in shown()]
 
 
 def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:

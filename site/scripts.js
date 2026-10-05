@@ -105,6 +105,9 @@
       if (!hist || !hist.length) return;
       var pol = parseInt(td.getAttribute('data-pol') || '1', 10);
       var digits = parseInt(td.getAttribute('data-digits') || '2', 10);
+      // a unit after every number (Game rules: "55m", "38s" — builders/game_rules.py), none by default
+      var unit = td.getAttribute('data-unit') || '';
+      var fmtU = function (v, d) { var s = fmtNum(v, d); return unit && typeof v === 'number' && v !== -1 ? s + unit : s; };
       var head = td.getAttribute('data-title') || '';
       var esc = document.createElement('span');
       esc.textContent = head;                                  // names come from game text: never as HTML
@@ -113,7 +116,7 @@
       if (hist.length > 1 && typeof first === 'number' && typeof last === 'number' && first !== 0) {
         var p = (last - first) / Math.abs(first) * 100;
         var odir = td.getAttribute('data-odir');
-        html += '<div class="t-overall">Overall: ' + fmtNum(first, digits) + ' → ' + fmtNum(last, digits) +
+        html += '<div class="t-overall">Overall: ' + fmtU(first, digits) + ' → ' + fmtU(last, digits) +
           ' <span class="' + (odir ? 'dir-' + odir : dirClass(first, last, pol)) + '">(' + (p > 0 ? '+' : '') +
           p.toFixed(1) + '%)</span></div>';
       }
@@ -134,9 +137,9 @@
         // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row
         var first = (h[2] === null || h[2] === undefined);
         html += '<li><span class="d">' + h[1] + '</span>' +
-          '<span class="o">' + (first ? '' : fmtNum(h[2], digits)) + '</span>' +
+          '<span class="o">' + (first ? '' : fmtU(h[2], digits)) + '</span>' +
           '<span class="arrow">' + (first ? '' : '→') + '</span>' +
-          '<span class="n ' + (first ? 'dir-changed' : cls) + '">' + fmtNum(h[3], digits) + '</span>' +
+          '<span class="n ' + (first ? 'dir-changed' : cls) + '">' + fmtU(h[3], digits) + '</span>' +
           '<span class="p">' + pill + '</span></li>';
       }
       html += '</ol>';
@@ -320,13 +323,14 @@
       }
       // a hero's changes are grouped by part (base stats, weapon, abilities) and name the ability — an
       // item's or unit's are about the row itself
-      var hero = !!c[3], lastPart = null, rows = '';
+      // a Game system's row names the entry each change is about too (the Soul Urn's pickup, its aura…)
+      var hero = !!c[3], what = hero || table.hasAttribute('data-what'), lastPart = null, rows = '';
       samples.forEach(function (s) {
         if (hero && s[5] !== lastPart && d.parts && d.parts[s[5]] && part === 'all') {
           lastPart = s[5];
           rows += '<tr class="dt-part p-' + s[5] + '"><td colspan="3">' + txt(d.parts[s[5]]) + '</td></tr>';
         }
-        rows += '<tr>' + (hero ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
+        rows += '<tr>' + (what ? '<td class="dt-what">' + txt(s[0]) + '</td>' : '') +
           '<td class="dt-field">' + txt(s[1]) + '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
       });
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
@@ -1174,6 +1178,12 @@
       }
       return r.__b;
     }
+    // a row of a rule for every hero (builders/shared_rows.py: the "All heroes: N changes" link row) is counted
+    // apart: no band counter and no "Not in patch notes" count holds it
+    function inAll(r) {
+      if (r.__all === undefined) r.__all = !!r.closest('.shr-all');
+      return r.__all;
+    }
     function tagOk(r) {
       if (!state.tags.length) return true;
       var bs = behind(r);
@@ -1187,17 +1197,24 @@
       var bc = b.querySelector('summary .bc');
       if (!bc) return;
       var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
+      // "+34 for all heroes": only while its link row is shown (a tag or the eye never keeps it)
+      var shr = bc.querySelectorAll('.shr-chip');
       if (!active) {
         if (!b.__rc) return;
         b.__rc = false;
         pips.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
         if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
+        shr.forEach(function (c) { c.classList.remove('n0'); });
         return;
       }
       b.__rc = true;
+      var allShown = !!b.querySelector('.erow.shr-all:not(.f-out)');
+      shr.forEach(function (c) { c.classList.toggle('n0', !allShown); });
       var counts = {}, hidden = 0;
       b.querySelectorAll('.erow').forEach(function (r) {
-        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.parentNode.tagName === 'SUMMARY') return;
+        // a code line and a name / description change (text_rows) are no counted change
+        if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.classList.contains('st-text') ||
+            r.parentNode.tagName === 'SUMMARY' || inAll(r)) return;
         var bs = behind(r);
         if (bs) {
           bs.forEach(function (e) {
@@ -1209,7 +1226,7 @@
         }
         var t = tagOf(r);
         counts[t] = (counts[t] || 0) + 1;
-        if (r.classList.contains('st-hidden')) hidden++;
+        if (r.classList.contains('is-hidden')) hidden++;       // render.NOT_IN_NOTES: hidden or no notes at all
       });
       pips.forEach(function (p) {
         if (!p.lastChild || p.lastChild.nodeType !== 3) return;
@@ -1228,6 +1245,8 @@
       var onlyHidden = box.classList.contains('only-hidden'), dev = box.classList.contains('show-dev');
       var active = !!(state.tags.length || state.area || state.ab || onlyHidden);
       box.classList.toggle('filtering', active);
+      // a tag or the eye picks rows: a name / description change is none (text_rows); a part or ability keeps it
+      box.classList.toggle('filtering-rows', !!(state.tags.length || onlyHidden));
       var blocks = box.querySelectorAll('details.pblock');
       // a band still in its <template> says what it holds (data-tags / -abs / -areas, has-hidden): one that
       // cannot match is folded away unstamped (the first filter stamped all 33 of Calico's)
@@ -1251,14 +1270,19 @@
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
             var ok = gok && tagOk(r) &&
-                     (!onlyHidden || r.classList.contains('is-hidden')) &&
+                     (!onlyHidden || (r.classList.contains('is-hidden') && !inAll(r))) &&
                      (dev || !r.classList.contains('st-unreleased'));
             r.classList.toggle('f-out', !ok);
             gany = gany || ok;
           });
-          g.querySelectorAll('details.fam').forEach(function (f) {
-            f.classList.toggle('f-out', !f.querySelector(':scope > .erow:not(.f-out)'));
-          });
+          // innermost first: a fold may hold folds of its own
+          var fams = g.querySelectorAll('details.fam');
+          for (var fi = fams.length - 1; fi >= 0; fi--) {
+            fams[fi].classList.toggle('f-out',
+              !fams[fi].querySelector(':scope > .erow:not(.f-out), :scope > details.fam:not(.f-out)'));
+          }
+          // a description change (a fold of its own, text_rows) keeps its group under a part or ability filter
+          if (!gany && gok && !state.tags.length && !onlyHidden && g.querySelector('details.txt')) gany = true;
           g.classList.toggle('f-out', !gany);
           any = any || gany;
         });

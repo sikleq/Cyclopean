@@ -200,8 +200,10 @@ def test_a_folded_table_keeps_thousands_in_its_range():
 
 # ---- the abilities every hero has: a home of their own ----------------------------------------------
 
-def test_shared_abilities_have_a_page_a_matrix_row_and_search_rows(monkeypatch):
-    from builders import shared_page
+def test_shared_abilities_live_in_game_movement_and_combat(monkeypatch):
+    """Their page under Heroes (heroes/shared.html) became the Game section's Movement & combat (coverage audit
+    2026-10-05): the old address points there, the Game matrix's row counts them, the search opens them there."""
+    from builders import game_pages, shared_page
     row = {'id': '2026-09-16', 'date': '2026-09-16', 'title': '09-16-2026 Update'}
     change = {'op': 'change', 'cat': 'balance', 'label': 'Mantle Slow On Hit', 'old_s': '20%', 'new_s': '30%',
               'dir': 'changed', 'status': 'hidden', 'path': _prop('MantleSlow'), 'key': 'k'}
@@ -212,13 +214,15 @@ def test_shared_abilities_have_a_page_a_matrix_row_and_search_rows(monkeypatch):
     assert [e['id'] for e in shared] == ['citadel_ability_dash', 'citadel_ability_mantle']
     by_ent = {'abilities.vdata:citadel_ability_mantle': [(row, [change])]}
     assert shared_page.has_history(shared, by_ent)
-    html = shared_page.shared_page(shared, by_ent, {})
-    assert 'Mantle Slow On Hit' in html and 'href="index.html">Heroes</a>' in html
-    assert shared_page.search_rows(shared, by_ent) == [
-        ['Mantle', 'heroes/shared.html#ab-citadel_ability_mantle', 'All heroes · ability', '']]
-    assert shared_page.matrix_entry()[0] == dynamics_page.SHARED_KEY
+    assert 'data-redirect="../game/combat.html"' in shared_page.redirect()
+    cat = {f"{e['file']}:{e['id']}": e for e in ents}
+    entries, hist = game_pages.collect(by_ent, cat)
+    html = game_pages.system_page('combat', entries['combat'], hist, {})
+    assert 'Mantle Slow On Hit' in html and 'href="index.html">Game</a>' in html
+    assert ['Mantle', 'game/combat.html#ab-citadel_ability_mantle', 'Movement & combat · Game'] in \
+        [r[:3] for r in game_pages.search_rows(entries)]
 
-    # the hero matrix counts a shared ability's changes on that row
+    # the Game matrix counts a shared ability's changes on Movement & combat
     patch = {'entities': [{'file': 'abilities.vdata', 'id': 'citadel_ability_mantle', 'kind': 'shared',
                            'key': 'abilities.vdata:citadel_ability_mantle', 'changes': [change]}]}
     data = {'patches/index.json': [row], 'patches/2026-09-16.json.gz': patch, 'entities.json': {'entities': ents}}
@@ -226,6 +230,6 @@ def test_shared_abilities_have_a_page_a_matrix_row_and_search_rows(monkeypatch):
     dynamics_page._collect.cache_clear()
     try:
         cells = dynamics_page._collect()['cells']
-        assert sum(cells[dynamics_page.SHARED_KEY]['2026-09-16'].values()) == 1
+        assert sum(cells['game:combat']['2026-09-16'].values()) == 1
     finally:
         dynamics_page._collect.cache_clear()

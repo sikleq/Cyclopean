@@ -95,8 +95,11 @@ TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHul
 # and glass panes in misc.vdata, the team colours, minimap offsets, district names and timer placement in
 # generic_data (coverage audit 9, 2026-10-04: 97 of City Never Sleeps' 226 "REMOVED" were these, and the
 # colours / minimap rows came in as hidden NEW)
-DECOR_ID_RE = re.compile(r'^(?:vehicle_|citadel_base_glass_)|^m_(?:Color[A-Z]|MiniMap)|Localization$|'
-                         r'TimerHeight$|TimerShowDistance$|TextDuration$|EffectStaggerInterval$')
+# (coverage audit, Game section 2026-10-05: the outline and objective colours, the healing sounds and the damage
+# indicator's look were "Other rules" on the Game pages)
+DECOR_ID_RE = re.compile(r'^(?:vehicle_|citadel_base_glass_)|^m_(?:Color[A-Z]|MiniMap|OutlineColor)|'
+                         r'^m_enemy[A-Za-z]*Color$|^m_HealingReceivedSounds$|^m_mapDamageIndicatorParamSets$|'
+                         r'Localization$|TimerHeight$|TimerShowDistance$|TextDuration$|EffectStaggerInterval$')
 
 
 def decor_entity(eid: str) -> bool:
@@ -222,10 +225,35 @@ def hero_bound_abilities(heroes: dict, abilities: dict | None = None) -> dict[st
     if abilities:
         codes = {hid[5:]: hid for hid, h in heroes_ if not template(hid, h)}
         for aid in abilities:
-            m = _OWN_PREFIX.match(aid)
+            m = _OWN_PREFIX.match(aid) or _BARE_PREFIX.match(aid)
             if aid not in owner and aid not in shared and m and m.group(1) in codes:
                 owner[aid] = codes[m.group(1)]
+        for aid in abilities:
+            if aid not in owner and aid not in shared:
+                parent = sub_ability_parent(aid, owner)
+                if parent:
+                    owner[aid] = owner[parent]
     return owner
+
+
+# a hero's kit in development names its abilities after the hero's code, bare: 'slork_scald', 'tokamak_hot_shot',
+# 'cadence_ability_lullaby' (coverage finding 6: 2024 kits sat in Game › Abilities with no hero)
+_BARE_PREFIX = re.compile(r'^([a-z0-9]+)_')
+# the second part of an ability: its trigger, cancel or teleport (Frozen Shelter's 'ability_ice_dome_trigger',
+# McGinnis' 'citadel_ability_fissure_wall_cancel', Drifter's 'drifter_shadow_mark_teleport' — Ambush)
+_SUB_SUFFIX = re.compile(r'_(?:cancel_trigger|cancel|trigger|teleport|recast)$')
+
+
+def sub_ability_parent(aid: str, owner: dict[str, str]) -> str | None:
+    """The owned ability `aid` is a part of ('ability_ice_dome_trigger' -> 'ability_ice_dome'), or None."""
+    base = aid
+    while True:
+        m = _SUB_SUFFIX.search(base)
+        if not m:
+            return None
+        base = base[:m.start()]
+        if base in owner:
+            return base
 
 
 def unit_bound_abilities(units: dict, owners: dict[str, str] | None = None,

@@ -1,6 +1,6 @@
-"""Home page: the three sections (Heroes, Items, Units) and what the last updates changed on each of them —
-a strip of icons per update, each opening that hero's, item's or unit's history at that update. The site
-is about the entities, not the patch notes (owner, 2026-10-03: "closer to Sloppy")."""
+"""Home page: the four sections (Heroes, Items, Units, Game) and what the last updates changed on each of them —
+a strip of icons per update, each opening that hero's, item's, unit's or Game system's history at that update. The
+site is about the entities, not the patch notes (owner, 2026-10-03: "closer to Sloppy")."""
 from __future__ import annotations
 
 from .common import (EYE_SVG, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
@@ -8,7 +8,7 @@ from .common import (EYE_SVG, display_name, entity_icon, esc, glyph_for, hero_ic
 from .site_search import search_box
 
 LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
-SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'))
+SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'), ('game', 'Game'))
 CHIP_SAMPLES = 2          # a feed icon's hover card lists this many of its biggest changes (217 icons on the page)
 
 
@@ -35,34 +35,72 @@ def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[st
     return None
 
 
+def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | None):
+    """(entity, its rows, page key, section) of one patch: a hero / item / unit page's (page_of), else the Game
+    system's (game_systems: map objects, rules, effects, abilities no hero owns, a template's change no heir shows,
+    a rule for every hero or ability — once —, console variables). Key of a Game row: 'game:<system>'."""
+    from .cards import gameplay_entities
+    from .game_systems import (convar_changes, convar_start, is_template, name_of, part_name, place, place_all_row,
+                               place_entity)
+    from .shared_rows import FOLD_FILES, catalog, entities as spread_all, own
+    cat = catalog()
+    spread = spread_all(gameplay_entities(p['entities']))
+    heirs = {(e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
+             for e in spread if not is_template(e) for c in e['changes']}
+    for e in spread:
+        rows = own(e['changes'])
+        where = page_of(e, templates, unit_main)
+        if where:
+            yield e, rows, where[0], where[1]
+            continue
+        info = {**e, **cat.get(e['key'], {})}
+        hit = place_entity(e['key'], info)
+        if not hit:
+            continue
+        if is_template(info):
+            rows = [c for c in rows if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in heirs]
+        yield {**e, 'what': name_of(e['key'], info)}, rows, f'game:{hit[0]}', 'game'
+    for e in gameplay_entities(p['entities']):
+        if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
+            for c in e['changes']:
+                sid, pid = place_all_row(e['file'], c)
+                yield {**e, 'what': part_name(sid, pid)}, [c], f'game:{sid}', 'game'
+    for c in convar_changes(p.get('extras', {}).get('convars') or [], convar_start()):
+        yield {'file': 'convars', 'id': c['id'], 'what': c['id']}, [c], f'game:{place("convar:" + c["id"])[0]}', 'game'
+
+
 def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
                 ) -> dict[str, dict[str, dict]]:
     """section -> page key -> {n, hidden, buff, nerf, kind, rows}: what one update did to each page (rows:
     (what, change) for the icon's hover card).
     Counts are the player-facing rows (cards.player_facing) a page shows; work on unreleased heroes
-    waits for their release."""
-    from .cards import gameplay_entities, player_facing
+    waits for their release. A change one edit made in some heroes counts on each of them; a rule for every hero
+    (the level curve) on none of the hero icons — it is no one's own change (shared_rows) — but once on its Game
+    system's icon (section 'game': the Soul Urn's rework of 2026-06-04 was on no icon, so the feed skipped it)."""
+    from .cards import player_facing
     from .dynamics_page import _display
+    from .render import not_in_notes
     out: dict[str, dict[str, dict]] = {}
     once: set = set()
-    for e in gameplay_entities(p['entities']):
-        where = page_of(e, templates, unit_main)
-        rows = [c for c in player_facing(e['changes']) if c.get('status') != 'unreleased']
-        if not where or not rows:
+    for e, rows, key, section in _feed_rows(p, templates, unit_main):
+        rows = [c for c in player_facing(rows) if c.get('status') != 'unreleased']
+        if not rows:
             continue
-        key, section = where
-        if section == 'units':          # the same change on several members of a family counts once
+        # the same change on several members of a family counts once; so does one edit spread over a system's
+        # entries (twelve breakable props)
+        if section in ('units', 'game'):
             rows = [c for c in rows if (key, c.get('label'), c.get('old_s'), c.get('new_s')) not in once]
             once |= {(key, c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows}
             if not rows:
                 continue
         slot = out.setdefault(section, {}).setdefault(key, {'n': 0, 'hidden': 0, 'buff': 0, 'nerf': 0,
                                                              'kind': e.get('kind'), 'rows': []})
-        # what each row is about on its page: a hero's ability or gun by name, an item's / unit's own rows bare
-        what = _display(e) if section == 'heroes' else ''
+        # what each row is about on its page: a hero's ability or gun by name, a Game entry by its name, an item's /
+        # unit's own rows bare
+        what = _display(e) if section == 'heroes' else e.get('what', '') if section == 'game' else ''
         slot['rows'] += [(what, c) for c in rows]
         slot['n'] += len(rows)
-        slot['hidden'] += sum(1 for c in rows if c.get('status') == 'hidden')
+        slot['hidden'] += sum(1 for c in rows if not_in_notes(c))
         slot['buff'] += sum(1 for c in rows if c.get('dir') == 'buff')
         slot['nerf'] += sum(1 for c in rows if c.get('dir') == 'nerf')
     return out
@@ -73,8 +111,14 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
     the icon (the newest update; advisor round 4: names were in tooltips only). `k`: the icon's entry in the
     feed's hover-card data (chip_card) — the card replaces the one-line tooltip."""
     file, _, eid = key.partition(':')
-    name = names.get(key) or pretty_id(eid)
-    ic = hero_icon(eid, '') if file == 'heroes.vdata' else entity_icon(file, eid, s.get('kind') or '', '', name)
+    if file == 'game':                 # a Game system (game_systems): its icon from the game files or a site glyph
+        from .game_systems import SECTION, icon_html, system
+        sys_ = system(eid)
+        name, href, pic = sys_.name, f'{SECTION}/{sys_.href}', icon_html(sys_, '')
+    else:
+        name = names.get(key) or pretty_id(eid)
+        ic = hero_icon(eid, '') if file == 'heroes.vdata' else entity_icon(file, eid, s.get('kind') or '', '', name)
+        href, pic = slug(file, eid), visual(ic, glyph_for(file, eid))
     net = 'buff' if s['buff'] > s['nerf'] else 'nerf' if s['nerf'] > s['buff'] else 'mix'
     tip = f'{name}: {plural(s["n"], "change")}' + (f', {s["hidden"]} not in patch notes' if s['hidden'] else '')
     # with a card the eye says nothing of its own (its tooltip stacked on the card)
@@ -83,21 +127,22 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
     label = f'<span class="lu-nm">{esc(name)}</span>' if named else ''
     hover = (f'aria-label="{esc(tip)}" data-name="{esc(name)}" data-k="{k}"' if k is not None
              else f'data-tooltip="{esc(tip)}"')
-    return (f'<a class="lu net-{net}" href="{esc(slug(file, eid))}#p-{esc(pid)}" {hover}>'
-            f'{visual(ic, glyph_for(file, eid))}<span class="lu-n">{s["n"]}</span>{eye}{label}</a>')
+    game = ' lu-game' if file == 'game' else ''
+    return (f'<a class="lu net-{net}{game}" href="{esc(href)}#p-{esc(pid)}" {hover}>'
+            f'{pic}<span class="lu-n">{s["n"]}</span>{eye}{label}</a>')
 
 
 def chip_card(s: dict) -> list:
     """[{tag: n}, hidden, samples] for a feed icon's hover card: its CHIP_SAMPLES biggest changes as
     [what (a hero's ability; '' for an item's / unit's own rows), label, old, new, tag, hidden 0/1]."""
     from .history_view import _rank
-    from .render import tag_of, vals_text
+    from .render import not_in_notes, tag_of, vals_text
     counts: dict[str, int] = {}
     for _, c in s['rows']:
         counts[tag_of(c)[0]] = counts.get(tag_of(c)[0], 0) + 1
     top = sorted(s['rows'], key=lambda wc: _rank(wc[1]))[:CHIP_SAMPLES]
     return [counts, s['hidden'], [[w, str(c.get('label') or ''), *vals_text(c), tag_of(c)[0],
-                                   int(c.get('status') == 'hidden')] for w, c in top]]
+                                   int(not_in_notes(c))] for w, c in top]]
 
 
 def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str], unit_main: dict[str, str]) -> str:
@@ -105,6 +150,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     hover; owner 2026-10-04: "Graves: 17 changes" said nothing about what changed)."""
     import json
     from .common import patch_title_text
+    from .patch_counts import for_id, off_pages
     from .pixel_icons import tag_svg
     from .render import TAG_WORD_ONE, TAG_WORDS
     blocks, updates, cards = [], [], []
@@ -127,8 +173,16 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                     cards.append([len(updates) - 1, *chip_card(s)])
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b></span>'
                               f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}</div></div>')
-        hidden = sum(s['hidden'] for sec in feed.values() for s in sec.values())
-        eye = f'<span class="au au-hidden">{mark("hidden")}<b>{hidden}</b> not in patch notes</span>' if hidden else ''
+        # the update's one count (patch_counts: as its patch page and the patch list); what no icon below carries is
+        # named apart — the game's rules and map objects only the patch page lists
+        pc = for_id(row['id'])
+        eye = ''
+        if pc['not_in_notes']:
+            eye = f'<span class="au au-hidden">{mark("hidden")}<b>{pc["not_in_notes"]}</b> not in patch notes</span>'
+            if off_pages(pc):
+                # they have pages now: the Game section's
+                eye += (f'<a class="au au-off" href="game/index.html"><b>{off_pages(pc)}</b> of them in game rules '
+                        f'&amp; map objects</a>')
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
@@ -141,11 +195,15 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
 
 
 def _tiles(counts: dict[str, int], faces: list[str], units: list[str]) -> str:
-    """The three sections as big tiles (Sloppy's landing tiles, without blurbs)."""
+    """The four sections as big tiles (Sloppy's landing tiles, without blurbs). Game: its systems' icons that come
+    from the game files (the site glyphs stay on its own pages)."""
+    from .game_systems import icon_url, shown
+    game_art = [u for u in (icon_url(s, '') for s in shown()) if u]
     art = {'heroes': ''.join(f'<img class="px" src="{esc(f)}" alt="" loading="lazy">' for f in faces[:6]),
            'items': '<img src="icons/shop/tab_weapon.webp" alt=""><img src="icons/shop/tab_spirit.webp" alt="">'
                     '<img src="icons/shop/tab_vitality.webp" alt="">',
-           'units': ''.join(f'<img class="px" src="{esc(u)}" alt="" loading="lazy">' for u in units[:6])}
+           'units': ''.join(f'<img class="px" src="{esc(u)}" alt="" loading="lazy">' for u in units[:6]),
+           'game': ''.join(f'<img src="{esc(u)}" alt="" loading="lazy">' for u in game_art[:6])}
     return '<div class="home-tiles">' + ''.join(
         f'<a class="htile px-frame {sec}" href="{sec}/index.html"><span class="ht-t">{title}</span>'
         f'<span class="ht-n">{counts.get(sec, 0)}</span><span class="ht-art">{art[sec]}</span></a>'
@@ -159,17 +217,16 @@ def build_all() -> int:
     ents = load_json('entities.json')['entities']
     names = {f"{e['file']}:{e['id']}": display_name(e) for e in ents}
     templates = frozenset(f"{e['file']}:{e['id']}" for e in ents if e.get('template'))
+    from .game_systems import systems
     from .unit_families import families, is_named
     fams = families([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
     unit_main = {m['id']: ms[0]['id'] for ms in fams.values() for m in ms}
     names |= {f"npc_units.vdata:{ms[0]['id']}": name for name, ms in fams.items()}     # "Slum Shroom", not "… I"
-    # the counters count what the hero / item / unit pages show (round 3: "8620 hidden" counted engine
-    # plumbing and work on unreleased heroes too)
-    total, total_hidden = 0, 0
-    for row in patches:
-        for sec in update_feed(load_json(f'patches/{row["id"]}.json.gz'), templates, unit_main).values():
-            total += sum(s['n'] for s in sec.values())
-            total_hidden += sum(s['hidden'] for s in sec.values())
+    # the one count of every patch (patch_counts: the patch pages and the list say the same) — no engine plumbing,
+    # no work on unreleased heroes (round 3: "8620 hidden" counted both)
+    from .patch_counts import for_id
+    total = sum(for_id(row['id'])['changes'] - for_id(row['id']).get('unreleased', 0) for row in patches)
+    total_hidden = sum(for_id(row['id'])['not_in_notes'] for row in patches)
     last_build = builds[-1] if builds else None
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
     counts = {'heroes': len(heroes),
@@ -178,7 +235,9 @@ def build_all() -> int:
                            and str(i.get('tier')) in '1234'),
               # the unit families the Units index shows (unit_families)
               'units': sum(1 for ms in fams.values() if ms[0].get('alive') and ms[0].get('kind') != 'helper'
-                           and is_named(ms[0]))}
+                           and is_named(ms[0])),
+              # the Game section's systems (game_systems: Souls & economy, Respawn, the Soul Urn…)
+              'game': len(systems())}
     faces = [hero_icon(h['id'], '') or '' for h in heroes]
     # the units a player meets first: the objectives, then troopers and neutrals with their own icon
     order = {'building': 0, 'trooper': 1, 'neutral': 2}
@@ -201,8 +260,8 @@ def build_all() -> int:
 {_feed(patches, names, templates, unit_main)}
 '''
     write('index.html', page('Deadlock change history', body, '', '', build=last_build['build'] if last_build else None,
-                             description='What changed on every Deadlock hero, item and unit, from the game files: '
-                                         'exact values and the changes the notes leave out.'))
+                             description='What changed on every Deadlock hero, item, unit and game rule, from the game '
+                                         'files: exact values and the changes the notes leave out.'))
     write('changelog.html', changelog_page())
     return 2
 

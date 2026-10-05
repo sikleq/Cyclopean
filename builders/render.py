@@ -82,6 +82,17 @@ _TIER = re.compile(r'^T(\d): (.+)$')
 _STATUS_WEIGHT = {'mismatch': 0, 'unreleased': 1, 'unannounced': 2, 'hidden': 3, 'described': 4,
                   'rounded': 5, 'documented': 6, 'fix': 7}
 HIDDEN_LIKE = ('hidden', 'unreleased', 'unannounced')
+# "not in patch notes" — the eye — is ONE status everywhere: a row's eye stripe and the "Not in patch notes" /
+# "Only hidden" filters, every counter of it (bands, strip tiles, the home feed, the patch pages and list:
+# `builders/patch_counts.py`): what Valve did not write down — hidden, and every change of an update that had no
+# notes at all (unannounced: Rat King's release in build 6736 lost its eye and dropped out of the eye filter,
+# review 2026-10-05). Work on a hero still in development (unreleased: "Before release") is not it (coverage audit
+# 2026-10-05: City Never Sleeps read 1232, 620 and 212 in three places; the eye filter kept 1024 rows under 776).
+NOT_IN_NOTES = ('hidden', 'unannounced')
+
+
+def not_in_notes(c: dict) -> bool:
+    return c.get('status') in NOT_IN_NOTES
 
 
 def fold_tier_swaps(changes: list[dict]) -> list[dict]:

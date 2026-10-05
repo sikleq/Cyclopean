@@ -47,12 +47,23 @@ def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> st
                     for h in heroes if h in live and hero_icon(h, rel))
     if in_dev:
         strip += f'<span class="chip dev hdev">{mark("unreleased")}+{len(in_dev)} in development</span>'
-    c = p.get('counts', {})
+    audit_html = _audit_line(p)
+    return (f'<section class="summary px-frame"><div class="sum-tiles">{tiles}</div><div class="sum-bar">{bar}</div>'
+            f'{"<div class=sum-heroes>" + strip + "</div>" if strip else ""}'
+            f'<div class="sum-audit">{audit_html}</div></section>')
+
+
+def _audit_line(p: dict) -> str:
+    """The notes check under the tiles, by the one count (`patch_counts`): the changes the tiles count, by status —
+    not the matcher's raw field counts (City Never Sleeps read "1232 not in the notes" over tiles summing to 861).
+    The hidden ones no hero, item or unit page shows are named right after them."""
+    from .patch_counts import for_id, off_pages
+    c = for_id(p['id'])
     lc = p.get('line_counts', {})
     if p.get('sections'):
         audit = [('documented', c.get('documented', 0), 'exact in the notes'),
                  ('described', c.get('described', 0), 'covered by a general line'),
-                 ('hidden', c.get('hidden', 0), 'not in the notes'),
+                 ('hidden', c.get('not_in_notes', 0), 'not in patch notes'),
                  ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
                  ('code', lc.get('code', 0), "in the game's code"),
                  ('fix', lc.get('fix', 0), 'bug fixes')]
@@ -62,10 +73,16 @@ def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> st
         audit = [('hidden', c.get('unannounced', 0), 'changes, no official notes')]
         if c.get('documented'):
             audit.append(('documented', c['documented'], 'announced in earlier notes'))
-    audit_html = ''.join(f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>' for k, n, lbl in audit if n)
-    return (f'<section class="summary px-frame"><div class="sum-tiles">{tiles}</div><div class="sum-bar">{bar}</div>'
-            f'{"<div class=sum-heroes>" + strip + "</div>" if strip else ""}'
-            f'<div class="sum-audit">{audit_html}</div></section>')
+    off = off_pages(c)
+    html = ''
+    for k, n, lbl in audit:
+        if n:
+            html += f'<span class="au au-{k}">{mark(k)}<b>{n}</b> {esc(lbl)}</span>'
+        if k == 'hidden' and n and off:
+            # their pages are the Game section's (the patch page and the list both live in patches/)
+            html += (f'<a class="au au-off" href="../game/index.html"><b>{off}</b> of them in game rules '
+                     f'&amp; map objects</a>')
+    return html
 
 
 HCHIP_KINDS = 2      # a 50px chip fits two counters; the tooltip carries them all
@@ -108,11 +125,20 @@ def catalog_names() -> dict[str, str]:
 
 
 def _display_name(e: dict) -> str:
-    """Name at the patch's build; else the latest known name; else a readable stand-in, never the id."""
+    """Name at the patch's build; else the latest known name; else a readable stand-in, never the id. An edit
+    shared by many entities says how many and what ("10 heroes", "All heroes (61)": shared_rows.block_name)."""
+    if e.get('id') == '@shared' and e.get('target_keys'):
+        from .shared_rows import block_name
+        return block_name(e)
     name = e.get('name') or e['id']
     if name != e['id']:
         return name + (f' · {len(e["variants"])} variants' if e.get('variants') else '')
     known = catalog_names().get(f"{e['file']}:{e['id']}")
+    if not known and e['file'] not in ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata'):
+        # a map object or rule the files give no text: the Game section's name ("Soul Urn delivery", not
+        # "Idol cashin"; coverage audit 2026-10-05, finding 4)
+        from .game_systems import name_of
+        return name_of(f"{e['file']}:{e['id']}", e)
     # a hero in development has no name in any build: the catalog keeps its id ('hero_airheart')
     return known if known and known != e['id'] else pretty_id(e['id'], e.get('owner'))
 
@@ -129,7 +155,7 @@ def _counted(e: dict) -> list[dict]:
 def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     """All gameplay changes as entity cards: one card per hero (its abilities as
     sub-headers), then one per item, unit and rule; each with its history strip."""
-    from .cards import card, card_head, change_rows, is_hidden, sub_head
+    from .cards import card, card_head, change_rows, is_hidden, player_facing, sub_head
     from .common import entity_icon, glyph_for, hero_icon
     from .render import KIND_LABEL
     from .trail import trail_html
@@ -169,22 +195,23 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
                 scope = _display_name(e)
                 ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
                 glyph = glyph_for(e['file'], e['id'], e.get('kind', ''))
-            body.append(sub_head(scope, ic, glyph, _counted(e), is_hidden(e['changes'])))
+            # the eye filter's marks follow what is counted: plumbing rows (Technical) are not
+            body.append(sub_head(scope, ic, glyph, _counted(e), is_hidden(player_facing(e['changes']))))
             body.append(change_rows(e['changes'], added=e.get('status') == 'added'))
         head = card_head(hname, hero_icon(hid, rel), 'heroes' if hid == 'hero_base' else 'hero', all_ch,
                          trail=trail_html(f'heroes.vdata:{hid}', pid, rel))
-        out.append(card(head, ''.join(body), hidden=is_hidden(all_ch),
+        out.append(card(head, ''.join(body), hidden=is_hidden(player_facing(all_ch)),
                         dev=any(c.get('status') == 'unreleased' for c in all_ch),
                         search=hname.lower(), anchor=f'c-{hid}'))
     for e in rest:
         name = _display_name(e)
-        if e.get('targets'):
+        if e.get('targets') and not e.get('target_keys'):      # a block named by shared_rows.block_name has its count
             name += f' ({len(e["targets"])})' if f'({len(e["targets"])})' not in name else ''
         ic = entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner'))
         head = card_head(name, ic, glyph_for(e['file'], e['id'], e.get('kind', '')), _counted(e),
                          trail=trail_html(f"{e['file']}:{e['id']}", pid, rel))
-        out.append(card(head, change_rows(e['changes'], added=e.get('status') == 'added'), hidden=is_hidden(e['changes']),
-                        search=name.lower()))
+        out.append(card(head, change_rows(e['changes'], added=e.get('status') == 'added'),
+                        hidden=is_hidden(player_facing(e['changes'])), search=name.lower()))
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 
@@ -255,11 +282,14 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
-    from .cards import gameplay_entities, player_facing
+    from .cards import gameplay_entities
+    from .patch_counts import for_id
     gameplay = gameplay_entities(p['entities'])
     # the tab counts what the tiles count (cards.player_facing), not raw rows: City Never Sleeps
-    # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01)
-    n_changes = sum(len(player_facing(e['changes'])) for e in gameplay)
+    # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01) —
+    # the one count of patch_counts, as on the patch list and the home page
+    pc = for_id(p['id'])
+    n_changes = pc['changes']
     names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
     for e in gameplay:
         if e.get('owner'):
@@ -275,7 +305,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         if iface:
             # interface, sound and settings lines: their own tab, a compact grid of features
             tabs.append(('interface', 'Interface & sound', sum(len(s['lines']) for s in iface), interface_table(iface)))
-        c = p.get('counts', {})
+        c = pc
         # notes that say little about a big update (City Never Sleeps: 11 interface lines,
         # 1,400+ gameplay changes): the files' own summary sits next to the official text
         if c.get('hidden', 0) >= FILES_TAB_MIN and c.get('hidden', 0) > 3 * (c.get('documented', 0) + c.get('described', 0)):
@@ -285,8 +315,11 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     else:
         tabs.append(('notes', 'From the files', n_changes,
                      _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
-    changes_panel = ('<div class="toolbar"><button class="px-btn" data-toggle-class="only-hidden" data-target="#changes">'
-                     'Only hidden</button><span class="sep"></span><input type="search" placeholder="Hero, item…" '
+    # the eye filter keeps exactly the rows its number counts (patch_counts; it kept 1024 rows under 776)
+    eye_btn = (f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#changes" '
+               f'aria-pressed="false">{mark("hidden")}Not in patch notes <span class="n">{pc["not_in_notes"]}</span></button>'
+               f'<span class="sep"></span>' if pc['not_in_notes'] else '')
+    changes_panel = (f'<div class="toolbar">{eye_btn}<input type="search" placeholder="Hero, item…" '
                      'data-search-target="#changes .ecard[data-search]"></div>' + _changes_table(gameplay, rel, p['id']))
     tabs.append(('changes', 'All changes', n_changes, changes_panel))
     extra_parts = _extras_parts(p, rel)
@@ -319,8 +352,26 @@ def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
                     f'<ul class="change-list px-frame">{"".join(_loc_li(x) for x in loc_rows)}</ul>{more_s}'))
     cv = ex.get('convars', [])
     if cv:
-        out.append(('console', 'Console variables', ex.get('convars_total', len(cv)),
-                    f'<ul class="change-list px-frame">{"".join(convar_li(x) for x in cv)}</ul>'))
+        # every one (coverage audit 2026-10-05: City Never Sleeps' tab said 510 and listed 300 without a word); data
+        # written before the list was whole says how many more the build pages hold
+        more = ex.get('convars_total', len(cv)) - len(cv)
+        more_s = (f'<p class="muted">+{more} more on the build pages: '
+                  + ', '.join(f'<a href="{build_href(b["file"], rel)}">{b["build"]}</a>' for b in p.get('builds', [])
+                              if b.get('build') is not None) + '.</p>') if more > 0 else ''
+        # the build that starts the tracking (6395, 2026-03-10) lists all 1,365 variables: a snapshot, not changes —
+        # one line, out of the tab's number (20.8k elements on the page; the Game pages skip it too, review 2026-10-05)
+        from .game_systems import convar_start
+        start = convar_start()
+        snap = [x for x in cv if start is not None and x.get('build') == start]
+        cv = [x for x in cv if start is None or x.get('build') != start]
+        snap_li = ''
+        if snap:
+            b = next((b for b in p.get('builds', []) if b.get('build') == start), None)
+            where = f'<a href="{build_href(b["file"], rel)}">build {start}</a>' if b else f'build {start}'
+            snap_li = (f'<li class="st-snap"><span class="lbl">Tracking of console variables starts here: '
+                       f'{len(snap)} variables in {where}</span></li>')
+        out.append(('console', 'Console variables', ex.get('convars_total', len(cv) + len(snap)) - len(snap),
+                    f'<ul class="change-list px-frame">{snap_li}{"".join(convar_li(x) for x in cv)}</ul>{more_s}'))
     assets = ex.get('assets') or {}
     totals = assets.get('counts', {})
     if totals:
@@ -342,7 +393,7 @@ _GLOSSARY = re.compile(r"\{g:[\w]+:'?([^}']*)'?\}")
 _PRINTF = re.compile(r'%s\d')
 
 
-def _plain(s) -> str:
+def _plain(s, limit: int | None = 400) -> str:
     """Loc text for display: no markup or entities ("&amp;" printed as "&amp;amp;"); key bindings
     as [Attack]; a value the game fills in as [Enemy Health Percent], a glossary word as words
     (1677 lines showed "{s:Damage}" / "{g:citadel_inline_attribute:'SpiritDamage'}")."""
@@ -353,7 +404,8 @@ def _plain(s) -> str:
     t = _VALUE_TOKEN.sub(lambda m: f'[{humanize(m.group(1))}]', t)
     t = _GLOSSARY.sub(lambda m: humanize(m.group(1)).lower(), t)
     t = _PRINTF.sub('…', t)
-    return re.sub(r'\s{2,}', ' ', t).strip()[:400]
+    t = re.sub(r'\s{2,}', ' ', t).strip()
+    return t[:limit] if limit else t
 
 
 _LOC_SUFFIX = re.compile(r'^(?P<base>.+?)(?P<suf>(?:_t(?P<tier>[1-3]))?_(?P<kind>desc|quip|header|lore|name|label|'
@@ -428,7 +480,7 @@ def convar_li(x: dict) -> str:
     else:
         vals = f'<span class="new">{esc(new if new is not None else old)}</span>'
     st = x.get('status')
-    m = mark(st) if st in ('documented', 'hidden') else ''
+    m = mark(st) if st in ('documented', 'described', 'hidden') else ''
     return (f'<li class="st-{esc(st or "")}">{m}<span class="chip">{esc(x["op"])}</span><span class="lbl"><code>{esc(x["name"])}</code>{desc}</span>'
             f'<span class="vals">{vals}</span></li>')
 
@@ -440,8 +492,10 @@ INDEX_HEROES = 6
 
 def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
     from .common import hero_icon
+    from .patch_counts import for_id
     from .render import pip
-    c, lc = p['counts'], p['line_counts']
+    # the one count (patch_counts), as on the patch page and the home page — not the matcher's raw field counts
+    c, lc = for_id(p['id']), p['line_counts']
     st = stats.get(p['id'], {'tags': {}, 'heroes': []})
     t = st['tags']
     # four fixed cells (empty when zero) so the counts line up from row to row
@@ -452,7 +506,7 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
                     f'data-tooltip="{esc(names.get(h, h))}">' for h in st['heroes'][:INDEX_HEROES] if hero_icon(h, rel))
     if p.get('has_notes'):
         audit = (f'<span class="au">{mark("documented")}<b>{c.get("documented", 0)}</b></span>'
-                 f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("hidden", 0)}</b></span>')
+                 f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("not_in_notes", 0)}</b></span>')
         if p['line_counts'].get('mismatch'):
             audit += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
     else:
