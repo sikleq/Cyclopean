@@ -1797,10 +1797,20 @@
      view survives a reload and can be shared. ---------- */
   safe('hidden-hash', function () {
     var eye = document.querySelector('.hf-hidden');
-    if (!eye) return;
-    var panel = eye.closest('.tab-panel');
+    // a patch page with notes has a tab of what they left out, as readable lines (patches_pages HIDDEN_TAB): #hidden
+    // opens it rather than pressing the raw filter of All changes
+    var tabbed = document.querySelector('.tab-panel[data-hidden-tab]');
+    if (!eye && !tabbed) return;
+    var panel = eye && eye.closest('.tab-panel');
     function show() {
       if (location.hash !== '#hidden') return;
+      if (tabbed) {
+        var t = document.querySelector('[data-tab="' + tabbed.id + '"]');
+        if (t && !tabbed.classList.contains('on')) t.click();
+        try { history.replaceState(null, '', '#hidden'); } catch (e) { /* file:// */ }
+        (document.querySelector('.tabs') || tabbed).scrollIntoView({ block: 'start' });
+        return;
+      }
       if (panel) {
         var tab = document.querySelector('[data-tab="' + panel.id + '"]');
         if (tab && !panel.classList.contains('on')) tab.click();
@@ -1809,11 +1819,12 @@
       try { history.replaceState(null, '', '#hidden'); } catch (e) { /* file:// */ }
       (eye.closest('.toolbar') || eye).scrollIntoView({ block: 'start' });
     }
-    eye.addEventListener('click', function () {
+    if (eye) eye.addEventListener('click', function () {
       setTimeout(function () {
         var on = eye.getAttribute('aria-pressed') === 'true';
         var off = panel ? '#' + panel.id : location.pathname + location.search;
-        try { history.replaceState(null, '', on ? '#hidden' : off); } catch (e) { /* file:// */ }
+        // where #hidden means the tab of lines, the pressed filter keeps its own tab's hash
+        try { history.replaceState(null, '', on && !tabbed ? '#hidden' : off); } catch (e) { /* file:// */ }
       }, 0);
     });
     window.addEventListener('hashchange', show);

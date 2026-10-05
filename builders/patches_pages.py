@@ -10,7 +10,7 @@ from .notes_view import notes_table
 from .common import (build_href, esc, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
                      patch_title_text, pretty_id, write)
 
-FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
+HIDDEN_TAB = 'Not in patch notes'   # an update with notes: the tab of what they left out (its eye is the tab's mark)
 
 
 SUMMARY_TAGS = (('buff', 'Buffs'), ('nerf', 'Nerfs'), ('new', 'New'), ('del', 'Removed'), ('rework', 'Reworks'),
@@ -222,8 +222,9 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 
-def _key_changes(p: dict, rel: str) -> str:
-    rows = p.get('key_changes') or []
+def _key_changes(p: dict, rel: str, only_hidden: bool = False) -> str:
+    from .render import not_in_notes
+    rows = [r for r in p.get('key_changes') or [] if not only_hidden or not_in_notes(r['change'])]
     if not rows:
         return ''
     from .render import key_change_rows
@@ -231,26 +232,31 @@ def _key_changes(p: dict, rel: str) -> str:
     return f'<h2>Biggest changes</h2><table class="hist px-frame">{trs}</table>'
 
 
-def _generated_notes(p: dict) -> str:
-    """Valve-style notes written from the files for updates without official numbers: the rows the
-    counters count (cards.player_facing), each entity by its name and values as the pages print them
-    — the stored sentences carried ids and engine enums (492 of 1500 lines in City Never Sleeps)."""
+def _generated_notes(p: dict, only_hidden: bool = False) -> str:
+    """Valve-style notes written from the files: the rows the counters count (cards.player_facing), each entity by
+    its name and values as the pages print them — the stored sentences carried ids and engine enums (492 of 1500
+    lines in City Never Sleeps). `only_hidden`: an update with patch notes — only what they left out (the tab
+    "Not in patch notes"; it repeated All changes, 833 and 833, and said "Valve published no numbers" for City
+    Never Sleeps)."""
     from pipeline.match import sentence
     from .cards import player_facing
-    from .render import shown_value
+    from .render import not_in_notes, shown_value
     lines = []
     for e in p['entities']:
         name = _display_name(e)
         for c in player_facing(e['changes']):
-            if c.get('cat') in GAMEPLAY:
+            if c.get('cat') in GAMEPLAY and (not only_hidden or not_in_notes(c)):
                 lines.append(sentence(name, {**c, 'old_s': shown_value(c.get('old_s')),
                                              'new_s': shown_value(c.get('new_s'))}))
     if not lines:
         return ''
     lis = ''.join(f'<li>{esc(s)}</li>' for s in lines[:1500])
     more = f'<p class="muted">+{len(lines) - 1500} more lines.</p>' if len(lines) > 1500 else ''
-    return (f'<h2>Patch notes written from the files</h2><p class="muted">Valve published no numbers for this update; '
-            f'every line below is read from the game files.</p><ul class="gen-notes cols-2">{lis}</ul>{more}')
+    intro = ("Valve's patch notes do not mention these changes; every line below is read from the game files."
+             if only_hidden else 'Valve published no patch notes for this update; every line below is read from '
+                                 'the game files.')
+    title = 'What the notes left out' if only_hidden else 'Patch notes written from the files'
+    return f'<h2>{title}</h2><p class="muted">{intro}</p><ul class="gen-notes cols-2">{lis}</ul>{more}'
 
 
 def _bar(c: dict) -> str:
@@ -311,13 +317,14 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         if iface:
             # interface, sound and settings lines: their own tab, a compact grid of features
             tabs.append(('interface', 'Interface & sound', sum(len(s['lines']) for s in iface), interface_table(iface)))
-        c = pc
-        # notes that say little about a big update (City Never Sleeps: 11 interface lines,
-        # 1,400+ gameplay changes): the files' own summary sits next to the official text
-        if c.get('hidden', 0) >= FILES_TAB_MIN and c.get('hidden', 0) > 3 * (c.get('documented', 0) + c.get('described', 0)):
-            # 'generated', not 'files': the asset tab "Game files" already uses id="files"
-            tabs.append(('generated', 'From the files', n_changes,
-                         _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
+        # what the notes left out, as readable lines next to Valve's (review 2026-10-05: the tab repeated All changes
+        # and a "#hidden" link pressed a raw filter whose first rows were engine words); 'generated', not 'files':
+        # the asset tab "Game files" already uses id="files"
+        if pc['not_in_notes']:
+            body = (_key_changes(p, rel, only_hidden=True)
+                    + _generated_notes({**p, 'entities': gameplay}, only_hidden=True))
+            if body:
+                tabs.append(('generated', HIDDEN_TAB, pc['not_in_notes'], body))
     else:
         tabs.append(('notes', 'From the files', n_changes,
                      _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
@@ -331,10 +338,13 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     extra_parts = _extras_parts(p, rel)
     tabs += extra_parts
     parts.append('<div class="tabs toolbar">' + ''.join(
-        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}" aria-pressed="{"true" if i == 0 else "false"}">{esc(lbl)}<span class="count">{n}</span></button>'
+        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}" aria-pressed="{"true" if i == 0 else "false"}">'
+        f'{mark("hidden") if lbl == HIDDEN_TAB else ""}{esc(lbl)}<span class="count">{n}</span></button>'
         for i, (k, lbl, n, _) in enumerate(tabs)) + '</div>')
-    for i, (k, _, _, panel) in enumerate(tabs):
-        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{panel}</div>')
+    for i, (k, lbl, _, panel) in enumerate(tabs):
+        # "#hidden" opens this tab (scripts.js hidden-hash): readable lines, not a raw filter
+        mark_attr = ' data-hidden-tab' if lbl == HIDDEN_TAB else ''
+        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}"{mark_attr}>{panel}</div>')
     nav = []
     if prev:
         nav.append(f'<a class="px-btn" href="{esc(prev["id"])}.html">← {esc(patch_title_text(prev))}</a>')

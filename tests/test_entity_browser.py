@@ -278,6 +278,33 @@ def test_a_merged_group_answers_to_each_of_its_members(browser, tmp_path):
         ctx.close()
 
 
+def test_hidden_opens_a_patch_pages_tab_of_what_the_notes_left_out(browser, tmp_path):
+    """Review 2026-10-05: on an update with notes, #hidden pressed the raw All changes filter (first rows: engine
+    words); it opens the "Not in patch notes" tab of readable lines; the filter keeps its own tab's hash."""
+    from builders.common import page
+    body = ('<div class="tabs toolbar"><button class="px-btn on" data-tab="notes" aria-pressed="true">Patch notes</button>'
+            '<button class="px-btn" data-tab="generated" aria-pressed="false">Not in patch notes</button>'
+            '<button class="px-btn" data-tab="changes" aria-pressed="false">All changes</button></div>'
+            '<div class="tab-panel on" id="notes">notes</div>'
+            '<div class="tab-panel" id="generated" data-hidden-tab><ul class="gen-notes"><li>line</li></ul></div>'
+            '<div class="tab-panel" id="changes"><div class="toolbar"><button class="px-btn hf-hidden" '
+            'data-toggle-class="only-hidden" data-target="#changes" aria-pressed="false">Not in patch notes</button>'
+            '</div></div>')
+    ctx, pg, errors = _open(browser, tmp_path, page('Patch', body, '../'), 1440, 900)
+    try:
+        pg.evaluate("location.hash = '#hidden'")
+        pg.wait_for_function("document.getElementById('generated').classList.contains('on')")
+        assert pg.get_attribute('.hf-hidden', 'aria-pressed') == 'false'
+        pg.click('[data-tab="changes"]')
+        pg.click('.hf-hidden')
+        pg.wait_for_function("document.querySelector('.hf-hidden').getAttribute('aria-pressed') === 'true'")
+        pg.wait_for_timeout(50)
+        assert pg.evaluate('location.hash') == '#changes'
+        assert not errors
+    finally:
+        ctx.close()
+
+
 def test_an_ability_head_counts_what_the_filter_shows(browser, tmp_path):
     """Review 2026-10-05: under the eye, Haze's Bullet Dance head still read 10 over the 1 row shown (15 of 36
     groups kept their built numbers); a filter recounts each head like the banner and puts it back after."""

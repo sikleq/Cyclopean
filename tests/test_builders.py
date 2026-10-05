@@ -901,6 +901,21 @@ def test_valves_words_sit_under_the_rows_they_cover(monkeypatch):
     assert 'shipped silently 2026-03-09, build 104' in html
 
 
+def test_an_update_with_notes_lists_what_they_left_out():
+    """Review 2026-10-05: the "From the files" tab of an update with notes repeated All changes (833 / 833) and said
+    "Valve published no numbers" for City Never Sleeps: it lists only the rows not in the notes, said truly."""
+    from builders.patches_pages import _generated_notes, _key_changes
+    item = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item', 'name': 'Extra', 'owner': None,
+            'changes': [ch(key='abilities.vdata:upgrade_x:a', label='Range', status='documented'),
+                        ch(key='abilities.vdata:upgrade_x:b', label='Radius', status='hidden')]}
+    html = _generated_notes({'entities': [item]}, only_hidden=True)
+    assert 'Radius' in html and 'Range' not in html and 'no patch notes' not in html
+    assert 'Range' in _generated_notes({'entities': [item]}) and 'no patch notes' in _generated_notes({'entities': [item]})
+    key = [{'entity': 'abilities.vdata:upgrade_x', 'name': 'Extra', 'kind': 'item', 'change': c} for c in item['changes']]
+    shown = _key_changes({'key_changes': key}, '../', only_hidden=True)
+    assert 'Radius' in shown and 'Range' not in shown
+
+
 def test_a_patch_pages_item_and_unit_cards_carry_anchors():
     """The item's / unit's card under All changes is where its page's "patch ↗" lands (#c-<id>)."""
     from builders.patches_pages import _changes_table
