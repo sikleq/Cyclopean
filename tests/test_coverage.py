@@ -127,6 +127,20 @@ def test_a_shared_block_spreads_over_its_targets():
     assert len(entities([own, _block()], _cat(2))) == 3
 
 
+def test_a_shared_blocks_unit_copy_reads_up_or_down():
+    """Review 2026-10-05: one block over a hero's ability and the Medic trooper's heal judged both NERF
+    ("Cooldown 6s → 6.25s NERF" on the trooper's page); a unit's copy says which way the number went."""
+    from builders.shared_rows import spread
+    cat = {'abilities.vdata:ab': {'file': 'abilities.vdata', 'id': 'ab', 'kind': 'ability', 'owner': 'hero_0'},
+           'abilities.vdata:heal': {'file': 'abilities.vdata', 'id': 'heal', 'kind': 'ability_other', 'units': ['medic']}}
+    block = {'key': 'abilities.vdata:@shared', 'file': 'abilities.vdata', 'id': '@shared',
+             'target_keys': list(cat), 'changes': [ch(path='m_mapAbilityProperties.AbilityCooldown.m_strValue',
+                                                      label='Cooldown', old_s='6s', new_s='6.25s', dir='nerf', pct=4.2)]}
+    hero, unit = spread(block, cat)
+    assert hero['changes'][0]['dir'] == 'nerf'
+    assert unit['changes'][0]['dir'] == 'up' and unit['changes'][0]['pct'] == 4.2
+
+
 def test_the_archive_names_a_block_by_what_it_covers():
     """Every block read "All heroes (N)", nine heroes' Max Health too."""
     from builders.shared_rows import block_name

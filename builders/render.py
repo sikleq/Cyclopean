@@ -533,7 +533,8 @@ def shown_pair(c: dict) -> tuple:
         return lists
     # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop; the
     # sentinels judge each side against the other's value BEFORE either is replaced
-    old_s, new_s = (flag_rules.enum_words(path, v) or v for v in (old_s, new_s))
+    old_s, new_s = (flag_rules.enum_words(path, v) or ('—' if flag_rules.enum_none(path, v) else v)
+                    for v in (old_s, new_s))
     old_s, new_s = _clip(old_s), _clip(new_s)
     old_s, new_s = _sentinel(old_s, c, new_s), _sentinel(new_s, c, old_s)
     if not c.get('unit_switch'):     # "30% → 2": Valve dropped the unit, the old one is not the new one's

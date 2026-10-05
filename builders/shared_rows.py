@@ -15,6 +15,7 @@ from the entity's own changes (`is_every`), so 35 level-curve rows do not drown 
 hero's cell of the change matrix. Units never fold (`FOLD_FILES`)."""
 from __future__ import annotations
 
+import re
 from collections import Counter
 from functools import lru_cache
 
@@ -68,6 +69,21 @@ def is_every(c: dict) -> bool:
     return bool(c.get('shared_all'))
 
 
+SIDELESS = ('trooper', 'building', 'neutral', 'unit', 'global', 'helper')     # pipeline.semantics.SHARED_KINDS
+_NUM = re.compile(r'^\s*([-+]?(?:\d+\.?\d*|\.\d+))')
+
+
+def _unit_direction(c: dict) -> dict:
+    """{dir, pct, grad} of a row judged for a unit (semantics.direction with the 'unit' side), from its shown values;
+    {} when they are not numbers."""
+    from pipeline import semantics
+    a, b = (_NUM.match(str(c.get(f) or '')) for f in ('old_s', 'new_s'))
+    if not a or not b:
+        return {}
+    dirn, pct = semantics.direction(str(c.get('path') or ''), float(a.group(1)), float(b.group(1)), 'unit')
+    return {'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct)}
+
+
 def spread(e: dict, cat: dict[str, dict] | None = None) -> list[dict]:
     """A patch entity as the entities its rows belong to: [e] itself, or for an '@shared' block one entity per
     target (kind / owner / name from the catalog; templates such as hero_base have no page and are left out), its
@@ -86,12 +102,17 @@ def spread(e: dict, cat: dict[str, dict] | None = None) -> list[dict]:
     for k in real:
         ce = cat[k]
         file, _, eid = k.partition(':')
+        # a unit's copy reads which way the number went (UP / DOWN), as its own rows do: one block over a hero's
+        # ability and the Medic trooper's heal judged them both BUFF / NERF (review 2026-10-05)
+        unit_side = ce.get('kind') in SIDELESS or bool(ce.get('units'))
         rows = []
         for c in e['changes']:
             row = {f: v for f, v in c.items() if f != 'target_status'}
             row.update(key=f'{k}:{c.get("path")}', id=eid, file=file,
                        status=(c.get('target_status') or {}).get(k, c.get('status')),
                        shared_n=len(real), shared_what=what, shared_all=every)
+            if unit_side and row.get('dir') in ('buff', 'nerf'):
+                row.update(_unit_direction(row))
             rows.append(row)
         out.append({'key': k, 'file': file, 'id': eid, 'kind': ce.get('kind'), 'owner': ce.get('owner'),
                     'name': ce.get('name') or eid, 'changes': rows})

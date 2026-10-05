@@ -663,6 +663,10 @@ def test_number_lists_read_as_ranges_and_moved_positions():
     html = vals_html(row('m_nItemPricePerTier', '0, 500, 1250, 3000', '0, 800, 1250, 3200'))
     assert '#2 500 → 800 · #4 3000 → 3200' in html and '#1' not in html
     assert vals_text(row('m_flRadius', '5m', '6m')) == ('5m', '6m')          # a plain value is no list
+    # an enum's "none" is no value, not "Ability Targeting Location None"
+    loc = row('m_eAbilityTargetingLocation', 'CITADEL_ABILITY_TARGETING_LOCATION_NONE',
+              'CITADEL_ABILITY_TARGETING_LOCATION_UNIT')
+    assert vals_text(loc) == ('—', 'unit')
 
 
 def test_the_item_matrix_reads_in_shop_order_with_slot_and_tier_filters():
