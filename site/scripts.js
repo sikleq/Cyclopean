@@ -1338,28 +1338,11 @@
       for (var i = 0; i < bs.length; i++) if (state.tags.indexOf(bs[i][0]) >= 0) return true;
       return false;
     }
-    // the banner's counters while a filter is on: the shown rows by tag (a code line is no counted change),
-    // the eye's count; the built numbers come back when the filters clear
-    function recount(b, active, onlyHidden) {
-      var bc = b.querySelector('summary .bc');
-      if (!bc) return;
-      var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
-      // "+34 for all heroes": only while its link row is shown (a tag or the eye never keeps it)
-      var shr = bc.querySelectorAll('.shr-chip');
-      if (!active) {
-        if (!b.__rc) return;
-        b.__rc = false;
-        pips.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
-        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
-        shr.forEach(function (c) { c.classList.remove('n0'); });
-        return;
-      }
-      b.__rc = true;
-      var allShown = !!b.querySelector('.erow.shr-all:not(.f-out)');
-      shr.forEach(function (c) { c.classList.toggle('n0', !allShown); });
+    // the shown rows by tag (a code line and a name / description change are no counted change) and how many of
+    // them are not in the notes — for a band's banner and for each ability's head alike
+    function countRows(rows, onlyHidden) {
       var counts = {}, hidden = 0;
-      b.querySelectorAll('.erow').forEach(function (r) {
-        // a code line and a name / description change (text_rows) are no counted change
+      rows.forEach(function (r) {
         if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.classList.contains('st-text') ||
             r.parentNode.tagName === 'SUMMARY' || inAll(r)) return;
         var bs = behind(r);
@@ -1375,12 +1358,47 @@
         counts[t] = (counts[t] || 0) + 1;
         if (r.classList.contains('is-hidden')) hidden++;       // render.NOT_IN_NOTES: hidden or no notes at all
       });
+      return { counts: counts, hidden: hidden };
+    }
+    function setPips(pips, counts) {
       pips.forEach(function (p) {
         if (!p.lastChild || p.lastChild.nodeType !== 3) return;
         if (p.__n === undefined) p.__n = p.lastChild.nodeValue;
         var n = counts[p.classList[1]] || 0;
         p.lastChild.nodeValue = n;
         p.classList.toggle('n0', !n);
+      });
+    }
+    // the banner's counters while a filter is on, and each ability head's; the eye's count; the built numbers
+    // come back when the filters clear
+    function recount(b, active, onlyHidden) {
+      var bc = b.querySelector('summary .bc');
+      if (!bc) return;
+      var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
+      // an ability's own counters (its head) follow its shown rows too: Haze's Bullet Dance read 10 over 1 row.
+      // The head only: a link row's own "+N" pip (inside .vv) is not one of them
+      var gpips = b.querySelectorAll('.hgroup > .hg-b > .esub > .tsum .pip');
+      // "+34 for all heroes": only while its link row is shown (a tag or the eye never keeps it)
+      var shr = bc.querySelectorAll('.shr-chip');
+      if (!active) {
+        if (!b.__rc) return;
+        b.__rc = false;
+        [pips, gpips].forEach(function (ps) {
+          ps.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
+        });
+        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
+        shr.forEach(function (c) { c.classList.remove('n0'); });
+        return;
+      }
+      b.__rc = true;
+      var allShown = !!b.querySelector('.erow.shr-all:not(.f-out)');
+      shr.forEach(function (c) { c.classList.toggle('n0', !allShown); });
+      var got = countRows(b.querySelectorAll('.erow'), onlyHidden);
+      var counts = got.counts, hidden = got.hidden;
+      setPips(pips, counts);
+      b.querySelectorAll('.hgroup').forEach(function (g) {
+        var gp = g.querySelectorAll(':scope > .hg-b > .esub > .tsum .pip');
+        if (gp.length) setPips(gp, countRows(g.querySelectorAll('.erow'), onlyHidden).counts);
       });
       if (eye) {
         if (eye.__t === undefined) eye.__t = eye.textContent;

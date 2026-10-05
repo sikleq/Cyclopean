@@ -276,3 +276,36 @@ def test_a_merged_group_answers_to_each_of_its_members(browser, tmp_path):
         assert not errors
     finally:
         ctx.close()
+
+
+def test_an_ability_head_counts_what_the_filter_shows(browser, tmp_path):
+    """Review 2026-10-05: under the eye, Haze's Bullet Dance head still read 10 over the 1 row shown (15 of 36
+    groups kept their built numbers); a filter recounts each head like the banner and puts it back after."""
+    from builders.common import page
+    from builders.history_view import history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    a_rows = [ch(key=f'abilities.vdata:a:{i}', path=f'a{i}', label=f'Thing {i}', dir='buff', pct=10.0,
+                 status='hidden' if i == 0 else 'documented') for i in range(5)]
+    b_rows = [ch(key=f'abilities.vdata:b:{i}', path=f'b{i}', label=f'Other {i}', status='hidden') for i in range(2)]
+    keys = [('heroes.vdata:h', 'Base stats', None), ('abilities.vdata:a', 'Alpha', None),
+            ('abilities.vdata:b', 'Beta', None)]
+    hist = history_table(keys, ['Hero'], {'abilities.vdata:a': [(r1, a_rows)], 'abilities.vdata:b': [(r1, b_rows)]},
+                         {}, '../')
+    ctx, pg, errors = _open(browser, tmp_path, page('Hero', hist, '../', cls='entity'), 1440, 900)
+    head = ".hgroup[data-ab='{}'] .esub .tsum .pip.{}"
+    pip = "document.querySelector(\"" + head.format('a', 'buff') + "\").lastChild.nodeValue"
+    try:
+        assert pg.evaluate(pip) == '5'
+        pg.click('.hist-bar .hf-hidden')
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        assert pg.evaluate(pip) == '1'                                   # Alpha's one row the notes left out
+        assert pg.evaluate("document.querySelector(\"" + head.format('b', 'nerf') + "\").lastChild.nodeValue") == '2'
+        pg.click('.hist-bar .hf-hidden')
+        pg.wait_for_function("!document.getElementById('history').classList.contains('filtering')")
+        assert pg.evaluate(pip) == '5'                                   # the built number back
+        pg.click('.hist-bar [data-f-tag="nerf"]')                        # Alpha has no NERF: its BUFF pip goes
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        assert pg.evaluate("getComputedStyle(document.querySelector(\"" + head.format('a', 'buff') + "\")).display") == 'none'
+        assert not errors
+    finally:
+        ctx.close()

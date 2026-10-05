@@ -637,8 +637,8 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 /* "patch ↗": the band's patch in the archive, on purpose (the title opens the band in place) */
 .banner .pnotes { font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); letter-spacing: 0; text-transform: none; margin-left: 4px; }
 .banner .pnotes:hover { color: var(--patina-strong); }
-/* a filter recounts the band's counters; a tag it left at zero goes (scripts.js hist-filter) */
-.hblocks .bc .n0 { display: none; }
+/* a filter recounts the band's counters and each ability head's; a tag it left at zero goes (scripts.js hist-filter) */
+.hblocks .bc .n0, .hblocks .esub .n0 { display: none; }
 /* one full-width panel per patch: per part its icon on a plate in a column of its own, the name and the
    rows beside it (Sloppy's ability block) */
 .hpanel {
