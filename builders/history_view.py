@@ -460,9 +460,12 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         facts['dev'] += len(dev)
         area = ' '.join(dict.fromkeys((areas or {}).get(k, 'abil') for k in g['keys']))
         facts['areas'] |= set(area.split())
-        # ability chips are abilities and guns (a family's tiers are parts, not chips)
-        if len(order) > 1 and key != list(order)[0] and (areas or {}).get(key, 'abil') in ('abil', 'weapon'):
-            facts['abs'].add(key)
+        # ability chips are abilities and guns (a family's tiers are parts, not chips) — every key of a merged
+        # group (the Patron's "Rocket Barrage · Stomp · Weapon"): its chips were Rocket Barrage's only
+        for k in g['keys']:
+            if len(order) > 1 and k != list(order)[0] and (areas or {}).get(k, 'abil') in ('abil', 'weapon'):
+                facts['abs'].add(k)
+        ids = ' '.join(k.partition(':')[2] for k in g['keys'])
         hidden = is_hidden(counted)
         # an item's own rows need no header naming the item (its Enhanced version gets one)
         headless = single or (headless_own and key == list(order)[0])
@@ -470,9 +473,10 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         plate = '' if headless else ability_plate(ic, glyph_for(file, eid), ult)
         head = '' if headless else sub_head(nm, ic, glyph_for(file, eid), counted, hidden, icon=False)
         cls = 'hgroup' + (' has-ic' if plate else '') + (' has-hidden' if hidden else '') + (' dev-only' if group_dev else '')
-        parts.append(f'<div class="{cls}" data-ab="{esc(eid)}" data-area="{esc(area)}">{plate}'
+        # every id of a merged group: a filter or a link to its second entry ("Breakable lion statue") found none
+        parts.append(f'<div class="{cls}" data-ab="{esc(ids)}" data-area="{esc(area)}">{plate}'
                      f'<div class="hg-b">{head}{g["rows"]}</div></div>')
-        ref = ('' if headless else nm, ic or '', ' '.join(k.partition(':')[2] for k in g['keys']), int(ult))
+        ref = ('' if headless else nm, ic or '', ids, int(ult))
         card.append((ref, disambiguate(counted, (hints or {}).get(key))))
     # a rule for every hero is ONE block of link rows for the whole band, after its groups: it sat under each of
     # the hero's abilities it touched (Calico 2026-01-22: 15 copies of "All abilities & items: 1 change", ~1000 px)
@@ -505,7 +509,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         tags = {tag_of(c)[0] for g in groups for c in player_facing(g['changes'])}
         tags |= {m.group(1) for g in groups for ln in g['lines']                  # a code line's word tag
                  for m in [re.search(r'class="tag (\w+)', text_tag(ln['text'], ln.get('topic')))] if m}
-        abs_ = ' '.join(dict.fromkeys(g['keys'][0].partition(':')[2] for g in groups))
+        abs_ = ' '.join(dict.fromkeys(k.partition(':')[2] for g in groups for k in g['keys']))
         areas_ = ' '.join(dict.fromkeys(a for g in groups for k in g['keys'] for a in [(areas or {}).get(k, 'abil')]))
         meta_attrs = f' data-tags="{esc(" ".join(sorted(tags)))}" data-abs="{esc(abs_)}" data-areas="{esc(areas_)}"'
     # the anchor change matrices and the home page link to (#p-<patch id>; scripts.js opens it)

@@ -1415,8 +1415,11 @@
         var any = false;
         b.querySelectorAll('.hgroup').forEach(function (g) {
           // a merged group belongs to several parts ("t1 t2 t3": the same change on every tier)
+          // a merged group carries every member's id ("a b"): it matches when one of them is chosen
           var gok = (!state.area || (' ' + g.getAttribute('data-area') + ' ').indexOf(' ' + state.area + ' ') >= 0) &&
-                    (!state.ab || (' ' + state.ab + ' ').indexOf(' ' + g.getAttribute('data-ab') + ' ') >= 0);
+                    (!state.ab || (g.getAttribute('data-ab') || '').split(' ').some(function (id) {
+                      return id && (' ' + state.ab + ' ').indexOf(' ' + id + ' ') >= 0;
+                    }));
           var gany = false;
           g.querySelectorAll('.erow').forEach(function (r) {
             if (r.parentNode.tagName === 'SUMMARY') return;      // a family's head follows its rows
@@ -1549,7 +1552,7 @@
       }
       // an ability's square: its group in the band, lit for a moment
       var group = ab && Array.prototype.filter.call(el.querySelectorAll('.hgroup'), function (g) {
-        return g.getAttribute('data-ab') === ab;
+        return (g.getAttribute('data-ab') || '').split(' ').indexOf(ab) >= 0;
       })[0];
       if (group) {
         reveal(group);

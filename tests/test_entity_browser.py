@@ -212,3 +212,29 @@ def test_a_rule_for_all_heroes_is_counted_apart_by_the_filters(browser, tmp_path
         assert not errors
     finally:
         ctx.close()
+
+
+def test_a_merged_group_answers_to_each_of_its_members(browser, tmp_path):
+    """Review 2026-10-05: a group of identical rows of several entries kept only the first id, so #ab-<second>
+    (a search link: "Breakable lion statue") and the second entry's chip emptied the history."""
+    from builders.common import page
+    from builders.history_view import history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    keys = [('game:breakables', 'Breakables', None), ('misc.vdata:jar', 'Jar', None), ('misc.vdata:lion', 'Lion', None),
+            ('misc.vdata:crate', 'Crate', None)]
+    same = [ch(key='x:respawn', label='Respawn Time')]
+    by_ent = {'misc.vdata:jar': [(r1, same)], 'misc.vdata:lion': [(r1, [dict(c) for c in same])],
+              'misc.vdata:crate': [(r1, [ch(key='y', label='Health')])]}
+    areas = {k: 'abil' for k, _, _ in keys[1:]}
+    hist = history_table(keys, ['Breakables'], by_ent, {}, '../', areas=areas, merge=lambda names: ' · '.join(names))
+    ctx, pg, errors = _open(browser, tmp_path, page('Breakables', hist, '../', cls='entity'), 1440, 900)
+    try:
+        assert pg.locator('.hgroup[data-ab~="lion"]').count() == 1
+        pg.click('.hist-bar [data-f-ab="lion"]')
+        pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
+        assert not pg.locator('#p-p1').evaluate('b => b.classList.contains("f-out")')
+        assert pg.locator('.hgroup[data-ab~="lion"]').is_visible()
+        assert not pg.locator('.hgroup[data-ab="crate"]').is_visible()
+        assert not errors
+    finally:
+        ctx.close()
