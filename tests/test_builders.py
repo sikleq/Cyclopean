@@ -112,7 +112,10 @@ def test_unit_families_tiers_and_variants():
     # the main member: not an alt copy, not the weak copy of a boss; the lowest tier
     assert fams['Walker'][0]['id'] == 'npc_boss_tier2' and fams['Barrel Mimic'][0]['id'] == 'neutral_barrel_01_weak'
     w = fams['Walker']
-    assert [member_label(m, w) for m in w] == ['Walker', 'weak', 'alt', 'alt weak']
+    # words a reader reads as labels (review 2026-10-05: "weak · alt weak"); 'ag2' is the new model
+    assert [member_label(m, w) for m in w] == ['Walker', 'Weak', 'Alt', 'Alt Weak']
+    medics = [{'id': i, 'name': 'Medic Trooper', 'alive': True} for i in ('trooper_medic', 'trooper_medic_ag2')]
+    assert member_label(medics[1], medics) == 'New model'
     b = fams['Barrel Mimic']
     # a tiered family's variants differ in looks only: the tier names the group (round 3)
     assert member_label(b[0], b) == 'Tier I' and member_label(b[-1], b) == 'Tier III'
@@ -371,6 +374,8 @@ def test_a_description_diff_marks_words_not_confetti():
     assert text_kind([{'part': 'desc', 'old': 'A b', 'new': 'A c'}]) == 'description changed'
     assert text_kind([{'part': 'name', 'old': 'A', 'new': 'B'}]) == 'renamed'
     assert text_kind([{'part': 'desc', 'old': 'A b', 'new': 'a b.'}]) is None
+    filled = text_rows([{'part': 'desc', 'old': '[Hero name] hits once', 'new': '[Hero name] hits twice'}], 'Abrams')
+    assert 'Abrams hits' in filled and '[Hero name]' not in filled
 
 
 def test_one_band_never_shows_two_groups_of_one_name():
@@ -651,6 +656,15 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     # tag chips select (only these tags), as on an entity page — not "hide this tag"
     assert 'show-old' in bar and 'bvn' in bar and 'data-dyn-tag="buff"' in bar and 'show-extra' in bar
     assert 'data-part="weapon"' in bar and 'data-part="all"' in bar
+
+
+def test_an_unnamed_ability_in_a_value_reads_like_its_group_header(monkeypatch):
+    """Review 2026-10-05: "Kit: Ability 1  Boho bouncyprojectile → …" while the group header read "Bouncyprojectile"."""
+    from builders import common
+    monkeypatch.setattr(common, 'names_by_id', lambda: {})
+    monkeypatch.setattr(common, '_catalog_owners', lambda: {'ability_boho_bouncyprojectile': 'hero_boho'})
+    monkeypatch.setattr(common, '_game_entry_names', lambda: {})
+    assert common.ids_to_names('ability_boho_bouncyprojectile') == 'Bouncyprojectile'
 
 
 def test_number_lists_read_as_ranges_and_moved_positions():
@@ -1223,3 +1237,21 @@ def test_stylesheet_colours_live_in_root_only():
     css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
     rest = css[css.index('}', css.index(':root {')) + 1:]
     assert [m.group(0) for m in re.finditer(r':[^;{}]*(#[0-9a-fA-F]{3,8}\b|rgba?\()', rest)] == []
+
+
+def test_buff_vs_nerf_weighs_the_changes():
+    """Review 2026-10-05: "Buff vs nerf" was a majority of rows — one +50% buff lost to two −10% nerfs."""
+    from builders.weights import band_score, net_class
+    big = {'dir': 'buff', 'pct': 50.0, 'op': 'change'}
+    small = {'dir': 'nerf', 'pct': -10.0, 'op': 'change'}
+    net, vol = band_score([big, small, small])
+    assert net == 1.5 and vol == 3.5 and net_class(net, vol) == 'net-buff'
+    assert net_class(*band_score([big, {**big, 'dir': 'nerf'}])) == 'net-mix'
+    assert band_score([{'op': 'add', 'dir': None, 'pct': None}]) == (1.0, 1.0)            # a NEW thing
+
+
+def test_a_namesake_hint_is_never_a_unit_word():
+    """Review 2026-10-05: "Incoming Damage Deferred · pct", "… · value" — hints made of property words."""
+    from builders.cards import _hint
+    assert _hint('Incoming Damage Deferred', 'IncomingDamageDeferredPct', skip=frozenset()) == ''
+    assert _hint('Healing Reduction', 'HealAmpRegenPenaltyPercent') == 'regen'          # the default skip list

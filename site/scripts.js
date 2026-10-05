@@ -645,8 +645,13 @@
         tags.forEach(function (t) { total += counts[t]; });
         var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
         var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
-        var cls = 'dsq ' + (!total ? 'part-out' : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix') +
-          (total && c[4] && part === 'all' && !sel.length ? ' hid' : '');      // the built eye, while unfiltered
+        // unfiltered, the cell's weighed net (builders/weights.py: c[5] = [net, volume]); a filter falls back to
+        // which side has more rows
+        var whole = part === 'all' && !sel.length, w = c[5];
+        var net = whole && w ? (Math.abs(w[0]) < 0.25 || (w[1] && Math.abs(w[0]) / w[1] < 0.2) ? 'net-mix'
+          : w[0] > 0 ? 'net-buff' : 'net-nerf') : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix';
+        var cls = 'dsq ' + (!total ? 'part-out' : net) +
+          (total && c[4] && whole ? ' hid' : '');      // the built eye, while unfiltered
         // write only what changed: a text or class write re-lays the tile out
         if (a.className !== cls) a.className = cls;
         if (!total) return;
