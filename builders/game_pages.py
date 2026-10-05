@@ -15,6 +15,7 @@ from collections import defaultdict
 from .common import entity_icon, esc, page, plural, write
 from .game_systems import (ALL_PREFIX, CONVAR_PREFIX, SECTION, is_template, merged_label, name_of, place,
                            place_all_row, place_entity, shown, system, systems)
+from .shared_rows import is_every
 
 RAW_CONVARS = '@convars:raw'      # by_ent: every patch's console variable rows as they are (Game rules table)
 
@@ -77,6 +78,12 @@ def collect(by_ent: dict, cat: dict, pages: set[str] | None = None) -> tuple[dic
         e = cat.get(key) or {'file': file, 'id': eid}
         hit = place_entity(key, e, pages)
         if not hit:
+            continue
+        # a rule for every hero / ability is its part's own group here ('game:<system>:<part>:all'): on an entry
+        # it was a link row to this very page and band ("Climb rope, Dash + 6 more" held only "All abilities &
+        # items: 1 change · Movement & combat ›"; review 2026-10-05)
+        h = [(row, own) for row, ch in h for own in [[c for c in ch if not is_every(c)]] if own]
+        if not h:
             continue
         if is_template(e):
             if sigs is None:

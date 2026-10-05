@@ -152,10 +152,10 @@
       "parts": [
         {"id": "moves", "name": "Every hero's abilities", "match": ["abilities[.]vdata:[a-z0-9_]+#shared$"]},
         {"id": "every", "name": "Every ability & item", "match": [
-          "abilities[.]vdata:@all:m_mapAbilityProperties[.]ChannelMoveSpeed[.]"]},
-        {"id": "melee", "name": "Every melee attack", "match": [
-          "abilities[.]vdata:@all:(m_mapAttacks|m_HeavyAttackData|m_HeavyAirAttackData|m_flHeavyMeleeMaxTurnRate|m_AirMeleeUpScale|m_flBackDashDodgeDist|m_flSideDashDodgeDist|m_mapAbilityProperties)"]},
-        {"id": "guns", "name": "Every gun", "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
+          "abilities[.]vdata:@all:m_mapAbilityProperties[.]"]},
+        {"id": "melee", "name": "Every melee attack", "nouns": ["melee attacks"], "match": [
+          "abilities[.]vdata:@all:(m_mapAttacks|m_HeavyAttackData|m_HeavyAirAttackData|m_flHeavyMeleeMaxTurnRate|m_AirMeleeUpScale|m_flBackDashDodgeDist|m_flSideDashDodgeDist)"]},
+        {"id": "guns", "name": "Every gun", "nouns": ["guns"], "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
         {"id": "rules", "name": "Combat rules", "match": [
           "abilities[.]vdata:@all:",
           "modifiers[.]vdata:(modifier_crowd_control_diminish_watcher|modifier_citadel_catapult_damage_watcher|modifier_zipline_|modifier_citadel_knockdown|modifier_speed_boost|modifier_citadel_unstick|modifier_combat_status|citadel_modifier_teleport|modifier_obscured_by_steam|modifier_bullet_shield_tracker|modifier_magic_shield_tracker|modifier_shield_tracker_base)#",

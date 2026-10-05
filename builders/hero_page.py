@@ -290,7 +290,8 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     gone = {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
             and e['id'] not in {c['id'] for c in mine}}
     hist = history_table(keys, [name], by_ent, by_subject, rel, areas=areas, gone=gone,
-                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults)
+                         in_dev=state not in ('EHeroDevState_Release', 'EHeroDevState_PreRelease'), ults=ults,
+                         every_label='For all heroes')
     body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',
                 cls='entity')

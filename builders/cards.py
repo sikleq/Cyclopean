@@ -670,15 +670,27 @@ def every_rows(changes: list[dict], every_href=None) -> str:
     page only: folded on every hero page they grew heroes/ from 13 to 37 MB (Haze 295 → 755 KB; review
     2026-10-05). Counted apart from the entity's own changes (history_view); `shr-all`: no tag or eye filter keeps
     the row, no band recount counts it (scripts.js hist-filter)."""
-    from .game_systems import place_all_row, system
     rows = [c for c in sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
             if not is_noop(c) and not is_engine(c)]
-    by_sys: dict[str, list[dict]] = {}
+    return every_links(rows, every_href)
+
+
+def every_key(c: dict) -> tuple[str, str]:
+    """(Game system, noun) of a row of a rule for all: one link row each, so a link names what the reader finds
+    there ("All melee attacks" never merges into "All abilities & items", review 2026-10-05)."""
+    from .game_systems import place_all_row
+    return place_all_row(str(c.get('file') or ''), c)[0], str(c.get('shared_what') or 'entities')
+
+
+def every_links(rows: list[dict], every_href=None) -> str:
+    """The link rows of rules for all, from rows already as the counters count them (`player_facing`, one per
+    rule: history_view dedupes the copies a rule leaves on each of the entity's abilities)."""
+    from .game_systems import system
+    by_sys: dict[tuple[str, str], list[dict]] = {}
     for c in rows:
-        by_sys.setdefault(place_all_row(str(c.get('file') or ''), c)[0], []).append(c)
+        by_sys.setdefault(every_key(c), []).append(c)
     out = []
-    for sid, got in by_sys.items():
-        what = got[0].get('shared_what') or 'entities'
+    for (sid, what), got in by_sys.items():
         text = f'All {esc(what)}: {plural(len(got), "change")}'
         name = esc(system(sid).name)
         go = (f' <a class="shr-go" href="{esc(every_href(sid))}">{name} ›</a>' if every_href

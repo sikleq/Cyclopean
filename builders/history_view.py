@@ -5,9 +5,10 @@ out, plus the changes the notes name that live in the game's code (status 'code'
 look lines, engine plumbing ("Technical") and unmatched note lines stay in data/, off the page.
 
 A toolbar filters by tag, by "hidden", by part (Stats / Weapon / Abilities) and by ability (scripts.js
-`hist-filter`). Work on a hero still in development hides behind "Before release" once the hero is out.
-Only the newest EAGER_PATCHES blocks are in the page; older ones are a <template> stamped when opened
-or filtered (Nano's page: 12k elements).
+`hist-filter`). Work on a hero still in development hides behind "Before release" once the hero is out, a
+band with only rules for every hero behind "For all heroes". Every band with the entity's own changes is open
+and in the page (Sloppy's history reads as one document; review 2026-10-05: 86% loaded folded); only the
+bands that stay folded are a <template> stamped when opened or filtered.
 
 The patch strip above the toolbar and the ability cards' trail squares show a hover card of what a patch
 did (scripts.js `dyn-tip`, the change matrices' card): its counts, how much was not in the notes and the
@@ -23,8 +24,7 @@ from .common import EYE_MARK, esc, glyph_for, mark, patch_name, patch_title_html
 from .notes_view import _highlight, text_tag
 from .text_rows import TEXT_PREFIX, text_rows
 
-OPEN_PATCHES = 3          # the latest patches with rows open; the rest fold to their banner
-EAGER_PATCHES = 6         # blocks rendered in the page; older ones wait in a <template>
+YEAR_BANNERS_MIN = 8      # a history longer than this gets a year banner where the year changes
 TEXT_STATUSES = ('code',)  # note lines shown as rows: changes in the game's code (the files did not move)
 TAG_FILTERS = ('new', 'rework', 'buff', 'nerf', 'del', 'mech', 'up', 'down')
 AREAS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
@@ -65,7 +65,8 @@ def _entity_of_line(ln: dict, key_set: set[str], names_by_key: dict[str, str], f
 def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_ent, by_subject, rel: str,
                   line_names: bool = True, areas: dict[str, str] | None = None, gone: set[str] = frozenset(),
                   in_dev: bool = False, area_labels: tuple[tuple[str, str], ...] = AREAS,
-                  merge=None, enhanced: bool = False, ults: frozenset[str] = frozenset()) -> str:
+                  merge=None, enhanced: bool = False, ults: frozenset[str] = frozenset(),
+                  every_label: str = 'For all') -> str:
     """The History section: heading, toolbar, blocks. keys: [(entity key, display name, icon url)] in
     display order, the page's own entity first; names: subjects whose note lines belong here.
     `line_names`: the other keys' names pull note lines in too (a hero's abilities do; a boss's "Rocket
@@ -76,7 +77,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     merge(labels) (unit_families.merged_label) — the five Gutter Ghouls I, the four Walkers.
     `enhanced`: an item page — its "Enhanced: …" rows (the Enhanced version, 14% of item rows) are their
     own group under "Enhanced version", the parts Base / Enhanced. `ults`: keys of the hero's ultimate (its
-    icon gets the corner mark)."""
+    icon gets the corner mark). `every_label`: the toolbar button that shows the bands holding only rules for
+    every hero / item ("For all heroes")."""
     order = {k: i for i, (k, _, _) in enumerate(keys)}
     meta = {k: (nm, ic) for k, nm, ic in keys}
     names_by_key = {k: nm for k, nm, _ in keys}
@@ -124,18 +126,26 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
             every.setdefault(key, []).extend(ch)
     hints = {key: history_hints(ch) for key, ch in every.items()}
     blocks, facts = [], {'tags': set(), 'hidden': 0, 'dev': 0, 'areas': set(), 'abs': set()}
-    opened = 0
-    for i, pid in enumerate(sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True)):
+    year = None
+    for pid in sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True):
         slot = per_patch[pid]
-        # a rule for every hero (the level curve) does not take one of the open bands: the hero's own changes do
+        # every band with the entity's own changes stands open, like Sloppy's (86% loaded folded, review
+        # 2026-10-05); a band of work before release or of rules for every hero only stays folded, and only a
+        # folded band waits in a <template> (an open one is in the page: Ctrl+F finds it, #p- jumps land true)
         shown = [c for ch in slot['ch'].values() for c in ch
                  if (in_dev or c.get('status') != 'unreleased') and not is_every(c)]
-        real = bool(slot['lines']) or bool(player_facing(shown))
-        open_ = real and opened < OPEN_PATCHES
-        opened += open_
-        blocks.append(_patch_block(pid, slot, order, meta, names, rel, open_, i >= EAGER_PATCHES, areas, in_dev,
-                                   facts, merge, headless_own=enhanced, hints=hints, ults=ults))
-    bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults)
+        real = bool(slot['lines']) or bool(slot.get('texts')) or bool(player_facing(shown))
+        block = _patch_block(pid, slot, order, meta, names, rel, real, not real, areas, in_dev,
+                             facts, merge, headless_own=enhanced, hints=hints, ults=ults)
+        if not block:
+            continue
+        y = slot['row']['date'][:4]
+        if y != year and len(per_patch) > YEAR_BANNERS_MIN:
+            # a hero has 55-65 bands: the year in the section-banner style tells where one is (no fold)
+            blocks.append(f'<h3 class="banner sub hyear"><span class="bt">{esc(y)}</span></h3>')
+            year = y
+        blocks.append(block)
+    bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults, every_label)
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{patch_strip(facts.get("strip", []))}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
 
@@ -224,16 +234,12 @@ def patch_strip(items: list[tuple]) -> str:
     if not items:
         return ''
     tiles = []
-    for k, (pid, hdr, tally, hidden, _, *rest) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
-        every_only = rest[0] if rest else ''         # 'All heroes': the tile counts only such a rule
+    for k, (pid, hdr, tally, hidden, _) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
         text = f'{patch_title_text(hdr)}: {plural(sum(tally.values()), "change")}'
-        if every_only:
-            text += f' for {every_only.lower()}'
         if hidden:
             text += f', {hidden} not in patch notes'
-        # the eye is CSS (a mask on ::after): one inline SVG per tile cost 13 KB on a unit page; a tile of a
-        # patch that only changed a rule for every hero is muted (`shr`)
-        cls = (' hid' if hidden else '') + (' shr' if every_only else '')
+        # the eye is CSS (a mask on ::after): one inline SVG per tile cost 13 KB on a unit page
+        cls = ' hid' if hidden else ''
         tiles.append(f'<a class="ps-tile{cls}" href="#p-{esc(pid)}" data-k="{k}" '
                      f'aria-label="{esc(text)}" style="background:{stripes(tally)}">'
                      f'<span class="dn">{sum(tally.values())}</span></a>')
@@ -245,7 +251,8 @@ def patch_strip(items: list[tuple]) -> str:
 
 
 def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str,
-            area_labels: tuple[tuple[str, str], ...] = AREAS, ults: frozenset[str] = frozenset()) -> str:
+            area_labels: tuple[tuple[str, str], ...] = AREAS, ults: frozenset[str] = frozenset(),
+            every_label: str = 'For all') -> str:
     """Tags present (multi-select), the eye (only hidden), parts of a hero, its abilities as icons (the
     current ones in slot order, removed ones grey after a divider), "Before release". One compact row: the
     controls are badge-high (owner 2026-10-04). A chosen tag is aria-pressed, never the class "on" — that
@@ -295,6 +302,11 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
         # a toggle button like the eye's, not a switch with a track: the bar fits one row (owner 2026-10-04)
         parts.append(f'<button class="px-btn hf-dev" data-toggle-class="show-dev" data-target="#history" '
                      f'aria-pressed="false">{mark("unreleased")}Before release <span class="n">{facts["dev"]}</span></button>')
+    if facts.get('every'):
+        # the bands that hold only a rule for every hero (the level curve, a default of every ability): in place,
+        # one click away — like "Before release" (23% of the bands, 22 hero pages opened their history with one)
+        parts.append(f'<button class="px-btn hf-every" data-toggle-class="show-every" data-target="#history" '
+                     f'aria-pressed="false">{esc(every_label)} <span class="n">{facts["every"]}</span></button>')
     if not parts:
         return ''
     return '<div class="toolbar hist-bar">' + '<span class="sep"></span>'.join(parts) + '</div>'
@@ -333,6 +345,33 @@ def _dev_only(g: dict, in_dev: bool) -> bool:
     rows = player_facing(g['changes'])
     return (any(c.get('status') == 'unreleased' for c in rows) and all(c.get('status') == 'unreleased' for c in rows)
             and not g['lines'] and not in_dev)
+
+
+def every_sig(c: dict) -> tuple:
+    """One rule for all, whichever of the entity's abilities carries its copy (shared_rows.spread writes the same
+    path, values and noun into every target)."""
+    return (c.get('file'), c.get('path'), str(c.get('old_s')), str(c.get('new_s')), c.get('shared_what'))
+
+
+def split_every(slot: dict, in_dev: bool) -> tuple[dict, list[dict]]:
+    """(the band's slot with only the entity's own rows, the rules for every hero / ability it carries — counted as
+    the counters count, `player_facing`, released ones unless the page is a hero in development — ONCE each). The
+    same rule sat under each of the entity's abilities it touched and the banner counted every copy (Holliday
+    2026-01-22: "+9 for all abilities & items" for one rule; review 2026-10-05)."""
+    from .cards import player_facing
+    from .shared_rows import is_every
+    own: dict[str, list[dict]] = {}
+    every: dict[tuple, dict] = {}
+    for key, ch in slot['ch'].items():
+        mine = [c for c in ch if not is_every(c)]
+        if mine:
+            own[key] = mine
+        rules = [c for c in ch if is_every(c)]
+        if rules:
+            for c in player_facing(rules):
+                if in_dev or c.get('status') != 'unreleased':
+                    every.setdefault(every_sig(c), c)
+    return {**slot, 'ch': own}, list(every.values())
 
 
 def every_name(rows: list[dict]) -> str:
@@ -379,13 +418,14 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
                  headless_own: bool = False, hints: dict | None = None, ults: frozenset[str] = frozenset()) -> str:
     """One patch = its banner + ONE full-width panel: per part its icon on a plate in a column of its own,
     then its name and rows (Sloppy's ability block). `hints`: part key -> its cards.history_hints."""
-    from .cards import ability_plate, disambiguate, is_hidden, player_facing, sub_head
+    from .cards import ability_plate, disambiguate, every_links, is_hidden, player_facing, sub_head
     from .render import not_in_notes, tag_of
-    from .shared_rows import is_every
     hdr = slot['row']
     from .game_systems import SECTION
-    groups = _groups(slot, order, meta, names, hints, merge, lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}')
-    counted_all, every_all, all_dev, card = [], [], True, []
+    every_href = lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}'      # noqa: E731
+    own_slot, every_all = split_every(slot, in_dev)
+    groups = _groups(own_slot, order, meta, names, hints, merge)
+    counted_all, all_dev, card = [], True, []
     single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
     # a group of text changes only (a rename) is work before release when every other group of the band is
     # (heroes in development rename their abilities): it waits behind "Before release" with them
@@ -404,13 +444,11 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         live = [c for c in rows if c.get('status') != 'unreleased']
         group_dev = text_dev if pre[gi] is None else pre[gi]
         all_dev = all_dev and group_dev
-        # a rule for every hero (shared_rows.is_every) is counted apart: the band's own counters, its eye and the
-        # strip tile count what changed on THIS entity
-        every_all += [c for c in (rows if in_dev else live) if is_every(c)]
-        counted = [c for c in (rows if in_dev else live) if not is_every(c)]
+        # a rule for every hero (shared_rows.is_every) is not in the groups (split_every): the band's own counters,
+        # its eye and the strip tile count what changed on THIS entity
+        counted = rows if in_dev else live
         counted_all += counted
-        # a rule for every hero is a link row no tag keeps: its tags offer no button
-        facts['tags'] |= {tag_of(c)[0] for c in rows if not is_every(c)}
+        facts['tags'] |= {tag_of(c)[0] for c in rows}
         facts['hidden'] += sum(1 for c in counted if not_in_notes(c))
         facts['dev'] += len(dev)
         area = ' '.join(dict.fromkeys((areas or {}).get(k, 'abil') for k in g['keys']))
@@ -429,28 +467,35 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
                      f'<div class="hg-b">{head}{g["rows"]}</div></div>')
         ref = ('' if headless else nm, ic or '', ' '.join(k.partition(':')[2] for k in g['keys']), int(ult))
         card.append((ref, disambiguate(counted, (hints or {}).get(key))))
+    # a rule for every hero is ONE block of link rows for the whole band, after its groups: it sat under each of
+    # the hero's abilities it touched (Calico 2026-01-22: 15 copies of "All abilities & items: 1 change", ~1000 px)
+    if every_all:
+        parts.append(f'<div class="hgroup shr-band" data-ab="" data-area=""><div class="hg-b">'
+                     f'{every_links(every_all, every_href)}</div></div>')
     if not parts:
         return ''
+    every_only = not groups
     # the entity's patch strip above the toolbar: what this patch did, by tag, and its hover card (dev-only
-    # bands excluded)
-    if not (all_dev and not in_dev):
+    # bands excluded). A band that holds only a rule for every hero gets no tile, as in the matrices and the trail
+    if not (all_dev and not in_dev) and counted_all:
         tally: dict[str, int] = {}
-        # a band with only a rule for every hero still gets a tile — a muted one (`every_only`)
-        for c in counted_all or every_all:
+        for c in counted_all:
             tally[tag_of(c)[0]] = tally.get(tag_of(c)[0], 0) + 1
         for name, rows in every_groups(every_all).items():
             card.append(((name, '', '', 0), rows))
-        if tally:
-            facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
-                                                  tile_card(card), '' if counted_all else every_name(every_all)))
+        facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
+                                              tile_card(card)))
+    if every_only:
+        facts['every'] = facts.get('every', 0) + 1
     summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all)
-    dev_cls = ' dev-only' if all_dev and not in_dev else ''
+    dev_cls = ' dev-only' if all_dev and not in_dev and not every_only else ''
+    dev_cls += ' every-only' if every_only else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'
     meta_attrs = ''
     if lazy:
         panel = f'<template class="hp-t">{panel}</template>'
         # what the band holds, so a filter skips stamping a band that cannot match
-        tags = {tag_of(c)[0] for g in groups for c in player_facing(g['changes']) if not is_every(c)}
+        tags = {tag_of(c)[0] for g in groups for c in player_facing(g['changes'])}
         tags |= {m.group(1) for g in groups for ln in g['lines']                  # a code line's word tag
                  for m in [re.search(r'class="tag (\w+)', text_tag(ln['text'], ln.get('topic')))] if m}
         abs_ = ' '.join(dict.fromkeys(g['keys'][0].partition(':')[2] for g in groups))

@@ -587,7 +587,15 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .erow .shr-go { margin-left: 8px; color: var(--patina); white-space: nowrap; }
 .erow.shr-all .vv { font-size: 13px; }
 .banner .shr-chip { color: var(--text-dimmer); }
-.ps-tile.shr { opacity: .55; }
+/* the band's rules for every hero: ONE block after its groups (history_view.split_every), quieter than a group */
+.hgroup.shr-band { background: var(--bg-panel-2); padding: 2px 0; }
+/* a band that holds only such rules waits behind "For all heroes" (toolbar), in place */
+.hblocks:not(.show-every) .pblock.every-only { display: none; }
+.hist-bar .hf-every .n { color: var(--text-dimmer); margin-left: 4px; }
+/* the year where it changes in a long history (no fold): the section banner's look, smaller */
+.hblocks .hyear { min-height: 30px; margin: 18px 0 8px; }
+.hblocks .hyear .bt { font-size: 18px; }
+.hblocks.filtering .hyear { display: none; }
 
 /* history strip: the last 12 patches, filled where the entity changed */
 .trail { display: inline-flex; flex-wrap: wrap; gap: 3px; max-width: 100%; }   /* a long history wraps on phones */

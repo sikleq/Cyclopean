@@ -1518,6 +1518,14 @@
       if (!x || x.offsetParent !== null) return;
       var reset = window.__histReset;
       if (reset) reset();
+      // a band of rules for every hero waits behind "For all heroes" (history_view.toolbar): show them
+      var only = x.closest('.every-only');
+      if (only && x.offsetParent === null) {
+        var hb = only.closest('.hblocks');
+        if (hb) hb.classList.add('show-every');
+        var eb = document.querySelector('.hist-bar .hf-every');
+        if (eb) { eb.classList.add('on'); eb.setAttribute('aria-pressed', 'true'); }
+      }
       if (x.offsetParent !== null || !(x.classList.contains('dev-only') || x.closest('.dev-only') ||
           x.querySelector('.st-unreleased'))) return;
       var hist = x.closest('.hblocks');

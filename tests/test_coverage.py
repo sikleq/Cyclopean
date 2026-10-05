@@ -180,10 +180,42 @@ def test_a_rule_for_all_is_counted_apart_on_the_band_and_the_strip():
     assert 'Not in patch notes' not in html
 
 
-def test_a_band_with_only_a_rule_for_all_is_muted_and_stays_closed():
+def test_a_rule_for_all_is_one_link_row_per_band_whatever_it_touched():
+    """Review 2026-10-05: Calico's 2026-01-22 band repeated "All abilities & items: 1 change" under 15 abilities and
+    its chip read "+9 for all abilities & items" for ONE rule; a melee rule kept its own link and chip."""
+    from builders.history_view import history_table
+    r = {'id': 'p1', 'date': '2026-01-22', 'title': '01-22-2026 Update'}
+    rule = dict(path='m_mapAbilityProperties.AbilityCooldownBetweenCharge.m_strValue', label='Charge Delay',
+                old_s='0s', new_s='default', dir='changed', pct=None, file='abilities.vdata',
+                shared_all=True, shared_n=568, shared_what='abilities & items')
+    melee = dict(path='m_mapAbilityProperties.MeleeDamageTakenScale.m_strValue', label='Melee Damage Taken Scale',
+                 old_s='35', new_s='—', op='remove', file='abilities.vdata', shared_all=True, shared_n=53,
+                 shared_what='melee attacks')
+    keys = [('heroes.vdata:hero_nano', 'Base stats', None)] + [(f'abilities.vdata:ab_{i}', f'Ability {i}', None)
+                                                                for i in range(3)]
+    by_ent = {f'abilities.vdata:ab_{i}': [(r, [ch(key=f'abilities.vdata:ab_{i}:own', label='Cooldown'),
+                                              ch(key=f'abilities.vdata:ab_{i}:rule', **rule)]
+                                           + ([ch(key=f'abilities.vdata:ab_{i}:melee', **melee)] if i == 0 else []))]
+              for i in range(3)}
+    html = history_table(keys, ['Calico'], by_ent, {}, '../', areas={k: 'abil' for k, _, _ in keys})
+    band = html[html.index('id="p-p1"'):]
+    assert band.count('All abilities &amp; items: 1 change') == 1 and band.count('All melee attacks: 1 change') == 1
+    assert band.count('class="hgroup shr-band"') == 1
+    summary = band[:band.index('</summary>')]
+    assert '+1 for all abilities &amp; items' in summary and '+1 for all melee attacks' in summary
+    # the band's own counters: the three abilities' own rows, not the rules
+    assert 'class="pip nerf">3<' in summary
+
+
+def test_a_band_with_only_a_rule_for_all_waits_behind_its_button():
+    """Review 2026-10-05: 23% of the bands held only "+N for all heroes"; they stay in place, folded, behind
+    "For all" (like "Before release"), and get no strip tile — as in the matrices and the trail squares."""
     html = _bands(every_only=True)
-    assert re.search(r'<details class="pblock[^"]*" id="p-p2"(?![^>]*open)', html)
-    assert 'class="ps-tile shr"' in html and 'changes for all heroes' in html
+    assert re.search(r'<details class="pblock[^"]*every-only[^"]*" id="p-p2"(?![^>]*open)', html)
+    assert 'ps-tile' not in html                     # only the hero's own band p1 is left: no strip of one tile
+    assert 'data-toggle-class="show-every"' in html and 'For all <span class="n">1</span>' in html
+    # the band with the hero's own change stands open
+    assert re.search(r'<details class="pblock[^"]*" id="p-p1"[^>]* open', html)
 
 
 def test_the_home_feed_spreads_some_and_skips_rules_for_all(monkeypatch):

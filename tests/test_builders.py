@@ -673,12 +673,12 @@ def test_home_feed_puts_changes_on_their_pages():
                    frozenset({'npc_units.vdata:trooper_base'})) is None
 
 
-def test_entity_history_rows_marks_filters_and_lazy_blocks(monkeypatch):
+def test_entity_history_rows_marks_filters_and_lazy_blocks():
     """2026-10-03, the entity page is the history: rows are what the files changed (+ changes in the
     game's code), bug fixes / looks / unmatched lines and engine plumbing stay off; one toolbar; work on
-    an unreleased hero hides behind "Before release"; blocks past EAGER_PATCHES wait in a <template>."""
+    an unreleased hero hides behind "Before release"; a band that stays folded waits in a <template>, every
+    band with the entity's own changes is open and in the page (review 2026-10-05)."""
     from builders import history_view
-    monkeypatch.setattr(history_view, 'EAGER_PATCHES', 1)
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
     r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
     keys = [('heroes.vdata:hero_atlas', 'Base stats', None), ('abilities.vdata:ab_charge', 'Shoulder Charge', None)]

@@ -102,7 +102,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
         grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
         sections = (hdr + grid) if blocks or hdr else ''
     history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
-                            enhanced=True)
+                            enhanced=True, every_label='For all items')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
     # 2026-10-04: nothing folded by default)
     return page(name, head + now_fold('Current values', sections) + history, rel, 'items', cls='entity')
