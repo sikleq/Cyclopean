@@ -177,8 +177,8 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         # named apart — the game's rules and map objects only the patch page lists
         pc = for_id(row['id'])
         eye = ''
-        if pc['hidden']:
-            eye = f'<span class="au au-hidden">{mark("hidden")}<b>{pc["hidden"]}</b> not in patch notes</span>'
+        if pc['not_in_notes']:
+            eye = f'<span class="au au-hidden">{mark("hidden")}<b>{pc["not_in_notes"]}</b> not in patch notes</span>'
             if off_pages(pc):
                 # they have pages now: the Game section's
                 eye += (f'<a class="au au-off" href="game/index.html"><b>{off_pages(pc)}</b> of them in game rules '
@@ -226,7 +226,7 @@ def build_all() -> int:
     # no work on unreleased heroes (round 3: "8620 hidden" counted both)
     from .patch_counts import for_id
     total = sum(for_id(row['id'])['changes'] - for_id(row['id']).get('unreleased', 0) for row in patches)
-    total_hidden = sum(for_id(row['id'])['hidden'] for row in patches)
+    total_hidden = sum(for_id(row['id'])['not_in_notes'] for row in patches)
     last_build = builds[-1] if builds else None
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item')]
     counts = {'heroes': len(heroes),

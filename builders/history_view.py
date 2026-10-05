@@ -299,9 +299,11 @@ def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], 
     return '<div class="toolbar hist-bar">' + '<span class="sep"></span>'.join(parts) + '</div>'
 
 
-def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict | None, merge) -> list[dict]:
+def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict | None, merge,
+            every_href=None) -> list[dict]:
     """The patch's parts in page order: {'keys', 'rows' html, 'changes', 'lines'}; members whose rows are
-    the same merge into one group (unit families)."""
+    the same merge into one group (unit families). `every_href`: system id -> the Game page's band of this patch
+    (the link row of a rule for every hero, cards.every_rows)."""
     from .cards import entity_rows, row
     groups: list[dict] = []
     texts = slot.get('texts', {})
@@ -309,7 +311,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         nm, _ = meta[key]
         changes = slot['ch'].get(key, [])
         lines = slot['lines'].get(key, [])
-        rows = entity_rows(changes, (hints or {}).get(key))
+        rows = entity_rows(changes, (hints or {}).get(key), every_href)
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
@@ -355,7 +357,10 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
     # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
-    text = f'all {n_hidden} not in notes' if all_hidden else f'{n_hidden} not in notes'
+    # an update that had no patch notes at all (Rat King's build 6736) says so: nothing was left out of notes
+    no_notes = all_hidden and all(c.get('status') == 'unannounced' for c in counted_all)
+    text = ('no patch notes' if no_notes else f'all {n_hidden} not in notes' if all_hidden
+            else f'{n_hidden} not in notes')
     chips = f'<span class="chip eye-chip">{mark("hidden")}<span class="ec-n">{text}</span></span>' if n_hidden else ''
     # one short chip per kind: they wrap under the title on a phone (one long chip ran 145px off a 390px screen)
     chips += ''.join(f'<span class="chip shr-chip">+{len(rows)} for {esc(name.lower())}</span>'
@@ -377,7 +382,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     from .render import not_in_notes, tag_of
     from .shared_rows import is_every
     hdr = slot['row']
-    groups = _groups(slot, order, meta, names, hints, merge)
+    from .game_systems import SECTION
+    groups = _groups(slot, order, meta, names, hints, merge, lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}')
     counted_all, every_all, all_dev, card = [], [], True, []
     single = len(order) == 1 or (merge and len(groups) == 1 and len(groups[0]['keys']) == len(order))
     # a group of text changes only (a rename) is work before release when every other group of the band is
@@ -402,7 +408,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         every_all += [c for c in (rows if in_dev else live) if is_every(c)]
         counted = [c for c in (rows if in_dev else live) if not is_every(c)]
         counted_all += counted
-        facts['tags'] |= {tag_of(c)[0] for c in rows}
+        # a rule for every hero is a link row no tag keeps: its tags offer no button
+        facts['tags'] |= {tag_of(c)[0] for c in rows if not is_every(c)}
         facts['hidden'] += sum(1 for c in counted if not_in_notes(c))
         facts['dev'] += len(dev)
         area = ' '.join(dict.fromkeys((areas or {}).get(k, 'abil') for k in g['keys']))
@@ -442,7 +449,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     if lazy:
         panel = f'<template class="hp-t">{panel}</template>'
         # what the band holds, so a filter skips stamping a band that cannot match
-        tags = {tag_of(c)[0] for g in groups for c in player_facing(g['changes'])}
+        tags = {tag_of(c)[0] for g in groups for c in player_facing(g['changes']) if not is_every(c)}
         tags |= {m.group(1) for g in groups for ln in g['lines']                  # a code line's word tag
                  for m in [re.search(r'class="tag (\w+)', text_tag(ln['text'], ln.get('topic')))] if m}
         abs_ = ' '.join(dict.fromkeys(g['keys'][0].partition(':')[2] for g in groups))

@@ -586,11 +586,12 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .vals.fam-span { color: var(--label); font: 17px/1 var(--font-label); }
 .only-hidden details.fam:not(.has-hidden) { display: none; }
 /* one edit made in several entities at once (builders/shared_rows.py): a chip on the row; a rule for every one of
-   a kind folds into "All heroes: N changes", counted apart */
+   a kind is one row "All heroes: N changes · Hero progression ›", a link to the Game page, counted apart */
 .erow .chip.shr { font-size: 14px; padding: 1px 6px 0; margin-left: 6px; color: var(--text-dimmer); vertical-align: 1px;
   white-space: normal; }
 .erow .shr-t { color: var(--label); }
-details.shr-all > summary .erow .vv { font-size: 13px; }
+.erow .shr-go { margin-left: 8px; color: var(--patina); white-space: nowrap; }
+.erow.shr-all .vv { font-size: 13px; }
 .banner .shr-chip { color: var(--text-dimmer); }
 .ps-tile.shr { opacity: .55; }
 

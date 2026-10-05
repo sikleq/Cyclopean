@@ -971,6 +971,31 @@ def reencoded(old, new, path: str = '') -> bool:
     return 0 < abs(a) <= 1 and near(a * 100, b) or 0 < abs(b) <= 1 and near(b * 100, a)
 
 
+def metres_pair(old, new) -> tuple:
+    """(old, new) on ONE scale: when one side is written in metres ("1.3m") and the other is a bare number, the bare
+    one is engine units and is rewritten in metres ("50" -> "1.27m"). Valve moved every Channel Move Speed from
+    units to m/s on 2025-08-18: "50 -> 1.3m" read 50 m/s -> 1.3 m/s, a −97.4% NERF on 93 abilities, while it is
+    1.27 -> 1.3 m/s, +2% (review 2026-10-05). "No limit" (-1, 9999) and zero stay as they are."""
+    def parse(v):
+        if isinstance(v, bool) or v is None:
+            return None, ''
+        if isinstance(v, (int, float)):
+            return float(v), ''
+        m = _RAW_NUM.match(str(v))
+        return (float(m.group(1)), m.group(2) or '') if m else (None, '')
+    (a, ua), (b, ub) = parse(old), parse(new)
+    if a is None or b is None or (ua == 'm') == (ub == 'm') or ua not in ('', 'm') or ub not in ('', 'm'):
+        return old, new
+
+    def in_metres(x: float) -> str:
+        return f'{float(f"{x / UNITS_PER_METER:.4g}"):g}m'
+    if ua == '' and a not in SENTINELS and a != 0:
+        return in_metres(a), new
+    if ub == '' and b not in SENTINELS and b != 0:
+        return old, in_metres(b)
+    return old, new
+
+
 def sign_flip(old, new) -> bool:
     """−22% → 22%: the same size, the other sign. Alone it is a change; with the property's provided
     type flipped in the same window (REDUCTION_PERCENT → INCREASE_PERCENT, Riposte 2026-03-06) it is

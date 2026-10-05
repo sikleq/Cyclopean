@@ -170,35 +170,45 @@ def test_a_filter_keeps_a_new_units_counters(browser, tmp_path):
 
 
 def test_a_rule_for_all_heroes_is_counted_apart_by_the_filters(browser, tmp_path):
-    """Coverage audit 2026-10-05: a rule for every hero (the level curve) folds into "All heroes: N changes" on each
-    hero's band; the eye filter keeps exactly the rows its number counts — the hero's own — and a tag filter that
-    only the fold matches opens the fold's family rows, the band's counters still the hero's own."""
+    """Coverage audit 2026-10-05: a rule for every hero (the level curve) is ONE link row "All heroes: N changes ·
+    Hero progression ›" on each hero's band (review 2026-10-05: folded, its rows grew heroes/ to 37 MB); no tag or
+    eye filter keeps it, a band where only it would match folds away (Haze under NERF kept 4 bands with no row of
+    her own), and the banner's "+N for all heroes" hides while a filter is on."""
     from builders.common import page
     from builders.history_view import history_table
-    every = [ch(key=f'heroes.vdata:h:l{i}', path=f'l{i}', label=f'Level {i}: souls needed', dir='buff', pct=-10.0,
-                old_s=str(1000 * i), new_s=str(900 * i), shared_n=40, shared_what='heroes', shared_all=True)
-             for i in range(2, 8)]
+
+    def every(dirn):
+        return [ch(key=f'heroes.vdata:h:l{i}', path=f'l{i}', label=f'Level {i}: souls needed', dir=dirn, pct=-10.0,
+                   old_s=str(1000 * i), new_s=str(900 * i), shared_n=40, shared_what='heroes', shared_all=True,
+                   file='heroes.vdata') for i in range(2, 8)]
     own = [ch(key='heroes.vdata:h:hp', label='Max Health'), ch(key='heroes.vdata:h:rg', label='Regen', status='documented')]
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    hist = history_table([('heroes.vdata:h', 'Base stats', None)], ['Hero'], {'heroes.vdata:h': [(r1, own + every)]},
-                         {}, '../')
+    r0 = {'id': 'p0', 'date': '2025-12-01', 'title': '12-01-2025 Update'}
+    hist = history_table([('heroes.vdata:h', 'Base stats', None)], ['Hero'],
+                         {'heroes.vdata:h': [(r1, own + every('buff')), (r0, every('nerf'))]}, {}, '../')
     ctx, pg, errors = _open(browser, tmp_path, page('Hero', hist, '../', cls='entity'), 1440, 900)
     shown = """() => [...document.querySelectorAll('#history .erow')].filter(r => r.parentNode.tagName !== 'SUMMARY'
         && !r.closest('.f-out') && (r.offsetParent !== null || r.closest('details:not([open])'))).length"""
     try:
         assert pg.inner_text('.hist-bar .hf-hidden .n') == '1'
-        assert pg.locator('details.shr-all').evaluate('d => !d.open')
+        link = pg.locator('#p-p1 .erow.shr-all a.shr-go')
+        assert link.get_attribute('href') == '../game/progression.html#p-p1'
+        assert pg.locator('details.shr-all').count() == 0                 # no fold of the rows themselves
+        assert pg.locator('.hist-bar [data-f-tag="buff"]').count() == 0   # only the rule for all had BUFFs
         pg.click('.hist-bar .hf-hidden')
         pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
-        assert pg.evaluate(shown) == 1                                    # Max Health only, the fold out
-        assert pg.locator('details.shr-all').evaluate('d => d.classList.contains("f-out")')
+        assert pg.evaluate(shown) == 1                                    # Max Health only, the link row out
+        assert pg.locator('#p-p1 .erow.shr-all').evaluate('r => r.classList.contains("f-out")')
         assert pg.evaluate("document.querySelector('#p-p1 summary .ec-n').textContent") == '1 not in notes'
+        assert pg.locator('#p-p1 summary .shr-chip').evaluate('c => c.classList.contains("n0")')
         pg.click('.hist-bar .hf-hidden')
-        pg.click('.hist-bar [data-f-tag="buff"]')                         # only the level rows are BUFFs
+        pg.click('.hist-bar [data-f-tag="nerf"]')                         # the hero's own NERF, and p0's rule
         pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
-        assert not pg.locator('details.shr-all').evaluate('d => d.classList.contains("f-out")')
-        assert pg.locator('details.shr-all details.fam').evaluate('d => !d.classList.contains("f-out")')
-        assert pg.evaluate("document.querySelector('#p-p1 summary .tsum .pip.nerf').lastChild.nodeValue") == '0'
+        assert not pg.locator('#p-p1').evaluate('b => b.classList.contains("f-out")')
+        assert pg.locator('#p-p0').evaluate('b => b.classList.contains("f-out")')     # only the rule for all
+        pg.click('.hist-bar [data-f-tag="nerf"]')                         # cleared: everything back
+        pg.wait_for_function("!document.getElementById('history').classList.contains('filtering')")
+        assert not pg.locator('#p-p1 summary .shr-chip').evaluate('c => c.classList.contains("n0")')
         assert not errors
     finally:
         ctx.close()

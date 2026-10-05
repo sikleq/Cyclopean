@@ -158,10 +158,18 @@ def icon_html(sys_: System, rel: str, cls: str = 'px') -> str:
 
 
 def missing_icons() -> list[str]:
-    """Config icons that are not in icons/ (AGENTS rule 8: a missing icon is an error, never a silent stand-in)."""
+    """Config icons that are not in icons/, and site glyphs that do not exist (AGENTS rule 8: a missing icon is an
+    error, never a silent stand-in — a misspelt 'glyph:…' drew the 'rules' gear without a word)."""
+    from .common import GLYPHS
     known = set(icon_manifest().values())
-    return [s.icon for s in systems() if not s.icon.startswith('glyph:')
-            and s.icon not in known and not (ICONS / s.icon).exists()]
+    out = []
+    for s in systems():
+        if s.icon.startswith('glyph:'):
+            if s.icon.removeprefix('glyph:') not in GLYPHS:
+                out.append(s.icon)
+        elif s.icon not in known and not (ICONS / s.icon).exists():
+            out.append(s.icon)
+    return out
 
 
 # ---- console variables ------------------------------------------------------------------------------------------
@@ -192,6 +200,47 @@ def convar_side(name: str) -> int:
     return 0
 
 
+_SCALES = {'': 1.0, 'x100': 100.0, 'units': None}     # None: engine units -> metres (semantics.UNITS_PER_METER)
+
+
+@lru_cache(maxsize=1)
+def _units() -> tuple[tuple[re.Pattern, str, str], ...]:
+    return tuple((re.compile(rx), unit, scale) for rx, unit, scale in _config().get('convar_units', ()))
+
+
+def convar_unit(name: str) -> tuple[str, str]:
+    """(unit, scale) of a console variable by its name (config 'convar_units'): ('m', 'units') for a radius in engine
+    units, ('s', '') for a respawn ramp, ('%', 'x100') for a fraction; ('', '') = a bare number."""
+    for rx, unit, scale in _units():
+        if rx.search(name):
+            return unit, scale
+    return '', ''
+
+
+def convar_number(name: str, v) -> float | int | None:
+    """A console variable's value on the scale the page shows it (2165.35 engine units -> 55.0 m); None when it is
+    no number. The game's "no limit" (-1) is kept as is."""
+    from pipeline.semantics import UNITS_PER_METER
+    x = _num(v)
+    if x is None:
+        return None
+    if x != -1:
+        scale = _SCALES.get(convar_unit(name)[1], 1.0)
+        x = x / UNITS_PER_METER if scale is None else x * scale
+    x = round(x, 4)
+    return int(x) if float(x).is_integer() else x
+
+
+def convar_value(name: str, v) -> str:
+    """A console variable's value as the page prints it: "55.0m", "38s", "70%"; a switch as it is ("true")."""
+    from pipeline.semantics import display_value
+    x = convar_number(name, v)
+    if x is None:
+        return '' if v is None else str(v)
+    unit = convar_unit(name)[0] if x != -1 else ''
+    return display_value(x) + unit
+
+
 def _num(v) -> float | None:
     try:
         return float(str(v).strip())
@@ -210,8 +259,8 @@ def convar_change(name: str, op: str, old, new, status: str, builds: list) -> di
         dirn = ('buff' if (b > a) == (side > 0) else 'nerf') if side else ('up' if b > a else 'down')
         pct = round((b - a) / abs(a) * 100, 1) if a else None
     return {'key': f'{CONVAR_PREFIX}{name}:{name}', 'file': 'convars', 'id': name, 'path': name, 'op': op,
-            'cat': 'balance', 'label': name, 'old_s': '' if old is None else str(old),
-            'new_s': '' if new is None else str(new), 'dir': dirn, 'pct': pct, 'status': status or 'hidden',
+            'cat': 'balance', 'label': name, 'old_s': '' if old is None else convar_value(name, old),
+            'new_s': '' if new is None else convar_value(name, new), 'dir': dirn, 'pct': pct, 'status': status or 'hidden',
             'builds': builds, 'convar': True}
 
 

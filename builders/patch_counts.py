@@ -6,11 +6,13 @@ only).
 
 Counted is what the patch archive's "All changes" lists, the whole update: its gameplay rows as a player reads them
 (`cards.gameplay_entities` → `cards.player_facing`: plumbing out, renamed fields merged, variants of one object
-merged), an edit shared by many entities once. "Not in patch notes" is `render.NOT_IN_NOTES` (status hidden), the
-same rule an entity page's bands, strip tiles and eye filter use; work on heroes still in development (unreleased)
-and an update with no notes at all (unannounced) are counted apart. `hidden_on_pages`: those of the hidden ones a
-hero, item or unit page shows (`home_page.page_of`; a shared edit when one of its targets has a page) — the rest are
-game rules and map objects only the archive lists."""
+merged), an edit shared by many entities once. `not_in_notes` is `render.NOT_IN_NOTES` (hidden, and an update with
+no notes at all: unannounced), the same rule an entity page's bands, strip tiles and eye filter use; work on heroes
+still in development (unreleased) is counted apart. `hidden_on_pages`: those of them a hero, item or unit page shows
+— THE pages (`entities_pages.page_entities` / `page_keys`, `page_set`; a shared edit when one of its targets has a
+page). The rest is exactly what the Game section shows (`game_systems.place_entity` with the same keys): it read
+`home_page.page_of`, which gives no page to a helper unit or a unit's own ability, so those were "in game rules &
+map objects" while their rows were on unit pages (review 2026-10-05)."""
 from __future__ import annotations
 
 from collections import Counter
@@ -20,35 +22,42 @@ from .common import load_json
 
 
 @lru_cache(maxsize=1)
-def _pages() -> tuple[frozenset[str], dict[str, str]]:
-    """(template keys, unit id -> its family's page id): what `home_page.page_of` needs."""
-    from .unit_families import families
-    ents = load_json('entities.json')['entities']
-    templates = frozenset(f"{e['file']}:{e['id']}" for e in ents if e.get('template'))
-    fams = families([e for e in ents if e['file'] == 'npc_units.vdata' and not e.get('template')])
-    return templates, {m['id']: ms[0]['id'] for ms in fams.values() for m in ms}
+def page_set() -> frozenset[str]:
+    """The entity keys a hero, item or unit page shows — the same set the entities step builds its pages from
+    (`entities_pages.page_entities` over the keys with changes of their own in any patch)."""
+    from .entities_pages import GAMEPLAY, page_entities, page_keys
+    from .shared_rows import entities as spread_all, is_every
+    ents = {f"{e['file']}:{e['id']}": e for e in load_json('entities.json')['entities']}
+    mine: set[str] = set()          # entities_pages.changed over its _history
+    for row in load_json('patches/index.json'):
+        for e in spread_all(load_json(f'patches/{row["id"]}.json.gz')['entities']):
+            if any(c['cat'] in GAMEPLAY and not is_every(c) for c in e['changes']):
+                mine.add(e['key'])
+    trow = {r['id']: r for r in load_json('tables/heroes.json')['heroes']}
+    heroes, items, units = page_entities(ents, mine, trow)
+    return frozenset(page_keys(ents, heroes, items, units))
 
 
-def count(p: dict, templates: frozenset[str] | None = None, unit_main: dict[str, str] | None = None
-          ) -> dict[str, int]:
-    """{'changes': n, '<status>': n per status, 'hidden_on_pages': n} of one patch."""
+def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, int]:
+    """{'changes': n, '<status>': n per status, 'not_in_notes': n, 'hidden_on_pages': n} of one patch. `pages`: the
+    keys the hero, item and unit pages show (`page_set`)."""
     from .cards import gameplay_entities, player_facing
-    from .home_page import page_of
     from .render import not_in_notes
     from .shared_rows import spread
-    if templates is None or unit_main is None:
-        templates, unit_main = _pages()
+    if pages is None:
+        pages = page_set()
     out: Counter = Counter()
     for e in gameplay_entities(p['entities']):
         rows = player_facing(e['changes'])
         if not rows:
             continue
-        on_page = any(page_of(x, templates, unit_main) for x in spread(e))
+        on_page = any(x['key'] in pages for x in spread(e))
         for c in rows:
             out['changes'] += 1
             out[c.get('status', 'hidden')] += 1
+            out['not_in_notes'] += not_in_notes(c)
             out['hidden_on_pages'] += bool(on_page and not_in_notes(c))
-    return {'changes': 0, 'hidden': 0, 'hidden_on_pages': 0, **out}
+    return {'changes': 0, 'hidden': 0, 'not_in_notes': 0, 'hidden_on_pages': 0, **out}
 
 
 @lru_cache(maxsize=None)
@@ -59,4 +68,4 @@ def for_id(pid: str) -> dict[str, int]:
 
 def off_pages(counts: dict[str, int]) -> int:
     """How many of the changes not in the notes no hero, item or unit page shows (game rules, map objects)."""
-    return counts.get('hidden', 0) - counts.get('hidden_on_pages', 0)
+    return counts.get('not_in_notes', 0) - counts.get('hidden_on_pages', 0)

@@ -105,6 +105,9 @@
       if (!hist || !hist.length) return;
       var pol = parseInt(td.getAttribute('data-pol') || '1', 10);
       var digits = parseInt(td.getAttribute('data-digits') || '2', 10);
+      // a unit after every number (Game rules: "55m", "38s" — builders/game_rules.py), none by default
+      var unit = td.getAttribute('data-unit') || '';
+      var fmtU = function (v, d) { var s = fmtNum(v, d); return unit && typeof v === 'number' && v !== -1 ? s + unit : s; };
       var head = td.getAttribute('data-title') || '';
       var esc = document.createElement('span');
       esc.textContent = head;                                  // names come from game text: never as HTML
@@ -113,7 +116,7 @@
       if (hist.length > 1 && typeof first === 'number' && typeof last === 'number' && first !== 0) {
         var p = (last - first) / Math.abs(first) * 100;
         var odir = td.getAttribute('data-odir');
-        html += '<div class="t-overall">Overall: ' + fmtNum(first, digits) + ' → ' + fmtNum(last, digits) +
+        html += '<div class="t-overall">Overall: ' + fmtU(first, digits) + ' → ' + fmtU(last, digits) +
           ' <span class="' + (odir ? 'dir-' + odir : dirClass(first, last, pol)) + '">(' + (p > 0 ? '+' : '') +
           p.toFixed(1) + '%)</span></div>';
       }
@@ -134,9 +137,9 @@
         // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row
         var first = (h[2] === null || h[2] === undefined);
         html += '<li><span class="d">' + h[1] + '</span>' +
-          '<span class="o">' + (first ? '' : fmtNum(h[2], digits)) + '</span>' +
+          '<span class="o">' + (first ? '' : fmtU(h[2], digits)) + '</span>' +
           '<span class="arrow">' + (first ? '' : '→') + '</span>' +
-          '<span class="n ' + (first ? 'dir-changed' : cls) + '">' + fmtNum(h[3], digits) + '</span>' +
+          '<span class="n ' + (first ? 'dir-changed' : cls) + '">' + fmtU(h[3], digits) + '</span>' +
           '<span class="p">' + pill + '</span></li>';
       }
       html += '</ol>';
@@ -1175,7 +1178,7 @@
       }
       return r.__b;
     }
-    // a row of a rule for every hero (builders/shared_rows.py: the "All heroes: N changes" fold) is counted
+    // a row of a rule for every hero (builders/shared_rows.py: the "All heroes: N changes" link row) is counted
     // apart: no band counter and no "Not in patch notes" count holds it
     function inAll(r) {
       if (r.__all === undefined) r.__all = !!r.closest('.shr-all');
@@ -1194,14 +1197,19 @@
       var bc = b.querySelector('summary .bc');
       if (!bc) return;
       var pips = bc.querySelectorAll('.tsum .pip'), eye = bc.querySelector('.ec-n');
+      // "+34 for all heroes": only while its link row is shown (a tag or the eye never keeps it)
+      var shr = bc.querySelectorAll('.shr-chip');
       if (!active) {
         if (!b.__rc) return;
         b.__rc = false;
         pips.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
         if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
+        shr.forEach(function (c) { c.classList.remove('n0'); });
         return;
       }
       b.__rc = true;
+      var allShown = !!b.querySelector('.erow.shr-all:not(.f-out)');
+      shr.forEach(function (c) { c.classList.toggle('n0', !allShown); });
       var counts = {}, hidden = 0;
       b.querySelectorAll('.erow').forEach(function (r) {
         // a code line and a name / description change (text_rows) are no counted change
@@ -1218,7 +1226,7 @@
         }
         var t = tagOf(r);
         counts[t] = (counts[t] || 0) + 1;
-        if (r.classList.contains('st-hidden')) hidden++;
+        if (r.classList.contains('is-hidden')) hidden++;       // render.NOT_IN_NOTES: hidden or no notes at all
       });
       pips.forEach(function (p) {
         if (!p.lastChild || p.lastChild.nodeType !== 3) return;
@@ -1267,7 +1275,7 @@
             r.classList.toggle('f-out', !ok);
             gany = gany || ok;
           });
-          // innermost first: a rule-for-all fold holds family folds of its own
+          // innermost first: a fold may hold folds of its own
           var fams = g.querySelectorAll('details.fam');
           for (var fi = fams.length - 1; fi >= 0; fi--) {
             fams[fi].classList.toggle('f-out',

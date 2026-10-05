@@ -134,7 +134,9 @@ def test_the_archive_names_a_block_by_what_it_covers():
     assert block_name(_block('all'), _cat(2)) == 'All heroes (2)'
 
 
-def test_a_shared_row_carries_its_chip_and_a_rule_for_all_folds():
+def test_a_shared_row_carries_its_chip_and_a_rule_for_all_is_a_link_row():
+    """A rule for every hero is ONE row linking to its Game page's band — not the rows folded on every hero page
+    (heroes/ grew from 13 to 37 MB with them, review 2026-10-05)."""
     from builders.cards import entity_rows
     from builders.shared_rows import spread
     some = spread(_block(), _cat(2))[0]['changes']
@@ -142,9 +144,13 @@ def test_a_shared_row_carries_its_chip_and_a_rule_for_all_folds():
     assert 'Max Health <span class="chip shr">shared ×2 heroes</span>' in html and 'shr-all' not in html
     every = spread(_block('all'), _cat(2))[0]['changes']
     own = [ch(key='heroes.vdata:hero_0:regen', path='regen', label='Health Regen')]
-    html = entity_rows(own + every)
-    assert html.index('Health Regen') < html.index('<details class="fam shr-all has-hidden">')
-    assert 'All heroes: 1 change' in html and 'chip shr' not in html
+    html = entity_rows(own + every, None, lambda sid: f'../game/{sid}.html#p-p9')
+    assert html.index('Health Regen') < html.index('shr-all')
+    assert 'All heroes: 1 change' in html and 'chip shr' not in html and '<details' not in html
+    assert 'href="../game/progression.html#p-p9">Hero progression ›</a>' in html
+    # a way to the Game page, not a change: no eye stripe, no status mark (the rows' marks are there)
+    link = html[html.index('<div class="erow st-shared'):]
+    assert 'is-hidden' not in link[:link.index('>')] and 'class="mark' not in link
 
 
 def _bands(every_only: bool = False):
@@ -166,7 +172,10 @@ def test_a_rule_for_all_is_counted_apart_on_the_band_and_the_strip():
     summary = band[:band.index('</summary>')]
     assert '+6 for all heroes' in summary
     assert 'class="pip nerf' in summary and 'class="pip buff' not in summary      # the own NERF only
-    assert 'All heroes: 6 changes' in band
+    assert 'All heroes: 6 changes' in band and 'href="../game/progression.html#p-p2"' in band
+    # the toolbar offers no tag only the rule for all has (a link row no tag filter keeps)
+    bar = html[html.index('hist-bar'):html.index('id="history"')]
+    assert 'data-f-tag="buff"' not in bar and 'data-f-tag="nerf"' in bar
     # the toolbar's eye counts the hero's own rows only (the level rows are hidden, the own one documented)
     assert 'Not in patch notes' not in html
 
@@ -190,12 +199,21 @@ def test_the_home_feed_spreads_some_and_skips_rules_for_all(monkeypatch):
 
 # ---- one count of "not in patch notes" -------------------------------------------------------------------------
 
-def test_only_hidden_is_not_in_notes():
-    """Work before release has its own switch and an update without notes hides nothing: neither is the eye."""
+def test_not_in_notes_is_hidden_and_every_change_of_an_update_without_notes():
+    """Work before release has its own switch; an update with no notes at all (Rat King's build 6736) is not in the
+    notes either — its rows lost the eye and dropped out of the eye filter (review 2026-10-05)."""
     from builders.cards import is_hidden, row
     assert 'is-hidden' in row('hidden', '', 'x') and 'is-hidden' not in row('unreleased', '', 'x')
-    assert 'is-hidden' not in row('unannounced', '', 'x')
-    assert is_hidden([ch()]) and not is_hidden([ch(status='unreleased')])
+    assert 'is-hidden' in row('unannounced', '', 'x')
+    assert is_hidden([ch()]) and is_hidden([ch(status='unannounced')]) and not is_hidden([ch(status='unreleased')])
+
+
+def test_a_band_of_an_update_without_notes_says_so():
+    from builders.history_view import history_table
+    r = {'id': 'build-6736', 'date': '2026-09-30', 'title': 'Listen up'}
+    by_ent = {'heroes.vdata:hero_0': [(r, [ch(key='heroes.vdata:hero_0:hp', status='unannounced')])]}
+    html = history_table([('heroes.vdata:hero_0', 'Base stats', None)], ['Hero 0'], by_ent, {}, '../')
+    assert 'no patch notes' in html and 'Not in patch notes <span class="n">1</span>' in html
 
 
 def _patch():
@@ -212,20 +230,42 @@ def _patch():
             'line_counts': {}, 'builds': [], 'entities': [misc, hero, item, _block()]}
 
 
+PAGES = frozenset({'heroes.vdata:hero_0', 'heroes.vdata:hero_1', 'abilities.vdata:ab', 'abilities.vdata:upgrade_x'})
+
+
 def test_one_count_per_patch(monkeypatch):
     from builders import patch_counts, shared_rows
     monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
-    c = patch_counts.count(_patch(), frozenset(), {})
+    c = patch_counts.count(_patch(), PAGES)
     # plumbing (the particle) is no change; the shared block counts once; the unreleased row apart
     assert c['changes'] == 5 and c['hidden'] == 3 and c['unreleased'] == 1 and c['documented'] == 1
+    assert c['not_in_notes'] == 3
     assert c['hidden_on_pages'] == 2 and patch_counts.off_pages(c) == 1          # the pickup has no page
+
+
+def test_off_pages_are_what_the_pages_do_not_show(monkeypatch):
+    """`hidden_on_pages` counts by THE pages (entities_pages.page_keys): a helper unit and an ability a unit binds
+    have unit pages, though home_page.page_of gives them none — they read "in game rules & map objects"."""
+    from builders import patch_counts, shared_rows
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
+    helper = {'key': 'npc_units.vdata:bot', 'file': 'npc_units.vdata', 'id': 'bot', 'kind': 'helper', 'name': 'bot',
+              'changes': [ch(key='npc_units.vdata:bot:a', label='Health')]}
+    stomp = {'key': 'abilities.vdata:stomp', 'file': 'abilities.vdata', 'id': 'stomp', 'kind': 'ability_other',
+             'units': ['bot'], 'name': 'Stomp', 'changes': [ch(key='abilities.vdata:stomp:a', label='Radius')]}
+    urn = {'key': 'misc.vdata:urn', 'file': 'misc.vdata', 'id': 'urn', 'kind': 'global', 'name': 'Urn',
+           'changes': [ch(key='misc.vdata:urn:a', label='Bounty', status='unannounced')]}
+    p = {'entities': [helper, stomp, urn]}
+    c = patch_counts.count(p, frozenset({'npc_units.vdata:bot', 'abilities.vdata:stomp'}))
+    assert c['not_in_notes'] == 3 and c['hidden_on_pages'] == 2 and patch_counts.off_pages(c) == 1
+    # with no pages at all, all three would be the Game's
+    assert patch_counts.off_pages(patch_counts.count(p, frozenset())) == 3
 
 
 def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     from builders import home_page, patch_counts, patches_pages, shared_rows
     p = _patch()
     monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
-    monkeypatch.setattr(patch_counts, 'for_id', lambda pid: patch_counts.count(p, frozenset(), {}))
+    monkeypatch.setattr(patch_counts, 'for_id', lambda pid: patch_counts.count(p, PAGES))
     monkeypatch.setattr(home_page, 'load_json', lambda rel: p)
     audit = patches_pages._audit_line(p)
     assert '<b>3</b> not in patch notes' in audit and '<b>1</b> of them in game rules' in audit
@@ -277,10 +317,47 @@ def test_abrams_has_the_dash_of_2026_07_28(history):
 
 
 @needs_keys
-def test_victor_has_the_heavy_melee_of_2025_07_29(history):
+def test_victor_links_to_the_heavy_melee_of_2025_07_29(history):
+    """A rule for every melee attack: a link row on Victor's band, its rows on Game › Movement & combat."""
     band = _band(history, [('heroes.vdata:hero_frank', 'Base stats', None),
                            ('abilities.vdata:ability_melee_frank', 'Melee', None)], '2025-07-29')
-    assert re.search(r'Heavy melee › Cooldown On Hit\s.*?0\.9.*?1\b', band, re.S)
+    assert re.search(r'All melee attacks: \d+ changes\s+Movement &(?:amp;)? combat ›', band)
+    by_ent, _ = history
+    rows = [c for row, ch in by_ent['game:all:abilities.vdata'] if row['id'] == '2025-07-29' for c in ch]
+    assert any(c['label'] == 'Heavy melee › Cooldown On Hit' and c['old_s'] == '0.9' for c in rows)
+
+
+def _hero_keys(hid: str) -> list[tuple]:
+    from builders.common import load_json
+    return [(f'heroes.vdata:{hid}', 'Base stats', None)] + [
+        (f"abilities.vdata:{e['id']}", e.get('name') or e['id'], None) for e in load_json('entities.json')['entities']
+        if e['file'] == 'abilities.vdata' and e.get('owner') == hid]
+
+
+@needs_keys
+def test_haze_reads_channel_move_speed_of_2025_08_18_as_a_rule_for_all(history):
+    """Review 2026-10-05: "50m/s → 1.3m/s −97.4% NERF" (engine units against metres) and "50 → no limit" as rows
+    with a chip "shared ×491" on 268 pages; it is every ability's and item's, one link row."""
+    band = _band(history, _hero_keys('hero_haze'), '2025-08-18')
+    assert '97.4' not in band and not re.search(r'Channel Move Speed', band)
+    assert re.search(r'All [a-z &;]+: \d+ changes?\s+Movement &(?:amp;)? combat ›', band)
+
+
+@needs_keys
+def test_haze_was_not_released_on_september_29(history):
+    """heroes.vdata moved "Player Selectable" into "Hero Development State" on 2026-09-29: no change for her."""
+    band = _band(history, _hero_keys('hero_haze'), '2026-09-29')
+    assert 'Development State' not in band and 'Player Selectable' not in band
+
+
+@needs_keys
+def test_the_announced_dash_of_2026_07_28_is_not_hidden(history):
+    """"Stamina bucket 3 heroes … ground dash time increased from 0.7s to 0.72s": the alias "dash" named the Dash
+    ability, which did not move; the pair is Abrams' (and nine others')."""
+    by_ent, _ = history
+    rows = [c for row, ch in by_ent['heroes.vdata:hero_atlas'] if row['id'] == '2026-07-28' for c in ch
+            if 'DashDuration' in c['path']]
+    assert len(rows) == 2 and all(c['status'] in ('documented', 'described') for c in rows)
 
 
 @needs_keys
@@ -298,7 +375,7 @@ def test_city_never_sleeps_says_one_number_everywhere():
     from builders import home_page, patch_counts, patches_pages
     from builders.common import load_json
     pid = '2026-09-29'
-    n = patch_counts.for_id(pid)['hidden']
+    n = patch_counts.for_id(pid)['not_in_notes']
     p = load_json(f'patches/{pid}.json.gz')
     html = patches_pages.patch_page(p, None, None)
     audit = html[html.index('class="sum-audit"'):]

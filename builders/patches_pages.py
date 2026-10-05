@@ -63,7 +63,7 @@ def _audit_line(p: dict) -> str:
     if p.get('sections'):
         audit = [('documented', c.get('documented', 0), 'exact in the notes'),
                  ('described', c.get('described', 0), 'covered by a general line'),
-                 ('hidden', c.get('hidden', 0), 'not in patch notes'),
+                 ('hidden', c.get('not_in_notes', 0), 'not in patch notes'),
                  ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
                  ('code', lc.get('code', 0), "in the game's code"),
                  ('fix', lc.get('fix', 0), 'bug fixes')]
@@ -73,7 +73,7 @@ def _audit_line(p: dict) -> str:
         audit = [('hidden', c.get('unannounced', 0), 'changes, no official notes')]
         if c.get('documented'):
             audit.append(('documented', c['documented'], 'announced in earlier notes'))
-    off = off_pages(c) if p.get('sections') else 0
+    off = off_pages(c)
     html = ''
     for k, n, lbl in audit:
         if n:
@@ -317,8 +317,8 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
                      _key_changes(p, rel) + _generated_notes({**p, 'entities': gameplay})))
     # the eye filter keeps exactly the rows its number counts (patch_counts; it kept 1024 rows under 776)
     eye_btn = (f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#changes" '
-               f'aria-pressed="false">{mark("hidden")}Not in patch notes <span class="n">{pc["hidden"]}</span></button>'
-               f'<span class="sep"></span>' if pc['hidden'] else '')
+               f'aria-pressed="false">{mark("hidden")}Not in patch notes <span class="n">{pc["not_in_notes"]}</span></button>'
+               f'<span class="sep"></span>' if pc['not_in_notes'] else '')
     changes_panel = (f'<div class="toolbar">{eye_btn}<input type="search" placeholder="Hero, item…" '
                      'data-search-target="#changes .ecard[data-search]"></div>' + _changes_table(gameplay, rel, p['id']))
     tabs.append(('changes', 'All changes', n_changes, changes_panel))
@@ -358,8 +358,20 @@ def _extras_parts(p: dict, rel: str) -> list[tuple[str, str, int, str]]:
         more_s = (f'<p class="muted">+{more} more on the build pages: '
                   + ', '.join(f'<a href="{build_href(b["file"], rel)}">{b["build"]}</a>' for b in p.get('builds', [])
                               if b.get('build') is not None) + '.</p>') if more > 0 else ''
-        out.append(('console', 'Console variables', ex.get('convars_total', len(cv)),
-                    f'<ul class="change-list px-frame">{"".join(convar_li(x) for x in cv)}</ul>{more_s}'))
+        # the build that starts the tracking (6395, 2026-03-10) lists all 1,365 variables: a snapshot, not changes —
+        # one line, out of the tab's number (20.8k elements on the page; the Game pages skip it too, review 2026-10-05)
+        from .game_systems import convar_start
+        start = convar_start()
+        snap = [x for x in cv if start is not None and x.get('build') == start]
+        cv = [x for x in cv if start is None or x.get('build') != start]
+        snap_li = ''
+        if snap:
+            b = next((b for b in p.get('builds', []) if b.get('build') == start), None)
+            where = f'<a href="{build_href(b["file"], rel)}">build {start}</a>' if b else f'build {start}'
+            snap_li = (f'<li class="st-snap"><span class="lbl">Tracking of console variables starts here: '
+                       f'{len(snap)} variables in {where}</span></li>')
+        out.append(('console', 'Console variables', ex.get('convars_total', len(cv) + len(snap)) - len(snap),
+                    f'<ul class="change-list px-frame">{snap_li}{"".join(convar_li(x) for x in cv)}</ul>{more_s}'))
     assets = ex.get('assets') or {}
     totals = assets.get('counts', {})
     if totals:
@@ -494,7 +506,7 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
                     f'data-tooltip="{esc(names.get(h, h))}">' for h in st['heroes'][:INDEX_HEROES] if hero_icon(h, rel))
     if p.get('has_notes'):
         audit = (f'<span class="au">{mark("documented")}<b>{c.get("documented", 0)}</b></span>'
-                 f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("hidden", 0)}</b></span>')
+                 f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("not_in_notes", 0)}</b></span>')
         if p['line_counts'].get('mismatch'):
             audit += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
     else:

@@ -11,7 +11,7 @@ has their history)."""
 from __future__ import annotations
 
 from .common import esc, json_attr, page
-from .game_systems import SECTION, convar_place, convar_side, shown
+from .game_systems import SECTION, convar_number, convar_place, convar_side, convar_unit, convar_value, shown
 
 DIGITS = 3
 
@@ -55,13 +55,20 @@ def rules_rows(raw: list) -> dict[str, list[tuple[str, dict]]]:
 
 
 def _cell(name: str, slot: dict) -> str:
-    hist = [h for h in slot['hist'] if h[3] is not None]
-    attrs = f' data-pol="{convar_side(name)}" data-digits="{DIGITS}"'
+    """The value now in the game's units (game_systems.convar_value: 2165.35 engine units read 55m) and its
+    history on hover on the same scale (`data-unit`)."""
+    unit = convar_unit(name)[0]
+
+    def scaled(v):
+        x = convar_number(name, v)
+        return v if x is None else x
+    hist = [[b, d, None if o is None else scaled(o), scaled(n)] for b, d, o, n in slot['hist'] if n is not None]
+    attrs = f' data-pol="{convar_side(name)}" data-digits="{DIGITS}"' + (f' data-unit="{esc(unit)}"' if unit else '')
     cls = 'v'
     if hist:
         cls += ' has-hist'
         attrs += json_attr('data-hist', hist) + f' data-title="{esc(name)}"'
-    return f'<td class="{cls}"{attrs}>{esc(slot["value"])}</td>'
+    return f'<td class="{cls}"{attrs}>{esc(convar_value(name, slot["value"]))}</td>'
 
 
 DASH = '<span class="dash">—</span>'

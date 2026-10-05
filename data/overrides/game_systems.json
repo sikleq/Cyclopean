@@ -151,6 +151,8 @@
       "subjects": ["Movement", "Dash", "Jump", "Slide", "Mantle", "Zipline", "Zip Line", "Parry", "Melee", "Heavy Melee", "Jump Pad"],
       "parts": [
         {"id": "moves", "name": "Every hero's abilities", "match": ["abilities[.]vdata:[a-z0-9_]+#shared$"]},
+        {"id": "every", "name": "Every ability & item", "match": [
+          "abilities[.]vdata:@all:m_mapAbilityProperties[.]ChannelMoveSpeed[.]"]},
         {"id": "melee", "name": "Every melee attack", "match": [
           "abilities[.]vdata:@all:(m_mapAttacks|m_HeavyAttackData|m_HeavyAirAttackData|m_flHeavyMeleeMaxTurnRate|m_AirMeleeUpScale|m_flBackDashDodgeDist|m_flSideDashDodgeDist|m_mapAbilityProperties)"]},
         {"id": "guns", "name": "Every gun", "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
@@ -189,7 +191,17 @@
     }
   ],
   "_why_convars": "Console variables show only when a part names them, the game server reads them ('gamedll' in their flags) and their name is no test or display switch (`hide`): crate respawn times are flagged 'cheat' and are the real values, so flags alone cannot tell. The first build with console variables (6395, 2026-03-10) is where tracking starts: its 1,365 entries are a snapshot, not changes.",
-  "convar_hide": "(debug|_log|log_|bot_|_bot|test|_wip|wip_|experiment|cache|query|validate|audit|anim|nav|hitbox|motor|glow|celebration|visibility|_text|offset|status|stuck|waypoint|think|per_tick|tick_limit|hero_demo|release_vote|forced_hero|model|observer|stateful|pipeline|use_new|_v2|override|biased)",
+  "convar_hide": "(debug|_log|log_|bot_|_bot|test|_wip|wip_|experiment|cache|query|validate|audit|anim|nav|hitbox|motor|glow|celebration|visibility|_text|offset|status|stuck|waypoint|think|per_tick|tick_limit|hero_demo|release_vote|forced_hero|model|observer|stateful|pipeline|use_new|_v2|override)",
+  "_why_units": "A console variable's unit from its snake_case name (AGENTS rule 6: numbers as the game shows them — metres = engine units / 39.37, seconds and percents with their unit; Game rules read 'citadel_bounty_aoe_radius 2165.35', review 2026-10-05). [regex, unit, scale]: the first match wins; scale 'units' divides engine units by 39.37, 'x100' turns a 0..1 fraction into a percent, '' keeps the number. A name that says '_meters' is metres already; '_time' alone is not a unit (the trooper waves' '_late_time 20' counts minutes, the reward's '_time 2400' seconds), nor 'ratio' or 'percent' (0.005 or 1.5). No match = a bare number.",
+  "convar_units": [
+    ["(multiplier|_mult|_scale|ratio|percent)", "", ""],
+    ["_meters?$", "m", ""],
+    ["fraction$", "%", "x100"],
+    ["(_pct$|_pct_)", "%", ""],
+    ["(radius|range|distance|thickness|width|spacing|padding)(_[a-z_]+)?$", "m", "units"],
+    ["(movespeed_bonus_max|leap_speed|force_speed)$", "m/s", "units"],
+    ["(_duration|_duration_s|_interval|_delay|_window|_extratime|duration_until_decay|warning_time|notification_time|aggro_time|sleep_time|reward_time|spawn_time_base|spawn_time_variance|spawn_time_(max|min)_ramp_[0-9]|max_respawn_time|in_base_penalty|_ramp_[0-9]_time|ramp_gametime|tick_gold_start_time)$", "s", ""]
+  ],
   "_why_polarity": "A console variable's side for whoever takes it, from its snake_case name (the vdata polarity rules read CamelCase fields): more souls is better for the taker, a shorter respawn or spawn timer too (semantics.PLAYER_SIDE); a ramp's time, comeback scales and warnings have no side (UP / DOWN). First match wins; no match = no side.",
   "convar_polarity": [
     ["spawn_time_[a-z0-9_]*_time$", 0],

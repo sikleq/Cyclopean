@@ -15,6 +15,12 @@ from __future__ import annotations
 
 ALL_SHARE = 0.85     # a block on at least this share of the live entities of its kinds is a rule for all of them
 KIND_SHARE = 0.1     # … counting the kinds that hold at least this share of its targets
+# files where the blocks on ONE field are measured together: an ability property every ability and item has,
+# rewritten in one window with different values per group, is one rule for all — Channel Move Speed 50 → no limit
+# (491 targets), 50 → 1.3m (93), 9999 → no limit (6) on 2025-08-18 read as three "shared ×491" rows on 268 pages
+# (review 2026-10-05). Not the heroes' file: there the groups are base stats by archetype (Max Health 740 → 730
+# for nine heroes, 790 → 780 for 26 on 2026-05-22) a hero page shows as its own
+UNION_FILES = ('abilities.vdata',)
 # the more noted status wins; among equals, a dev hero's 'unreleased' yields: a rule for all heroes is
 # "unreleased" only if every hero it touches is (a dev hero listed first had made 41 "All heroes" rows
 # unreleased, audit 2026-10-01)
@@ -78,7 +84,21 @@ class SharedGroups:
             if odd:
                 change['target_status'] = odd
             ent['changes'].append(change)
+        self._field_rules(out, cat, window)
         return list(out.values())
+
+    def _field_rules(self, out: dict[tuple, dict], cat: dict[str, dict], window: tuple[tuple, tuple] | None) -> None:
+        """A block of UNION_FILES whose every field is a rule for all once the targets of every block on that field
+        are counted together (`scope` over their union) is 'all' too."""
+        fields: dict[tuple[str, str], set[str]] = {}
+        for (file, *_), grp in self._groups.items():
+            if file in UNION_FILES:
+                fields.setdefault((file, grp['change'].get('path')), set()).update(grp['status'])
+        rule = {f: scope(f[0], tuple(sorted(keys)), cat, window) == 'all' for f, keys in fields.items()}
+        for (file, _), ent in out.items():
+            if ent['scope'] != 'all' and file in UNION_FILES and ent['changes'] \
+                    and all(rule.get((file, c.get('path'))) for c in ent['changes']):
+                ent['scope'] = 'all'
 
 
 def _seen(e: dict, end: str) -> tuple:

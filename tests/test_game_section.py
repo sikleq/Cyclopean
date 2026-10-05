@@ -115,7 +115,8 @@ def test_console_variables_become_history_rows():
     assert set(got) == {'citadel_player_spawn_time_max_ramp_1', 'citadel_player_gold_reward_min',
                         'citadel_koth_warning_time', 'citadel_koth_spawn_window'}
     spawn = got['citadel_player_spawn_time_max_ramp_1']
-    assert (spawn['old_s'], spawn['new_s'], spawn['builds'], spawn['status']) == ('35', '38', [6690, 6694], 'documented')
+    # in the game's unit (game_systems.convar_value: a respawn ramp is seconds)
+    assert (spawn['old_s'], spawn['new_s'], spawn['builds'], spawn['status']) == ('35s', '38s', [6690, 6694], 'documented')
     # a longer respawn is worse for whoever dies; fewer souls for a kill too
     assert spawn['dir'] == 'nerf' and got['citadel_player_gold_reward_min']['dir'] == 'nerf'
     assert got['citadel_koth_warning_time']['op'] == 'add' and got['citadel_koth_spawn_window']['op'] == 'remove'

@@ -160,15 +160,35 @@ def _catalog_owners() -> dict[str, str | None]:
             if e['file'] in ('abilities.vdata', 'heroes.vdata', 'npc_units.vdata') and not e.get('template')}
 
 
+@lru_cache(maxsize=1)
+def _game_entry_names() -> dict[str, str]:
+    """lower-case id of a map object, effect or loot table -> the Game section's name (game_systems.name_of): a
+    crate's loot read "Pickup spirit_permanent_pickup → small_gold_pickup" on Game › Breakables (79 rows of ids on
+    the Game pages, review 2026-10-05)."""
+    from .game_systems import name_of
+    out: dict[str, str] = {}
+    for e in load_json('entities.json')['entities']:
+        if e['file'] in ('misc.vdata', 'modifiers.vdata', 'loot_tables.vdata') and not e.get('template'):
+            out.setdefault(e['id'].lower(), name_of(f"{e['file']}:{e['id']}", e))
+    return out
+
+
 def ids_to_names(s: str) -> str:
-    """'ability_blood_bomb, ability_blood_shards' -> 'Blood Bomb, Blood Shards' in shown values."""
+    """'ability_blood_bomb, ability_blood_shards' -> 'Blood Bomb, Blood Shards' in shown values; a map object's or
+    an effect's id as the Game section names it ('spirit_permanent_pickup' -> 'Permanent buff: spirit power',
+    'modifier_streetbrawl_trooper_overtime' -> 'Streetbrawl trooper overtime')."""
     names = names_by_id()
     s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
     known = _catalog_owners()
 
     def other(m: re.Match) -> str:
         w = m.group(0)
-        return names.get(w) or pretty_id(w, known[w]) if w in known else w
+        if w in known:
+            return names.get(w) or pretty_id(w, known[w])
+        game = _game_entry_names().get(w)
+        if game:
+            return game
+        return pretty_id(w.removeprefix('modifier_')) if w.startswith('modifier_') else w
     return _SNAKE_WORD.sub(other, s)
 
 
