@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import json
 
-from .common import display_name, entity_icon, hero_icon, slug
+from .common import display_name, entity_icon, esc, hero_icon, slug
 
 INDEX_FILE = 'search.json'
 
@@ -37,6 +37,9 @@ def search_json(rows: list[list[str]]) -> str:
 
 
 def search_box(rel: str = '') -> str:
+    # a combobox for screen readers: the list is its listbox, the arrow keys' row its active option (scripts.js)
     return (f'<div class="site-search"><input type="search" placeholder="Hero, ability, item, unit or rule…" '
-            f'aria-label="Find a hero, ability, item, unit or game rule" autocomplete="off" '
-            f'data-site-search="{rel}{INDEX_FILE}" data-rel="{rel}"><div class="ss-list" hidden></div></div>')
+            f'aria-label="Find a hero, ability, item, unit or game rule" autocomplete="off" role="combobox" '
+            f'aria-expanded="false" aria-controls="ss-list" aria-autocomplete="list" '
+            f'data-site-search="{esc(rel + INDEX_FILE)}" data-rel="{esc(rel)}">'
+            f'<div class="ss-list" id="ss-list" role="listbox" hidden></div></div>')

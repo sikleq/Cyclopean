@@ -11,6 +11,7 @@ pipeline: tracker sync -> history -> enrich -> catalog -> cosmetics -> hero tabl
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import sys
 import time
@@ -73,11 +74,33 @@ def copy_assets() -> None:
     (DIST / 'scripts.js').write_text(js, encoding='utf-8')
     shutil.copyfile(SITE / 'favicon.svg', DIST / 'favicon.svg')
     if ICONS.exists():
-        shutil.copytree(ICONS, DIST / 'icons', dirs_exist_ok=True)
+        sync_tree(ICONS, DIST / 'icons')
     # the shop's UI sounds from the game (tools/extract_shop_assets.py)
     if (ICONS.parent / 'sounds').exists():
-        shutil.copytree(ICONS.parent / 'sounds', DIST / 'sounds', dirs_exist_ok=True)
+        sync_tree(ICONS.parent / 'sounds', DIST / 'sounds')
     (DIST / '.nojekyll').write_text('', encoding='utf-8')
+
+
+def sync_tree(src: Path, dst: Path) -> int:
+    """Copy what is new or changed (size or modification time; copy2 keeps the time), like copytree but
+    without rewriting ~1,400 unchanged icons every build (1.2 s of copying on Windows). Returns the files
+    copied."""
+    n = 0
+    for folder, _, files in os.walk(src):
+        out = dst / Path(folder).relative_to(src)
+        out.mkdir(parents=True, exist_ok=True)
+        for name in files:
+            a, b = Path(folder) / name, out / name
+            sa = a.stat()
+            try:
+                sb = b.stat()
+                if sb.st_size == sa.st_size and int(sb.st_mtime) == int(sa.st_mtime):
+                    continue
+            except FileNotFoundError:
+                pass
+            shutil.copy2(a, b)
+            n += 1
+    return n
 
 
 def main() -> int:

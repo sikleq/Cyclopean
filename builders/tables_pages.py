@@ -92,6 +92,46 @@ def hist_attrs(hist: list | None, digits: int, title: str, cutoff: str,
     return cls, json_attr('data-hist', hist) + f' data-title="{esc(title)}"' + extra
 
 
+def directed(row: dict, paths: dict[str, str], kind: str) -> dict:
+    """The row with each step of its histories directed as the entity pages' tags are: semantics.direction
+    on the game field the column reads (`paths`), the step's fifth element, and the whole history's as
+    `odir`. Item Stats does it in its pipeline; Hero and Unit Stats left it to the tooltip's polarity rule,
+    which the tags do not share for every field (a weapon's gravity, a camp's bounty: review 2026-10-05).
+    A computed column (DPS, reload) has no field: scripts.js keeps the column's polarity for it."""
+    from pipeline.semantics import direction
+    history, odir = {}, {}
+    for key, steps in (row.get('history') or {}).items():
+        path = paths.get(key)
+        if not path or not steps:
+            history[key] = steps
+            continue
+        history[key] = [[*h[:4], direction(path, h[2], h[3], kind)[0]] for h in steps]
+        first, last = steps[0][2], steps[-1][3]
+        if isinstance(first, (int, float)) and isinstance(last, (int, float)):
+            odir[key] = direction(path, first, last, kind)[0]
+    return {**row, 'history': history, 'odir': odir}
+
+
+def hero_paths() -> dict[str, str]:
+    """Hero Stats column -> the game field it reads (pipeline.hero_table.Col.path)."""
+    from pipeline.hero_table import COLUMNS
+    return {c.key: c.path for c in COLUMNS if c.path}
+
+
+def heroes_data() -> dict:
+    """data/tables/heroes.json with every history directed: the Hero Stats table and the hero pages' stat
+    tiles read the same steps."""
+    t = load_json('tables/heroes.json')
+    paths = hero_paths()
+    return {**t, 'heroes': [directed(h, paths, 'hero') for h in t['heroes']]}
+
+
+def unit_paths() -> dict[str, str]:
+    """Unit Stats column -> its first candidate field (the fields moved, their names did not change sense)."""
+    from pipeline.unit_table import COLUMNS
+    return {key: paths[0] for key, _, _, paths, *_ in COLUMNS}
+
+
 def _head_label(c: dict, rel: str) -> str:
     """The header's text; an item column also shows the game's property icon and its unit
     ("Weapon Damage %", "Cooldown s"), so the cells can stay plain numbers."""
@@ -164,7 +204,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             cls = cell_cls(c)
             if extra_cls:
                 cls += extra_cls(r, c)
-            attrs = f' data-col="{c["key"]}" data-sort="{"" if v is None else v}" data-pol="{c["pol"]}" data-digits="{c["digits"]}"'
+            attrs = (f' data-col="{esc(c["key"])}" data-sort="{"" if v is None else esc(v)}" data-pol="{int(c["pol"])}"'
+                     f' data-digits="{int(c["digits"])}"')
             if cell_attrs:
                 attrs += cell_attrs(r, c)
             tint = COLUMN_TINT.get(c['key'])
@@ -231,7 +272,7 @@ def boon_attrs(r: dict, c: dict) -> str:
 
 def heroes_table() -> str:
     rel = '../'
-    t = load_json('tables/heroes.json')
+    t = heroes_data()
 
     def name_cell(h):
         ic = hero_icon(h['id'], rel)
@@ -255,7 +296,7 @@ def heroes_table() -> str:
     boons = (f'<span class="sep"></span><label class="boons">Boons <input type="number" min="0" max="{MAX_BOONS}" '
              f'value="0" data-boons="#hero-stats"></label>')
     role_btns = '<span class="sep"></span>' + ''.join(
-        f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats">{esc(r)}</button>' for r in roles)
+        f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats" aria-pressed="false">{esc(r)}</button>' for r in roles)
     body = ('<h1>Hero Stats</h1>' + section_tabs('heroes', 'stats') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
             + table)
     return page('Hero Stats', body, rel, 'heroes', build=t['build'],
@@ -335,7 +376,7 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
         by_t = {}
         for u in sorted(us, key=lambda u: u['id']):
             by_t.setdefault(tier_of(u), u)
-        values, history = {}, {}
+        values, history, odir = {}, {}, {}
         for c in fam_cols:
             base, _, t = c['key'].partition('@')
             src = by_t.get(t) if t else by_t.get(tiers[0])
@@ -343,15 +384,17 @@ def neutral_groups(rows: list[dict], cols: list[dict], title: str) -> list[tuple
                 values[c['key']] = src['values'].get(base)
                 if (src.get('history') or {}).get(base):
                     history[c['key']] = src['history'][base]
+                if (src.get('odir') or {}).get(base):
+                    odir[c['key']] = src['odir'][base]
         first = by_t.get(tiers[0]) or us[0]
-        fam_rows.append({**first, 'name': name, 'values': values, 'history': history})
+        fam_rows.append({**first, 'name': name, 'values': values, 'history': history, 'odir': odir})
     out = []
     if tier_rows:
-        out.append(('neutral', f'{esc(title)} · tiers', tier_rows))
+        out.append(('neutral', f'{title} · tiers', tier_rows))
     if fam_rows:
-        out.append(('neutral', f'{esc(title)} · families', merge_copies(fam_rows), fam_cols))
+        out.append(('neutral', f'{title} · families', merge_copies(fam_rows), fam_cols))
     if other:
-        out.append(('neutral', f'{esc(title)} · others', merge_copies(sorted(other, key=lambda u: unit_label(u).lower()))))
+        out.append(('neutral', f'{title} · others', merge_copies(sorted(other, key=lambda u: unit_label(u).lower()))))
     return out
 
 
@@ -373,14 +416,14 @@ def merge_copies(rows: list[dict]) -> list[dict]:
 def _section_tables(groups: list[tuple[str, str, list[dict]]], cols: list[dict], name_cell, name_title: str,
                     as_of: str | None, section_of=None) -> str:
     """One banner + table per group, each with only the columns its rows fill; a group may bring its own
-    columns as a 4th element (the neutral families' per-tier speeds)."""
+    columns as a 4th element (the neutral families' per-tier speeds). Titles are plain text (escaped here)."""
     out = []
     for group in groups:
         key, title, rows = group[:3]
         own_cols = group[3] if len(group) > 3 else cols
         if not rows:
             continue
-        out.append(f'<div class="banner sub tbl-sec {esc(key)}"><span class="bt">{title}</span>'
+        out.append(f'<div class="banner sub tbl-sec {esc(key)}"><span class="bt">{esc(title)}</span>'
                    f'<span class="bc">{len(rows)}</span></div>'
                    + render_table(non_empty(own_cols, rows), rows, name_cell, name_title, as_of=as_of,
                                   section_of=section_of))
@@ -409,14 +452,16 @@ def units_table() -> str:
                 f'{img_html}{esc(label)}{copies}</a></td>')
 
     groups = []
+    paths = unit_paths()
+    units = [directed(u, paths, u['kind']) for u in t['units']]
     for kind, title in UNIT_SECTIONS:
         # what the Units index shows: named units (unit_families.is_named) with a stat besides a placeholder
-        rows = [u for u in t['units'] if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
+        rows = [u for u in units if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
                 and has_stats(u) and is_named(u)]
         if kind == 'neutral':
             groups += neutral_groups(rows, t['columns'], title)
             continue
-        groups.append((kind, esc(title), merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
+        groups.append((kind, title, merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
     body = ('<h1>Unit Stats</h1>' + section_tabs('units', 'stats') + _toolbar('Unit…')
             + _section_tables(groups, t['columns'], name_cell, 'Unit', t.get('date')))
     return page('Unit Stats', body, rel, 'units', build=t['build'],
@@ -520,13 +565,13 @@ def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
     """Item Stats' toolbar: category / tier / kind chips, the "Stat columns" and "Souls per point" switches
     (scripts.js item-filter)."""
     return ('<span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}">{cat_icon(ik)}{esc(slot)}</button>'
+            + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}" aria-pressed="false">{cat_icon(ik)}{esc(slot)}</button>'
                       for slot, css, ik in ITEM_SECTIONS)
             + '</span><span class="sep"></span><span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}">Tier {r}</button>'
+            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}" aria-pressed="false">Tier {r}</button>'
                       for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
             + '</span><span class="sep"></span><span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}">{lbl}</button>'
+            + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}" aria-pressed="false">{lbl}</button>'
                       for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))
             + '</span><span class="sep"></span><label class="switch"><input type="checkbox" data-stat-cols '
               'data-toggle-class="cols-open" data-target="#items-table"><span class="track"></span>Stat columns</label>'

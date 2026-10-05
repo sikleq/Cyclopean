@@ -36,6 +36,12 @@ class Col:
     note: str = ''
     scaling_stat: str = ''  # E-stat name; cell is marked when the hero scales it with spirit
 
+    @property
+    def path(self) -> str | None:
+        """The game field the column reads (None for a computed one: DPS, reload, bullet speed …): the
+        Hero Stats tooltip takes that field's direction from semantics.direction, as the hero page's tags."""
+        return getattr(self.fn, 'path', None)
+
 
 def _num(v):
     if v is None or isinstance(v, bool):
@@ -47,7 +53,10 @@ def _num(v):
 
 
 def _stat(name):
-    return lambda h, w, g: _num((h.get('m_mapStartingStats') or {}).get(name))
+    def f(h, w, g):
+        return _num((h.get('m_mapStartingStats') or {}).get(name))
+    f.path = f'm_mapStartingStats.{name}'
+    return f
 
 
 def _lvl(*names, meters=False):
@@ -57,6 +66,7 @@ def _lvl(*names, meters=False):
         ups = h.get('m_mapStandardLevelUpUpgrades') or {}
         v = next((_num(ups[n]) for n in names if n in ups), None)
         return v / UNITS_PER_METER if v is not None and meters else v
+    f.path = f'm_mapStandardLevelUpUpgrades.{names[-1]}'
     return f
 
 
@@ -64,6 +74,7 @@ def _wf(name, meters=False):
     def f(h, w, g):
         v = _num(w.get(name)) if w else None
         return v / UNITS_PER_METER if (v is not None and meters) else v
+    f.path = f'm_WeaponInfo.{name}'
     return f
 
 
@@ -104,6 +115,7 @@ def _dash(stat: str, ability_prop: str):
         ab = abilities.get(aid) if aid else None
         prop = ((ab or {}).get('m_mapAbilityProperties') or {}).get(ability_prop) if isinstance(ab, dict) else None
         return _num(prop.get('m_strValue')) if isinstance(prop, dict) else None
+    f.path = f'm_mapStartingStats.{stat}'
     return f
 
 

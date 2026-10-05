@@ -5,11 +5,11 @@ import html
 import re
 from functools import lru_cache
 
+from .cards import GAMEPLAY
 from .notes_view import notes_table
-from .common import (build_href, esc, ids_to_names, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
+from .common import (build_href, esc, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
                      patch_title_text, pretty_id, write)
 
-GAMEPLAY = ('balance', 'mechanic', 'availability')
 FILES_TAB_MIN = 100     # hidden changes before a notes patch also gets the "From the files" tab
 
 
@@ -157,7 +157,6 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     sub-headers), then one per item, unit and rule; each with its history strip."""
     from .cards import card, card_head, change_rows, is_hidden, player_facing, sub_head
     from .common import entity_icon, glyph_for, hero_icon
-    from .render import KIND_LABEL
     from .trail import trail_html
     heroes = {e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
     by_owner: dict[str, list] = {}
@@ -255,11 +254,12 @@ def _bar(c: dict) -> str:
 
 def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     rel = '../'
+    # copies: the patch record is the build's shared archive (builders/archive.py), never written into
     change_by_key = {}
     for e in p['entities']:
+        name = _display_name(e)
         for c in e['changes']:
-            c['ent_name'] = _display_name(e)
-            change_by_key[c['key']] = c
+            change_by_key[c['key']] = {**c, 'ent_name': name}
     # patch switcher next to the title (players step through patches)
     step = ''
     if prev:
@@ -276,7 +276,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         seen[b['build']] = seen.get(b['build'], 0) + 1
         nth = f' (#{seen[b["build"]]})' if seen[b['build']] > 1 else ''
         num = b['build'] if b['build'] is not None else 'text update'
-        links.append(f'<a href="{build_href(b["file"], rel)}">{num}{nth}</a>')
+        links.append(f'<a href="{esc(build_href(b["file"], rel))}">{esc(num)}{nth}</a>')
     builds = ', '.join(links)
     link_text = 'official notes' if p.get('source') != 'announcement' else 'official announcement'
     src = f' · <a href="{esc(p["url"])}" rel="noopener">{link_text}</a>' if p.get('url') else ''
@@ -284,18 +284,16 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
 
     from .cards import gameplay_entities
     from .patch_counts import for_id
-    gameplay = gameplay_entities(p['entities'])
+    names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
+    # gameplay_entities copies each entity, so the owner's name is not written into the shared record
+    gameplay = [{**e, 'owner_name': names.get(e['owner'])} if e.get('owner') else e
+                for e in gameplay_entities(p['entities'])]
     # the tab counts what the tiles count (cards.player_facing), not raw rows: City Never Sleeps
     # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01) —
     # the one count of patch_counts, as on the patch list and the home page
     pc = for_id(p['id'])
     n_changes = pc['changes']
-    names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
-    for e in gameplay:
-        if e.get('owner'):
-            e['owner_name'] = names.get(e['owner'])
     parts.append(_summary(p, gameplay, rel))
-    ex = p.get('extras', {})
     tabs = []
     if p['sections']:
         from .notes_view import interface_table, split_sections
@@ -323,13 +321,12 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
                      'data-search-target="#changes .ecard[data-search]"></div>' + _changes_table(gameplay, rel, p['id']))
     tabs.append(('changes', 'All changes', n_changes, changes_panel))
     extra_parts = _extras_parts(p, rel)
-    for key, label, count, html in extra_parts:
-        tabs.append((key, label, count, html))
+    tabs += extra_parts
     parts.append('<div class="tabs toolbar">' + ''.join(
-        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}">{esc(lbl)}<span class="count">{n}</span></button>'
+        f'<button class="px-btn{" on" if i == 0 else ""}" data-tab="{k}" aria-pressed="{"true" if i == 0 else "false"}">{esc(lbl)}<span class="count">{n}</span></button>'
         for i, (k, lbl, n, _) in enumerate(tabs)) + '</div>')
-    for i, (k, _, _, html) in enumerate(tabs):
-        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{html}</div>')
+    for i, (k, _, _, panel) in enumerate(tabs):
+        parts.append(f'<div class="tab-panel{" on" if i == 0 else ""}" id="{k}">{panel}</div>')
     nav = []
     if prev:
         nav.append(f'<a class="px-btn" href="{esc(prev["id"])}.html">← {esc(patch_title_text(prev))}</a>')
@@ -566,9 +563,10 @@ def index_page(index: list[dict]) -> str:
 
 
 def build_all() -> int:
-    index = load_json('patches/index.json')
+    from . import archive
+    index = archive.index()
     for i, row in enumerate(index):
-        p = load_json(f'patches/{row["id"]}.json.gz')
+        p = archive.patch(row['id'])
         prev = index[i - 1] if i > 0 else None
         nxt = index[i + 1] if i + 1 < len(index) else None
         write(f'patches/{row["id"]}.html', patch_page(p, prev, nxt))

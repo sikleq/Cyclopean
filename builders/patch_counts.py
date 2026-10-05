@@ -25,12 +25,14 @@ from .common import load_json
 def page_set() -> frozenset[str]:
     """The entity keys a hero, item or unit page shows — the same set the entities step builds its pages from
     (`entities_pages.page_entities` over the keys with changes of their own in any patch)."""
-    from .entities_pages import GAMEPLAY, page_entities, page_keys
+    from . import archive
+    from .cards import GAMEPLAY
+    from .entities_pages import page_entities, page_keys
     from .shared_rows import entities as spread_all, is_every
     ents = {f"{e['file']}:{e['id']}": e for e in load_json('entities.json')['entities']}
     mine: set[str] = set()          # entities_pages.changed over its _history
-    for row in load_json('patches/index.json'):
-        for e in spread_all(load_json(f'patches/{row["id"]}.json.gz')['entities']):
+    for row in archive.index():
+        for e in spread_all(archive.patch(row['id'])['entities']):
             if any(c['cat'] in GAMEPLAY and not is_every(c) for c in e['changes']):
                 mine.add(e['key'])
     trow = {r['id']: r for r in load_json('tables/heroes.json')['heroes']}
@@ -62,8 +64,10 @@ def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, 
 
 @lru_cache(maxsize=None)
 def for_id(pid: str) -> dict[str, int]:
-    """`count` of a patch by its id (read once per build: the patch pages, the list and the home page share it)."""
-    return count(load_json(f'patches/{pid}.json.gz'))
+    """`count` of a patch by its id (read once per build: the patch pages, the list and the home page share it;
+    the record from the build's shared archive, builders/archive.py)."""
+    from . import archive
+    return count(archive.patch(pid))
 
 
 def off_pages(counts: dict[str, int]) -> int:

@@ -16,13 +16,10 @@ import json
 from datetime import date, timedelta
 from functools import lru_cache
 
-from .common import (display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, pretty_id,
-                     visual)
-from .pixel_icons import tag_svg
+from .common import display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text, visual
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
-MATRIX_TAGS = ('new', 'rework', 'buff', 'nerf', 'del', 'up', 'down', 'mech', 'on', 'off', 'changed')
 SAMPLES = 2               # the hover card lists this many biggest changes per part of a hero
 SAMPLES_ONE = 3           # … and of an item or unit (one part: the row itself)
 PARTS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
@@ -52,15 +49,7 @@ def _sample_values(c: dict) -> tuple[str, str]:
 def _display(e: dict) -> str:
     if e['file'] == 'heroes.vdata':
         return 'Base stats'
-    return e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
-
-
-@lru_cache(maxsize=1)
-def _cells() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]]]:
-    """(patch rows oldest first, {row key: {patch id: {tag: count}}}). A hero's row counts its own
-    stats and every ability it owns; an item's row is the item. Same counting rule as everywhere."""
-    d = _collect()
-    return d['rows'], d['cells']
+    return display_name(e)
 
 
 @lru_cache(maxsize=1)
@@ -70,8 +59,9 @@ def _collect() -> dict:
     cells      {row key: {pid: {tag: n}}}
     parts      {row key: {pid: {part: {tag: n}}}}           (heroes: stats / weapon / abil)
     samples    {row key: {pid: [[what, field, old, new, tag, part], ...]}}"""
-    from .cards import gameplay_entities, player_facing
-    rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
+    from . import archive
+    from .cards import player_facing
+    rows = list(archive.by_date())
     ents = load_json('entities.json')['entities']
     # an NPC's own abilities count on its row (Walker's Stomp), as they do on its page
     npc = {e['id']: e['units'] for e in ents if e.get('units')}
@@ -88,9 +78,9 @@ def _collect() -> dict:
     cat = {f"{e['file']}:{e['id']}": e for e in ents}
     start = convar_start()       # the console variables' first build: a snapshot, not changes (game_systems)
     for r in rows:
-        p = load_json(f'patches/{r["id"]}.json.gz')
+        p = archive.patch(r['id'])
         found: list[tuple[list[str], str, str, list[dict], str]] = []     # (row keys, part, what, rows, ability id)
-        spread = spread_all(gameplay_entities(p['entities']))
+        spread = spread_all(archive.gameplay(r['id']))
         # a template's change an heir shows is the heir's (game_pages.template_rows)
         heirs = {(e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
                  for e in spread if not is_template(e) for c in e['changes']}
@@ -123,7 +113,7 @@ def _collect() -> dict:
             else:
                 continue
             found.append((keys, part_of(e), _display(e), e['changes'], e['file'] == 'abilities.vdata' and e['id']))
-        for e in gameplay_entities(p['entities']):       # the rules for every hero / ability, once
+        for e in archive.gameplay(r['id']):       # the rules for every hero / ability, once
             if e.get('id') == '@shared' and e.get('scope') == 'all' and e['file'] in FOLD_FILES:
                 for c in e['changes']:
                     sid, pid = place_all_row(e['file'], c)
@@ -190,9 +180,17 @@ def stripes(counts: dict[str, int]) -> str:
 
 
 def _cell(counts: dict[str, int], href: str, k: int | None, old: bool) -> str:
+    """A tile of one colour is a class (`.dsq.s-<tag>`), not an inline gradient: 78% of the item matrix's
+    tiles, ~95 KB of style attributes and a gradient to paint each (perf track 2026-10-05). scripts.js
+    redraws a filtered tile with the inline gradient and its own classes."""
     data_k = f' data-k="{k}"' if k is not None else ''
-    return (f'<td{" class=old" if old else ""}><a class="dsq {_net(counts)}" href="{esc(href)}"{data_k} '
-            f'style="background:{stripes(counts)}"><span class="dn">{sum(counts.values())}</span></a></td>')
+    tags = [t for t in counts if counts[t]]
+    if len(tags) == 1:
+        look = f'dsq {_net(counts)} s-{STRIPE_COLOUR.get(tags[0], tags[0])}"'
+    else:
+        look = f'dsq {_net(counts)}" style="background:{stripes(counts)}"'
+    return (f'<td{" class=old" if old else ""}><a class="{look} href="{esc(href)}"{data_k}>'
+            f'<span class="dn">{sum(counts.values())}</span></a></td>')
 
 
 def _gap(n: int, old: bool) -> str:
@@ -264,7 +262,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
-            'cells': tips, 'icons': {t: tag_svg(t) for t in MATRIX_TAGS}, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
+            'cells': tips, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE,
             'parts': dict(PARTS)}
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
@@ -291,7 +289,7 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str) -> str:
     parts_filter = ''
     if kind == 'hero':
         parts_filter = ('<span class="sep"></span><span class="dyn-parts">' + ''.join(
-            f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}">{esc(lbl)}</button>'
+            f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
             for p, lbl in (('all', 'All'),) + PARTS) + '</span>')
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
             f'<span class="sep"></span>'
@@ -344,7 +342,7 @@ def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:
     for it in sorted(items, key=lambda e: (e.get('name') or e['id']).lower()):
         info = (cards.get(it['id']) or {}).get('item') or {}
         gone = not it.get('alive') or it.get('disabled') or info.get('disabled')
-        name = it['name'] if it.get('name') and it['name'] != it['id'] else pretty_id(it['id'])
+        name = display_name(it)
         out.append((f'item:{it["id"]}', name, entity_icon(it['file'], it['id'], 'item', rel),
                     slug(it['file'], it['id']).split('/', 1)[1], 'extra' if gone else ''))
     return out

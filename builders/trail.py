@@ -5,11 +5,11 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from .cards import gameplay_entities, player_facing
-from .common import esc, load_json, patch_title_text
+from . import archive
+from .cards import GAMEPLAY, player_facing
+from .common import esc, patch_title_text
 from .render import counts_text, tag_of
 
-GAMEPLAY = ('balance', 'mechanic', 'availability')
 TRAIL_LEN = 12
 
 
@@ -29,11 +29,10 @@ def _index() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]]]:
     counts on each of them; a rule for every one of a kind (the level curve) is not an entity's own "last change"
     (shared_rows)."""
     from .shared_rows import entities as spread_all, own
-    rows = sorted(load_json('patches/index.json'), key=lambda r: r['date'])
+    rows = list(archive.by_date())
     by_ent: dict[str, dict[str, dict[str, int]]] = {}
     for r in rows:
-        p = load_json(f'patches/{r["id"]}.json.gz')
-        for e in spread_all(p['entities']):
+        for e in spread_all(archive.patch(r['id'])['entities']):
             ch = player_facing(own([c for c in e['changes'] if c['cat'] in GAMEPLAY]))
             if ch:
                 counts = by_ent.setdefault(e['key'], {}).setdefault(r['id'], {})
@@ -62,13 +61,12 @@ def last_change(key: str) -> tuple[dict, str] | None:
 def patch_stats() -> dict[str, dict]:
     """patch id -> {'tags': {tag class: count}, 'heroes': [hero ids, most changed first]}."""
     out: dict[str, dict] = {}
-    for r in load_json('patches/index.json'):
-        p = load_json(f'patches/{r["id"]}.json.gz')
+    for r in archive.index():
         tags: dict[str, int] = {}
         heroes: dict[str, int] = {}
-        for e in gameplay_entities(p['entities']):
+        for e in archive.gameplay(r['id']):
             owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
-            for c in player_facing([c for c in e['changes'] if c['cat'] in GAMEPLAY]):
+            for c in player_facing(e['changes']):        # gameplay rows already
                 cls = tag_of(c)[0]
                 tags[cls] = tags.get(cls, 0) + 1
                 if owner and owner != 'hero_base':
@@ -78,34 +76,11 @@ def patch_stats() -> dict[str, dict]:
 
 
 @lru_cache(maxsize=1)
-def _hero_changes() -> dict[str, tuple[dict, list[dict]]]:
-    """hero id -> (newest patch row that touched the hero or one of its abilities, its changes)."""
-    from .shared_rows import entities as spread_all, own
-    out: dict[str, tuple[dict, list[dict]]] = {}
-    for r in sorted(load_json('patches/index.json'), key=lambda r: r['date'], reverse=True):
-        p = load_json(f'patches/{r["id"]}.json.gz')
-        found: dict[str, list[dict]] = {}
-        for e in spread_all(p['entities']):
-            owner = e['id'] if e['file'] == 'heroes.vdata' else e.get('owner')
-            if owner and owner not in out:
-                found.setdefault(owner, []).extend(
-                    player_facing(own([c for c in e['changes'] if c['cat'] in GAMEPLAY])))
-        for hid, ch in found.items():
-            if ch:
-                out[hid] = (r, ch)
-    return out
-
-
-def hero_last(hid: str) -> tuple[dict, list[dict]] | None:
-    """The hero's newest patch (its own stats or any of its abilities) and what changed there."""
-    return _hero_changes().get(hid)
-
-
-@lru_cache(maxsize=1)
 def _positions() -> dict[str, int]:
     return {r['id']: i for i, r in enumerate(_index()[0])}
 
 
+@lru_cache(maxsize=None)          # a patch page asks for the same strip in its notes and in All changes
 def trail_html(key: str, current: str | None = None, rel: str = '../', n: int = TRAIL_LEN, local: bool = False) -> str:
     """Squares for the last n patches ending at `current` (or the newest); empty when the
     entity never changed in that span. A patch that both buffed and nerfed is striped, not REWORK purple

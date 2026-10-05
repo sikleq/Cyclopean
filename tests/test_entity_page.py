@@ -78,7 +78,8 @@ def test_strip_tiles_carry_a_card_of_what_the_patch_changed():
     assert biggest[:5] == ['Radius', '3m', '2m', 'nerf', 0]
     move = next(s for s in samples if s[0] == 'T1: Move Speed')
     assert move[1:5] == ['40%', '32%', 'nerf', 1]           # old, new as the row prints them; hidden
-    assert d['icons'].keys() >= {'buff', 'nerf'} and 'svg' in d['eye']
+    # the counters' icons are CSS (.pip.<tag>), the eye a mark: no SVG in the blob
+    assert 'icons' not in d and d['eye'] == '<span class="mark hidden"></span>'
 
 
 def test_one_patch_still_feeds_the_trail_cards():
@@ -153,8 +154,8 @@ def test_one_tag_badge_everywhere():
         src = (ROOT / 'builders' / f).read_text(encoding='utf-8')
         assert not re.search(r'<(span|button) class="tag [a-z{]', src), f
     css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    for t in TAG_ART:
-        assert f'.tag.{t} {{ --ti-content: ""; --ti: {tag_mask(t)}; }}' in css, t
+    for t in TAG_ART:            # the counters (.pip) draw the same mask
+        assert f'.tag.{t}, .pip.{t} {{ --ti-content: ""; --ti: {tag_mask(t)}; }}' in css, t
 
 
 def test_vals_text_reads_like_the_row():
@@ -175,6 +176,7 @@ def test_trail_squares_open_the_band_on_the_page(monkeypatch):
     hits = {'abilities.vdata:ab_x': {'p2': {'buff': 1, 'nerf': 2}, 'p4': {'nerf': 1}}}
     monkeypatch.setattr(trail, '_index', lambda: (rows, hits))
     trail._positions.cache_clear()
+    trail.trail_html.cache_clear()
     local = trail.trail_html('abilities.vdata:ab_x', None, '../', local=True)
     assert 'href="#p-p2" data-p="p2" data-ab="ab_x"' in local and 'data-tooltip' not in local
     assert 'aria-label="2026-02-01 update · 1 buff, 2 nerfs"' in local
@@ -185,6 +187,7 @@ def test_trail_squares_open_the_band_on_the_page(monkeypatch):
     assert trail.last_change('abilities.vdata:ab_x') == (rows[3], 'nerf')
     assert trail.dominant_of({'buff': 1, 'nerf': 1}) == 'rework'            # the shop card's one-colour pip
     trail._positions.cache_clear()
+    trail.trail_html.cache_clear()
 
 
 def test_hero_page_is_one_open_column(monkeypatch):

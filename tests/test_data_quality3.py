@@ -226,10 +226,14 @@ def test_shared_abilities_live_in_game_movement_and_combat(monkeypatch):
     patch = {'entities': [{'file': 'abilities.vdata', 'id': 'citadel_ability_mantle', 'kind': 'shared',
                            'key': 'abilities.vdata:citadel_ability_mantle', 'changes': [change]}]}
     data = {'patches/index.json': [row], 'patches/2026-09-16.json.gz': patch, 'entities.json': {'entities': ents}}
+    from builders import archive
     monkeypatch.setattr(dynamics_page, 'load_json', lambda name: data[name])
+    monkeypatch.setattr(archive, 'load_json', lambda name: data[name])
     dynamics_page._collect.cache_clear()
+    archive.clear()
     try:
         cells = dynamics_page._collect()['cells']
         assert sum(cells['game:combat']['2026-09-16'].values()) == 1
     finally:
         dynamics_page._collect.cache_clear()
+        archive.clear()

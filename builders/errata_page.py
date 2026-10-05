@@ -10,8 +10,8 @@ import re
 
 from pipeline.match import parse_pairs
 
-from .common import entity_icon, esc, glyph_for, load_json, page, visual
-from .patches_pages import _display_name
+from .common import entity_icon, esc, glyph_for, page, visual
+from .patches_pages import _display_name, hero_names
 from .render import shown_value
 
 _PARENS = re.compile(r'\([^)]*\)')
@@ -23,11 +23,12 @@ def _num(x: float) -> str:
 
 def rows() -> list[dict]:
     """Newest patch first: {patch, line, valve, files, entity, label, icon args}."""
+    from . import archive
     out = []
-    for row in reversed(load_json('patches/index.json')):
+    for row in reversed(archive.index()):
         if not row['line_counts'].get('mismatch'):
             continue
-        p = load_json(f'patches/{row["id"]}.json.gz')
+        p = archive.patch(row['id'])
         by_key = {c['key']: (e, c) for e in p['entities'] for c in e['changes']}
         for s in p['sections']:
             for ln in s['lines']:
@@ -61,8 +62,11 @@ def table(items: list[dict], rel: str) -> str:
         ic = entity_icon(e.get('file', ''), e.get('id', ''), e.get('kind', ''), rel, e.get('name'), e.get('owner')) \
             if e else None
         name = _display_name(e) if e else ''
-        if e.get('owner_name') and name in ('Weapon', 'Alt weapon'):
-            name = f'{e["owner_name"]} · {name}'          # "Celeste · Weapon", not citadel_weapon_unicorn_set
+        # "Celeste · Weapon", not citadel_weapon_unicorn_set (it read e['owner_name'], which only the patch
+        # page's own copies carry: the hero's name never showed here)
+        owner = hero_names().get(e.get('owner') or '') if e else None
+        if owner and name in ('Weapon', 'Alt weapon'):
+            name = f'{owner} · {name}'
         trs.append(
             f'<tr><td class="d"><a href="{p["id"]}.html">{esc(p["date"])}</a></td>'
             f'<td class="nm">{visual(ic, glyph_for(e.get("file", ""), e.get("id", ""), e.get("kind", "")), "px si2")}'

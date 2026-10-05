@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import difflib
 import re
+from contextlib import contextmanager
 
 from pipeline import flags as flag_rules
 
@@ -348,10 +349,41 @@ def gameplay_entities(entities: list[dict]) -> list[dict]:
     return merge_variants(out)
 
 
+_FACING: dict[tuple[int, ...], tuple[list[dict], list[dict]]] = {}
+FACING_CACHE_MAX = 100_000      # entries before the memo starts over (a build makes ~25k)
+
+
 def player_facing(changes: list[dict]) -> list[dict]:
     """The rows a player reads, which is what EVERY counter counts (home summary, patches index,
     heroes index, card headers, history bands): renames merged, replaced tiers folded into one
-    REWORK, engine plumbing out. Folding works per entity (a hero card mixes its abilities)."""
+    REWORK, engine plumbing out. Folding works per entity (a hero card mixes its abilities).
+
+    Memoised on the identity of the change dicts: the same patch's rows went through it 9 times a build
+    (95k calls on 10k inputs, python audit 2026-10-04). The memo keeps the inputs alive, so an id is never
+    reused while its entry exists; the change dicts are never written into after they are read (the patch
+    archive is shared, builders/archive.py). A caller gets its own list."""
+    key = tuple(map(id, changes))
+    hit = _FACING.get(key)
+    if hit is None:
+        if len(_FACING) >= FACING_CACHE_MAX:
+            _FACING.clear()
+        hit = _FACING[key] = (list(changes), _player_facing(changes))
+    return list(hit[1])
+
+
+@contextmanager
+def facing_scope():
+    """A memo of its own for rows read once (a build page's record): they do not outlive the page, and the
+    archive's entries stay."""
+    global _FACING
+    saved, _FACING = _FACING, {}
+    try:
+        yield
+    finally:
+        _FACING = saved
+
+
+def _player_facing(changes: list[dict]) -> list[dict]:
     groups: dict[str, list[dict]] = {}
     for c in changes:
         groups.setdefault(':'.join(str(c.get('key') or '').split(':', 2)[:2]), []).append(c)
@@ -684,9 +716,10 @@ def change_rows(changes: list[dict], added: bool = False) -> str:
             inner = ''.join(change_row(c) for c in rest)
             html += f'<details class="tech"><summary>All fields ({len(rest)})</summary>{inner}</details>'
         return html
-    rows = [c for c in rows if not is_noop(c)]
-    main = [c for c in rows if not is_engine(c)]
-    tech = [c for c in rows if is_engine(c)]
+    main, tech = [], []
+    for c in rows:                                # one is_engine call a row (it ran twice)
+        if not is_noop(c):
+            (tech if is_engine(c) else main).append(c)
     html = family_rows(main)
     if tech:
         inner = ''.join(change_row(c) for c in tech)

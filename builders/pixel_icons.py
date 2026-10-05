@@ -8,8 +8,6 @@ sharp pixels: 10, 20; 12/14/16 are fine for counters with crispEdges).
 How to add one: see .claude/skills/pixel-icons/SKILL.md (grid rules, review at 1x and 2x)."""
 from __future__ import annotations
 
-from functools import lru_cache
-
 GRID = 10
 
 # tag icons: one shape per tag, readable at 10-14px, distinct silhouettes (not colour alone)
@@ -169,20 +167,17 @@ def art_path(rows: tuple[str, ...]) -> str:
     return ''.join(parts)
 
 
+def svg_mask(d: str, view: int = 16, evenodd: bool = False) -> str:
+    """A pixel shape (an SVG path on a view x view grid) as a CSS mask image: the page draws it with ::before
+    in currentColor, so a page carries no inline SVG per icon (owner 2026-10-04: Calico's page held ~600
+    copies of ten tag shapes; Nano's 650 inline SVGs of 12 shapes were 150 KB, perf track 2026-10-05)."""
+    rule = "fill-rule='evenodd' " if evenodd else ''
+    return ("url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' "
+            f"viewBox='0 0 {view} {view}' shape-rendering='crispEdges'%3E%3Cpath {rule}d='{d}'/%3E%3C/svg%3E\")")
+
+
 def tag_mask(tag: str) -> str:
-    """The icon as a CSS mask image, written into styles.css as `.tag.<t> { --ti-content: ""; --ti: … }` (not
-    :root): a tag badge draws its icon with ::before in currentColor, so a page carries no SVG per badge
-    (Calico's page held ~600 copies of the same ten shapes, owner 2026-10-04). tests/test_entity_page.py
-    keeps those rules in sync with TAG_ART."""
-    return ("url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' "
-            f"shape-rendering='crispEdges'%3E%3Cpath d='{art_path(TAG_ART[tag])}'/%3E%3C/svg%3E\")")
-
-
-@lru_cache(maxsize=None)
-def tag_svg(tag: str) -> str:
-    """Inline SVG for a tag class ('buff', 'nerf', …); '' for an unknown one."""
-    rows = TAG_ART.get(tag)
-    if not rows:
-        return ''
-    return (f'<svg class="ti" viewBox="0 0 {GRID} {GRID}" shape-rendering="crispEdges" aria-hidden="true">'
-            f'<path fill="currentColor" d="{art_path(rows)}"/></svg>')
+    """The tag's icon as a CSS mask, written into styles.css as `.tag.<t>, .pip.<t> { --ti-content: ""; --ti: … }`
+    (not :root): a tag badge and a counter draw it with ::before in their colour. tests/test_entity_page.py keeps
+    those rules in sync with TAG_ART."""
+    return svg_mask(art_path(TAG_ART[tag]), GRID)

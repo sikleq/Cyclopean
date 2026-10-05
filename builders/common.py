@@ -17,8 +17,14 @@ DIST = ROOT / 'dist'
 
 # Jersey 20: headings, names, big numbers (unambiguous pixel digits); VT323: labels and
 # badges at 16px+; IBM Plex Sans: body text and table numbers (design review 2026-10-01)
-FONTS = ('https://fonts.googleapis.com/css2?family=Jacquard+24&family=Jersey+20&family=VT323'
-         '&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap')
+FONT_FAMILIES = ('Jacquard+24', 'Jersey+20', 'VT323', 'IBM+Plex+Sans:wght@400;500;600;700')
+
+
+def fonts_url(extra: tuple[str, ...] = ()) -> str:
+    """ONE Google Fonts stylesheet for the page: the site's families plus a page's own (the shop's stand-ins
+    came as a second stylesheet, a second round trip before the first paint)."""
+    return ('https://fonts.googleapis.com/css2?' + '&'.join(f'family={f}' for f in (*FONT_FAMILIES, *extra))
+            + '&display=swap')
 
 # the site is about what changed on each hero, item and unit (owner, 2026-10-03: "closer to Sloppy"):
 # three sections; patches, builds, the calendar and Notes vs files are still built but live off the bar
@@ -47,52 +53,47 @@ def section_tabs(section: str, active: str, rel: str = '../') -> str:
         f'<a class="px-btn{" on" if k == active else ""}" href="{rel}{href}">{esc(lbl)}</a>'
         for k, lbl, href in SECTION_TABS[section]) + '</div>'
 
-EYE_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-           'd="M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1z'
-           'M13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z"/></svg>')
-CHECK_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-             'd="M13 3h2v2h-2zM11 5h2v2h-2zM9 7h2v2H9zM7 9h2v2H7zM3 7h2v2H3zM5 9h2v2H5z"/></svg>')
-BANG_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-            'd="M7 2h2v8H7zM7 12h2v2H7z"/></svg>')
-TILDE_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-             'd="M2 8h2v2H2zM4 6h3v2H4zM7 8h2v2H7zM9 8h3v2H9zM12 6h2v2h-2z"/></svg>')
-
-WRENCH_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-              'd="M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z"/></svg>')
-
-FLASK_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-             'd="M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3z'
-             'M12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z"/></svg>')
-NOTES_OFF_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-                 'd="M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9z'
-                 'M6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z"/></svg>')
-
-NA_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-          'd="M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3z'
+# The status marks' pixel shapes (16x16 paths). A page draws them as CSS masks — `.mark.<status>` in
+# styles.css carries the shape (`--mk`), tests/test_perf.py keeps it in sync with these — so a mark is an
+# empty span: inline SVGs were 150 KB of Nano's page (650 copies of 12 shapes, perf track 2026-10-05).
+MARK_ART = {
+    'eye': 'M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1z'
+           'M13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z',
+    'check': 'M13 3h2v2h-2zM11 5h2v2h-2zM9 7h2v2H9zM7 9h2v2H7zM3 7h2v2H3zM5 9h2v2H5z',
+    'bang': 'M7 2h2v8H7zM7 12h2v2H7z',
+    'tilde': 'M2 8h2v2H2zM4 6h3v2H4zM7 8h2v2H7zM9 8h3v2H9zM12 6h2v2h-2z',
+    'wrench': 'M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z',
+    'flask': 'M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3z'
+             'M12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z',
+    'notes_off': 'M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9z'
+                 'M6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z',
+    'na': 'M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3z'
           'M12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7z'
-          'M6 9h1v1H6zM5 10h1v1H5z"/></svg>')
-
-# "</>": the change lives in the game's code, not in the data files compared here
-CODE_SVG = ('<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" '
-            'd="M4 4h2v1H4zM3 5h2v1H3zM2 6h2v1H2zM1 7h2v2H1zM2 9h2v1H2zM3 10h2v1H3zM4 11h2v1H4z'
+          'M6 9h1v1H6zM5 10h1v1H5z',
+    # "</>": the change lives in the game's code, not in the data files compared here
+    'code': 'M4 4h2v1H4zM3 5h2v1H3zM2 6h2v1H2zM1 7h2v2H1zM2 9h2v1H2zM3 10h2v1H3zM4 11h2v1H4z'
             'M10 4h2v1h-2zM11 5h2v1h-2zM12 6h2v1h-2zM13 7h2v2h-2zM12 9h2v1h-2zM11 10h2v1h-2zM10 11h2v1h-2z'
-            'M9 2h1v3H9zM8 5h1v3H8zM7 8h1v3H7zM6 11h1v3H6z"/></svg>')
-
-STATUS_MARK = {
-    'code': ('code', CODE_SVG, "No game file of this changed in the update: the change is in the game's code, "
-                               'which is not compared here'),
-    'untracked': ('untracked', NA_SVG, 'Sound, effects, interface or map: not part of the game data compared here'),
-    'nodata': ('nodata', NA_SVG, 'No game files survive for this date — nothing to compare with'),
-    'repeated': ('repeated', TILDE_SVG, 'The post was edited later: this line belongs to a later update'),
-    'fix': ('fix', WRENCH_SVG, 'Bug fix in the patch notes'),
-    'hidden': ('hidden', EYE_SVG, 'Not in the patch notes — found only in the game files'),
-    'unreleased': ('unreleased', FLASK_SVG, 'Hero still in development at this build — not in the patch notes'),
-    'unannounced': ('unannounced', NOTES_OFF_SVG, 'Update shipped without patch notes — found only in the game files'),
-    'documented': ('documented', CHECK_SVG, 'Patch notes list these exact numbers'),
-    'rounded': ('rounded', CHECK_SVG, 'Patch notes list rounded numbers; exact values from the files are shown'),
-    'described': ('described', TILDE_SVG, 'Covered by a patch-note line without exact numbers'),
-    'mismatch': ('mismatch', BANG_SVG, 'Patch notes give different numbers than the game files'),
+            'M9 2h1v3H9zM8 5h1v3H8zM7 8h1v3H7zM6 11h1v3H6z',
 }
+
+# status -> (its shape in MARK_ART, the tooltip)
+STATUS_MARK = {
+    'code': ('code', "No game file of this changed in the update: the change is in the game's code, "
+                     'which is not compared here'),
+    'untracked': ('na', 'Sound, effects, interface or map: not part of the game data compared here'),
+    'nodata': ('na', 'No game files survive for this date — nothing to compare with'),
+    'repeated': ('tilde', 'The post was edited later: this line belongs to a later update'),
+    'fix': ('wrench', 'Bug fix in the patch notes'),
+    'hidden': ('eye', 'Not in the patch notes — found only in the game files'),
+    'unreleased': ('flask', 'Hero still in development at this build — not in the patch notes'),
+    'unannounced': ('notes_off', 'Update shipped without patch notes — found only in the game files'),
+    'documented': ('check', 'Patch notes list these exact numbers'),
+    'rounded': ('check', 'Patch notes list rounded numbers; exact values from the files are shown'),
+    'described': ('tilde', 'Covered by a patch-note line without exact numbers'),
+    'mismatch': ('bang', 'Patch notes give different numbers than the game files'),
+}
+# the eye without a tooltip (a hover card or a label already says it)
+EYE_MARK = '<span class="mark hidden"></span>'
 
 
 def plural(n: int, word: str, many: str | None = None) -> str:
@@ -113,10 +114,10 @@ def json_attr(name: str, value) -> str:
 
 
 def mark(status: str) -> str:
+    """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it."""
     if status not in STATUS_MARK:
         return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
-    cls, svg, tip = STATUS_MARK[status]
-    return f'<span class="mark {cls}" data-tooltip="{esc(tip)}">{svg}</span>'
+    return f'<span class="mark {status}" data-tooltip="{esc(STATUS_MARK[status][1])}"></span>'
 
 
 @lru_cache(maxsize=1)
@@ -173,21 +174,36 @@ def _game_entry_names() -> dict[str, str]:
     return out
 
 
+# ids_to_names memo, tied to the catalogs it read (a test that swaps names_by_id gets a fresh one): every value
+# on every page goes through it — 577k calls on ~6k distinct strings a build (python audit 2026-10-04)
+_IDS_MEMO: dict = {'src': None, 'out': {}}
+
+
 def ids_to_names(s: str) -> str:
     """'ability_blood_bomb, ability_blood_shards' -> 'Blood Bomb, Blood Shards' in shown values; a map object's or
     an effect's id as the Game section names it ('spirit_permanent_pickup' -> 'Permanent buff: spirit power',
     'modifier_streetbrawl_trooper_overtime' -> 'Streetbrawl trooper overtime')."""
-    names = names_by_id()
+    names, known, game = names_by_id(), _catalog_owners(), _game_entry_names()
+    memo = _IDS_MEMO
+    src = memo['src']
+    if src is None or src[0] is not names or src[1] is not known or src[2] is not game:
+        memo['src'], memo['out'] = (names, known, game), {}     # holds the catalogs: their ids stay theirs
+    out = memo['out'].get(s)
+    if out is None:
+        out = memo['out'][s] = _ids_to_names(s, names, known, game)
+    return out
+
+
+def _ids_to_names(s: str, names: dict[str, str], known: dict[str, str | None], game: dict[str, str]) -> str:
     s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0)), s)
-    known = _catalog_owners()
 
     def other(m: re.Match) -> str:
         w = m.group(0)
         if w in known:
             return names.get(w) or pretty_id(w, known[w])
-        game = _game_entry_names().get(w)
-        if game:
-            return game
+        entry = game.get(w)
+        if entry:
+            return entry
         return pretty_id(w.removeprefix('modifier_')) if w.startswith('modifier_') else w
     return _SNAKE_WORD.sub(other, s)
 
@@ -275,8 +291,9 @@ def entity_icon(file: str, eid: str, kind: str, rel: str, name: str | None = Non
 
 
 # Category glyphs (site UI, not game art) for rows that stand for a group or a rule,
-# never for one entity: "All heroes (24)", game rules, map objects without art.
-_G = '<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="{}"/></svg>'
+# never for one entity: "All heroes (24)", game rules, map objects without art. Drawn as CSS masks
+# (`.glyph.g-<name>` in styles.css, even-odd fill; tests/test_perf.py keeps them in sync); an unknown
+# name draws 'rules' (the `.glyph` default).
 GLYPHS = {
     'heroes': 'M6 2h4v4H6zM2 4h3v3H2zM11 4h3v3h-3zM5 7h6v7H5zM1 8h3v5H1zM12 8h3v5h-3z',
     'hero': 'M5 2h6v5H5zM3 8h10v6H3z',
@@ -288,11 +305,6 @@ GLYPHS = {
     'rules': 'M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z'
              'M5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5zM7 7h2v2H7z',
     'loot': 'M3 3h10v3H3zM2 6h12v8H2zM7 8h2v3H7z',
-    # home navigation tiles
-    'book': 'M1 3h6v10H1zM9 3h6v10H9zM2 4h4v1H2zM10 4h4v1h-4zM2 6h4v1H2zM10 6h4v1h-4zM2 8h4v1H2zM10 8h4v1h-4z'
-            'M7 13h2v1H7z',
-    'table': 'M1 2h14v12H1zM2 5h3v2H2zM6 5h3v2H6zM10 5h4v2h-4zM2 8h3v2H2zM6 8h3v2H6zM10 8h4v2h-4zM2 11h3v2H2z'
-             'M6 11h3v2H6zM10 11h4v2h-4z',
 }
 _SHARED_GLYPH = {'heroes.vdata': 'heroes', 'abilities.vdata': 'abilities', 'npc_units.vdata': 'units',
                  'misc.vdata': 'map', 'modifiers.vdata': 'modifier'}
@@ -309,7 +321,7 @@ def visual(src: str | None, glyph: str, cls: str = 'px') -> str:
     """The game's icon if there is one, else the category glyph in the same box."""
     if src:
         return f'<img class="{esc(cls)}" src="{esc(src)}" alt="" loading="lazy">'
-    return f'<span class="{esc(cls)} glyph g-{esc(glyph)}">{_G.format(GLYPHS.get(glyph, GLYPHS["rules"]))}</span>'
+    return f'<span class="{esc(cls)} glyph g-{esc(glyph)}"></span>'
 
 
 def img(src: str | None, alt: str = '', cls: str = '', glyph: str | None = None) -> str:
@@ -340,10 +352,15 @@ def asset_version() -> str:
 
 
 def page(title: str, body: str, rel: str = '', active: str = '', build: int | None = None,
-         description: str = '', wide: bool = False, fonts: str = '', cls: str = '') -> str:
-    """`fonts`: one more Google Fonts stylesheet for this page only (the shop's stand-ins). `cls`: one more
-    class on <main> — 'entity' gives a hero / item / unit page its one centred column (owner 2026-10-04:
-    the history sat pinned left under a full-width head)."""
+         description: str = '', wide: bool = False, fonts: tuple[str, ...] = (), cls: str = '') -> str:
+    """`fonts`: more Google Fonts families for this page only (the shop's stand-ins), in the same request.
+    `cls`: one more class on <main> — 'entity' gives a hero / item / unit page its one centred column (owner
+    2026-10-04: the history sat pinned left under a full-width head).
+
+    The fonts stylesheet does not block the first paint: it loads as media="print" and scripts.js switches
+    it on (`fonts`), <noscript> keeps it for pages without scripts. Blocking, it held the first paint back
+    by 150-270 ms, and a script at the end of <body> waits for every blocking stylesheet: a cold visit's
+    DOMContentLoaded waited on the Google round trip (index.html ~3 s cold, perf track 2026-10-05)."""
     main_cls = 'page' + (' wide' if wide else '') + (f' {cls}' if cls else '')
     tabs = ''.join(
         f'<a class="nav-tab{" active" if key == active else ""}" href="{rel}{href}">{label}</a>'
@@ -351,6 +368,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
     ver = asset_version()
     build_s = f'<span class="nav-build">build {build}</span>' if build else ''
     desc = f'<meta name="description" content="{esc(description)}">' if description else ''
+    font_css = esc(fonts_url(fonts))
     return f'''<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -361,13 +379,13 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
 <link rel="icon" type="image/svg+xml" href="{rel}favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="{FONTS}">
-{f'<link rel="stylesheet" href="{esc(fonts)}">' if fonts else ''}
+<link rel="stylesheet" href="{font_css}" media="print" data-fonts>
+<noscript><link rel="stylesheet" href="{font_css}"></noscript>
 <link rel="stylesheet" href="{rel}styles.css?v={ver}">
 </head>
 <body>
 <nav class="top-nav"><div class="nav-inner">
-<a class="nav-brand" href="{rel}index.html"><span class="mark hidden eye-logo">{EYE_SVG}</span><span class="nav-brand-text">Cyclopean<small>deadlock.vpk</small></span></a>
+<a class="nav-brand" href="{rel}index.html"><span class="mark hidden eye-logo"></span><span class="nav-brand-text">Cyclopean<small>deadlock.vpk</small></span></a>
 <div class="nav-tabs">{tabs}</div>
 {build_s}
 </div></nav>

@@ -1,8 +1,7 @@
 """Rendering helpers: tags, order, escaping."""
 import re
 
-from builders.hero_page import _strip_subject
-from builders.render import change_li, entity_rows, fold_tier_swaps, sort_changes, tag_of
+from builders.render import fold_tier_swaps, sort_changes, tag_of
 
 
 def ch(**kw):
@@ -106,19 +105,27 @@ def test_tier_swap_folds_into_one_rework_row():
 
 
 def test_entity_rows_name_once_with_counters():
-    html = ''.join(entity_rows('Seismic Impact', None, [ch(label='a'), ch(label='b', dir='buff'), ch(label='c')]))
+    """The ability's header (cards.sub_head) names it once with its counters; its rows do not repeat it.
+    (render.entity_rows, the table version, had no caller left besides these tests.)"""
+    from builders.cards import entity_rows, sub_head
+    rows = [ch(label='a', key='abilities.vdata:x:a'), ch(label='b', dir='buff', key='abilities.vdata:x:b'),
+            ch(label='c', key='abilities.vdata:x:c')]
+    html = sub_head('Seismic Impact', None, 'abilities', rows, hidden=True) + entity_rows(rows)
     assert html.count('Seismic Impact') == 1
-    assert re.search(r'class="pip nerf"><svg[^>]*>.*?</svg>2<', html) and re.search(r'class="pip buff"><svg[^>]*>.*?</svg>1<', html)
-    assert 'eh has-hidden' in html
+    assert '<span class="pip nerf">2</span>' in html and '<span class="pip buff">1</span>' in html
+    assert 'esub has-hidden' in html
 
 
-def test_unreleased_rows_marked_and_kept_in_hidden_view():
-    html = ''.join(entity_rows('Test', None, [ch(status='unreleased')]))
-    assert 'mark unreleased' in html and ' dev' in html and 'has-hidden' in html
+def test_unreleased_rows_marked_but_not_counted_as_not_in_notes():
+    """Work on a hero in development keeps its mark; it is not "not in patch notes" (render.NOT_IN_NOTES)."""
+    from builders.cards import change_row
+    html = change_row(ch(status='unreleased'))
+    assert 'mark unreleased' in html and 'st-unreleased' in html and 'is-hidden' not in html
 
 
-def test_change_li_escapes_and_marks_hidden():
-    html = change_li(ch(label='<b>x</b>'))
+def test_change_row_escapes_and_marks_hidden():
+    from builders.cards import change_row
+    html = change_row(ch(label='<b>x</b>'))
     assert '&lt;b&gt;' in html and 'mark hidden' in html and 'st-hidden' in html
 
 
@@ -169,8 +176,8 @@ def test_rows_without_game_art_get_a_category_glyph():
     from builders.common import glyph_for, visual
     assert glyph_for('heroes.vdata', '@shared') == 'heroes'
     assert glyph_for('generic_data.vdata', 'm_IdolParams') == 'rules'
-    html = visual(None, 'map')
-    assert 'glyph g-map' in html and '<svg' in html and 'noimg' not in html
+    html = visual(None, 'map')        # the shape is CSS (.glyph.g-map, a mask)
+    assert html == '<span class="px glyph g-map"></span>' and 'noimg' not in html
 
 
 def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
@@ -198,10 +205,23 @@ def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
 
 
 def test_hero_page_lines_drop_the_hero_name():
-    assert _strip_subject('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
+    from builders.history_view import _drop_prefix          # (hero_page._strip_subject had no caller left)
+    assert _drop_prefix('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
         'Melee damage per boon increased by 10%'
     # another subject stays: the line is about the ability, not the hero
-    assert _strip_subject('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'
+    assert _drop_prefix('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'
+
+
+def test_ability_card_leaves_out_an_empty_tier(monkeypatch):
+    """97 bare "T1 / T2 / T3" lines (no text, no bonuses) sat on the cards of heroes in development."""
+    from builders import hero_page, trail
+    monkeypatch.setattr(trail, 'last_counts', lambda key: None)
+    monkeypatch.setattr(trail, 'trail_html', lambda *a, **k: '')
+    card = {'id': 'ability_zzz_x', 'kind': 'ability', 'name': 'Zap', 'owner': 'hero_zzz', 'slot': 'Signature_1',
+            'tiers': [{'tier': 1, 'text': '', 'bonuses': []}, {'tier': 2, 'text': '+1 Charge', 'bonuses': []},
+                      {'tier': 3, 'text': '', 'bonuses': [{'label': 'Damage', 'value': '+20'}]}]}
+    html = hero_page.ability_card(card, '../')
+    assert '>T1<' not in html and '>T2<' in html and 'Damage +20' in html
 
 
 def test_notes_name_without_leading_the(monkeypatch):
@@ -233,13 +253,6 @@ def test_replaced_tier_row_gets_full_width_line():
     html = change_rows([ch(op='remove', label='T2: Fire Rate', old_s='14', new_s=None),
                         ch(op='add', label='T2: Stun Duration', old_s=None, new_s='0.6')])
     assert 'erow st-hidden is-hidden rw' in html and 'T2 upgrade' in html
-
-
-def test_top_pips_keeps_two_biggest_counters():
-    from builders.render import top_pips
-    html = top_pips([ch(dir='buff')] * 3 + [ch(dir='nerf')] * 2 + [ch(op='add', dir='changed')], 2)
-    assert re.search(r'pip buff"><svg.*?</svg>3<', html) and re.search(r'pip nerf"><svg.*?</svg>2<', html)
-    assert 'pip new' not in html
 
 
 def test_player_facing_is_the_one_counting_rule():
@@ -282,20 +295,30 @@ def test_hero_chip_shows_two_counters_tooltip_has_all():
     assert 'data-tooltip="Abrams: 9 new, 8 buffs, 9 nerfs, 8 removed"' in html
 
 
-def test_hero_last_skips_engine_only_patches(monkeypatch):
-    from builders import trail
+def test_last_change_skips_engine_only_patches(monkeypatch):
+    """The history squares and an ability card's "last change" count what a player reads: a patch that only
+    moved engine plumbing is not the entity's last change. The archive is read once per build
+    (builders/archive.py)."""
+    from builders import archive, trail
     patches = {
         'patches/index.json': [{'id': 'p1', 'date': '2026-09-16'}, {'id': 'p2', 'date': '2026-09-29'}],
-        'patches/p1.json.gz': {'entities': [{'file': 'abilities.vdata', 'id': 'a', 'owner': 'hero_atlas',
-                                             'changes': [ch(key='abilities.vdata:a:x', dir='buff')]}]},
-        'patches/p2.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'changes': [
-            ch(key='heroes.vdata:hero_atlas:m_x', label='Roster Background Layout', old_s='A', new_s='B')]}]},
+        'patches/p1.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'key': 'heroes.vdata:hero_atlas',
+                                             'changes': [ch(key='heroes.vdata:hero_atlas:x', dir='buff')]}]},
+        'patches/p2.json.gz': {'entities': [{'file': 'heroes.vdata', 'id': 'hero_atlas', 'key': 'heroes.vdata:hero_atlas',
+                                             'changes': [ch(key='heroes.vdata:hero_atlas:m_x',
+                                                            label='Roster Background Layout', old_s='A', new_s='B')]}]},
     }
-    monkeypatch.setattr(trail, 'load_json', lambda name: patches[name])
-    trail._hero_changes.cache_clear()
-    row, changes = trail.hero_last('hero_atlas')
-    assert row['id'] == 'p1' and len(changes) == 1
-    trail._hero_changes.cache_clear()
+    monkeypatch.setattr(archive, 'load_json', lambda name: patches[name])
+    archive.clear()
+    trail._index.cache_clear()
+    trail._positions.cache_clear()
+    try:
+        row, counts = trail.last_counts('heroes.vdata:hero_atlas')
+        assert row['id'] == 'p1' and counts == {'buff': 1}
+    finally:
+        archive.clear()
+        trail._index.cache_clear()
+        trail._positions.cache_clear()
 
 
 def test_patch_titles_show_the_date_once():
@@ -316,7 +339,7 @@ def test_pct_pill_strength_follows_size():
 
 
 def test_pixel_icons_are_10x10_without_lone_pixels():
-    from builders.pixel_icons import GRID, TAG_ART, art_path, tag_svg
+    from builders.pixel_icons import GRID, TAG_ART, art_path, svg_mask, tag_mask
     for tag, rows in TAG_ART.items():
         assert len(rows) == GRID and all(len(r) == GRID for r in rows), tag
         for y, line in enumerate(rows):
@@ -327,7 +350,8 @@ def test_pixel_icons_are_10x10_without_lone_pixels():
                           for i in range(max(0, x - 1), min(GRID, x + 2)) if (i, j) != (x, y)]
                 assert '#' in around, f'lone pixel in {tag} at {x},{y}'
     assert art_path(('#.#', '###')) == 'M0 0h1v1h-1zM2 0h1v1h-1zM0 1h3v1h-3z'
-    assert tag_svg('buff').startswith('<svg class="ti"') and tag_svg('nope') == ''
+    assert tag_mask('buff') == svg_mask(art_path(TAG_ART['buff']), GRID)
+    assert "viewBox='0 0 10 10'" in tag_mask('buff') and "fill-rule='evenodd'" in svg_mask('M0 0h1v1H0z', evenodd=True)
 
 
 def test_added_entity_shows_a_summary_not_every_field():
@@ -471,6 +495,12 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert 'Nothing' not in html                                   # a row with no changes is not listed
     # stripes as one gradient in tag order (buff before nerf), the nerf held at its 12% minimum share
     assert 'var(--tag-buff) 0% 66.7%,var(--tag-nerf) 66.7% 100%' in html and 'net-buff' in html
+    # a tile of one tag is a class (.dsq.s-new), no inline gradient
+    assert '<a class="dsq net-buff s-new" href="hero_x.html#p-p1" data-k="1">' in html
+    from pathlib import Path
+    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
+    for t in ('new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'mech', 'changed'):
+        assert f'.dsq.s-{t} {{ background: var(--tag-{t}); }}' in css, t
     # >1 year old column: hidden with its colgroup column; a run of empty cells is one cell
     assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
     assert '--n-all:2;--n-new:1' in html
@@ -577,9 +607,24 @@ def test_notes_vs_files_lists_valves_numbers_and_the_files(monkeypatch):
            'changes': [ch]}
     patch = {'entities': [ent], 'sections': [{'lines': [
         {'text': 'Spirit Snatch: Spirit Power Steal increased from 20 to 28', 'status': 'mismatch', 'changes': ['k']}]}]}
-    monkeypatch.setattr(errata_page, 'load_json', lambda rel: [row] if rel == 'patches/index.json' else patch)
-    got = errata_page.rows()
+    from builders import archive
+    monkeypatch.setattr(archive, 'load_json', lambda rel: [row] if rel == 'patches/index.json' else patch)
+    archive.clear()
+    try:
+        got = errata_page.rows()
+    finally:
+        archive.clear()
     assert got[0]['valve'] == '20 → 28' and got[0]['files'] == '20 → 25' and got[0]['label'] == 'Spirit Power Steal'
+
+
+def test_notes_vs_files_names_the_hero_of_a_gun(monkeypatch):
+    """A gun reads "Celeste · Weapon": the row read e['owner_name'], which only the patch page's copies had."""
+    from builders import errata_page
+    monkeypatch.setattr(errata_page, 'hero_names', lambda: {'hero_zzz': 'Celeste'})
+    e = {'file': 'abilities.vdata', 'id': 'citadel_weapon_zzz_set', 'kind': 'weapon', 'owner': 'hero_zzz'}
+    row = {'patch': {'id': 'p', 'date': '2026-01-01'}, 'line': 'x', 'valve': '1 → 2', 'files': '1 → 3',
+           'entity': e, 'label': 'Damage'}
+    assert '<span>Celeste · Weapon</span>' in errata_page.table([row], '../')
 
 
 def test_home_feed_puts_changes_on_their_pages():

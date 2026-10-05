@@ -6,10 +6,10 @@ from __future__ import annotations
 from functools import lru_cache
 import re
 
-from .common import (cosmetics, display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, icon, img, json_attr,
-                     load_json, mark, page, pretty_id)
-from .history_view import history_table, now_fold  # noqa: F401  (re-exported for entities_pages)
+from .common import cosmetics, display_name, entity_icon, esc, first_seen, hero_icon, icon, img, load_json, mark, page
+from .history_view import history_table
 from .render import tag_badge
+from .tables_pages import _fmt, hist_attrs
 
 SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2', 'Signature_3', 'Signature_4')
 SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Signature_1': 'Ability 1',
@@ -41,13 +41,6 @@ STAT_ICON = {
 }
 
 
-def _fmt(v, digits) -> str:
-    if v is None:
-        return '<span class="dash">—</span>'
-    s = f'{v:.{max(digits, 0)}f}'
-    return s.rstrip('0').rstrip('.') if '.' in s else s
-
-
 @lru_cache(maxsize=1)
 def _recent_cutoff() -> str:
     """Values changed after this date get the corner dot (the rest: history on hover only)."""
@@ -56,17 +49,13 @@ def _recent_cutoff() -> str:
 
 
 def _hist_attrs(row: dict, col: dict, name: str) -> tuple[str, str]:
-    hist = row['history'].get(col['key'])
-    cls = []
-    if col['key'] in row.get('spirit_scaled', []):
-        cls.append('spirit')
-    attrs = f' data-pol="{col["pol"]}" data-digits="{col["digits"]}"'
-    if hist:
-        cls.append('has-hist')
-        if str(hist[-1][1])[:10] >= _recent_cutoff():
-            cls.append('recent')
-        attrs += json_attr('data-hist', hist) + f' data-title="{esc(name)} · {esc(col["label"])}"'
-    return ' '.join(cls), attrs
+    """The Hero Stats cell's history on the hero page's own tiles — the same helper as the table
+    (tables_pages.hist_attrs), so steps the column's rounding cannot show drop here too (they had drifted:
+    8 such steps sat on hero heads, python audit 2026-10-04); directed like the table's (tables_pages.directed)."""
+    cls = ['spirit'] if col['key'] in row.get('spirit_scaled', []) else []
+    hcls, hattrs = hist_attrs(row['history'].get(col['key']), col['digits'], f'{name} · {col["label"]}',
+                              _recent_cutoff(), (row.get('odir') or {}).get(col['key']))
+    return ' '.join(cls + hcls), f' data-pol="{col["pol"]}" data-digits="{col["digits"]}"' + hattrs
 
 
 def _stat_icon(key: str, rel: str) -> str:
@@ -200,11 +189,13 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
     rows = prop_rows(c.get('important', []) + c.get('basic', []), rel)
     table = f'<table class="kvt">{rows}</table>' if rows else ''
     desc = f'<div class="ac-desc">{esc(c["desc"])}</div>' if c.get('desc') else ''
+    # a tier with neither text nor bonuses is not drawn: 97 bare "T1 / T2 / T3" lines sat on the cards of
+    # heroes still in development (python audit 2026-10-04)
     tiers = ''.join(
         f'<div class="tier"><span class="tn">T{t["tier"]}</span><span class="tt">'
         f'{esc(t["text"] or ", ".join(b["label"] + " " + b["value"] for b in t["bonuses"]))}</span></div>'
-        for t in c.get('tiers', []))
-    name = c['name'] if c.get('name') and c['name'] != c['id'] else pretty_id(c['id'], c.get('owner'))
+        for t in c.get('tiers', []) if t.get('text') or t.get('bonuses'))
+    name = display_name(c)
     # what happened to it lately: the last patch that touched it, and its 12-patch strip — both open that
     # patch's band in the history below, not the patch archive (owner 2026-10-04)
     from .cards import ability_plate
@@ -227,17 +218,7 @@ def ability_card(c: dict, rel: str, slot_label: str = '') -> str:
             f'{"<div class=tiers>" + tiers + "</div>" if tiers else ""}</div>')
 
 
-def _strip_subject(text: str, names: list[str]) -> str:
-    """'Abrams: Melee damage per boon increased by 10%' -> 'Melee damage per boon …' on
-    Abrams' own page: the subject is the page."""
-    alts = '|'.join(re.escape(n) for n in names if n)
-    if not alts:
-        return text
-    out = re.sub(rf'^\s*(?:{alts})\s*[:\-–—]\s*', '', text, flags=re.I)
-    return out[:1].upper() + out[1:] if out else text
-
-
-def _owned_keys(hid: str, name: str, mine: list[dict], ents_by_id: dict, rel: str) -> list[tuple]:
+def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str) -> list[tuple]:
     """History entities in page order: base stats, weapon, abilities by slot, the rest by name."""
     keys = [(f'heroes.vdata:{hid}', 'Base stats', hero_icon(hid, rel))]
     slot_of = {c['id']: c.get('slot') for c in mine}
@@ -247,9 +228,7 @@ def _owned_keys(hid: str, name: str, mine: list[dict], ents_by_id: dict, rel: st
         s = slot_of.get(e['id'])
         return (SLOT_ORDER.index(s) if s in SLOT_ORDER else len(SLOT_ORDER), e.get('name') or '')
     for e in sorted(owned, key=rank):
-        nm = e.get('name') or e['id']
-        if nm == e['id']:
-            nm = pretty_id(e['id'], hid)
+        nm = display_name(e)                 # its owner is this hero
         keys.append((f'abilities.vdata:{e["id"]}', nm,
                      entity_icon('abilities.vdata', e['id'], e.get('kind', ''), rel, nm, hid)))
     return keys
@@ -303,7 +282,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     # the page is the history (owner, 2026-10-03), and what the hero is today stands open above it — the gun,
     # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
     now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
-    keys = _owned_keys(hid, name, mine, ents_by_id, rel)
+    keys = _owned_keys(hid, mine, ents_by_id, rel)
     ults = frozenset(f'abilities.vdata:{c["id"]}' for c in mine if c.get('slot') == ULT_SLOT)
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}

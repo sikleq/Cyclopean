@@ -2,12 +2,12 @@
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 from pipeline import flags as flag_rules
 from pipeline.semantics import SHOP_SLOT
 
-from .pixel_icons import tag_svg
-from .common import esc, glyph_for, ids_to_names, mark, visual
+from .common import esc, glyph_for, ids_to_names, visual
 
 # The tag set, chosen from what the data actually contains (all patches, 2026-10-01):
 # NEW 20k, DEL 11k, NERF 5.2k, BUFF 4k, CHANGED 2.5k, MECH 0.9k, availability 92.
@@ -176,8 +176,9 @@ def tag_word(tag: str, n: int) -> str:
 
 
 def pip(cls: str, n: int | str = '') -> str:
-    """One counter: the tag's pixel icon and a number, in the tag colour."""
-    return f'<span class="pip {cls}">{tag_svg(cls)}{n}</span>'
+    """One counter: the tag's pixel icon (CSS, `.pip.<tag>::before`, the badge's mask) and a number, in the tag
+    colour."""
+    return f'<span class="pip {cls}">{n}</span>'
 
 
 def counts_text(counts: dict[str, int]) -> str:
@@ -195,17 +196,6 @@ def tag_summary(changes: list[dict]) -> str:
         pip(cls, n) for cls, n in sorted(counts.items(), key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
 
 
-def top_pips(changes: list[dict], k: int) -> str:
-    """The k biggest counters only (a 50-110px tile fits two), in the usual tag order."""
-    counts: dict[str, int] = {}
-    for c in changes:
-        cls = tag_of(c)[0]
-        counts[cls] = counts.get(cls, 0) + 1
-    ranked = sorted(counts.items(), key=lambda kv: (-kv[1], TAG_ORDER.get(kv[0], 9)))[:k]
-    return '<span class="tsum">' + ''.join(
-        pip(cls, n) for cls, n in sorted(ranked, key=lambda kv: TAG_ORDER.get(kv[0], 9))) + '</span>'
-
-
 def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | None = None) -> str:
     """'Biggest changes' table rows: icon + entity (+ its hero, dimmed) | tag | label | values."""
     from .common import entity_icon, pretty_id
@@ -221,37 +211,6 @@ def key_change_rows(rows: list[dict], rel: str, owner_names: dict[str, str] | No
         out.append(f'<tr class="ch"><td class="sc">{pic}{esc(name)}{who}</td><td class="tg">{tag_html(c)}</td>'
                    f'<td>{esc(c["label"])}</td><td class="ov">{vals_html(c)}</td></tr>')
     return ''.join(out)
-
-
-def change_row(c: dict, extra_cls: str = '', search: str = '') -> str:
-    st = c.get('status', 'hidden')
-    ds = f' data-search="{esc(search)}"' if search else ''
-    return (f'<tr class="ch st-{esc(st)}{extra_cls}"{ds}><td class="st">{mark(st)}</td><td class="tg">{tag_html(c)}</td>'
-            f'<td class="lb">{esc(c.get("label"))}</td><td class="ov">{vals_html(c)}</td></tr>')
-
-
-def entity_rows(name: str, icon_url: str | None, changes: list[dict], search: str = '', href: str = '',
-                glyph: str = 'abilities') -> list[str]:
-    """Header row (icon, name, tag counters) + one row per change, name not repeated.
-    No game icon: the category glyph (`common.glyph_for`) in the same box."""
-    rows = sort_changes(fold_tier_swaps(fold_corrupted(changes)))
-    if not rows:
-        return []
-    return [entity_header(name, icon_url, rows, search, href, glyph)] + [change_row(c, '', search) for c in rows]
-
-
-def entity_header(name: str, icon_url: str | None, counted: list[dict], search: str = '', href: str = '',
-                  glyph: str = 'abilities', hidden: bool | None = None) -> str:
-    """The icon + name + tag counters row that opens an entity's block."""
-    ic = visual(icon_url, glyph)
-    nm = f'<a href="{esc(href)}">{esc(name)}</a>' if href else esc(name)
-    if hidden is None:
-        hidden = any(c.get('status', 'hidden') in HIDDEN_LIKE for c in counted)
-    dev = ' dev' if any(c.get('status') == 'unreleased' for c in counted) else ''
-    ds = f' data-search="{esc(search)}"' if search else ''
-    counters = tag_summary(counted) if counted else ''
-    return (f'<tr class="eh{" has-hidden" if hidden else ""}{dev}"{ds}><td colspan="4"><span class="en">{ic}{nm}</span>'
-            f'{counters}</td></tr>')
 
 
 _FLAG_PREFIX = re.compile(r'^(CITADEL_UNIT_TARGET_|CITADEL_ABILITY_BEHAVIOR_|CITADEL_|MODIFIER_STATE_|MODIFIER_VALUE_|'
@@ -332,6 +291,7 @@ _FILE_VALUE = re.compile(r'^file://\{[a-z]+\}/(?:.*/)?([^/]+?)(?:\.[a-z0-9]+)?$'
 _CAMEL = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|_')
 
 
+@lru_cache(maxsize=None)
 def readable_value(s: str) -> str:
     """Engine spellings a player cannot read, as words: 'EHeroDevState_PreRelease' -> 'Pre Release',
     'CITADEL_UNIT_TARGET_NEUTRAL' -> 'Neutral', 'file://{images}/…/sticker_baba.psd' -> 'sticker_baba'.
@@ -459,10 +419,10 @@ def vals_html(c: dict) -> str:
         return f'<span class="vals"><span class="old">{esc(old_s)}</span>{PCT_PAD}</span>'
     d = c.get('dir', 'changed')
     pct = c.get('pct')
-    pct_s = (f'<span class="pct dir-{d}" data-g="{pct_grade(pct)}">{pct:+.1f}%</span>'
+    pct_s = (f'<span class="pct dir-{esc(d)}" data-g="{pct_grade(pct)}">{pct:+.1f}%</span>'
              if isinstance(pct, (int, float)) else PCT_PAD)
     return (f'<span class="vals"><span class="old">{esc(old_s)}</span><span class="arrow">→</span>'
-            f'<span class="new dir-{d}">{esc(new_s)}</span>{pct_s}</span>')
+            f'<span class="new dir-{esc(d)}">{esc(new_s)}</span>{pct_s}</span>')
 
 
 def vals_text(c: dict) -> tuple[str, str]:
@@ -488,13 +448,3 @@ def vals_text(c: dict) -> tuple[str, str]:
     if op == 'remove':
         return old, ''
     return old, new
-
-
-def change_li(c: dict, show_status: bool = True, show_builds: bool = False) -> str:
-    st = c.get('status', 'hidden')
-    status = mark(st) if show_status else ''
-    builds = ''
-    if show_builds and c.get('builds'):
-        builds = f'<span class="bld">{esc(", ".join(str(b) for b in c["builds"]))}</span>'
-    return (f'<li class="st-{esc(st)} cat-{esc(c.get("cat", ""))}">{status}{tag_html(c)}'
-            f'<span class="lbl">{esc(c.get("label"))}</span>{vals_html(c)}{builds}</li>')

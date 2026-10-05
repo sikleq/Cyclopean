@@ -262,11 +262,11 @@ def test_off_pages_are_what_the_pages_do_not_show(monkeypatch):
 
 
 def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
-    from builders import home_page, patch_counts, patches_pages, shared_rows
+    from builders import archive, home_page, patch_counts, patches_pages, shared_rows
     p = _patch()
     monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
     monkeypatch.setattr(patch_counts, 'for_id', lambda pid: patch_counts.count(p, PAGES))
-    monkeypatch.setattr(home_page, 'load_json', lambda rel: p)
+    monkeypatch.setattr(archive, 'patch', lambda pid: p)          # the build's shared archive (builders/archive.py)
     audit = patches_pages._audit_line(p)
     assert '<b>3</b> not in patch notes' in audit and '<b>1</b> of them in game rules' in audit
     row = patches_pages._index_row({**p, 'has_notes': True, 'builds': 1}, {}, '../', False)

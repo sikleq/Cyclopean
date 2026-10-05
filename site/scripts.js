@@ -12,6 +12,24 @@
   var redirect = document.body && document.body.getAttribute('data-redirect');
   if (redirect) { location.replace(redirect + location.hash); return; }
 
+  /* the fonts' stylesheet arrives as media="print" so it never holds the first paint (builders/common.page):
+     switched on once it has loaded */
+  safe('fonts', function () {
+    document.querySelectorAll('link[data-fonts]').forEach(function (l) {
+      function on() { l.media = 'all'; }
+      if (l.sheet) on(); else l.addEventListener('load', on);
+    });
+  });
+
+  /* an element that acts on a click (a sortable header, a foldable group) answers Enter and Space too */
+  function pressable(el) {
+    if (el.__press) return;
+    el.__press = true;
+    el.addEventListener('keydown', function (ev) {
+      if ((ev.key === 'Enter' || ev.key === ' ') && ev.target === el) { ev.preventDefault(); el.click(); }
+    });
+  }
+
   function fmtNum(v, digits) {
     if (v === null || v === undefined || v === '') return '—';
     if (typeof v !== 'number') return String(v);
@@ -33,12 +51,23 @@
         table.querySelectorAll('tbody td.sorted-col').forEach(function (td) { td.classList.remove('sorted-col'); });
         if (col) table.querySelectorAll('tbody td[data-col="' + col + '"]').forEach(function (td) { td.classList.add('sorted-col'); });
       }
-      table.querySelectorAll('thead tr.cols th[data-col]').forEach(function (th) {
-        if (th.hasAttribute('data-nosort')) return;
+      var sortable = Array.prototype.filter.call(table.querySelectorAll('thead tr.cols th[data-col]'), function (th) {
+        return !th.hasAttribute('data-nosort');
+      });
+      // the keyboard sorts too (Enter / Space on a focused header); aria-sort says the column's order
+      function ariaSort(active, dir) {
+        sortable.forEach(function (x) {
+          x.setAttribute('aria-sort', x === active && dir ? (dir === 1 ? 'descending' : 'ascending') : 'none');
+        });
+      }
+      sortable.forEach(function (th) {
+        th.tabIndex = 0;
+        pressable(th);
         th.addEventListener('click', function () {
           var col = th.getAttribute('data-col');
           if (state.col !== col) { state.col = col; state.dir = 1; }
           else { state.dir = state.dir === 1 ? -1 : (state.dir === -1 ? 0 : 1); }
+          ariaSort(th, state.dir);
           table.querySelectorAll('thead th.sorted').forEach(function (x) { x.classList.remove('sorted'); x.removeAttribute('data-arrow'); });
           var rows;
           if (state.dir === 0) {
@@ -54,7 +83,9 @@
             });
             keyed.sort(function (a, b) {
               var ea = isNaN(a[1]), eb = isNaN(b[1]);
-              if (ea && eb) return String(a[0]).localeCompare(String(b[0]));
+              // words follow the direction too: a Name column read A→Z on every click while aria-sort
+              // announced "descending" (review 2026-10-05)
+              if (ea && eb) return String(a[0]).localeCompare(String(b[0])) * -state.dir;
               if (ea) return 1;
               if (eb) return -1;
               return state.dir === 1 ? b[1] - a[1] : a[1] - b[1];
@@ -72,9 +103,11 @@
       table.addEventListener('statcols', function () { mark(state.dir !== 0 ? state.col : null); });
       // back to the table's own order (Item Stats: its stat columns closed while one sorted the rows)
       table.__sortedBy = function () { return state.dir !== 0 ? state.col : null; };
+      ariaSort(null, 0);
       table.__resetSort = function () {
         state.col = null;
         state.dir = 0;
+        ariaSort(null, 0);
         table.querySelectorAll('thead th.sorted').forEach(function (x) { x.classList.remove('sorted'); x.removeAttribute('data-arrow'); });
         table.classList.remove('is-sorted');
         var frag = document.createDocumentFragment();
@@ -95,14 +128,80 @@
   });
 
   /* ---------- history tooltip for cells with data-hist ---------- */
+  /* drawn once per cell (moving between a cell's children redrew it: 2 forced layouts a move), also on
+     keyboard focus: the values take the tab order, the tip describes the focused one */
   safe('hist-tip', function () {
-    var tip = document.createElement('div');
+    if (!document.querySelector('[data-hist]')) return;
+    var tip = document.createElement('div'), current = null;
     tip.className = 'hist-tip px-frame bright';
+    tip.id = 'hist-tip';
+    tip.setAttribute('role', 'tooltip');
     document.body.appendChild(tip);
+    /* a table's values are ONE tab stop (a roving tabindex): Tab enters the table at the value visited last
+       (else its first shown one), the arrow keys move between its values — Hero Stats had ~1,100 tab stops,
+       Item Stats ~1,000 (review 2026-10-05). A value outside a table is a stop of its own. Item Stats'
+       stat-column cells, built later, join their table's moves (item-filter). */
+    var grids = [];
+    document.querySelectorAll('[data-hist]').forEach(function (el) {
+      var t = el.closest('table');
+      if (!t) { el.tabIndex = 0; return; }
+      if (t.__hist) return;
+      t.__hist = el;
+      el.tabIndex = 0;
+      grids.push(t);
+    });
+    function shown(el) { return el.getClientRects().length > 0; }
+    function enter(t, el) {
+      if (t.__hist && t.__hist !== el) t.__hist.tabIndex = -1;
+      t.__hist = el;
+      el.tabIndex = 0;
+    }
+    // the stop must be a value one can see: a filter or a folded group may have hidden it since
+    function entryOf(t) {
+      if (t.__hist && t.contains(t.__hist) && shown(t.__hist)) return t.__hist;
+      var all = t.querySelectorAll('[data-hist]');
+      for (var i = 0; i < all.length; i++) if (shown(all[i])) return all[i];
+      return null;
+    }
+    // ←/→ the previous / next value in reading order (rows move in the DOM when sorted), ↑/↓ the same
+    // column's value in the nearest shown row above / below
+    function moveFrom(el, key) {
+      var t = el.closest('table');
+      if (!t) return null;
+      if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        var all = Array.prototype.filter.call(t.querySelectorAll('[data-hist]'), shown);
+        var i = all.indexOf(el);
+        return all[i + (key === 'ArrowRight' ? 1 : -1)] || null;
+      }
+      var col = el.getAttribute('data-col'), tr = el.closest('tr');
+      if (!col || !tr) return null;
+      var sel = '[data-hist][data-col="' + col + '"]';
+      for (var r = tr; (r = key === 'ArrowDown' ? r.nextElementSibling : r.previousElementSibling);) {
+        var c = r.querySelector(sel);
+        if (c && shown(c)) return c;
+      }
+      return null;
+    }
+    document.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Tab') {
+        grids.forEach(function (t) { var e = entryOf(t); if (e && e !== t.__hist) enter(t, e); });
+        return;
+      }
+      if (ev.key !== 'ArrowLeft' && ev.key !== 'ArrowRight' && ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+      var el = document.activeElement;
+      if (!el || !el.hasAttribute || !el.hasAttribute('data-hist')) return;
+      var next = moveFrom(el, ev.key);
+      if (!next) return;
+      ev.preventDefault();
+      enter(next.closest('table'), next);
+      next.focus();
+    });
     function show(td) {
+      if (td === current) return;
       var hist;
       try { hist = JSON.parse(td.getAttribute('data-hist')); } catch (e) { return; }
       if (!hist || !hist.length) return;
+      current = td;
       var pol = parseInt(td.getAttribute('data-pol') || '1', 10);
       var digits = parseInt(td.getAttribute('data-digits') || '2', 10);
       // a unit after every number (Game rules: "55m", "38s" — builders/game_rules.py), none by default
@@ -135,16 +234,20 @@
           }
         }
         // fixed columns: date | was | → | now | % — a first value sits under "now" like every other row
-        var first = (h[2] === null || h[2] === undefined);
+        var firstStep = (h[2] === null || h[2] === undefined);
         html += '<li><span class="d">' + h[1] + '</span>' +
-          '<span class="o">' + (first ? '' : fmtU(h[2], digits)) + '</span>' +
-          '<span class="arrow">' + (first ? '' : '→') + '</span>' +
-          '<span class="n ' + (first ? 'dir-changed' : cls) + '">' + fmtU(h[3], digits) + '</span>' +
+          '<span class="o">' + (firstStep ? '' : fmtU(h[2], digits)) + '</span>' +
+          '<span class="arrow">' + (firstStep ? '' : '→') + '</span>' +
+          '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + fmtU(h[3], digits) + '</span>' +
           '<span class="p">' + pill + '</span></li>';
       }
       html += '</ol>';
       tip.innerHTML = html;
       tip.classList.add('on');
+      td.setAttribute('aria-describedby', tip.id);
+      place(td);
+    }
+    function place(td) {
       var r = td.getBoundingClientRect();
       var tw = tip.offsetWidth, th = tip.offsetHeight;
       var x = Math.min(Math.max(8, r.left + r.width / 2 - tw / 2), document.documentElement.clientWidth - tw - 8);
@@ -153,24 +256,38 @@
       tip.style.left = x + 'px';
       tip.style.top = Math.max(8, y) + 'px';
     }
+    function hide() {
+      if (current) current.removeAttribute('aria-describedby');
+      current = null;
+      tip.classList.remove('on');
+    }
     function pctGrade(q) {
       var a = Math.abs(q);
       return a < 5 ? 1 : a < 15 ? 2 : a < 30 ? 3 : a < 60 ? 4 : 5;     // same steps as render.pct_grade
     }
+    // with the sign, as the entity pages' tags (pipeline/semantics.direction): a hero's bullet resist
+    // −20% → −15% is a buff and −6% → −8% a nerf; by size they read the other way (frontend audit 10-04)
     function dirClass(a, b, pol) {
       if (typeof a !== 'number' || typeof b !== 'number' || a === b || pol === 0) return 'dir-changed';
-      var better = pol > 0 ? Math.abs(b) > Math.abs(a) : Math.abs(b) < Math.abs(a);
-      return better ? 'dir-buff' : 'dir-nerf';
+      return (pol > 0 ? b > a : b < a) ? 'dir-buff' : 'dir-nerf';
     }
     document.addEventListener('mouseover', function (ev) {
-      var td = ev.target.closest('[data-hist]');
+      var td = ev.target.closest && ev.target.closest('[data-hist]');
       if (td) show(td);
     });
     document.addEventListener('mouseout', function (ev) {
-      var td = ev.target.closest('[data-hist]');
-      if (td && !td.contains(ev.relatedTarget)) tip.classList.remove('on');
+      var td = ev.target.closest && ev.target.closest('[data-hist]');
+      if (td && !td.contains(ev.relatedTarget)) hide();
     });
-    window.addEventListener('scroll', function () { tip.classList.remove('on'); }, true);
+    document.addEventListener('focusin', function (ev) {
+      var td = ev.target.closest && ev.target.closest('[data-hist]');
+      if (td) show(td); else if (current) hide();
+    });
+    document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && current) hide(); });
+    // a scroll hides it — except the one the keyboard focused (focusing scrolls the cell into view)
+    window.addEventListener('scroll', function () {
+      if (current && current === document.activeElement) place(current); else if (current) hide();
+    }, true);
   });
 
   /* ---------- short tooltips for [data-tooltip]: one element, kept inside the viewport ---------- */
@@ -282,7 +399,7 @@
     function countsHtml(counts, d) {
       return '<div class="dt-counts">' + ORDER.filter(function (t) { return counts[t]; }).map(function (t) {
         var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
-        return '<span class="pip ' + t + '">' + ((d.icons || {})[t] || '') + counts[t] + '<em>' + txt(word) + '</em></span>';
+        return '<span class="pip ' + t + '">' + counts[t] + '<em>' + txt(word) + '</em></span>';     // icon: CSS
       }).join('') + '</div>';
     }
     function valsHtml(old, now, tag) {
@@ -320,6 +437,14 @@
       if (part !== 'all' && c[3]) {             // the filter: only this part's counts and changes
         counts = c[3][part] || {};
         samples = samples.filter(function (s) { return s[5] === part; });
+      }
+      // chosen tags: the card says what the tile shows (the tile kept only BUFF's stripe, the card every tag)
+      var sel = table.__sel || [];
+      if (sel.length) {
+        var kept = {};
+        Object.keys(counts).forEach(function (t) { if (sel.indexOf(t) >= 0) kept[t] = counts[t]; });
+        counts = kept;
+        samples = samples.filter(function (s) { return sel.indexOf(s[4]) >= 0; });
       }
       // a hero's changes are grouped by part (base stats, weapon, abilities) and name the ability — an
       // item's or unit's are about the row itself
@@ -488,11 +613,16 @@
         if (a.firstChild.textContent !== String(total)) a.firstChild.textContent = total;
       });
     }
-    document.querySelectorAll('[data-part]').forEach(function (btn) {
+    // the part buttons of one toolbar (the table itself carries data-part once a part is chosen: a page-wide
+    // [data-part] query toggled the class "on" on the table too)
+    document.querySelectorAll('.dyn-parts button[data-part]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var table = document.querySelector(btn.getAttribute('data-target'));
         if (!table) return;
-        document.querySelectorAll('[data-part]').forEach(function (b) { b.classList.toggle('on', b === btn); });
+        btn.closest('.dyn-parts').querySelectorAll('button[data-part]').forEach(function (b) {
+          b.classList.toggle('on', b === btn);
+          b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
+        });
         table.setAttribute('data-part', btn.getAttribute('data-part'));
         redraw(table);
       });
@@ -652,14 +782,19 @@
       var room = n.clientWidth - 2 * parseFloat(getComputedStyle(n).paddingLeft);
       return n.scrollHeight > n.clientHeight + 1 || probe.getBoundingClientRect().width > room * 0.98;
     }
+    // in rounds: every name that is still too big takes the next size, then all of them are measured — one
+    // layout a round instead of one a name a step (a tab switch was one 160 ms task, frontend audit 10-04)
     function fit(page) {
       // a hidden page measures nothing: it fits when its tab opens
       if (!page || page.hidden || page.getAttribute('data-fit')) return;
       page.setAttribute('data-fit', '1');
-      page.querySelectorAll('.gc-nm').forEach(function (n) {
-        n.style.fontSize = '';
-        for (var k = 14.5; tooBig(n) && k >= 9; k -= 0.5) n.style.fontSize = 'calc(' + k + ' * var(--u))';
-      });
+      var names = Array.prototype.slice.call(page.querySelectorAll('.gc-nm'));
+      names.forEach(function (n) { n.style.fontSize = ''; });
+      var todo = names.filter(tooBig);
+      for (var k = 14.5; todo.length && k >= 9; k -= 0.5) {
+        todo.forEach(function (n) { n.style.fontSize = 'calc(' + k + ' * var(--u))'; });
+        todo = todo.filter(tooBig);
+      }
     }
     function refit() {
       pages.forEach(function (p) { p.removeAttribute('data-fit'); });
@@ -672,6 +807,9 @@
       clearTimeout(fitT);
       fitT = setTimeout(refit, 200);
     });
+    // the fonts arrive after the first paint (their stylesheet does not block it): names fitted in the
+    // fallback font fit again in the real one
+    if (document.fonts && document.fonts.addEventListener) document.fonts.addEventListener('loadingdone', refit);
     function show(key, byUser) {
       if (!HASH[key]) key = 'w';
       pages.forEach(function (p) { p.hidden = p.getAttribute('data-page') !== key; });
@@ -823,8 +961,13 @@
     btns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         var table = document.querySelector(btn.getAttribute('data-target'));
+        if (!table) return;
         var role = btn.classList.contains('on') ? '' : btn.getAttribute('data-role-filter');
-        btns.forEach(function (b) { b.classList.toggle('on', b === btn && !!role); });
+        btns.forEach(function (b) {
+          var on = b === btn && !!role;
+          b.classList.toggle('on', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
         table.querySelectorAll('tbody tr[data-role]').forEach(function (tr) {
           tr.classList.toggle('role-out', !!role && tr.getAttribute('data-role') !== role);
         });
@@ -838,7 +981,7 @@
     btns.forEach(function (btn) {
       btn.addEventListener('click', function () {
         var y = btn.getAttribute('data-year');
-        btns.forEach(function (b) { b.classList.toggle('on', b === btn); });
+        btns.forEach(function (b) { b.classList.toggle('on', b === btn); b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
         document.querySelectorAll('.cal-year').forEach(function (s) { s.classList.toggle('on', s.getAttribute('data-year') === y); });
       });
     });
@@ -956,8 +1099,11 @@
       cats.forEach(function (th) {
         if (ofGroup(th.getAttribute('data-group')).length < 2) return;      // nothing to fold
         th.classList.add('foldable');
+        th.tabIndex = 0;
+        th.setAttribute('aria-expanded', 'true');
+        pressable(th);
         th.addEventListener('click', function () {
-          th.classList.toggle('folded');
+          th.setAttribute('aria-expanded', th.classList.toggle('folded') ? 'false' : 'true');
           recount();
         });
       });
@@ -1022,6 +1168,7 @@
       var k = b.getAttribute('data-f'), v = b.getAttribute('data-v'), i = sel[k].indexOf(v);
       if (i >= 0) sel[k].splice(i, 1); else sel[k].push(v);
       b.classList.toggle('on', i < 0);
+      b.setAttribute('aria-pressed', i < 0 ? 'true' : 'false');
       apply();
     });
     var search = bar.querySelector('input[type=search]');
@@ -1363,6 +1510,7 @@
      an ability card's trail square or its last change) — opens and comes into view, even when a filter
      or "Before release" hid it and even when the address already names it ---------- */
   safe('patch-anchor', function () {
+    if (!document.querySelector('[id^="p-"]')) return;     // no history bands here: no listeners
     // a band or group a filter (or "Before release") hides: clear the filters; still hidden and work before
     // release -> show that too. The band can show while the group is filtered out (another ability's rows
     // kept it): the group is checked on its own, or the square scrolled nowhere and lit a hidden group
@@ -1416,8 +1564,13 @@
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */
   safe('tabs', function () {
     var buttons = document.querySelectorAll('[data-tab]');
+    if (!buttons.length) return;                     // no tabs on the page: no listeners either
     function open(id) {
-      buttons.forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-tab') === id); });
+      buttons.forEach(function (b) {
+        var on = b.getAttribute('data-tab') === id;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
       document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('on', p.id === id); });
     }
     buttons.forEach(function (b) {
@@ -1488,20 +1641,25 @@
     var input = document.querySelector('input[data-site-search]');
     if (!input) return;
     var list = input.parentNode.querySelector('.ss-list');
-    var rel = input.getAttribute('data-rel') || '', rows = null, asked = false, timer = 0, on = -1;
+    var rel = input.getAttribute('data-rel') || '', rows = null, req = null, timer = 0, on = -1;
     var MAX = 12;
-    function load(then) {
-      if (rows) { then(); return; }
-      if (asked) return;
-      asked = true;
-      fetch(input.getAttribute('data-site-search'))
-        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
-        .then(function (d) { rows = d; then(); })
-        .catch(function () { asked = false; });
+    // one request, kept as a promise: what is typed while search.json loads is drawn when it arrives (the
+    // keystrokes' callbacks were dropped while the request was in flight, frontend audit 2026-10-04)
+    function load() {
+      if (!req) {
+        req = fetch(input.getAttribute('data-site-search'))
+          .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+          .then(function (d) { rows = d; return d; })
+          .catch(function (e) { req = null; throw e; });              // the next key asks again
+      }
+      return req;
     }
-    function item(r) {
+    function later(then) { load().then(then, function () { /* offline: nothing to list */ }); }
+    function item(r, i) {
       var a = document.createElement('a');
       a.href = rel + r[1];
+      a.id = 'ss-o' + i;
+      a.setAttribute('role', 'option');
       var pic = document.createElement(r[3] ? 'img' : 'span');
       if (r[3]) { pic.src = rel + r[3]; pic.alt = ''; pic.loading = 'lazy'; } else pic.className = 'ss-noimg';
       var nm = document.createElement('span'), what = document.createElement('span');
@@ -1510,11 +1668,18 @@
       a.appendChild(pic); a.appendChild(nm); a.appendChild(what);
       return a;
     }
+    // the list shown or not: the combobox says so (aria-expanded), its active option goes with it
+    function shown(open) {
+      list.hidden = !open;
+      input.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (!open) input.removeAttribute('aria-activedescendant');
+    }
     function render() {
       var q = input.value.trim().toLowerCase();
       list.textContent = '';
       on = -1;
-      if (!q || !rows) { list.hidden = true; return; }
+      input.removeAttribute('aria-activedescendant');
+      if (!q || !rows) { shown(false); return; }
       // names that start with the query first, then any word that does, then anywhere
       var first = [], word = [], any = [];
       for (var i = 0; i < rows.length; i++) {
@@ -1528,21 +1693,23 @@
         none.className = 'ss-none'; none.textContent = 'Nothing by that name';
         list.appendChild(none);
       }
-      hits.forEach(function (r) { list.appendChild(item(r)); });
-      list.hidden = false;
+      hits.forEach(function (r, k) { list.appendChild(item(r, k)); });
+      shown(true);
     }
     function move(d) {
       var links = list.querySelectorAll('a');
       if (!links.length) return;
-      if (on >= 0) links[on].classList.remove('on');
+      if (on >= 0) { links[on].classList.remove('on'); links[on].removeAttribute('aria-selected'); }
       on = (on + d + links.length) % links.length;
       links[on].classList.add('on');
+      links[on].setAttribute('aria-selected', 'true');
+      input.setAttribute('aria-activedescendant', links[on].id);
       links[on].scrollIntoView({ block: 'nearest' });
     }
-    input.addEventListener('focus', function () { load(function () {}); });
+    input.addEventListener('focus', function () { later(function () {}); });
     input.addEventListener('input', function () {
       clearTimeout(timer);
-      timer = setTimeout(function () { load(render); }, 80);
+      timer = setTimeout(function () { later(render); }, 80);
     });
     input.addEventListener('keydown', function (ev) {
       if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); move(ev.key === 'ArrowDown' ? 1 : -1); }
@@ -1552,8 +1719,8 @@
       } else if (ev.key === 'Escape') { input.value = ''; render(); }
     });
     document.addEventListener('click', function (ev) {
-      if (!input.parentNode.contains(ev.target)) list.hidden = true;
+      if (!input.parentNode.contains(ev.target)) shown(false);
     });
-    input.addEventListener('focus', function () { if (list.childNodes.length) list.hidden = false; });
+    input.addEventListener('focus', function () { if (list.childNodes.length) shown(true); });
   });
 })();

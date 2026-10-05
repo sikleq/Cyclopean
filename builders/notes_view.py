@@ -7,12 +7,9 @@ from __future__ import annotations
 import re
 from functools import lru_cache
 
-from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark, visual
-from .render import shown_value, tag_badge, tag_html, tag_of, tag_summary
+from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark
+from .render import shown_value, tag_badge, tag_html, tag_of
 
-LINE_MARKS = ('documented', 'rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated', 'code')
-TOPIC_LABEL = {'link': 'forum link', 'sound': 'sound', 'visual': 'visuals', 'interface': 'interface',
-               'map': 'map', 'bots': 'bots', 'performance': 'performance'}
 _FILE_ORDER = {'heroes.vdata': 0, 'abilities.vdata': 1, 'npc_units.vdata': 2}
 INLINE_VALUES = 2       # a general line backed by this few values prints them instead of a toggle
 
@@ -51,14 +48,6 @@ def _abilities_of() -> dict[str, list[tuple[str, dict]]]:
 def _subject_entity(subject: str, patch_ents: dict[str, dict]) -> dict | None:
     key = subject.strip().lower()
     return patch_ents.get(key) or _by_name().get(key)
-
-
-def _icon_of(e: dict | None, rel: str) -> str:
-    if e is None:
-        return visual(None, 'units')                     # Walker, Guardian… named by alias
-    src = (hero_icon(e['id'], rel) if e['file'] == 'heroes.vdata'
-           else entity_icon(e['file'], e['id'], e.get('kind', ''), rel, e.get('name'), e.get('owner')))
-    return visual(src, glyph_for(e['file'], e['id'], e.get('kind', '')))
 
 
 _PREFIX = re.compile(r'^\s*([^:]{1,48}):\s*')
@@ -210,10 +199,6 @@ def _groups(lines: list[dict]) -> list[tuple[str | None, list[dict]]]:
     return [(s, ls) for s, ls in out if ls]
 
 
-KIND_SUB = {'hero': 'Hero', 'ability': 'Ability', 'weapon': 'Weapon', 'item': 'Item', 'trooper': 'Trooper',
-            'building': 'Building', 'neutral': 'Neutral', 'unit': 'Unit', 'ability_other': 'Ability'}
-
-
 # A section about the interface, sound or settings is not balance: it gets its own tab, laid out as
 # a compact grid of features (City Never Sleeps: ~150 such lines buried the gameplay ones)
 _IFACE_SECTION = re.compile(r'interface|\bui\b|hud|settings|sandbox|spectat|accessib|sound|music|\bvo\b|'
@@ -298,6 +283,7 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
         if e.get('name') and e.get('id') != '@shared':
             patch_ents.setdefault(e['name'].strip().lower(), e)
     out = []
+    anchors: set[str] = set()       # an entity named in two sections: its #n- anchor on the first card only
     for s in p['sections']:
         groups = _groups(s['lines'])
         n_lines = sum(len(ls) for _, ls in groups)
@@ -337,8 +323,9 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
             head = card_head(subject, _icon_src(ent, rel), _glyph(ent),
                              [c for cs in linked for c in cs[:1]],
                              trail=trail_html(src_key, p['id'], rel) if src_key else '')
-            cards.append(card(head, ''.join(rows), search=subject.lower(),
-                              anchor=f"n-{ent['id']}" if ent else ''))
+            anchor = f"n-{ent['id']}" if ent and f"n-{ent['id']}" not in anchors else ''
+            anchors.add(anchor)
+            cards.append(card(head, ''.join(rows), search=subject.lower(), anchor=anchor))
         out.append('<div class="ecards">' + ''.join(cards) + '</div>')
     return ''.join(out)
 

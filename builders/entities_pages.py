@@ -3,12 +3,12 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import (display_name, entity_icon, esc, first_seen, glyph_for, hero_icon, img, load_json, page, pretty_id,
-                     slug, write)
-from .hero_page import hero_page, history_table, now_fold, prop_icon, prop_rows, stat_tables
+from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
+from .cards import GAMEPLAY
+from .hero_page import hero_page, history_table, prop_icon, prop_rows, stat_tables
+from .history_view import now_fold
 from .render import KIND_LABEL, tag_badge
 
-GAMEPLAY = ('balance', 'mechanic', 'availability')
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
                ('unit', 'Other units'), ('helper', 'Unnamed, hideout, bots & effects'))
 SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vitality', 'EItemSlotType_Tech': 'Spirit'}
@@ -23,11 +23,12 @@ def _history() -> tuple[dict, dict]:
     from .game_systems import ALL_PREFIX, CONVAR_PREFIX, convar_changes, convar_start
     from .shared_rows import FOLD_FILES, catalog, entities as spread_all, noun
     from .text_rows import TEXT_PREFIX
+    from . import archive
     by_ent: dict[str, list] = defaultdict(list)
     by_subject: dict[str, list] = defaultdict(list)
     start = convar_start()           # the build that starts the console variables' tracking: a snapshot
-    for row in load_json('patches/index.json'):
-        p = load_json(f'patches/{row["id"]}.json.gz')
+    for row in archive.index():
+        p = archive.patch(row['id'])
         for e in spread_all(p['entities']):
             ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
             if ch:
@@ -65,7 +66,7 @@ def _history() -> tuple[dict, dict]:
 
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
-    name = it['name'] if it.get('name') and it['name'] != it['id'] else pretty_id(it['id'])
+    name = display_name(it)
     ic = entity_icon(it['file'], it['id'], it['kind'], rel)
     gone = '' if it.get('alive') else ' ' + tag_badge('del', 'REMOVED')
     disabled = ' <span class="chip">not in shop</span>' if it.get('disabled') else ''
@@ -79,7 +80,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             # T5 is Street Brawl's draft only; its "price" 9999 is a placeholder, not souls
             chips.append('<span class="chip">Street Brawl only</span>')
         elif info.get('cost'):
-            chips.append(f'<span class="chip">{info["cost"]} souls</span>')
+            chips.append(f'<span class="chip">{esc(info["cost"])} souls</span>')
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
@@ -187,7 +188,7 @@ def sub_tabs(section: str, active: str) -> str:
 def _card(e: dict, rel_icon: str | None, sub: str = '', foot: str = '') -> str:
     href = slug(e['file'], e['id']).split('/', 1)[1]
     cls = 'card px-frame' + ('' if e.get('alive') else ' gone')
-    name = e['name'] if e.get('name') and e['name'] != e['id'] else pretty_id(e['id'], e.get('owner'))
+    name = display_name(e)
     return (f'<a class="{cls}" href="{esc(href)}" data-search="{esc(name.lower())} {esc(e["id"])}">'
             f'{img(rel_icon, "", "px", glyph_for(e["file"], e["id"]))}<span class="nm">{esc(name)}</span>'
             f'<span class="sub">{esc(sub)}</span>{foot}</a>')
@@ -228,23 +229,52 @@ def page_keys(ents: dict[str, dict], heroes: list[dict], items: list[dict], unit
 
 
 def build_all() -> dict[str, int]:
+    """Every hero, item and unit page, the three indexes, the change matrices, the Game section and the home
+    search's list. One step per section (python audit 2026-10-04: one 126-line function)."""
+    ctx = _context()
+    ents, by_ent, rel = ctx['ents'], ctx['by_ent'], ctx['rel']
+    heroes, items, units = page_entities(ents, changed(by_ent), ctx['trow'])
+    live = _build_heroes(ctx, heroes)
+    _build_items(ctx, items)
+    fams, named = _build_units(ctx, units)
+    from .hero_page import current_cards
+    from .site_search import INDEX_FILE, search_json, search_rows
+    found = search_rows(live, items, named, ctx['cards'], current_cards)
+    # the Game section: everything that is not one hero, item or unit (jump, dash, the Soul Urn, crates…)
+    from . import game_pages
+    n_game, game_rows = game_pages.build_all(by_ent, ctx['by_subject'], ents, page_keys(ents, heroes, items, units))
+    found = sorted(found + game_rows, key=lambda r: (r[0].lower(), r[2]))
+    write(INDEX_FILE, search_json(found))
+    from .dynamics_page import matrix_html, toolbar, unit_entries
+    entries = unit_entries(units, UNIT_GROUPS, rel)
+    n_gone = sum(1 for e in entries if e[4])
+    write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
+                                     + toolbar('unit', n_gone, 'Removed & helpers') + matrix_html(entries, 'unit'),
+                                     rel, 'units', wide=True))
+    return {'heroes': len(heroes), 'items': len(items), 'units': len(fams), 'game': n_game}
+
+
+def _context() -> dict:
+    """What every section reads: the catalog, the history by entity and by note subject, the tables, the cards."""
     data = load_json('entities.json')
     ents = {f"{e['file']}:{e['id']}": e for e in data['entities']}
     by_ent, by_subject = _history()
-    own = changed(by_ent)
-    table = load_json('tables/heroes.json')
-    trow = {r['id']: r for r in table['heroes']}
-    units_t = load_json('tables/units.json')
-    urow = {r['id']: r for r in units_t['units']}
-    cards = load_json('abilities.json')['abilities']
-    rel = '../'
-    counts = {'heroes': 0, 'items': 0, 'units': 0}
+    from .tables_pages import heroes_data
+    heroes_t = heroes_data()
+    return {'ents': ents, 'by_ent': by_ent, 'by_subject': by_subject, 'heroes_t': heroes_t,
+            'trow': {r['id']: r for r in heroes_t['heroes']},
+            'units_t': load_json('tables/units.json'), 'cards': load_json('abilities.json')['abilities'], 'rel': '../',
+            'by_id': {e['id']: e for e in ents.values() if e['file'] == 'abilities.vdata'}}
 
-    heroes, items, units = page_entities(ents, own, trow)
-    by_id = {e['id']: e for e in ents.values() if e['file'] == 'abilities.vdata'}
+
+def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
+    """Hero pages (`page_entities`), the old shared abilities' address, the Heroes index and the hero matrix.
+    Returns the heroes a player can pick."""
+    ents, by_ent, by_subject, rel = ctx['ents'], ctx['by_ent'], ctx['by_subject'], ctx['rel']
+    table, trow = ctx['heroes_t'], ctx['trow']
     for h in heroes:
-        write(slug(h['file'], h['id']), hero_page(h, cards, trow.get(h['id']), table['columns'], by_id, by_ent, by_subject))
-        counts['heroes'] += 1
+        write(slug(h['file'], h['id']), hero_page(h, ctx['cards'], trow.get(h['id']), table['columns'], ctx['by_id'],
+                                                  by_ent, by_subject))
     live = sorted((h for h in heroes if h.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease')),
                   key=lambda h: h.get('name') or '')
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
@@ -264,12 +294,16 @@ def build_all() -> dict[str, int]:
     dyn = matrix_html(hero_entries(live, rel), 'hero')
     write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
                                       + toolbar('hero', n_pre, 'Pre-release') + dyn, rel, 'heroes', wide=True))
+    return live
 
+
+def _build_items(ctx: dict, items: list[dict]) -> None:
+    """Item pages (`page_entities`), the shop (Items index) with its tooltips, the item matrix."""
+    by_ent, cards, rel = ctx['by_ent'], ctx['cards'], ctx['rel']
     for it in items:
-        write(slug(it['file'], it['id']), item_page(it, cards.get(it['id']), by_ent, by_subject))
-        counts['items'] += 1
+        write(slug(it['file'], it['id']), item_page(it, cards.get(it['id']), by_ent, ctx['by_subject']))
     # laid out like the game's shop: tiers x Weapon / Spirit / Vitality (builders/shop_page.py)
-    from .dynamics_page import item_entries
+    from .dynamics_page import item_entries, matrix_html, toolbar
     from .shop_page import shop_html
     shop, tips = shop_html(items, cards, rel)
     write('items/shop-tips.json', tips)          # the tooltips, loaded on the first hover
@@ -283,27 +317,43 @@ def build_all() -> dict[str, int]:
     from .game_shop import FONTS as SHOP_FONTS
     write('items/index.html', page('Items', body, rel, 'items', fonts=SHOP_FONTS))
 
+
+def _unit_group(ms: list[dict]) -> str:
+    """A family's group on the Units index; an unnamed unit the code spawns sits with the helpers
+    (unit_families.is_named)."""
+    from .unit_families import is_named
+    return ms[0]['kind'] if is_named(ms[0]) else 'helper'
+
+
+def _build_units(ctx: dict, units: list[dict]) -> tuple[dict, list[tuple]]:
+    """One page per unit family (the other members point to it) and the Units index. Returns (the families, the
+    named ones for the search)."""
+    rel = ctx['rel']
+    units_t = ctx['units_t']
+    urow = {r['id']: r for r in units_t['units']}
     bound = defaultdict(list)                  # unit id -> the abilities it binds (Walker's Stomp…)
-    for e in by_id.values():
+    for e in ctx['by_id'].values():
         for uid in e.get('units') or ():
             bound[uid].append(e)
-    # one page and one card per unit family (unit_families); the other members point to it
-    from .unit_families import families, is_named, tier_of
+    from .unit_families import families
     fams = families(units)
-
-    def group_of(ms: list[dict]) -> str:
-        """An unnamed unit the code spawns sits with the helpers (unit_families.is_named)."""
-        return ms[0]['kind'] if is_named(ms[0]) else 'helper'
     for name, members in fams.items():
         main = members[0]
         page_path = slug(main['file'], main['id'])
-        write(page_path, unit_page(members, urow, units_t['columns'], by_ent, by_subject, bound))
+        write(page_path, unit_page(members, urow, units_t['columns'], ctx['by_ent'], ctx['by_subject'], bound))
         for m in members[1:]:
             write(slug(m['file'], m['id']), redirect_page(page_path.split('/', 1)[1], name))
-        counts['units'] += 1
+    write('units/index.html', page('Units', _units_index(fams, rel), rel, 'units'))
+    named = [(n, ms[0]) for n, ms in fams.items() if _unit_group(ms) != 'helper']
+    return fams, named
+
+
+def _units_index(fams: dict, rel: str) -> str:
+    """The Units index body: a card per family by group, the Removed and helpers switches."""
+    from .unit_families import tier_of
     groups = []
     for kind, title in UNIT_GROUPS:
-        sel = sorted(((n, ms) for n, ms in fams.items() if group_of(ms) == kind),
+        sel = sorted(((n, ms) for n, ms in fams.items() if _unit_group(ms) == kind),
                      key=lambda kv: (not kv[1][0].get('alive'), kv[0]))
         if not sel:
             continue
@@ -319,35 +369,17 @@ def build_all() -> dict[str, int]:
         groups.append(f'<div{wrap}><div class="grid-group-title">{esc(title)}</div><div class="grid units">'
                       + ''.join(cards_html) + '</div></div>')
     # the two switches count apart (round 3: "Removed 39" and "Unnamed & helpers 65" overlapped)
-    n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive') and group_of(ms) != 'helper')
-    n_helpers = sum(1 for ms in fams.values() if group_of(ms) == 'helper')
+    n_gone = sum(1 for ms in fams.values() if not ms[0].get('alive') and _unit_group(ms) != 'helper')
+    n_helpers = sum(1 for ms in fams.values() if _unit_group(ms) == 'helper')
     # every removed unit so far is an unnamed one: the helpers' switch says so (round 4: "where are the
     # removed units?" — no Removed switch, they hid behind "Unnamed & helpers")
-    n_gone_helpers = sum(1 for ms in fams.values() if not ms[0].get('alive') and group_of(ms) == 'helper')
+    n_gone_helpers = sum(1 for ms in fams.values() if not ms[0].get('alive') and _unit_group(ms) == 'helper')
     helpers_label = 'Unnamed, removed & helpers' if n_gone_helpers and not n_gone else 'Unnamed & helpers'
     gone_switch = ''.join(
         f'<label class="switch"><input type="checkbox" data-toggle-class="{cls}" data-target="#units-grid">'
         f'<span class="track"></span>{label} <span class="n">{n}</span></label>'
         for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', helpers_label, n_helpers)) if n)
     gone_switch = f'<span class="sep"></span>{gone_switch}' if gone_switch else ''
-    body = ('<h1>Units</h1>' + sub_tabs('units', 'index')
+    return ('<h1>Units</h1>' + sub_tabs('units', 'index')
             + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'
             + f'<div id="units-grid">{"".join(groups)}</div>')
-    write('units/index.html', page('Units', body, rel, 'units'))
-    from .hero_page import current_cards
-    from .site_search import INDEX_FILE, search_json, search_rows
-    named = [(n, ms[0]) for n, ms in fams.items() if group_of(ms) != 'helper']
-    found = search_rows(live, items, named, cards, current_cards)
-    # the Game section: everything that is not one hero, item or unit (jump, dash, the Soul Urn, crates…)
-    from . import game_pages
-    counts['game'], game_rows = game_pages.build_all(by_ent, by_subject, ents,
-                                                     page_keys(ents, heroes, items, units))
-    found = sorted(found + game_rows, key=lambda r: (r[0].lower(), r[2]))
-    write(INDEX_FILE, search_json(found))
-    from .dynamics_page import unit_entries
-    entries = unit_entries(units, UNIT_GROUPS, rel)
-    n_gone = sum(1 for e in entries if e[4])
-    write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
-                                     + toolbar('unit', n_gone, 'Removed & helpers') + matrix_html(entries, 'unit'),
-                                     rel, 'units', wide=True))
-    return counts
