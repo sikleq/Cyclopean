@@ -1161,6 +1161,19 @@ def test_builds_into_links_the_other_items_component_list():
     assert out['status'] == 'described' and out['changes'] == [comp.key]
 
 
+def test_a_corrupted_bonus_reads_like_a_tier_bonus():
+    """Review 2026-10-05: Blood Tribute 'Move Speed +2m' (a speed), Arctic Blast's slow 'Move Speed +30%' (the game
+    prints '-30%': an enemy slow), a property named by its tooltip token."""
+    p = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
+    tok = {'slowpercent_label': 'Move Speed', 'slowpercent_prefix': '-', 'slowpercent_postfix': '%',
+           'bonusmovespeed_label': 'Move Speed', 'bonusmovespeed_postfix': 'm'}
+    d = semantics.describe(p % 'BonusMoveSpeed', tok, 'upgrade_blood_tribute', 'item')
+    assert d['speed_m'] and d['unit'] == 'm'
+    d = semantics.describe(p % 'SlowPercent', tok, 'upgrade_arctic_blast', 'item')
+    assert d['sign'] == '-' and d['label'] == 'Corrupted: Move Speed'
+    assert semantics.enemy_label(d['label'], 'SlowPercent') == 'Corrupted: Movement Slow'
+
+
 def _event(file, eid, name, kind, path='@add'):
     return {'file': file, 'id': eid, 'name': name, 'kind': kind,
             'change': {'key': f'{file}:{eid}:{path}', 'path': path, 'status': 'hidden'}}

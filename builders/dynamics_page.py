@@ -35,15 +35,11 @@ def part_of(e: dict) -> str:
 def _sample_values(c: dict) -> tuple[str, str]:
     """(old, new) of a hover card's row: a flag field a player plays with reads as the bits that moved,
     in words ("+neutrals −doesn't interrupt melee", like its row on the page), not as two whole masks
-    in engine words (review 2026-10-04); everything else as the page prints it."""
-    from pipeline.flags import enum_words
-
-    from .render import flag_moves
-    path = str(c.get('path') or '')
-    moved = flag_moves(path, c.get('old_s'), c.get('new_s'))
-    if moved:
-        return '', ' '.join(moved)
-    return tuple(enum_words(path, v) or shown_value(v) for v in (c.get('old_s'), c.get('new_s')))
+    in engine words (review 2026-10-04); everything else as the page prints it — the row's own function
+    (render.shown_pair): "Channel Move Speed 6m/s → -1" and "Charge Delay 0s → -1s" read "no limit" / "default"
+    on the page (review 2026-10-05)."""
+    from .render import vals_text
+    return vals_text(c)
 
 
 def _display(e: dict) -> str:

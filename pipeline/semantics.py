@@ -529,7 +529,7 @@ def prop_sign(tok: dict[str, str], prop: str, token: str | None = None) -> str |
 # "Bullet Resist reduction (Heavy)"); a label that already says so stays
 _SAYS_LESS = re.compile(r'(slow|reduc|decreas|penalt|less\b|lower)', re.I)
 _MOVE_SPEED = re.compile(r'\bMove ?[Ss]peed\b|\bMovespeed\b|\bMovement Speed\b')
-_TIER_PREFIX = re.compile(r'^((?:T\d|Enhanced|Upgrade): )')
+_TIER_PREFIX = re.compile(r'^((?:T\d|Enhanced|Upgrade|Corrupted): )')
 
 
 def enemy_label(label: str, prop: str) -> str:
@@ -639,10 +639,12 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]
-        label, src = _prop_label(tok, prop, entity)
-        # a corrupted bonus carries its property's unit like any bonus ("Incoming Healing -25" had none)
+        label, src = _prop_label(tok, prop, entity, token)
+        # a corrupted bonus carries its property's unit like any bonus ("Incoming Healing -25" had none), its
+        # tooltip name (m_strLocTokenOverride), a speed written "2m" reads m/s and an enemy slow its minus, as a
+        # T1-T3 bonus does (review 2026-10-05: "Sprint Speed +4.25m", Ultimate Burst's slow read "Move Speed")
         return {'label': f'Corrupted: {label}', 'meters': False, 'group': 'corrupted', 'prop': prop, 'src': src,
-                'unit': prop_unit(tok, prop)}
+                'unit': prop_unit(tok, prop, token), 'speed_m': speed_prop(prop), 'sign': prop_sign(tok, prop, token)}
     if path.startswith('m_CorruptedItemInfo.'):
         return {'label': 'Corrupted: ' + context_label(path.split('.', 1)[1], 2, tok), 'meters': False, 'group': 'corrupted',
                 'src': 'fallback'}

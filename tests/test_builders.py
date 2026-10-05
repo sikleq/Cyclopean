@@ -37,6 +37,47 @@ def test_a_corrupted_version_is_one_row():
     assert fold_corrupted(rows[:2]) == rows[:2]
 
 
+def test_a_corrupted_version_names_its_penalties_and_tells_namesakes_apart(monkeypatch):
+    """Review 2026-10-05: Unstoppable 'Excluded Penalties TechDuration, Bonus Health +175…'; Toxic Bullets
+    'Incoming Healing -25%, Incoming Healing -25%'; one shared bonus made the row 'shared ×10 items'."""
+    from builders import render
+    monkeypatch.setattr(render, '_penalty_names', lambda: {'TechDuration': 'Ability Duration', 'FireRate': 'Fire Rate'})
+    p = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
+    rows = [{'op': 'add', 'path': 'm_CorruptedItemInfo.m_vecExcludedPenalties', 'label': 'Corrupted: Excluded Penalties',
+             'new_s': 'TechDuration, FireRate'},
+            {'op': 'add', 'path': p % 'BonusHealth', 'label': 'Corrupted: Bonus Health', 'new_s': '175',
+             'shared': True, 'shared_n': 10, 'shared_what': 'items'},
+            {'op': 'add', 'path': p % 'HealAmpReceivePenaltyPercent', 'label': 'Corrupted: Incoming Healing', 'new_s': '-25%'},
+            {'op': 'add', 'path': p % 'HealAmpRegenPenaltyPercent', 'label': 'Corrupted: Incoming Healing', 'new_s': '-25%'}]
+    [row] = render.fold_corrupted(rows)
+    assert row['new_s'] == ('Bonus Health +175, Incoming Healing · receive -25%, Incoming Healing · regen -25%'
+                            ' · never rolls: Ability Duration, Fire Rate')
+    assert 'shared_n' not in row and not row['shared']
+    # the row of a later tweak reads the game's names too
+    one = {'op': 'add', 'cat': 'balance', 'path': 'm_CorruptedItemInfo.m_vecExcludedPenalties', 'new_s': 'TechDuration'}
+    assert render.vals_text(one) == ('', 'Ability Duration')
+
+
+def test_rows_cards_and_matrix_cards_print_values_alike():
+    """Review 2026-10-05: vals_text and the matrices' _sample_values were hand copies of vals_html (840 rows apart)."""
+    from builders.dynamics_page import _sample_values
+    from builders.render import vals_html, vals_text
+    cases = [ch(path='m_mapAbilityProperties.AbilityCooldownBetweenCharge.m_strValue', old_s='0s', new_s='-1',
+                pct=None, dir='changed'),
+             ch(path='m_vecAbilityUpgrades[0].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus', old_s='-1s',
+                new_s='-20s'),
+             ch(path='x.m_strValue', old_s='-0.5m/s', new_s='-1m/s'),
+             ch(path='y', old_s='30%', new_s='2', unit_switch=True, pct=None, dir='changed')]
+    for c in cases:
+        old, new = vals_text(c)
+        html = vals_html(c)
+        assert f'>{old}<' in html and f'>{new}<' in html, (c, old, new, html)
+        assert _sample_values(c) == (old, new)
+    assert vals_text(cases[0]) == ('0s', 'default')
+    assert vals_text(cases[1]) == ('-1s', '-20s')
+    assert vals_text(cases[3]) == ('30%', '2')
+
+
 def test_an_enhanced_version_is_one_row():
     """Old Gods, New Blood: an item's Enhanced version that appears whole is ONE row and one change (452 NEW rows
     under one line of the notes); on the item page, inside its "Enhanced version" group, the row is "Bonuses"."""
