@@ -307,6 +307,14 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     # review 2026-10-05: the count is a way in — the patch page with its eye filter pressed
     assert re.search(r'<a class="au au-hidden" href="patches/p1.html#hidden">.*?<b>3</b> not in patch notes', feed)
     assert '<a class="au au-hidden" href="#hidden">' in audit
+    # review 2026-10-05: a group whose icons hold only changes the notes left out has ONE eye, on its label (the
+    # pickup's Game group here); an update with no notes has none below its banner, which says "no patch notes"
+    assert 'lu-all' in feed
+    quiet = home_page._feed([{'id': 'p1', 'title': p['title'], 'date': p['date'], 'has_notes': False}], {},
+                            frozenset(), {})
+    assert 'lu-all' not in quiet and 'lu-eye' not in quiet and 'no patch notes' in quiet
+    # a line nothing matched is counted on the patch page's check line
+    assert 'lines not found in the files' in patches_pages._audit_line({**p, 'line_counts': {'unmatched': 2}})
 
 
 def test_the_home_icons_go_where_the_pages_are_and_count_like_the_banner(monkeypatch):
