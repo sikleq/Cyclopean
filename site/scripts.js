@@ -1384,7 +1384,11 @@
       });
       if (eye) {
         if (eye.__t === undefined) eye.__t = eye.textContent;
-        eye.textContent = hidden + ' not in notes';
+        // the built wording (history_view._banner): "all N" when every shown row is out of the notes and N > 1
+        var shown = 0;
+        for (var t in counts) shown += counts[t];
+        eye.textContent = (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
+          hidden + ' not in notes';
         eye.parentNode.classList.toggle('n0', !hidden);
       }
     }

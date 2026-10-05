@@ -401,12 +401,12 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
     from .render import not_in_notes, tag_summary
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
-    # a patch the notes said nothing about (every row hidden) carries ONE eye, on its banner: an eye on
-    # each row marked 46% of hero rows and 77% of unit rows (advisor, 2026-10-03)
+    # every hidden row carries its eye, also in a band the notes never mentioned (the stripe alone said nothing:
+    # review 2026-10-05); the banner says how many — "all N" only when N is more than one
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
     # an update that had no patch notes at all (Rat King's build 6736) says so: nothing was left out of notes
     no_notes = all_hidden and all(c.get('status') == 'unannounced' for c in counted_all)
-    text = ('no patch notes' if no_notes else f'all {n_hidden} not in notes' if all_hidden
+    text = ('no patch notes' if no_notes else f'all {n_hidden} not in notes' if all_hidden and n_hidden > 1
             else f'{n_hidden} not in notes')
     chips = f'<span class="chip eye-chip">{mark("hidden")}<span class="ec-n">{text}</span></span>' if n_hidden else ''
     # one short chip per kind: they wrap under the title on a phone (one long chip ran 145px off a 390px screen)

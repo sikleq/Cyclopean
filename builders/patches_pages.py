@@ -478,8 +478,10 @@ def convar_li(x: dict) -> str:
         vals = f'<span class="new">{esc(new if new is not None else old)}</span>'
     st = x.get('status')
     m = mark(st) if st in ('documented', 'described', 'hidden') else ''
+    # a description change carries sentences, not numbers: they wrap (510 rows stretched a 390px page to 3010px)
+    wrap = ' wrap' if x.get('op') == 'desc' else ''
     return (f'<li class="st-{esc(st or "")}">{m}<span class="chip">{esc(x["op"])}</span><span class="lbl"><code>{esc(x["name"])}</code>{desc}</span>'
-            f'<span class="vals">{vals}</span></li>')
+            f'<span class="vals{wrap}">{vals}</span></li>')
 
 
 MONTHS = ('January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October',

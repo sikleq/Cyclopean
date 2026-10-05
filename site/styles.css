@@ -649,7 +649,9 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hblocks .erow { grid-template-columns: 22px var(--tag-w) minmax(0, max-content) minmax(150px, 1fr); }
 .hblocks .erow .vv { max-width: none; text-align: left; }
 .hblocks .erow .vv .vals:not(.wrap):not(.flags) { display: flex; align-items: baseline; }
-.hblocks .erow .vv .vals.flags { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+/* flags follow their label like numbers do (Parry's "+STUNNED" sat 400px off its label: the right-aligned
+   `.vals.flags` is for the patch and build lists) */
+.hblocks .erow .vv .vals.flags { display: flex; flex-wrap: wrap; gap: 2px 8px; justify-content: flex-start; max-width: none; }
 /* the ruler is the values' own ::after, ordered between old → new and the % (no markup: a span per row cost
    85 KB on a big patch page) */
 .hblocks .erow .vv .vals:not(.wrap):not(.flags)::after { content: ""; order: 1; flex: 1 1 auto; min-width: 12px;
@@ -693,8 +695,6 @@ details.txt[open] > summary .erow .tx::after { content: " -"; }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
-/* a patch the notes never mentioned: one eye on its banner, none on its rows */
-.hblocks .pblock.all-hidden .erow .st .mark { visibility: hidden; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }
 .hblocks .f-out { display: none !important; }
@@ -824,8 +824,13 @@ table.tier-grid thead th { font: 18px/1 var(--font-label); color: var(--text-bri
   border-bottom: 1px solid var(--line-soft);
 }
 .note-lines > li:hover, .change-list > li:hover { background: var(--bg-hover); }
-.change-list .lbl { flex: 1; }
-.change-list .vals { white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* a long variable name or description breaks; a long value goes to its own line, a short one stays on the right
+   (the console tab stretched a 390px page to 3010px, review 2026-10-05) */
+.change-list > li { flex-wrap: wrap; }
+.change-list .lbl { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.change-list .vals { white-space: nowrap; font-variant-numeric: tabular-nums; margin-left: auto; max-width: 100%; }
+.change-list .vals.wrap { white-space: normal; }
+@media (max-width: 600px) { .change-list .vals { white-space: normal; overflow-wrap: anywhere; } }
 .change-list .vals .old { color: var(--text-dim); }
 .change-list .vals .new { color: var(--text-bright); }
 
@@ -1084,12 +1089,16 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-hdr { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0; }
 .ability-card .ac-desc { padding: 6px 10px; font-size: 13px; color: var(--text-dim); }
 .ability-card table.kvt td { padding: 3px 10px; }
-.ability-card .scale { color: var(--tag-rework); font-size: 12px; margin-left: 6px; }
+/* the scaling rides under its number on a line of its own (nowrap from td.v), so the label keeps its width:
+   "Movement / Slow" broke beside "20 +0.6×Light Melee Damage" (52 rows, review 2026-10-05) */
+.ability-card .scale { display: block; margin-left: 0; color: var(--tag-rework); font-size: 11px; }
+/* a label that still wraps runs on under its text, not under the icon (14px icon + 6px gap) */
+.ability-card table.kvt td:first-child { padding-left: 30px; text-indent: -20px; }
 /* property icons from the in-game tooltip; spirit damage purple, bullet damage warm,
    healing green — the colours the game uses for those values */
 .pi { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; object-fit: contain; flex: none; }
 .chip .pi { width: 13px; height: 13px; margin-right: 3px; }
-.chip b { color: var(--text-bright); font-weight: 700; }
+.chip b { color: var(--text-bright); font-weight: 700; text-transform: none; }   /* "42s", "20m", not "42S" */
 .p-tech_damage td.v, .chip.p-tech_damage b { color: var(--spirit); }
 .p-bullet_damage td.v, .chip.p-bullet_damage b { color: var(--weapon); }
 .p-healing td.v, .chip.p-healing b { color: var(--tag-buff); }
@@ -1271,6 +1280,11 @@ ul.gen-notes li { margin: 2px 0; overflow-wrap: anywhere; }
   .ability-card .ac-head { flex-wrap: wrap; }
   .ability-card, .ability-card .ac-head > * { min-width: 0; }
   .erow .tx, .ability-card .ac-head { overflow-wrap: anywhere; }
+  /* weapon tiles on a phone: the icon goes above the number (it sat on "109.2"), a label takes two lines
+     instead of "+Bullet DMG …" (review 2026-10-05) */
+  .wcell.top .si { position: static; }
+  .wb-cells .wcell .l { white-space: normal; text-align: center; display: -webkit-box; -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; }
 }
 .home-brand { display: flex; align-items: center; gap: 16px; }
 .home-brand .mark { width: 64px; height: 64px; filter: drop-shadow(0 0 4px var(--eye-glow)) drop-shadow(0 0 10px var(--eye-53));
@@ -1289,13 +1303,18 @@ ul.gen-notes li { margin: 2px 0; overflow-wrap: anywhere; }
 .flag.bad { color: var(--tag-nerf); }
 .flag.even { color: var(--tag-changed); }
 table.hist td.ov { white-space: nowrap; min-width: 150px; }
-.item-hdr { margin-bottom: 10px; }
+.item-hdr { margin-bottom: 10px; justify-content: center; }
 /* an item's sections fill the panel (auto-fill left Veil Walker's right third empty); a lone card stops at
    half the panel, so a label and its value never sit a whole panel apart */
-.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }
-.ability-grid.item-secs > .ability-card { max-width: 580px; }
+/* flex, not grid (review 2026-10-05): a one-row card no longer stretches to its neighbour's height (Active Reload's
+   Innate had 150px of nothing), a lone card sits centred under the chips, and a 390px phone keeps every card
+   inside the frame (the 330px grid track overflowed it by 10px) */
+.ability-grid.item-secs { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
+.ability-grid.item-secs > .ability-card { flex: 1 1 330px; max-width: 580px; min-width: 0; }
 @media (max-width: 860px) {
   table.hist, table.kvt { display: block; max-width: 100%; overflow-x: auto; }
+  /* an ability card's table fits a phone: its rows and lines run the card's whole width */
+  .ability-card table.kvt { display: table; }
   .hero-head .portrait { width: 110px; }
 }
 
@@ -1786,7 +1805,9 @@ table.stats th.sumc { cursor: pointer; }
 table.stats thead tr.cols th.sumc::after { content: "  \25B8  columns"; color: var(--patina); font-weight: 500; }
 table.per-soul th.cat.sumc::after, table.per-soul th.cat.stc::after { content: " \B7  souls per point"; color: var(--patina); }
 #items-table td.sumc, #items-table td.fxc { white-space: normal; padding: 3px 8px; }
-.chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-width: 250px; max-width: 560px; margin: 0 auto; }
+/* Item Stats' chip cells only: the bare `.chips` also centred every entity head's role / tier chips in the
+   middle of nowhere (Abrams' BRAWLER 470px right of its name, review 2026-10-05) */
+#items-table .chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 3px; min-width: 250px; max-width: 560px; margin: 0 auto; }
 .sc, .fx { display: inline-flex; align-items: center; gap: 3px; padding: 2px 6px 2px 3px; position: relative;
   font: 500 11px/1.25 var(--font-ui); color: var(--label); white-space: nowrap;
   background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid); }
@@ -1822,7 +1843,7 @@ table.per-soul .sc b { color: var(--patina-strong); }
   #items-table td.name a { font-size: 12.5px; gap: 6px; }
   #items-table tr.sec td.name { letter-spacing: .06em; }
   #items-table tr.sec .cat-i { display: none; }
-  .chips { min-width: 200px; max-width: 260px; }
+  #items-table .chips { min-width: 200px; max-width: 260px; }
   /* change matrices: the names shrink to their icons (they took 210 of 390px) */
   table.dyn { --dyn-name: 44px; }
   table.dyn td.name a { font-size: 0; gap: 0; }

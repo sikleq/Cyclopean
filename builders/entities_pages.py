@@ -64,6 +64,14 @@ def _history() -> tuple[dict, dict]:
     return by_ent, by_subject
 
 
+def header_only(card: dict) -> list[dict]:
+    """The card's header values its sections do not list: a value belongs to its section (Active Reload's 12s
+    cooldown is its Passive's) — "Cooldown 12s · Duration 7s" sat over the card that said them again (review
+    2026-10-05; the rule pipeline/item_table.shown_props uses for Item Stats)."""
+    listed = {r.get('prop') for s in card.get('sections', []) for r in s.get('props', [])}
+    return [h for h in card.get('header', []) if h.get('prop') not in listed]
+
+
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
     name = display_name(it)
@@ -94,10 +102,11 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             blocks.append(f'<div class="ability-card px-frame"><div class="ac-head"><div class="ac-name">{esc(s["type"])}</div></div>'
                           f'{desc}<table class="kvt">{rows}</table></div>')
         hdr = ''
-        if card.get('header'):
+        header = header_only(card)
+        if header:
             hdr = '<div class="chips item-hdr">' + ''.join(
                 f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
-                f'<b>{esc(h["value"])}</b></span>' for h in card['header']) + '</div>'
+                f'<b>{esc(h["value"])}</b></span>' for h in header) + '</div>'
         # the sections side by side as cards, not full-width tables (a label and its value sat 1300px apart)
         grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
         sections = (hdr + grid) if blocks or hdr else ''

@@ -799,6 +799,18 @@ def test_player_terms_and_the_strip_puts_the_newest_on_the_right():
     assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in notes' in html
 
 
+def test_one_hidden_change_is_never_all_of_one():
+    """Review 2026-10-05: "ALL 1 NOT IN NOTES"; and every hidden row keeps its eye, also in an all-hidden band."""
+    from builders.history_view import history_table
+    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    key = 'abilities.vdata:upgrade_x'
+    html = history_table([(key, 'X', None)], ['X'], {key: [(r1, [ch(key='a')])]}, {}, '../')
+    assert '>1 not in notes<' in html and 'all 1 not in' not in html
+    from pathlib import Path
+    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
+    assert '.pblock.all-hidden .erow .st .mark { visibility: hidden; }' not in css
+
+
 def test_the_strip_never_scrolls():
     """Owner 2026-10-05 (screenshot: a scrollbar under the strip): tiles shrink to fit, a phone keeps the
     newest; no horizontal scrolling on the row."""

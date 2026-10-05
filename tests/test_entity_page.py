@@ -364,7 +364,8 @@ def test_phone_tier_table_matrices_and_item_cards_css():
     phone = [b for b in css.split('@media (max-width: 700px) {')[1:] if 'table.tier-grid' in b.split('\n}')[0]]
     assert phone and 'table.tier-grid { width: 100%; min-width: 0; }' in phone[0]
     assert '.page.wide .table-fade' not in css
-    assert '.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); }' in css
+    # review 2026-10-05: flex, so a one-row card is not stretched and a lone card sits centred
+    assert '.ability-grid.item-secs { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; }' in css
     assert 'details.more' not in css and '.hist-bar .switch' not in css
     js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
     anchor = js.split("safe('patch-anchor'")[1].split("safe('tabs'")[0]
