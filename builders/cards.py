@@ -98,7 +98,9 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
         tip: str | None = None) -> str:
     m = mark(status, tip) if status in ROW_MARKS else ''
-    hid = ' is-hidden' if status in NOT_IN_NOTES else ''
+    # a row with words of its own on the eye (hidden_tip: "shipped silently …") keeps the eye where a band's rows
+    # show none (styles.css .all-hidden): the words are the proof
+    hid = (' is-hidden' if status in NOT_IN_NOTES else '') + (' late' if tip and m else '')
     return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
             f'<span class="tg">{tag}</span><span class="tx">{text_html}</span><span class="vv">{values_html}</span></div>')
 

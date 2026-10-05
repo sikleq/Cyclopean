@@ -299,6 +299,28 @@ def test_a_name_the_last_build_lost_comes_from_an_earlier_one(monkeypatch):
     assert unit['name'] == 'Medic Trooper'
 
 
+def test_items_out_of_the_shop_are_told_apart_from_their_namesakes():
+    """Review 2026-10-05: health_2 and toughness_3 were both "Toughness", clip_size_3 and clip_size_fixed_t3 both "Extra
+    Large Magazine" (all four out of the shop), twice each in the site search."""
+    from pipeline.catalog import dead_namesakes
+
+    def item(i, name, first='2024-06-06', tier='EModTier_2', alive=True, disabled=False):
+        return {'file': 'abilities.vdata', 'kind': 'item', 'id': i, 'name': name, 'alive': alive, 'disabled': disabled,
+                'first': [1, first], 'tier': tier}
+    ents = [item('upgrade_health_2', 'Toughness', first='2025-05-08', disabled=True),
+            item('upgrade_toughness_3', 'Toughness', disabled=True),
+            item('upgrade_clip_size_3', 'Extra Large Magazine', tier='EModTier_3', disabled=True),
+            item('upgrade_clip_size_fixed_t3', 'Extra Large Magazine', tier='EModTier_3', disabled=True),
+            item('upgrade_proc_silence', 'Silencer'), item('upgrade_silencer', 'Silencer (old)', alive=False),
+            item('upgrade_mega_spirit', 'Boundless Spirit', alive=False), item('upgrade_boundless', 'Boundless Spirit'),
+            item('upgrade_alone', 'Alone', alive=False)]
+    dead_namesakes(ents)
+    assert [e['name'] for e in ents] == [
+        'Toughness (old, added 2025-05-08)', 'Toughness (old, added 2024-06-06)', 'Extra Large Magazine (old, #1)',
+        'Extra Large Magazine (old, #2)', 'Silencer', 'Silencer (old)', 'Boundless Spirit (old)', 'Boundless Spirit',
+        'Alone']
+
+
 # ---- ability cards ------------------------------------------------------------------------
 
 def test_cards_name_properties_like_the_history_and_list_them_once():

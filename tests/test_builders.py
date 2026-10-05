@@ -378,6 +378,33 @@ def test_a_description_diff_marks_words_not_confetti():
     assert 'Abrams hits' in filled and '[Hero name]' not in filled
 
 
+def test_a_description_with_values_the_game_fills_in_stays_folded():
+    """Review 2026-10-05: opened, 552 of 980 description rows showed "[Ability Cooldown]s Cooldown · Applies [Fixation
+    Stacks] Fixation Stacks"; such a row stays folded. The hero's own name and a key binding are no such value."""
+    from builders.text_rows import text_rows, unfilled
+    tok = text_rows([{'part': 'desc', 'old': '{s:AbilityCooldown}s Cooldown', 'new': '{s:AbilityCooldown}s Cooldown, '
+                      'applies {s:FixationStacks} stacks'}], 'Haze')
+    assert '<details class="txt">' in tok and '<details class="txt" open>' not in tok
+    assert not unfilled('{s:hero_name} jumps', 'Haze') and unfilled('{s:hero_name} jumps')
+    assert not unfilled('Press {s:iv_attack} to fire') and not unfilled('Plain words')
+    hero = text_rows([{'part': 'desc', 'old': '{s:hero_name} jumps', 'new': '{s:hero_name} jumps high'}], 'Haze')
+    assert '<details class="txt" open>' in hero and 'Haze jumps' in hero
+
+
+def test_a_borrowed_stand_in_gun_is_no_gun(monkeypatch):
+    """Review 2026-10-05: five heroes in development showed Infernus' Incendiary Remarks as their weapon, with its last
+    change linking to a band their page does not have and a "History" link to nothing."""
+    from builders import hero_page
+    ents = {'citadel_weapon_inferno_set': {'id': 'citadel_weapon_inferno_set', 'owner': 'hero_inferno'},
+            'citadel_weapon_nurse': {'id': 'citadel_weapon_nurse', 'owner': 'hero_nurse'}}
+    assert hero_page.borrowed_gun('hero_nurse', 'citadel_weapon_inferno_set', ents)
+    assert not hero_page.borrowed_gun('hero_inferno', 'citadel_weapon_inferno_set', ents)
+    assert not hero_page.borrowed_gun('hero_nurse', 'citadel_weapon_nurse', ents)
+    assert not hero_page.borrowed_gun('hero_nurse', None, ents)
+    html = hero_page.weapon_block(None, None, [], 'Nurse', '../')
+    assert 'No gun of its own yet' in html and 'ac-hist' not in html and 'ac-last' not in html
+
+
 def test_one_band_never_shows_two_groups_of_one_name():
     """Review 2026-10-05: two "Weapon (shotgun)" groups with the same rows, Kelvin's "Frozen Shelter" for the ability
     and its trigger, Wrecker's old and new "Wrecking Ball": identical rows under one name are one group, other ones
@@ -988,9 +1015,14 @@ def test_a_bands_patch_link_lands_on_the_entity(monkeypatch):
     from builders import archive
     from builders.history_view import history_table, patch_href
     monkeypatch.setattr(archive, 'note_anchors', lambda pid: frozenset({'upgrade_x'}) if pid == 'p2' else frozenset())
+    monkeypatch.setattr(archive, 'change_anchors', lambda pid: frozenset({'upgrade_x', 'bot'}))
     assert patch_href('p2', '../', 'upgrade_x') == '../patches/p2.html#n-upgrade_x'
     assert patch_href('p1', '../', 'upgrade_x') == '../patches/p1.html#c-upgrade_x'
     assert patch_href('p1', '../') == '../patches/p1.html'
+    # review 2026-10-05: 2,112 of 6,295 band links pointed at an id the patch page has no place for — the page itself
+    # then; a unit family's band lands on the member the patch page has a card for
+    assert patch_href('p1', '../', 'hero_astro') == '../patches/p1.html'
+    assert patch_href('p1', '../', 'bot_weak', ['bot_weak', 'bot']) == '../patches/p1.html#c-bot'
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
     key = 'abilities.vdata:upgrade_x'
     html = history_table([(key, 'X', None)], ['X'], {key: [(r1, [ch(key='a')])]}, {}, '../')
@@ -1031,12 +1063,15 @@ def test_an_update_with_notes_lists_what_they_left_out():
     """Review 2026-10-05: the "From the files" tab of an update with notes repeated All changes (833 / 833) and said
     "Valve published no numbers" for City Never Sleeps: it lists only the rows not in the notes, said truly."""
     from builders.patches_pages import _generated_notes, _key_changes
-    item = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item', 'name': 'Extra', 'owner': None,
+    item = {'key': 'abilities.vdata:upgrade_x', 'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item',
+            'name': 'Extra', 'owner': None,
             'changes': [ch(key='abilities.vdata:upgrade_x:a', label='Range', status='documented'),
                         ch(key='abilities.vdata:upgrade_x:b', label='Radius', status='hidden')]}
-    html = _generated_notes({'entities': [item]}, only_hidden=True)
+    pages = frozenset({'abilities.vdata:upgrade_x'})
+    html = _generated_notes({'entities': [item]}, only_hidden=True, pages=pages)
     assert 'Radius' in html and 'Range' not in html and 'no patch notes' not in html
-    assert 'Range' in _generated_notes({'entities': [item]}) and 'no patch notes' in _generated_notes({'entities': [item]})
+    every = _generated_notes({'entities': [item]}, pages=pages)
+    assert 'Range' in every and 'no patch notes' in every
     key = [{'entity': 'abilities.vdata:upgrade_x', 'name': 'Extra', 'kind': 'item', 'change': c} for c in item['changes']]
     shown = _key_changes({'key_changes': key}, '../', only_hidden=True)
     assert 'Radius' in shown and 'Range' not in shown
@@ -1051,6 +1086,28 @@ def test_a_patch_pages_item_and_unit_cards_carry_anchors():
     assert html.count('id="c-upgrade_x"') == 1
 
 
+def test_a_shared_edits_card_is_the_place_of_its_targets(monkeypatch):
+    """Review 2026-10-05: Holliday's "Air Dash Duration" sat in one card for six heroes with no anchor of hers; her
+    band's "patch ↗" opened the patch at its top. A shared card holds the anchor of each target without a card of its
+    own (a hero's ability by its hero), and archive.change_anchors lists them."""
+    from builders import shared_rows
+    from builders.patches_pages import _changes_table, change_anchors
+    cat = {'abilities.vdata:dash': {'file': 'abilities.vdata', 'id': 'dash', 'owner': 'hero_astro'},
+           'abilities.vdata:upgrade_x': {'file': 'abilities.vdata', 'id': 'upgrade_x'},
+           'npc_units.vdata:bot_weak': {'file': 'npc_units.vdata', 'id': 'bot_weak'}}
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: cat)
+    block = {'key': '@shared:abilities.vdata:3:x', 'file': 'abilities.vdata', 'id': '@shared', 'kind': 'shared',
+             'name': '3 entries', 'target_keys': list(cat), 'targets': ['a', 'b', 'c'],
+             'changes': [ch(key='abilities.vdata:dash:d', label='Air Dash Duration', file='abilities.vdata')]}
+    item = {'file': 'abilities.vdata', 'id': 'upgrade_x', 'kind': 'item', 'name': 'X', 'owner': None,
+            'changes': [ch(key='abilities.vdata:upgrade_x:a', file='abilities.vdata')]}
+    html = _changes_table([block, item], '../', 'p1')
+    for i in ('dash', 'hero_astro', 'bot_weak', 'upgrade_x'):
+        assert html.count(f'id="c-{i}"') == 1, i                 # the item keeps its own card's anchor
+    assert re.search(r'<article class="ecard[^"]*" id="c-upgrade_x"', html)
+    assert change_anchors([block, item]) == {'dash', 'hero_astro', 'bot_weak', 'upgrade_x'}
+
+
 def test_one_hidden_change_is_never_all_of_one():
     """Review 2026-10-05: "ALL 1 NOT IN NOTES"; an all-hidden band keeps ONE eye, on its banner (advisor round 2,
     confirmed by the review: its rows keep the stripe)."""
@@ -1061,7 +1118,11 @@ def test_one_hidden_change_is_never_all_of_one():
     assert '>1 not in notes<' in html and 'all 1 not in' not in html
     from pathlib import Path
     css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.pblock.all-hidden .erow .st .mark { visibility: hidden; }' in css
+    assert '.pblock.all-hidden .erow:not(.late) .st .mark { visibility: hidden; }' in css
+    # a row that shipped silently in a later build keeps its eye there: its words are the proof (review 2026-10-05)
+    from builders.cards import row
+    assert 'class="erow st-hidden is-hidden late"' in row('hidden', '', 'x', tip='shipped silently 2026-03-09')
+    assert ' late' not in row('hidden', '', 'x')
 
 
 def test_the_strip_never_scrolls():

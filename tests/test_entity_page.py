@@ -91,9 +91,12 @@ def test_one_patch_still_feeds_the_trail_cards():
     assert 'class="patch-strip"' not in html and _blob(html)['t'][0][0] == 'p3'
 
 
-def test_band_title_stays_on_the_page_and_groups_have_a_plate():
+def test_band_title_stays_on_the_page_and_groups_have_a_plate(monkeypatch):
     """Clicking a band's date left for the patch archive; ability icons were 28px bare glyphs."""
+    from builders import archive
     from builders.history_view import history_table
+    # the patch page's All changes has Abrams' card (history_view.patch_href links only a place that exists)
+    monkeypatch.setattr(archive, 'change_anchors', lambda pid: frozenset({'hero_atlas'}))
     keys, by_ent, areas = _history()
     html = history_table(keys, ['Abrams'], by_ent, {}, '../', areas=areas,
                          ults=frozenset({'abilities.vdata:ab_ult'}))

@@ -122,6 +122,12 @@ def test_history_tip_reads_penalties_by_size_and_names_added_and_removed(browser
     text = page.locator('.hist-tip').inner_text()
     assert '+100.0%' in text and '-100.0%' not in text
     assert 'added' in text and 'removed' in text
+    # the "Overall" line reads the same way as its steps (it said −100% over steps of +50% and +33%)
+    page, _ = _open(browser, '<span class="fx has-hist" data-pol="1" data-digits="2" data-title="T" '
+                             'data-hist=\'[[1,"2026-01-01",-0.5,-0.75],[2,"2026-02-01",-0.75,-1]]\'>x</span>')
+    page.hover('.fx')
+    overall = page.locator('.hist-tip .t-overall').inner_text()
+    assert '(+100.0%)' in overall
 
 
 def test_souls_per_point_restored_on_back(browser):

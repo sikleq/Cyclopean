@@ -227,9 +227,14 @@ def test_a_band_with_only_a_rule_for_all_waits_behind_its_button():
     html = _bands(every_only=True)
     assert re.search(r'<details class="pblock[^"]*every-only[^"]*" id="p-p2"(?![^>]*open)', html)
     assert 'ps-tile' not in html                     # only the hero's own band p1 is left: no strip of one tile
-    assert 'data-toggle-class="show-every"' in html and 'For all <span class="n">1</span>' in html
+    # the button says what those bands hold (a unit page's read "For all 1": review 2026-10-05)
+    assert 'data-toggle-class="show-every"' in html and 'For all heroes <span class="n">1</span>' in html
     # the band with the hero's own change stands open
     assert re.search(r'<details class="pblock[^"]*" id="p-p1"[^>]* open', html)
+    # its "patch ↗" goes to the rule's Game band: the patch page has no card for the hero (1,476 of 1,503 such
+    # links opened the patch at its top)
+    band = html[html.index('id="p-p2"'):]
+    assert 'class="pnotes" href="../game/progression.html#p-p2"' in band[:band.index('</summary>')]
 
 
 def test_the_home_feed_spreads_some_and_skips_rules_for_all(monkeypatch):
@@ -368,6 +373,32 @@ def test_the_home_icons_go_where_the_pages_are_and_count_like_the_banner(monkeyp
     assert feed['units']['npc_units.vdata:bot']['n'] == 2                       # Respawn Time once, Stomp's Radius
     c = patch_counts.count(p, pages)
     assert sum(v['hidden'] for v in feed['units'].values()) == c['hidden_on_pages'] == 3
+
+
+def test_a_templates_edit_its_heirs_carry_counts_on_the_heirs(monkeypatch):
+    """Review 2026-10-05: City Never Sleeps' banner said 360 over icons summing to 345 — trooper_base's and
+    neutral_base's edits counted for the template (a Game row no icon carries) and again on each heir; Rat King's said
+    "3 of them in game rules & map objects" over two Game icons of one change each."""
+    from builders import home_page, patch_counts, shared_rows
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
+    monkeypatch.setattr(patch_counts, 'unit_main', lambda: {'trooper_medic': 'trooper_medic'})
+    sight = dict(path='m_flSightRangeHeroes', label='Sight range vs heroes', old_s='17.78m', new_s='25.4m')
+    base = {'key': 'npc_units.vdata:trooper_base', 'file': 'npc_units.vdata', 'id': 'trooper_base', 'kind': 'trooper',
+            'name': 'trooper_base', 'changes': [ch(key='npc_units.vdata:trooper_base:s', **sight),
+                                                 ch(key='npc_units.vdata:trooper_base:o', path='m_own', label='Own')]}
+    medic = {'key': 'npc_units.vdata:trooper_medic', 'file': 'npc_units.vdata', 'id': 'trooper_medic',
+             'kind': 'trooper', 'name': 'Medic', 'changes': [ch(key='npc_units.vdata:trooper_medic:s', **sight)]}
+    p = {'entities': [base, medic]}
+    pages = frozenset({'npc_units.vdata:trooper_medic'})
+    c = patch_counts.count(p, pages)
+    feed = home_page.update_feed(p, frozenset(), patch_counts.unit_main(), pages)
+    icons = sum(s['hidden'] for sec in feed.values() for s in sec.values())
+    # the medic's copy on its page; the template's own row (no heir has it) on the Game's icon
+    assert c['not_in_notes'] == icons == 2 and c['hidden_on_pages'] == 1 and patch_counts.off_pages(c) == 1
+    # the patch page's All changes lists what is counted: the template keeps its own row only, as a copy
+    kept = patch_counts.drop_inherited([base, medic], pages)
+    assert [[x['label'] for x in e['changes']] for e in kept] == [['Own'], ['Sight range vs heroes']]
+    assert len(base['changes']) == 2
 
 
 # ---- on the real data (data/ regenerated with target_keys) ------------------------------------------------------

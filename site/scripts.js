@@ -211,9 +211,14 @@
       var esc = document.createElement('span');
       esc.textContent = head;                                  // names come from game text: never as HTML
       var html = '<div class="t-head">' + esc.innerHTML + '</div>';
+      // two negatives (a penalty, a slow) compare by size, as the item page does: −0.5 → −1 is +100%, not −100%
+      // (review 2026-10-05) — the steps and the "Overall" line alike
+      var pctOf = function (a, b) {
+        return a < 0 && b < 0 ? (Math.abs(b) - Math.abs(a)) / Math.abs(a) * 100 : (b - a) / Math.abs(a) * 100;
+      };
       var first = hist[0][2], last = hist[hist.length - 1][3];
       if (hist.length > 1 && typeof first === 'number' && typeof last === 'number' && first !== 0) {
-        var p = (last - first) / Math.abs(first) * 100;
+        var p = pctOf(first, last);
         var odir = td.getAttribute('data-odir');
         html += '<div class="t-overall">Overall: ' + fmtU(first, digits) + ' → ' + fmtU(last, digits) +
           ' <span class="' + (odir ? 'dir-' + odir : dirClass(first, last, pol)) + '">(' + (p > 0 ? '+' : '') +
@@ -228,10 +233,7 @@
         // the pill only when there is a real change to measure: a first value or a 0.0% step gets none
         var pill = '';
         if (typeof h[2] === 'number' && typeof h[3] === 'number' && h[2] !== 0) {
-          // two negatives (a penalty, a slow) compare by size, as the item page does: −0.5 → −1 is +100%, not
-          // −100% (review 2026-10-05)
-          var q = h[2] < 0 && h[3] < 0 ? (Math.abs(h[3]) - Math.abs(h[2])) / Math.abs(h[2]) * 100
-            : (h[3] - h[2]) / Math.abs(h[2]) * 100;
+          var q = pctOf(h[2], h[3]);
           if (Math.abs(q) >= 0.05) {
             pill = '<span class="' + cls + ' pct" data-g="' + pctGrade(q) + '">' + (q > 0 ? '+' : '') + q.toFixed(1) + '%</span>';
           }
@@ -592,7 +594,11 @@
         });
         table.querySelectorAll('tbody tr').forEach(function (tr) {
           var out = false;
-          for (var k in chosen) if (chosen[k] && tr.getAttribute('data-' + k) !== chosen[k]) out = true;
+          // "*": a row of any value (a hero with no role yet, dynamics_page.hero_entries) no choice takes out
+          for (var k in chosen) {
+            var v = tr.getAttribute('data-' + k);
+            if (chosen[k] && v !== '*' && v !== chosen[k]) out = true;
+          }
           tr.classList.toggle('f-out', out);
         });
       });

@@ -66,7 +66,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
                   line_names: bool = True, areas: dict[str, str] | None = None, gone: set[str] = frozenset(),
                   in_dev: bool = False, area_labels: tuple[tuple[str, str], ...] = AREAS,
                   merge=None, enhanced: bool = False, ults: frozenset[str] = frozenset(),
-                  every_label: str = 'For all', chip_of: dict[str, str] | None = None,
+                  every_label: str | None = None, chip_of: dict[str, str] | None = None,
                   facts_out: dict | None = None) -> str:
     """The History section: heading, toolbar, blocks. keys: [(entity key, display name, icon url)] in
     display order, the page's own entity first; names: subjects whose note lines belong here.
@@ -79,8 +79,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     `enhanced`: an item page — its "Enhanced: …" rows (the Enhanced version, 14% of item rows) are their
     own group under "Enhanced version", the parts Base / Enhanced. `ults`: keys of the hero's ultimate (its
     icon gets the corner mark). `every_label`: the toolbar button that shows the bands holding only rules for
-    every hero / item ("For all heroes"). `chip_of`: a sub-ability's key -> its parent's, whose toolbar chip
-    holds it too (Ava's chip shows "Ava · trigger")."""
+    every hero / item ("For all heroes"); None: the kind those bands hold. `chip_of`: a sub-ability's key -> its
+    parent's, whose toolbar chip holds it too (Ava's chip shows "Ava · trigger")."""
     order = {k: i for i, (k, _, _) in enumerate(keys)}
     meta = {k: (nm, ic) for k, nm, ic in keys}
     names_by_key = {k: nm for k, nm, _ in keys}
@@ -150,6 +150,11 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
             blocks.append(f'<h3 class="banner sub hyear"><span class="bt">{esc(y)}</span></h3>')
             year = y
         blocks.append(block)
+    if every_label is None:
+        # what the bands of rules for all hold, in words ("For all abilities & items"; a unit page's button read
+        # "For all 1", review 2026-10-05)
+        kinds = sorted(facts.get('every_names') or ())
+        every_label = f'For {kinds[0][0].lower()}{kinds[0][1:]}' if len(kinds) == 1 else 'Rules for all'
     bar = toolbar(facts, keys, areas, gone, in_dev, rel, area_labels, ults, every_label, chip_of)
     strip = patch_strip(facts.get('strip', []))
     if facts_out is not None:
@@ -183,10 +188,10 @@ def hidden_link(n: int) -> str:
 
 def now_fold(summary: str, body: str) -> str:
     """What an item or unit is today, above its history: open (owner 2026-10-04: nothing folded by default —
-    a closed fold hid the best block of the page); the summary line still folds it away."""
+    a closed fold hid the best block of the page); the summary line still folds it away. `summary`: plain text."""
     if not body:
         return ''
-    return (f'<details class="now px-frame" open><summary>{summary}</summary>'
+    return (f'<details class="now px-frame" open><summary>{esc(summary)}</summary>'
             f'<div class="now-body">{body}</div></details>')
 
 
@@ -402,17 +407,22 @@ def _namesakes(groups: list[dict], meta: dict, gone: set[str] | frozenset[str] =
             continue
         a = groups[live[0]]['keys'][0].partition(':')[2]
         for gi in live[1:]:
-            b = groups[gi]['keys'][0].partition(':')[2]
-            n = 0
-            while n < min(len(a), len(b)) and a[n] == b[n]:
-                n += 1
-            m = 0
-            while m < min(len(a), len(b)) - n and a[-1 - m] == b[-1 - m]:
-                m += 1
-            tail = b[n:len(b) - m].strip('_').replace('_', ' ')
+            tail = id_tail(a, groups[gi]['keys'][0].partition(':')[2])
             if tail:
                 out[gi] = f'{nm} · {tail}'
     return out
+
+
+def id_tail(a: str, b: str) -> str:
+    """How id `b` differs from its namesake `a`, in words: 'ability_frozen_shelter_trigger' beside
+    'ability_frozen_shelter' -> 'trigger'."""
+    n = 0
+    while n < min(len(a), len(b)) and a[n] == b[n]:
+        n += 1
+    m = 0
+    while m < min(len(a), len(b)) - n and a[-1 - m] == b[-1 - m]:
+        m += 1
+    return b[n:len(b) - m].strip('_').replace('_', ' ')
 
 
 def _dev_only(g: dict, in_dev: bool) -> bool:
@@ -491,27 +501,40 @@ def _vnote(text: str) -> str:
     return f'<div class="vnote"><span class="vn-l">Patch notes</span>{esc(text)}</div>'
 
 
-def patch_href(pid: str, rel: str, entity_id: str | None = None) -> str:
+def patch_href(pid: str, rel: str, entity_id: str | None = None, also: tuple[str, ...] | list[str] = ()) -> str:
     """The patch page, at the entity when there is one: its card in the Patch notes tab (what Valve said about it,
-    `#n-<id>`) when the notes name it, else its card under All changes (`#c-<id>`; scripts.js tabs opens the
-    tab). Sloppy's band lands on the hero's block inside the patch (review 2026-10-05)."""
+    `#n-<id>`) when the notes name it, else its place under All changes (`#c-<id>`, its own card or a shared edit's
+    card: archive.change_anchors; scripts.js tabs opens the tab). Sloppy's band lands on the hero's block inside the
+    patch (review 2026-10-05). `also`: other ids of the band (a unit family's members, in order) tried after the
+    page's own; an id the patch page has no place for is no link target — the page itself is (2,112 of 6,295 band
+    links pointed at a missing id, review 2026-10-05)."""
     from . import archive
     base = f'{rel}patches/{esc(pid)}.html'
-    if not entity_id:
+    ids = [i for i in dict.fromkeys((entity_id, *also)) if i]
+    if not ids:
         return base
-    return f'{base}#{"n" if entity_id in archive.note_anchors(pid) else "c"}-{esc(entity_id)}'
+    notes, cards = archive.note_anchors(pid), archive.change_anchors(pid)
+    for i in ids:
+        if i in notes:
+            return f'{base}#n-{esc(i)}'
+        if i in cards:
+            return f'{base}#c-{esc(i)}'
+    return base
 
 
 def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = (),
-            entity_id: str | None = None, texts: str | None = None) -> tuple[str, str]:
+            entity_id: str | None = None, texts: str | None = None, href: str | None = None,
+            also: tuple[str, ...] | list[str] = ()) -> tuple[str, str]:
     """(the band's <summary>, its has-hidden classes). The title is plain text, so a click opens the band in
     place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose, at the entity
-    (`patch_href`). The counters and the eye count are what scripts.js recounts while a filter is on. `every`:
-    the rows of rules for every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
+    (`patch_href`; `href`: where it goes instead — a band holding only rules for all goes to its Game band). The
+    counters and the eye count are what scripts.js recounts while a filter is on. `every`: the rows of rules for
+    every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes")."""
     from .render import not_in_notes, tag_summary
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
-    # every hidden row carries its eye, also in a band the notes never mentioned (the stripe alone said nothing:
-    # review 2026-10-05); the banner says how many — "all N" only when N is more than one
+    # the banner says how many rows the notes left out — "all N" only when N is more than one; a band the notes never
+    # mentioned carries its one eye here and none on its rows (styles.css .all-hidden: advisor round 2, kept by the
+    # 2026-10-05 review), except a row that shipped silently in a later build (its eye's words are the proof)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
     # an update that had no patch notes at all (Rat King's build 6736) says so: nothing was left out of notes
     no_notes = all_hidden and all(c.get('status') == 'unannounced' for c in counted_all)
@@ -529,7 +552,7 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     cls = ' named' if patch_name(hdr['title']) else ''
     summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
                f'<span class="bc">{tag_summary(counted_all)}{chips}'
-               f'<a class="pnotes" href="{patch_href(pid, rel, entity_id)}">patch ↗</a></span></summary>')
+               f'<a class="pnotes" href="{href or patch_href(pid, rel, entity_id, also)}">patch ↗</a></span></summary>')
     return summary, hidden_cls
 
 
@@ -540,7 +563,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     """One patch = its banner + ONE full-width panel: per part its icon on a plate in a column of its own,
     then its name and rows (Sloppy's ability block). `hints`: part key -> its cards.history_hints."""
     from . import archive
-    from .cards import ability_plate, disambiguate, every_links, is_hidden, patch_builds, player_facing, sub_head
+    from .cards import (ability_plate, disambiguate, every_key, every_links, is_hidden, patch_builds, player_facing,
+                        sub_head)
     from .render import not_in_notes, tag_of
     hdr = slot['row']
     from .game_systems import SECTION
@@ -629,9 +653,15 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
                                               tile_card(card)))
     if every_only:
         facts['every'] = facts.get('every', 0) + 1
+        facts.setdefault('every_names', set()).update(every_groups(every_all))
     from .text_rows import text_kind
+    # "patch ↗": a band of rules for all only goes to its Game band (the patch page has no card for the entity); else
+    # the entity's place in the patch, its family's members after it (patch_href)
+    href = esc(every_href(every_key(every_all[0])[0])) if every_only and every_all else None
+    also = [k.partition(':')[2] for g in groups for k in g['keys'] if k.partition(':')[0].endswith('.vdata')]
     summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id,
-                                  text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]))
+                                  text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]),
+                                  href=href, also=also if entity_id else ())
     dev_cls = ' dev-only' if all_dev and not in_dev and not every_only else ''
     dev_cls += ' every-only' if every_only else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'

@@ -81,7 +81,19 @@ def note_anchors(pid: str) -> frozenset[str]:
         return frozenset()
 
 
+@lru_cache(maxsize=None)
+def change_anchors(pid: str) -> frozenset[str]:
+    """The ids with a `c-<id>` place under the patch page's All changes (patches_pages.change_anchors); none for a
+    patch the archive does not hold."""
+    from .patch_counts import drop_inherited
+    from .patches_pages import change_anchors as anchors
+    try:
+        return anchors(drop_inherited(gameplay(pid)))
+    except (OSError, KeyError):
+        return frozenset()
+
+
 def clear() -> None:
     """Forget everything (tests that swap data/ for fixtures)."""
-    for f in (index, by_date, patch, gameplay, note_anchors, note_lines):
+    for f in (index, by_date, patch, gameplay, note_anchors, change_anchors, note_lines):
         f.cache_clear()

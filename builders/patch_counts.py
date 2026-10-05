@@ -56,7 +56,7 @@ def _counted_as(e: dict, pages: frozenset[str] | set[str]) -> tuple[str | None, 
     """(the group inside which one edit counts once, whether a hero / item / unit page shows the rows) of a patch
     entity — as the home icons route it (home_page.page_route / _feed_rows): a unit family's page, a Game system; a
     rule for every hero or ability is its Game system's (on a hero page it is a link row, no row of its own)."""
-    from .game_systems import place_all_row, place_entity
+    from .game_systems import place_entity
     from .home_page import page_route
     from .shared_rows import FOLD_FILES, catalog
     if e.get('id') == '@shared':
@@ -80,18 +80,47 @@ def _counted_as(e: dict, pages: frozenset[str] | set[str]) -> tuple[str | None, 
     return (f'game:{hit[0]}' if hit else None), False
 
 
-def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, int]:
-    """{'changes': n, '<status>': n per status, 'not_in_notes': n, 'hidden_on_pages': n} of one patch. `pages`: the
-    keys the hero, item and unit pages show (`page_set`)."""
+def drop_inherited(ents: list[dict], pages: frozenset[str] | set[str] | None = None) -> list[dict]:
+    """A patch's gameplay entities without a template's edits its heirs carry (trooper_base's "Max Range vs Shrine" is
+    on the Medic, Melee and Rifle Troopers): theirs, as the home icons route them (home_page._feed_rows: a template no
+    page shows; an entity's own coming and going stays). The count and the patch page's All changes start here (review
+    2026-10-05: City Never Sleeps' banner counted 15 such rows twice, Rat King's said 3 off the pages over two Game
+    icons of one change each). Copies; an emptied template drops out. `pages`: `page_set`."""
+    from .game_systems import is_template
+    from .shared_rows import catalog, entities as spread_all
+    if pages is None:
+        pages = page_set()
+    cat = catalog()
+    heirs = {(x['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
+             for x in spread_all(ents) if not is_template(x) for c in x['changes']
+             if not str(c.get('path') or '').startswith('@')}
+    out = []
+    for e in ents:
+        if (e.get('id') != '@shared' and e.get('key') not in pages
+                and is_template({**e, **cat.get(e.get('key'), {})})):
+            kept = [c for c in e['changes']
+                    if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in heirs]
+            if len(kept) != len(e['changes']):
+                if kept:
+                    out.append({**e, 'changes': kept})
+                continue
+        out.append(e)
+    return out
+
+
+def counted_rows(p: dict, pages: frozenset[str] | set[str] | None = None) -> list[tuple[dict | None, dict, bool]]:
+    """THE rows `count` counts, in the patch archive's order, as (entity, row, whether a hero / item / unit page
+    shows it); a console variable's row has no entity. The patch page's written notes ("Not in patch notes", "From
+    the files") list exactly these, so a tab says the number it lists (review 2026-10-05: City Never Sleeps' tab
+    said 360 over 353 lines — the console variables were counted, not listed)."""
     from .cards import gameplay_entities, player_facing
-    from .render import not_in_notes
     from .game_systems import place_all_row
     from .shared_rows import spread
     if pages is None:
         pages = page_set()
-    out: Counter = Counter()
+    out: list[tuple[dict | None, dict, bool]] = []
     once: set[tuple] = set()
-    for e in gameplay_entities(p['entities']):
+    for e in drop_inherited(gameplay_entities(p['entities']), pages):
         rows = player_facing(e['changes'])
         if not rows:
             continue
@@ -106,18 +135,26 @@ def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, 
                 if sig in once:
                     continue
                 once.add(sig)
-            out['changes'] += 1
-            out[c.get('status', 'hidden')] += 1
-            out['not_in_notes'] += not_in_notes(c)
-            out['hidden_on_pages'] += bool(on_page and not_in_notes(c))
+            out.append((e, c, on_page))
     # the console variables a game reads: the Game pages and the home icons show them, so they count (2026-09-16:
     # the banner said 8 off the pages, the Game icons 12; review 2026-10-05)
     from .game_systems import convar_changes, convar_start
     convars = (p.get('extras') or {}).get('convars') or []
     for c in player_facing(convar_changes(convars, convar_start())) if convars else ():
+        out.append((None, c, False))
+    return out
+
+
+def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, int]:
+    """{'changes': n, '<status>': n per status, 'not_in_notes': n, 'hidden_on_pages': n} of one patch. `pages`: the
+    keys the hero, item and unit pages show (`page_set`)."""
+    from .render import not_in_notes
+    out: Counter = Counter()
+    for _, c, on_page in counted_rows(p, pages):
         out['changes'] += 1
         out[c.get('status', 'hidden')] += 1
         out['not_in_notes'] += not_in_notes(c)
+        out['hidden_on_pages'] += bool(on_page and not_in_notes(c))
     return {'changes': 0, 'hidden': 0, 'not_in_notes': 0, 'hidden_on_pages': 0, **out}
 
 

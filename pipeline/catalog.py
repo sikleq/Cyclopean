@@ -132,6 +132,7 @@ def build() -> dict:
                    and (e.get('name') or e['id']) == e['id'] and e.get('kind') != 'weapon'
                    and not e['id'].startswith('citadel_weapon_')], ents.values())
     drop_unit_names(ents.values())
+    dead_namesakes(ents.values())
     data = {'build': head.build, 'entities': sorted(ents.values(), key=lambda e: (e['file'], e['id']))}
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
     print(f"{len(ents)} entities, {time.time() - t0:.0f}s -> {OUT}")
@@ -195,6 +196,38 @@ def _scan_names(want: dict[str, dict]) -> list[dict]:
                 found.append(e)
                 del want[eid]
     return found
+
+
+_OLD = re.compile(r'\s*\(old\)$')
+
+
+def dead_namesakes(ents) -> None:
+    """Shop items of one name, one of them out of the shop or more (removed from the files, or disabled there), are
+    told apart: one beside a namesake in the shop is "(old)"; several say what tells them apart — the day each came
+    into the game ("Toughness (old, added 2025-05-08)"), else the tier, else a number (review 2026-10-05: health_2 and
+    toughness_3 were both "Toughness", clip_size_3 and clip_size_fixed_t3 both "Extra Large Magazine", twice each in
+    the site search; "(old)" fired only beside a live namesake)."""
+    by: dict[str, list[dict]] = {}
+    for e in ents:
+        if e['file'] == 'abilities.vdata' and e.get('kind') == 'item' and e.get('name') and e['name'] != e['id']:
+            by.setdefault(_OLD.sub('', e['name']), []).append(e)
+    for name, group in by.items():
+        gone = sorted((e for e in group if not e.get('alive') or e.get('disabled')), key=lambda e: e['id'])
+        if len(group) < 2 or not gone:
+            continue
+        if len(gone) == 1:
+            gone[0]['name'] = f'{name} (old)'
+            continue
+        added = [str((e.get('first') or [None, ''])[1] or '')[:10] for e in gone]
+        tiers = [str(e.get('tier') or '').replace('EModTier_', '') for e in gone]
+        for i, e in enumerate(gone):
+            if len(set(added)) == len(gone) and all(added):
+                what = f'added {added[i]}'
+            elif len(set(tiers)) == len(gone) and all(tiers):
+                what = f'tier {tiers[i]}'
+            else:
+                what = f'#{i + 1}'
+            e['name'] = f'{name} (old, {what})'
 
 
 def drop_unit_names(ents) -> None:

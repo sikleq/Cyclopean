@@ -19,7 +19,7 @@ from functools import lru_cache
 
 from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
-from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, shown_value, tag_badge, tag_of
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, tag_badge, tag_of
 from .weights import net_class
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
@@ -351,7 +351,9 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
 
 
 def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list[tuple]:
-    """A row per hero; its role (Hero Stats' `type`, e.g. "…_Brawler") rides on the row for the role filter."""
+    """A row per hero; its role (Hero Stats' `type`, e.g. "…_Brawler") rides on the row for the role filter. A hero
+    the files give no role yet (Baba, Violet, Nurse Harrow… in development) is "*", which no role filter takes out
+    (scripts.js dyn-rows; they all dropped out under any role, review 2026-10-05)."""
     from .common import slug
     out = []
     for h in sorted(heroes, key=lambda h: display_name(h).lower()):
@@ -359,7 +361,8 @@ def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list
         role = str(((trow or {}).get(h['id']) or {}).get('type') or '').rsplit('_', 1)[-1].lower()
         # the page is heroes/atlas.html, not hero_atlas.html (every name link was a 404)
         out.append((f'hero:{h["id"]}', display_name(h), hero_icon(h['id'], rel),
-                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else '', {'data-role': role}))
+                    slug(h['file'], h['id']).split('/', 1)[1], 'extra' if pre else '',
+                    {'data-role': role or '*'}))
     return out
 
 

@@ -192,10 +192,15 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
                 f'<span class="l">{esc(label)}</span></div>')
         (top if is_top else rest).append(cell)
     wname = (card or {}).get('name') or (row or {}).get('weapon_name') or ''
+    wid = (card or {}).get('id') or (row or {}).get('weapon')
+    if not wid:
+        # no gun of its own (a hero in development borrowing another's: `borrowed_gun`)
+        return ('<section class="weapon-block px-frame" id="weapon"><div class="wb-id">'
+                f'{img(None, "", "px", "abilities")}<div><div class="wb-kicker">Weapon</div>'
+                '<div class="wb-name unnamed">No gun of its own yet</div></div></div></section>')
     # heroes in development often have no localized gun name yet: never show the internal id
     name_html = (f'<div class="wb-name">{esc(wname)}</div>' if wname and not wname.startswith('citadel_weapon_')
                  else '<div class="wb-name unnamed">No in-game name yet</div>')
-    wid = (card or {}).get('id') or (row or {}).get('weapon')
     ic = entity_icon('abilities.vdata', wid, 'weapon', rel) if wid else None
     desc = f'<div class="wb-desc">{esc(card["desc"])}</div>' if card and card.get('desc') else ''
     links = _gun_links(wid, wid, rel) if wid else ''
@@ -321,6 +326,13 @@ def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str, skip: se
 _ALT_GUN = re.compile(r'^citadel_weapon_.+(?:_alt|_set_?2)$')
 
 
+def borrowed_gun(hid: str, gun: str | None, ents_by_id: dict) -> bool:
+    """The hero's gun belongs to another hero (the files give a hero in development a stand-in: five fired Infernus'
+    Incendiary Remarks, whose last change and "History" link on their pages pointed at nothing; review 2026-10-05)."""
+    owner = (ents_by_id.get(gun) or {}).get('owner') if gun else None
+    return bool(owner) and owner != hid
+
+
 def alt_guns(hid: str, gun: str | None, ents_by_id: dict) -> list[str]:
     """The hero's alt fire guns (citadel_weapon_viscous_set_2, the removed …_alt): the files give them no name, and
     their history repeated the gun's (Viscous 2024-07-18 "Ammo 20 → 21" twice)."""
@@ -413,11 +425,16 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
     alt_card = next((c for c in mine if c.get('slot') == 'Weapon_Secondary'), None)
     gun = (weapon_card or {}).get('id') or (table_row or {}).get('weapon')
+    if borrowed_gun(hid, gun, ents_by_id):
+        # a hero in development fires another hero's gun as a stand-in (Violet, Baba, Nurse Harrow: Infernus'
+        # Incendiary Remarks): no gun of its own — its name, last change and history are the other hero's
+        weapon_card, alt_card, gun = None, None, None
+        table_row = {**table_row, 'weapon': None, 'weapon_name': None} if table_row else None
     alts = alt_guns(hid, gun, ents_by_id) if gun else []
     # the guns are the weapon block (with a stats row its numbers, else its name): the ability grid holds the four
     # ability slots only, so the ultimate never sits alone on a second row (Viscous' empty "Alt weapon" card)
-    weapon = (weapon_block(weapon_card, table_row, cols, name, rel, alt_card if alt_card and alt_card['id'] in alts
-                           else None) if weapon_card or table_row else '')
+    weapon = (weapon_block(weapon_card, table_row if gun else None, cols, name, rel,
+                           alt_card if alt_card and alt_card['id'] in alts else None) if weapon_card or table_row else '')
     abil_cards = [ability_card(c, rel, SLOT_LABEL.get(c.get('slot', ''), c.get('slot', '')))
                   for c in mine if str(c.get('slot', '')).startswith('Signature_') and has_content(c)]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''

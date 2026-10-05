@@ -31,6 +31,20 @@ _KEY_NAMES = (('iv attack2', 'ads'), ('iv attack', 'attack'), ('in mantle', 'man
 _BRACKET = re.compile(r'\[\[?([^\[\]]+)\]?\]')
 
 
+_HERO_TOKEN = re.compile(r'^hero_?name$', re.I)
+_BINDING_TOKEN = re.compile(r'^(?:iv|in|key)_', re.I)          # "{s:iv_attack}": a key binding, read "[Iv Attack]"
+
+
+def unfilled(raw, hero: str | None = None) -> bool:
+    """Does the game's text hold a value it fills in when it shows it ("{s:AbilityCooldown}", read "[Ability
+    Cooldown]")? A hero's page fills its own name in; a key binding is no value. Such a text stays folded: open, 552
+    of 980 rows showed "[Ability Cooldown]s Cooldown · Applies [Fixation Stacks] Fixation Stacks" (review
+    2026-10-05)."""
+    from .patches_pages import _VALUE_TOKEN
+    return any(not (hero and _HERO_TOKEN.match(n)) and not _BINDING_TOKEN.match(n)
+               for n in _VALUE_TOKEN.findall(str(raw or '')))
+
+
 def _plain(s) -> str:
     from .patches_pages import _plain as plain     # the archive's reading of loc text: markup out, [Tokens]
     return plain(s, None)
@@ -118,8 +132,10 @@ def text_rows(texts: list[dict], hero: str | None = None) -> str:
             # there — the owner wants every change, but it is no description change
             label = label.replace('description changed', 'wording fixed').replace('Description changed', 'Wording fixed')
         head = row('text', '', esc(label), '')
-        # a short text opens on its old and new versions, like a tooltip card side by side
-        opened = ' open' if len(a) <= SHORT_DIFF and len(b) <= SHORT_DIFF else ''
+        # a short text opens on its old and new versions, like a tooltip card side by side — not one with values the
+        # game fills in (`unfilled`): its "[Sleep Duration]" placeholders are no reading
+        opened = (' open' if len(a) <= SHORT_DIFF and len(b) <= SHORT_DIFF
+                  and not unfilled(t.get('old'), hero) and not unfilled(t.get('new'), hero) else '')
         out.append(f'<details class="txt"{opened}><summary>{head}</summary><div class="txt-diff">'
                    f'<p class="txt-old">{old}</p><p class="txt-new">{new}</p></div></details>')
     return ''.join(out)
