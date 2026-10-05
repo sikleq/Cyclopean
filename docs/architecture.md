@@ -26,7 +26,10 @@ pipeline/flags.py      bit sets and enums a player plays with: which bits are ga
 pipeline/news.py       -> data/notes/steam.json (Steam News API); forum notes in data/notes/forum/*.txt
 pipeline/patches.py    groups builds into patch windows (changelogs; notes-less big builds get their own)
 pipeline/match.py      -> data/patches/<id>.json.gz  notes lines ⇄ data changes; documented/described/hidden/mismatch/fix
-                          (+ line statuses heading/untracked/nodata; change status unreleased)
+                          (+ line statuses heading/untracked/nodata; change status unreleased; extras: every
+                          console variable (noted ones first) and texts uncapped; loc rows cut at 400)
+pipeline/shared_groups.py  a patch's '@shared' blocks: target_keys, scope (all / some), target_status
+pipeline/entity_texts.py   a patch's name / description changes of abilities, items and heroes (extras.texts)
 data/tracker_head.txt  last processed tracker commit: update-data.yml checks it against `git ls-remote`
                           every 15 min and only clones + rebuilds when the tracker moved. GitHub skips
                           most of those cron runs (1 of ~40 overnight on 2026-10-01), so a fallback runs
@@ -54,6 +57,19 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 | Tests | `python -m pytest` |
 | Shop look and sounds from the local game | `python tools/extract_shop_assets.py` |
 | Page performance (scroll p95, elements, layout / style time; before & after) | `python tools/perf_probe.py [--urls …] [--label before]` |
+
+## Build speed
+
+- **The patch archive is read once a build** (`builders/archive.py`): `index()`, `by_date()`, `patch(pid)` and
+  `gameplay(pid)` (= `cards.gameplay_entities`) are cached for the whole build. Every builder that walks the
+  patches goes through it (entity histories, change matrices, history squares, home feed, patch / build / errata
+  pages). **The cached records are shared: no builder writes into them.** A page that needs an extra field copies
+  first (`patch_page` builds `change_by_key` from `{**c, 'ent_name': …}`).
+- `common.ids_to_names` is memoised per string, tied to the catalogs it read; `render.readable_value` and
+  `trail.trail_html` are `lru_cache`d; `cards.change_rows` calls `is_engine` once a row.
+- `build_site.sync_tree` copies only new or changed icons and sounds (size + modification time) instead of
+  `copytree` rewriting ~1,400 files every build.
+- Site build: 10.6 s → 6.0 s (patches 3.9 → 2.1 s, builds 2.3 → 2.0 s, entities 2.8 → 1.5 s, home 0.5 → 0.1 s).
 
 ## Change statuses (patch pages)
 
@@ -100,16 +116,26 @@ colour with a 2px bar on the left, and one fill. The size of a change is shown b
 by the badge. The % is coloured text whose ink strength follows `data-g`, not a second box. There is no
 clip-path, because it cut the focus and "chosen" rings. The tag's pixel icon is the badge's CSS
 `::before`: a mask per tag (`pixel_icons.tag_mask`, written into styles.css as `.tag.<t> { --ti: … }`),
-drawn in the badge's own colour. `tests/test_entity_page.py` keeps the CSS in sync with `TAG_ART`. An
-inline SVG per badge used to mean ~600 copies of ten shapes on a hero page. Counters (`render.pip`)
-keep their inline SVG. A chosen filter tag is `aria-pressed="true"`, never the class `on`, because
-`.tag.on` is the ON tag's green.
+drawn in the badge's own colour. `tests/test_entity_page.py` keeps the CSS in sync with `TAG_ART`. Counters
+(`render.pip`) draw the badge's mask (`.pip.<tag>::before`). A chosen filter tag is `aria-pressed="true"`,
+never the class `on`, because `.tag.on` is the ON tag's green.
 
 **One counting rule.** Every counter on every page (home summary, patches index, heroes index, card
 headers, ability sub-headers, history bands, the 12-patch strip) counts `cards.player_facing(changes)`:
 renamed fields merged, swapped upgrade tiers folded into one REWORK (per entity, never across abilities),
 engine plumbing (`cards.is_engine`, the "Technical" fold) left out. A patch that only touched plumbing is
-not the hero's "last change" and does not take one of the three open history bands.
+not the hero's "last change" and does not take one of the three open history bands. `cards.player_facing`
+is memoised on the identity of the change dicts; it ran 96k times on ~23k inputs.
+
+**One count of "not in patch notes".** "Not in patch notes" — the eye — is ONE status set everywhere
+(`render.NOT_IN_NOTES` = hidden and unannounced; `not_in_notes(c)`): what Valve did not write down, including every
+change of an update that had no notes at all (Rat King's build 6736 lost its eye and dropped out of the eye filter
+when only hidden counted). Such a band's eye chip reads "no patch notes". Work on a hero still in development
+(unreleased, "Before release") is not it. A patch's numbers come from ONE function (`builders/patch_counts.py`,
+`for_id(pid)`): `not_in_notes` (the eye's number everywhere), the per-status counts, and `hidden_on_pages` — those of
+them a hero, item or unit page shows by THE pages' keys (`patch_counts.page_set` = `entities_pages.page_entities` /
+`page_keys` over the keys with changes of their own), so "N of them in game rules & map objects" is exactly what the
+Game section shows (it read `home_page.page_of`, which gives no page to a helper unit or a unit's own ability).
 
 **What a page lists** starts at `cards.gameplay_entities` (gameplay rows only; one object kept under
 several ids with the same edit — Walker's `alt_`/`_weak` copies, two crate ids — merges into one
@@ -388,6 +414,97 @@ Data-quality audit, part 2 (2026-10-04, enrich 30):
 Data-quality audit, part 3 (2026-10-04, enrich 31):
 - shared page (already described above in part 1, but expanded here).
 
+Coverage audit (2026-10-05, owner: "I want to see ALL changes to everything in the game"):
+- shared changes on their entities: an edit the files copy into 6+ entities (`diff.SHARED_MIN`) is one
+  '@shared' block in a patch, and since this audit it keeps the KEYS of the entities it hit (`target_keys`;
+  names are ambiguous: renamed heroes, "Melee"), the status of each target that differs from the block's
+  (`target_status`: a note line named only that hero; a hero in development is `unreleased`), and its `scope`
+  (`pipeline/shared_groups.py`): 'all' when its targets are `ALL_SHARE` (85%) or more of the entities of their
+  kinds that the window could diff field by field, else 'some'. Before, 13,573 hero × row pairs and 278 hero
+  patch bands were missing (Haze's Max Health 740 → 730 on 2026-05-22, Abrams' Ground Dash Duration 0.7s → 0.72s on 2026-07-28).
+- `scope` on abilities.vdata is measured per FIELD too (`shared_groups.UNION_FILES`, `_field_rules`): the blocks of a
+  window on one ability property are counted together, and when their union is a rule for all, each block is 'all'.
+  Channel Move Speed went from engine units to m/s on 2025-08-18 for every ability and item at once (491 targets
+  50 → no limit, 93 targets 50 → 1.3m, 6 targets 9999 → no limit): three "shared ×491" rows on 268 pages, now one
+  link row. Not the heroes' file: there the blocks are base stats by archetype (Max Health 740 → 730 for nine heroes,
+  790 → 780 for 26) a hero page shows as its own rows.
+- `builders/shared_rows.py` spreads a block over its targets (`spread` / `entities`: each target's own key,
+  status, catalog kind / owner / name; `shared_n`, `shared_what`, `shared_all` on the rows) for every entity
+  view: the entity history (`entities_pages._history`), the trail squares and "last change" (`trail._index`),
+  the change matrices (`dynamics_page._collect`), the home feed (`home_page.update_feed`). A block on some
+  entities is an ordinary row with a chip "shared ×9 heroes" (`cards.shared_chip`). A rule for all heroes or
+  abilities (`FOLD_FILES`: the level curve, investment and purchase bonuses, every melee attack) folds into ONE
+  row "All heroes: N changes" that opens in place (`cards.every_rows`, `details.fam.shr-all`) and is counted
+  apart (`shared_rows.is_every`): not in the band's counters, its eye count, the toolbar's "Not in patch notes",
+  the matrices, the trail squares or the home icons. Units never fold: a kind of unit is a handful of ids, so a
+  block on the five troopers (their 44-row rework of 2026-04-30) is the troopers' own change.
+- A rule for every hero or ability (`is_every`) is ONE link row per Game system on an entity page
+  (`cards.every_rows`: "All heroes: 35 changes · Hero progression ›" → `game/<system>.html#p-<patch>`, the system by
+  `game_systems.place_all_row`), its rows only on the Game page; no status mark, class `shr-all`. The fold of the
+  rows themselves on every hero page grew heroes/ from 13 to 37 MB (Haze 295 → 755 KB); with the link rows heroes/
+  is 19 MB, Haze 401 KB (gzip 28 KB), dist 74 MB. Its tags give the toolbar no button and a lazy band no
+  `data-tags`; scripts.js `hist-filter`: no tag or eye filter keeps the link row, so a band where only it would match
+  folds away, and the banner's "+N for all heroes" hides while a filter is on.
+
+Game section (2026-10-05, part 2; owner: "I want to see ALL changes to everything in the game"):
+- 2,040 gameplay changes (1,340 not in the notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04,
+  crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables).
+  The fourth section, Game, is everything no hero, item or unit page shows (`builders/game_systems.py`, `game_pages.py`,
+  `game_rules.py`; config `data/overrides/game_systems.json`).
+- Which entries: `entities_pages.page_entities` / `page_keys` are THE pages. The Game takes exactly the rest
+  (`game_systems.place_entity(key, e, pages)`): map objects, game rules, effects, loot tables, abilities no hero owns,
+  templates. Scenery (`classify.decor_entity`) is no page's.
+- Systems: Souls & economy, Respawn, Hero progression, Urn & Unstable Rift, Pickups & powerups, Breakables & crates,
+  Troopers & lanes, Neutral camps & Mid-Boss, Shop & item rules, Movement & combat, Modes, Other rules & objects.
+  Each has parts (the page's filters). A rule is a regex tried from the start of a subject, systems and parts in config
+  order, first match wins; subjects are an entry `file:id#kind`, a row of a rule for every hero / ability `file:@all:path`,
+  a console variable `convar:name`. Names: the config's (the files give these entries no text), else the catalog's, else
+  `pretty_id` without `modifier_` — never an id; templates say "(template)", loot tables "Loot table: …". Icons: a path
+  under icons/ (game files) or `glyph:<site glyph>`; a missing one fails the build (`game_systems.missing_icons`).
+- A system's page (`game/<id>.html`) is `history_table` over a composite key list, like a unit family: one group per
+  entry in part order; identical rows of several entries merged into one group; a rule for every hero or ability once, as
+  its part's own group; a part's console variables as one group "Console variables" (rows labelled by the variable's name).
+  A template's change shows only where no heir has the same (path, old, new) in that patch (`game_pages.template_rows`).
+  heroes/shared.html is a redirect to game/combat.html (anchors kept).
+- Console variables (`game_systems.convar_changes`): a patch's rows per variable, first old → last new; only the
+  server's (`gamedll` in flags), named by a part and not a test / display switch (`convar_hide`). Direction from the
+  snake_case name (`convar_polarity`): more souls BUFF for the taker, a longer respawn / spawn timer NERF, comeback
+  scales / ramps' times UP. Units read in the game's units (`game_systems.convar_unit` / `convar_number` / `convar_value`,
+  config `convar_units`: [regex on the name, unit, scale], first match wins): a multiplier / ratio / percent stays a
+  number, `_meters` is metres, `fraction` ×100 %, `_pct` %, a radius / range / distance / width / thickness / spacing
+  / padding is engine units → m, the move-speed cap and leap / force speeds → m/s, durations / intervals / delays /
+  windows / the respawn ramps and named times → s; a bare `_time` is no unit. Game rules shows "55m" for
+  `citadel_bounty_aoe_radius` 2165.35, its hover history on the same scale (`data-unit`, scripts.js `hist-tip` appends it).
+- Ids in values: `common.ids_to_names` also knows map objects, effects and loot tables (`_game_entry_names`, by
+  `game_systems.name_of`) and reads an unknown `modifier_…` as words: Game › Breakables read "Pickup
+  spirit_permanent_pickup → small_gold_pickup".
+- Game rules (`game/rules.html`, `game_rules.py`): ONE table, a band row per system, every gameplay variable that
+  exists today: its value now (its history on hover: the stats tables' `hist-tip`), how many times it moved, the date.
+  No level curve or tier prices: the files list those rows only when they change.
+- Game changes (`game/changes.html`): `dynamics_page.matrix_html(game_entries(), 'game')`, a row per system;
+  `_collect` puts every entry no structure claims (`game_systems.claimed`), a template's change no heir shows, a rule
+  for every hero / ability once and the console variables in `game:<system>`; the hover card names each change's
+  entry (`table[data-what]`, scripts.js dyn-tip). Glyph systems draw the site glyph in the name cell.
+- Home: four tiles (Game: 12 systems, its art the systems' game-file icons); the feed's fourth row "Game" (system
+  icons with counts, eye, card). The banner's "N of them in game rules & map objects" links to the Game section.
+- Search: every system and every named Game entry.
+- Patch archive: the console variables tab lists every variable (noted ones first; `match.slim_extras` keeps them
+  all), or "+N more on the build pages".
+
+Name and description changes (`pipeline/entity_texts.py`, `builders/text_rows.py`):
+- a loc key that IS an ability's / item's / hero's id is its name, `…_desc` its description, `…_tN_desc` a tier's;
+  a window keeps first old → last new per entity and part, only when both sides have words and they read differently
+  (markup or a token respelt is no change; a text that comes or goes with its entity is the entity's event).
+- `entities_pages._history` files them under `text:<key>`; `history_table` adds them to the entity's group in that band:
+  a rename is a row "Name  A → B", a description a fold "Description changed" (T1-T3: "T2 description changed") opening
+  on the old and the new text, words that went struck through (`del`), words that came lit (`ins`).
+- Never counted (no tag, no eye, no counter, no strip tile); a tag or the eye filter hides them; a group of texts only is
+  "Before release" when every other group of its band is. A hero renamed in development carries "was Slork" in its head
+  (`text_rows.former_names`). 1,084 such rows over all patches.
+- "Icons without per-entity art" table, new row: "Game systems | a game-file icon per system in
+  data/overrides/game_systems.json (souls, timer, Drop Soul Urn, the powerup ping icon, the trooper class portrait, a
+  lantern neutral, the shop tab, the dash stat icon) or a site glyph (breakables, hero progression, modes, other)".
+
 Matching, third pass (2026-10-02, P12/P13): synonyms are looked up the way `words()` writes words
 (`rules.stem`: "radius" is "radiu" — `radius`, `souls`, `charges` synonyms never fired; "collision size"
 / "hitbox" now name a radius, "HP" is health); a subject-less line without numbers is checked for a
@@ -465,6 +582,14 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 
 ## Visual system (design review 2026-10-01, three designer agents, four rounds)
 
+- **Page weight and first paint** (2026-10-05): No inline SVG for icons. Status marks (`common.mark`),
+  tag counters (`render.pip`) and category glyphs (`common.visual` without art) are empty spans; styles.css
+  draws the shape as a CSS mask on `::before`. All masks come from `pixel_icons.svg_mask`; `tests/test_perf.py`
+  and test_entity_page.py keep the CSS in sync with the art. Nano's page 483 → 330 KB, the archive's HTML
+  81 → 63 MB. **Fonts never hold the first paint.** One Google Fonts request per page, loaded as `media="print"`
+  `data-fonts` and switched on by scripts.js once it has loaded. With the fonts server answering in 2.5 s:
+  DCL / first paint 2.7 s before, 35-250 ms after. A change-matrix tile of one tag is a class (`.dsq.s-<tag>`),
+  not an inline gradient.
 - Fonts: Jersey 20 (headings, names, big numbers — unambiguous pixel digits, weight 400 only) **only at
   20px and up**; smaller names (hero index, Hero Stats, ability sub-headers) use IBM Plex Sans 600.
   VT323 for labels, badges, dates (16px and up); IBM Plex Sans for body and tabular numbers.
@@ -590,7 +715,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   slid under the sticky names. A stats table that should sit in the middle opts in with the item-stats
   track's `.table-fade.center`. Tooltips and cards
   float above the sticky site bar (`--z-tooltip` 200 > `--z-nav` 100). The game's icons are scaled smooth
-  (`img.px` is no longer pixelated; only `.icon-px` keeps hard pixels), because they are 128px paintings
+  (`img.px` is no longer pixelated), because they are 128px paintings
   shown at 20-96px. A switch (`data-toggle-class` checkbox) follows its box, also when the browser restores
   a ticked box on "back". Toggle buttons report `aria-pressed`.
 - Patch titles (`common.patch_title_html` / `patch_title_text`): the date once. A named update (City
@@ -671,8 +796,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   bullet speed from the flat `m_BulletSpeedCurve` before 5747, dash times from the shared dash ability
   (Innate 1) before 5706, an omitted burst interval is 0 (audit of data gaps, 2026-10-01).
 - Items index = the game's shop (`builders/shop_page.py` + `game_shop.py`, see docs/shop.md).
-- Navigation (2026-10-03, owner: "closer to Sloppy"): the bar is Heroes | Items | Units; each section has
-  the same three sub-tabs (`common.SECTION_TABS`): its index, its stats table (Hero / Item / Unit Stats)
+- Navigation (2026-10-03, owner: "closer to Sloppy"): the bar is Heroes | Items | Units | Game; each section has
+  the same three sub-tabs (`common.SECTION_TABS`): its index, its stats table (Hero / Item / Unit Stats; Game: Game / Game rules / Game changes)
   and its change matrix. Patches, builds, the calendar and Notes vs files are still built but off the
   bar: the footer's "Patch archive" and the date banners lead there. A matrix tile and the home feed open
   the entity's own page at that patch (`#p-<patch id>` on every history block; scripts.js opens it).
@@ -812,7 +937,57 @@ chip.
 | groups and rules ("All heroes (24)", game rules, map objects, modifiers, loot tables) | site category glyphs (`common.GLYPHS`, pixel SVG, never presented as game art) |
 | ability card property rows | `m_strCSSClass` → `icons/stats/prop/<class>` (the in-game tooltip icon); spirit damage purple, bullet damage warm, healing green |
 
-## Tooltips
+## Key functions
+
+| # | Function | What it does |
+|---|---|---|
+| 1 | `build_site.py:main` | The entrypoint: `refresh_data` with `--data` (tracker → history → enrich → catalog → cosmetics → abilities → tables → news → match), `copy_assets` (`sync_tree`), then the STEPS (patches, builds, entities, tables, home). |
+| 2 | `pipeline/history.py:entity_changes` | One tracker commit against the one before → a `data/builds` record, via `flatten.flatten` and `diff.diff_entity`. |
+| 3 | `pipeline/enrich.py:enrich_record` | Labels, display values, units and BUFF / NERF on a build record, with that build's localization. |
+| 4 | `pipeline/semantics.py:direction` | buff / nerf / up / down / changed and the % of one numeric change, from the property's polarity (signed for a hero's base stats). |
+| 5 | `pipeline/labels.py:build` / `resolve` | One label, unit and sign per field over its whole history (the newest text's), used by the matcher and the ability cards. |
+| 6 | `pipeline/classify.py:hero_bound_abilities` / `shared_abilities` | Who owns an ability: the hero that binds it; abilities more than half the heroes bind belong to none. |
+| 7 | `pipeline/catalog.py:build` | `data/entities.json`: every entity ever, its kind, owner, names, first / last build. |
+| 8 | `pipeline/match.py:window_changes` | A patch window's builds merged into one change per field (`merge_ops`). |
+| 9 | `pipeline/match.py:annotate_line` | One patch-note line ⇄ the data changes: documented / described / mismatch / fix / code … |
+| 10 | `pipeline/match.py:build_patch` | Writes `data/patches/<id>.json.gz` (statuses, unreleased heroes, `@shared` groups, counts). |
+| 11 | `builders/archive.py:patch` / `gameplay` | The patch archive read once a build and shared read-only by every builder. |
+| 12 | `builders/cards.py:gameplay_entities` | What a page lists of a patch: gameplay rows only, repeated variants merged. |
+| 13 | `builders/cards.py:player_facing` | THE counting rule (renames merged, tiers / corrupted / levels folded, plumbing and no-ops out), memoised. |
+| 14 | `builders/cards.py:entity_rows` / `change_rows` | The rows of one entity in one patch: on its own page / on the archive pages. |
+| 15 | `builders/render.py:tag_of`, `vals_html`, `shown_value` | A change's badge (class, word), its old → new cell, a value as the page prints it. |
+| 16 | `builders/history_view.py:history_table` | An entity's history: one band per patch, groups per part, the toolbar facts, the patch strip and its hover-card blob. |
+| 17 | `builders/hero_page.py:hero_page` / `entities_pages.build_all` | A hero's page (head, weapon, ability cards, history); `build_all` writes every hero, item and unit page. |
+| 18 | `builders/dynamics_page.py:_collect` / `matrix_html` | One pass over the archive for the three change matrices (counts per row and patch, part counts, hover samples). |
+| 19 | `builders/tables_pages.py:render_table` / `hist_attrs` | Every stats table (groups, sortable columns, heat, lazy columns) and a value's history attributes. |
+| 20 | `site/scripts.js` modules `hist-filter`, `dyn-tip`, `hist-tip` | The history toolbar's filters and recounts, the one hover-card renderer, the value-history tooltip. |
+
+## Performance
+
+Measured 2026-10-05 on the maintainer's PC (Windows 11, Python 3.13). **Site build** (`python build_site.py`,
+committed data): 10.6 s → 6.0 s — patches 3.9 → 2.1 s, builds 2.3 → 2.0 s, entities 2.8 → 1.5 s, home 0.5 → 0.1 s.
+Under cProfile: 102 s → 16 s; `player_facing` 95,882 calls → 23,465 computed, `shown_value`'s work cached per string,
+the archive opened 128 times instead of ~1,500. **Pages** (`tools/perf_probe.py`, headless Chromium 1600x900, first
+page cold): index.html DOMContentLoaded 2,978 → 171 ms (the Google Fonts stylesheet no longer blocks), elements
+1,389 → 1,085, HTML 138 → 95 KB; heroes/nano 483 → 330 KB, elements 1,392 → 1,203; heroes/haze 288 → 197 KB;
+units/npc_boss_tier2 204 → 129 KB, elements 865 → 692. Scroll p95 stays 16.7-16.8 ms on all pages (budget 25 ms).
+
+## Tooltips and Keyboard Access
+
+- **Value histories** (`scripts.js `hist-tip`): values with a history (`[data-hist]`) join the tab order
+  (scripts.js sets `tabIndex`; Item Stats' lazily built cells too) and show their history on focus (`aria-describedby`,
+  Escape closes). Each step carries its direction from `semantics.direction`; a value's history carries its overall
+  direction (`data-odir`), from the game field the column reads. Computed columns have no field: scripts.js judges by
+  the column's polarity, with the sign. A table's values are one tab stop (roving tabindex): Tab enters at the value
+  visited last (else the first shown one), ←/→ move in reading order, ↑/↓ to the same column in the nearest shown row.
+- **Sortable headers**: tab order, `aria-sort` (descending / ascending / none), Enter or Space sorts. Foldable group
+  headers: `aria-expanded`, Enter / Space fold.
+- **Hover cards** (scripts.js `dyn-tip`): a change-matrix cell, an entity page's strip tile, an ability card's trail
+  square and its "last change" link, and a home feed icon. Each card shows the patch (named ones in gold), counts by
+  tag, "N not in patch notes", and the biggest changes (tag, eye, field, old → new). A card's value column wraps
+  between words (`overflow-wrap: break-word`): a long REWORK list wraps inside the card, a number never splits.
+- **Category glyphs** (`common.visual` without art): an empty `<span class="px glyph g-<name>">`; it has no size of
+  its own, so every place that shows one sizes it with its `img` (`.card img, .card .glyph` 72px, `.ecard-h .ei`, etc.).
 
 Short `data-tooltip` texts are shown by one floating element from `site/scripts.js` (clamped to the
 viewport, flips below when there is no room above, tap to show on touch). Stat history cells use the
@@ -828,13 +1003,26 @@ Matching rules live in `pipeline/match.py`; every fix to matching gets a test in
 `tests/test_pipeline.py`. Rules so far:
 
 - numbers match under display transforms: raw, magnitude, fraction↔percent, units↔metres, rate↔interval (1/x);
+- a value written in metres on one side and bare on the other is engine units on the bare side (`semantics.metres_pair`,
+  used by `match.change_json` for the numbers and the %): "Channel Move Speed 50 → 1.3m" read −97.4% NERF on 93 abilities;
+  it is 1.27 → 1.3 m/s, +2.4%;
+- a hero's availability written in another field is no change (`match.mark_availability_moves`): on 2026-09-29
+  heroes.vdata dropped `m_bPlayerSelectable` and gained `m_eHeroDevelopmentState`; for a hero whose old flag and new
+  state agree both rows are dropped;
 - compound values `100+1.5 → 120+1.75` = base + spirit scaling;
 - `T1/T2/T3` in the line must agree with the tier of the field;
 - a line without a subject (General section) needs both the numbers and a shared word (with synonyms:
   bounty↔gold/reward, guardian/walker↔tier/boss, respawn↔spawn);
 - console variables take part in matching (respawn times, bounties live there);
 - entities added in a window count as ONE change ("Added to the game files"), not one per field;
-- a change repeated verbatim across many entities (`@shared`) counts once.
+- a change repeated verbatim across many entities (`@shared`) counts once;
+- an inline alias or name whose entity did not move falls back to the whole patch (`annotate_line`): "Stamina bucket
+  3 heroes … ground dash time" stayed unmatched, so Abrams' dash rows carry the eye;
+- owners of sub-abilities (`classify.hero_bound_abilities`): an ability no hero binds whose id is an owned ability +
+  `_trigger` / `_cancel` / `_cancel_trigger` / `_teleport` / `_recast` is that hero's (Frozen Shelter's
+  `ability_ice_dome_trigger`, McGinnis' `citadel_ability_fissure_wall_cancel`, Drifter's Ambush
+  `drifter_shadow_mark_teleport`); a kit named after a hero's code without the `ability_` prefix too
+  (`slork_scald`, `synth_blitz`, `tokamak_*`, `yakuza_*`).
 
 ### Rules from the audit of "hidden" changes (`pipeline/match_rules.py`)
 

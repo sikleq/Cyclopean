@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-05",
+    "title": "Shared changes, Game section, coverage fixes, and performance",
+    "items": [
+      "Shared changes across many heroes or items now show on each affected page: Haze's Max Health cut on 2026-05-22, the dash changes of eleven heroes on 2026-07-28, the troopers' rework of 2026-04-30, and level-curve adjustments. A badge says \"shared ×10 heroes\"; rules for all heroes (level curve, investment bonuses) fold as one line that links to the Game page, so hero pages stay readable.",
+      "New Game section (next to Heroes, Items and Units): system rules, the Soul Urn and map objects, powerups, souls and respawn times, the level curve and investment bonuses, Street Brawl modes, movement and combat rules, and console variables — about 2,000 changes no page showed before. Ability and item renames plus rewritten descriptions now appear in the history (old and new text side by side, changed words marked); a hero renamed in development says what it was (Fathom: was Slork).",
+      "One count of \"not in patch notes\" everywhere: home page, patch list, filters, and the Game section all agree (City Never Sleeps: 598, of them 340 in game rules). Updates without notes (like Rat King's release) now say \"no patch notes\". Fixed: the August 2025 Channel Move Speed is no longer −97% nerf; heroes no longer look \"released\" on September 29; announced dash and heavy melee changes are no longer marked hidden. Game rules show metres and seconds, not raw numbers. The patch archive lists all console variables (all 510 of City Never Sleeps instead of stopping at 300).",
+      "Pages open faster: icons and badges are CSS masks instead of inline SVGs (hero pages about a third lighter), and the site no longer waits for fonts to load. Popups no longer split numbers like \"12880 → 8\" / \"000\"; long upgrade lists wrap inside instead.",
+      "Value-history popups work from the keyboard: Tab to a value, Enter to sort columns, Escape closes, arrow keys to nearby values. Screen readers know which filters are on. The home search keeps what you typed while it loads. Popup colours match the page's tags for negative stats (a bounty going down is red, not yellow).",
+      "Units without game art have their icons back on the Units page. Four heroes in development (Kali, Rutger, Thumper, Yakuza) now have their own pages. Stats tables are one Tab stop with consistent keyboard navigation."
+    ]
+  },
+  {
+    "date": "2026-10-05",
     "title": "Entity pages, shared abilities, data fixes, and Item Stats history",
     "items": [
       "Hero, item and unit pages are one centred column: today's weapon, abilities and stats are shown open at the top, then a one-row filter bar (tags, \"not in notes\", stats/weapon/abilities, each ability by icon) and the history. The history reads easier: each number follows its stat, the % is coloured text, every tag is the same size, and old values on deletions are struck through.",
