@@ -378,17 +378,55 @@ def test_a_description_diff_marks_words_not_confetti():
     assert 'Abrams hits' in filled and '[Hero name]' not in filled
 
 
-def test_a_description_with_values_the_game_fills_in_stays_folded():
+def test_a_description_with_values_no_build_record_knows_stays_folded():
     """Review 2026-10-05: opened, 552 of 980 description rows showed "[Ability Cooldown]s Cooldown · Applies [Fixation
-    Stacks] Fixation Stacks"; such a row stays folded. The hero's own name and a key binding are no such value."""
-    from builders.text_rows import text_rows, unfilled
+    Stacks] Fixation Stacks". A value the pipeline could not read is a neutral gap, never the token, and such a row
+    stays folded. The hero's own name and a key binding are no such value."""
+    from builders.text_rows import GAP, text_rows
     tok = text_rows([{'part': 'desc', 'old': '{s:AbilityCooldown}s Cooldown', 'new': '{s:AbilityCooldown}s Cooldown, '
                       'applies {s:FixationStacks} stacks'}], 'Haze')
     assert '<details class="txt">' in tok and '<details class="txt" open>' not in tok
-    assert not unfilled('{s:hero_name} jumps', 'Haze') and unfilled('{s:hero_name} jumps')
-    assert not unfilled('Press {s:iv_attack} to fire') and not unfilled('Plain words')
+    assert '[Ability Cooldown]' not in tok and '[Fixation Stacks]' not in tok and f'{GAP}s Cooldown' in tok
     hero = text_rows([{'part': 'desc', 'old': '{s:hero_name} jumps', 'new': '{s:hero_name} jumps high'}], 'Haze')
     assert '<details class="txt" open>' in hero and 'Haze jumps' in hero
+    key = text_rows([{'part': 'desc', 'old': 'Press {s:iv_attack} to fire', 'new': 'Hold {s:ability_key} to fire'}])
+    assert '<details class="txt" open>' in key and GAP not in key and '[Ability key]' in re.sub(r'<[^>]+>', '', key)
+
+
+def test_a_description_change_prints_each_builds_values():
+    """Review 2026-10-05: ~550 description rows (Haze's Sleep Dagger T2 2026-07-28) showed Valve's unfilled tokens.
+    The old text reads with the values at the window's start, the new one with those at its end, the text's unit
+    once, as the game's tooltip prints them."""
+    from builders.text_rows import text_kind, text_rows
+    t = {'part': 't2', 'old': '<span class="highlight">{s:AbilityCooldown}s</span> Cooldown<br>Applies '
+                              '{s:FixationStacks} Fixation Stacks',
+         'new': '<span class="highlight">+{s:SleepDuration}s</span> Sleep Duration<br>Applies {s:FixationStacks} '
+                'Fixation Stacks',
+         'vals': {'old': {'AbilityCooldown': '-4', 'FixationStacks': '1'},
+                  'new': {'SleepDuration': '0.5', 'FixationStacks': '2'}}}
+    html = text_rows([t], 'Haze')
+    assert '<details class="txt" open>' in html and '[' not in re.sub(r'<[^>]+>', '', html)
+    plain = re.sub(r'<[^>]+>', '', html)
+    assert '-4s Cooldown · Applies 1 Fixation Stacks' in plain and '+0.5s Sleep Duration · Applies 2 Fixation' in plain
+    assert text_kind([t]) == 'description changed'
+    # a value that carries the text's unit: "+{s:AbilityCastRange}m" with "3m" is "+3m", not "+3mm"
+    rng = text_rows([{'part': 't3', 'old': '+{s:AbilityCastRange}m Cast Range', 'new': '+{s:AbilityCastRange}m Range',
+                      'vals': {'old': {'AbilityCastRange': '3m'}, 'new': {'AbilityCastRange': '4m'}}}])
+    rng = re.sub(r'<[^>]+>', '', rng)
+    assert '+3m Cast Range' in rng and '+4m Range' in rng and 'mm' not in rng
+
+
+def test_a_description_that_only_moves_numbers_its_rows_say_stays_folded():
+    """A text that differs only in numbers the patch's own rows already show ("30s Cooldown" → "28s Cooldown" beside
+    "Cooldown 30s → 28s") says nothing more: it stays folded. A number no row shows opens it."""
+    from builders.text_rows import numbers_only, text_rows
+    t = {'part': 'desc', 'old': 'Every {s:AbilityCooldown}s', 'new': 'Every {s:AbilityCooldown}s',
+         'vals': {'old': {'AbilityCooldown': '30'}, 'new': {'AbilityCooldown': '28'}}}
+    row = {'label': 'Cooldown', 'old_s': '30s', 'new_s': '28s'}
+    assert '<details class="txt">' in text_rows([t], None, [row])
+    assert '<details class="txt" open>' in text_rows([t], None, [])
+    assert numbers_only('Every 30s', 'Every 28s', [row]) and not numbers_only('Every 30s', 'Each 28s', [row])
+    assert not numbers_only('Every 30s', 'Every 30s', [row])
 
 
 def test_a_borrowed_stand_in_gun_is_no_gun(monkeypatch):
@@ -426,6 +464,35 @@ def test_one_band_never_shows_two_groups_of_one_name():
     assert names.count('Weapon (shotgun)') == 1 and 'data-ab="gun gun_shared_base"' in html
     assert 'Frozen Shelter' in names and 'Frozen Shelter · trigger' in names
     assert names.count('Wrecking Ball') == 1 and 'Wrecking Ball (old version)' in names
+
+
+def test_the_alt_fire_shows_its_numbers_under_its_line(monkeypatch):
+    """Review 2026-10-05: the weapon block had only a slim "Alt fire" line. Its numbers (Hero Stats' `alt`) are a
+    compact row of cells under it, each with its history on hover; a default (1 pellet, 1 ammo a shot) says nothing;
+    no row for an alt fire Hero Stats does not describe."""
+    from builders import hero_page
+    alt_cols = {k: {'key': k, 'label': lbl, 'group': 'Damage', 'digits': d, 'pol': p} for k, lbl, d, p in [
+        ('dps', 'DPS', 1, 1), ('bullet_dmg', 'Bullet DMG', 2, 1), ('pellets', 'Pellets', 0, 1),
+        ('bps', 'Bullets / s', 2, 1), ('clip', 'Ammo', 0, 1), ('ammo_shot', 'Ammo / Shot', 0, -1),
+        ('reload', 'Reload (s)', 2, -1), ('bullet_speed', 'Bullet Speed (m/s)', 0, 1), ('range', 'Max Range (m)', 1, 1)]}
+    monkeypatch.setattr(hero_page, '_alt_columns', lambda: alt_cols)
+    row = {'values': {'dps': 50}, 'history': {}, 'spirit_scaled': [],
+           'alt': {'weapon': 'gun_alt', 'values': {'dps': 33.3333, 'bullet_dmg': 42.0, 'pellets': 1.0, 'bps': 0.7937,
+                                                   'clip': 10.0, 'ammo_shot': 5.0, 'reload': 2.1, 'bullet_speed': 38.1001,
+                                                   'range': 25.4001},
+                   # the old five-pellet alt fire's steps do not make "Pellets 1" news
+                   'history': {'bullet_dmg': [[5920, '2025-10-02', 48.0, 42.0]],
+                               'pellets': [[5017, '2024-08-01', 5.0, None], [5100, '2024-08-30', None, 1.0]]}}}
+    cols = [{'key': 'dps', 'label': 'DPS', 'group': 'Damage', 'digits': 1, 'pol': 1}]
+    html = hero_page.weapon_block({'name': 'Gun', 'id': 'gun'}, row, cols, 'Viscous', '../', {'id': 'gun_alt'})
+    cells = html[html.index('wb-alt-cells'):]
+    text = re.sub(r'<[^>]+>', ' ', cells)
+    assert re.search(r'42\s+Bullet dmg', text) and re.search(r'5\s+Ammo/shot', text) and re.search(r'38\s+m/s', text)
+    assert 'Pellets' not in text and cells.count('class="wcell') == 8
+    assert 'data-title="Viscous · Alt fire · Bullet DMG"' in cells
+    # another alt fire than the one Hero Stats describes: the line alone
+    other = hero_page.weapon_block({'name': 'Gun', 'id': 'gun'}, row, cols, 'Viscous', '../', {'id': 'other_alt'})
+    assert 'wb-alt-cells' not in other and 'Alt fire' in other
 
 
 def test_a_stat_at_its_default_says_nothing_unless_it_moved():

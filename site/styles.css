@@ -1091,12 +1091,20 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wb-links .ac-hist { color: var(--patina); }
 .wb-links .ac-hist:hover { color: var(--text-bright); }
 .wb-links .trail { flex-basis: 100%; }
-/* the alt fire: the files give it no name or numbers of its own here — one line under the gun's numbers */
+/* the alt fire: the files give it no name — a line under the gun's numbers, its own numbers as a compact row below */
 .wb-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 10px; background: var(--bg-panel);
   outline: 1px solid var(--line-soft); }
 .wb-alt-l { font: 17px/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
 .wb-alt .wb-links { margin: 0; }
 .wb-alt .wb-links .trail { flex-basis: auto; }
+/* one row on a desktop, however many numbers (Shiv's pellets make nine); three to a row on a phone, like the gun's */
+.wb-alt-cells { flex-basis: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px;
+  margin: 2px 0; }
+@media (max-width: 1100px) { .wb-alt-cells { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); } }
+@media (max-width: 600px) { .wb-alt-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.wb-alt-cells .wcell { min-height: 44px; padding: 6px 6px 5px; gap: 3px; background: var(--bg-panel-2); }
+.wb-alt-cells .wcell .v { font-size: 17px; }
+.wb-alt-cells .wcell .v .u { font-size: 13px; }
 .wb-none { padding: 10px 12px; font-size: 13px; color: var(--text-dimmer); background: var(--bg-panel); outline: 1px solid var(--line-soft); }
 @media (max-width: 1100px) { .wb-top, .wb-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 860px) { .weapon-block { grid-template-columns: minmax(0, 1fr); } }
@@ -1114,6 +1122,14 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .sc-row .v.spirit { color: var(--tag-rework); }
 .sc-row .v.has-hist { cursor: help; }
 .sc-row .v.has-hist.recent::after { content: ""; display: inline-block; width: 4px; height: 4px; margin-left: 5px; vertical-align: 3px; background: var(--patina-dim); }
+/* a Game system's values today (builders/game_now.py): its entries' panels, then its console variables across the
+   width in columns (61 of Souls' in one 280px panel was a 1,500px column) */
+.now-flow { margin-bottom: 0; }
+.stat-panel.now-cv { flex: 1 1 100%; }
+.cv-rows { columns: 330px auto; column-gap: 0; column-rule: 1px solid var(--line-soft); }
+.cv-rows .sc-row { break-inside: avoid; }
+.cv-rows .sc-row .k code { min-width: 0; font-size: 12px; color: var(--text-main); overflow-wrap: anywhere; }
+.cv-rows .sc-row .v.has-hist { text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
 
 table.kvt { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 table.kvt caption { text-align: left; font: 600 13px/1 var(--font-ui); color: var(--text-bright); padding: 8px 8px 6px; background: var(--bg-panel-2); caption-side: top; }

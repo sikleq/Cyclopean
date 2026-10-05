@@ -214,8 +214,10 @@ def convar_place(cv: dict) -> tuple[str, str] | None:
 
 
 def convar_side(name: str) -> int:
+    """+1 / -1 for whoever the variable's growth helps or hurts (config 'convar_polarity', whole words of the name as
+    `convar_unit`), 0 = no side."""
     for rx, side in _polarity():
-        if rx.search(name):
+        if _word_match(rx, name):
             return side
     return 0
 
@@ -228,11 +230,18 @@ def _units() -> tuple[tuple[re.Pattern, str, str], ...]:
     return tuple((re.compile(rx), unit, scale) for rx, unit, scale in _config().get('convar_units', ()))
 
 
+def _word_match(rx: re.Pattern, name: str) -> bool:
+    """A config word matches a whole word of the snake_case name, not the inside of one: "ratio" is not in
+    "citadel_idol_decay_duration" (its "du-ratio-n" made every *_duration a bare number, the Soul Urn's decay read
+    "45" for 45s)."""
+    return any(m.start() == 0 or name[m.start() - 1] == '_' or m.group(0).startswith('_') for m in rx.finditer(name))
+
+
 def convar_unit(name: str) -> tuple[str, str]:
     """(unit, scale) of a console variable by its name (config 'convar_units'): ('m', 'units') for a radius in engine
     units, ('s', '') for a respawn ramp, ('%', 'x100') for a fraction; ('', '') = a bare number."""
     for rx, unit, scale in _units():
-        if rx.search(name):
+        if _word_match(rx, name):
             return unit, scale
     return '', ''
 

@@ -27,5 +27,10 @@ Purple cells: the stat is in the hero's `m_mapScalingStats` (scales with Spirit 
 
 Heroes shown: `m_eHeroDevelopmentState` = Release or PreRelease (the latter marked PRE).
 
-Known gaps: spin-up weapons (McGinnis) use the starting fire interval; alt-fire / secondary weapon
-(`ESlot_Weapon_Secondary`) is not a separate row yet.
+Alt fire (`ESlot_Weapon_Secondary`: Viscous, Shiv, Yamato): a hero row's `alt` = `{weapon, values, history}`
+over `alt_columns` — the gun's columns that read the weapon alone (no per-boon growth: no Max DPS, +Bullet DMG / boon,
++Range / boon) plus Ammo / Shot (`m_iAmmoConsumedPerShot`, what one alt shot takes of the clip); a build without
+an alt fire after one reads as removed. The hero page shows it as a compact row under the weapon block's
+"Alt fire" line (`hero_page.alt_cells`); the Hero Stats table has no column for it.
+
+Known gaps: spin-up weapons (McGinnis) use the starting fire interval.
