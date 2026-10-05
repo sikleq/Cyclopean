@@ -1651,6 +1651,18 @@ table.stats td.xcol { padding-top: 3px; padding-bottom: 3px; }
 table.stats tr.f-out, table.stats .col-off { display: none; }
 table.per-soul th.cat[data-group="Stats"]::after { content: " · souls per point"; color: var(--patina); }
 .it-filter { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+/* a phone: Item Stats' filter rows scroll sideways, one row each, like the history bar's chips (they took ~280px of
+   an 844px screen; review 2026-10-05); the home feed keeps three rows of icons per section, the rest a click away */
+@media (max-width: 760px) {
+  .tbl-bar .it-filter { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tbl-bar .it-filter > * { flex: none; }
+  .tbl-bar > .sep { display: none; }
+}
+.lu-more { display: none; align-self: center; font: 600 13px/1 var(--font-ui); color: var(--patina); }
+@media (max-width: 600px) {
+  .lu-row:not(.named) .lu:nth-child(n+19) { display: none; }
+  .lu-row .lu-more { display: inline-block; }
+}
 .it-filter .cat-i { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
 table.stats td.name .it-act { margin: 0 0 0 6px; }
 .tbl-sec .cat-i { width: 20px; height: 20px; margin-right: 8px; vertical-align: -4px; }

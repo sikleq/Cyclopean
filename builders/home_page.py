@@ -11,6 +11,7 @@ from .site_search import search_box
 LATEST_UPDATES = 4        # updates with gameplay changes in the "what changed" feed
 SECTIONS = (('heroes', 'Heroes'), ('items', 'Items'), ('units', 'Units'), ('game', 'Game'))
 CHIP_SAMPLES = 2          # a feed icon's hover card lists this many of its biggest changes (217 icons on the page)
+PHONE_ICONS = 18          # icons a phone shows per section of an update (styles.css .lu:nth-child(n+19))
 
 
 def page_of(e: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None
@@ -217,8 +218,12 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                     chips.append(_chip(k, s, row['id'], names, named, len(cards), eye=notes and not all_out))
                     cards.append([len(updates) - 1, *chip_card(s)])
                 whole = f'<span class="lu-all">{EYE_MARK}all not in notes</span>' if all_out else ''
+                # a phone shows three rows of icons (styles.css); the rest is the patch page's (City Never Sleeps'
+                # 102 items were 17 rows, ~900px)
+                more = (f'<a class="lu-more" href="patches/{esc(row["id"])}.html#changes">+{len(got) - PHONE_ICONS} '
+                        f'more</a>' if len(got) > PHONE_ICONS and not named else '')
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b>{whole}</span>'
-                              f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}</div></div>')
+                              f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}{more}</div></div>')
         # the update's one count (patch_counts: as its patch page and the patch list); what no icon below carries is
         # named apart — the game's rules and map objects only the patch page lists
         pc = for_id(row['id'])
