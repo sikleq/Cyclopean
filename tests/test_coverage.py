@@ -382,7 +382,8 @@ def test_victor_links_to_the_heavy_melee_of_2025_07_29(history):
     assert re.search(r'All melee attacks: \d+ changes\s+Movement &(?:amp;)? combat ›', band)
     by_ent, _ = history
     rows = [c for row, ch in by_ent['game:all:abilities.vdata'] if row['id'] == '2025-07-29' for c in ch]
-    assert any(c['label'] == 'Heavy melee › Cooldown On Hit' and c['old_s'] == '0.9' for c in rows)
+    # in seconds (review 2026-10-05: "Cooldown On Hit 0.9 → 1.03" had no unit)
+    assert any(c['label'] == 'Heavy melee › Cooldown On Hit' and c['old_s'] == '0.9s' for c in rows)
 
 
 def _hero_keys(hid: str) -> list[tuple]:

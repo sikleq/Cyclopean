@@ -17,14 +17,21 @@ from __future__ import annotations
 import re
 
 AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastHit|(?<!Reduce)Footstep|'
-                      r'm_sSelfDestruct(Start|End)|BulletWhiz)')
+                      r'm_sSelfDestruct(Start|End)|BulletWhiz|'
+                      # a sound's loudness and pitch by speed (review 2026-10-05: Rocket Booster "Velocity Vol Scale
+                      # Min", Splatter "Speed To Pitch Remap" on the pages)
+                      r'Vol(?:ume)?Scale(?:Min|Max)|PitchScale(?:Min|Max)|[sS]peedToPitchRemap|[dD]istanceToPitchRemap)')
 # Light / Effect / Model also start gameplay words: LightMelee*, *Effectiveness, ModelScaleGrowth (a
 # hero grows bigger) — 77 gameplay rows read as visual and lost their values (audit 2026-10-01)
 VISUAL_RE = re.compile(
     r'(Particle|Material|Model(?!Scale)|Image|Icon|[Cc]olor|Anim|Decal|Effect(?!iveness)|Glow|Tracer|Muzzle|'
     r'Screen(?!ing)|Skin|Camera|Shake|Light(?!ning|Melee)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
     r'Pose|Attachment|Bodygroup|Ragdoll|Gib|Portrait|Logo|Emblem|Sprite|[Ff][Oo][Vv]|Movie|Video|m_h[A-Z]|m_particle|DOF|'
-    r'Desat|RangeRing|Dying|DeathFade|BreakableForce)'
+    r'Desat|RangeRing|Dying|DeathFade|BreakableForce|'
+    # how a thing looks, not how it plays (review 2026-10-05: Time Wall "Depth Visual Scale 0.04 → 0.16 BUFF +300%",
+    # a projectile's model size, a bobbing pickup, the fake bullet a client draws)
+    r'Visual(?:Scale|Height|SplashRadius)|DepthVisual|ProjectileModelScale|Bob(?:Frequency|Height)|'
+    r'BeamStartSearchPos|FakeBullet|SatVolume)'
 )
 UI_RE = re.compile(
     r'(Tooltip|m_strCSSClass|DisplayUnit|m_heroStatsUI|m_heroStatsDisplay|m_ShopStatDisplay|'
@@ -76,8 +83,9 @@ VISUAL_EXTRA_RE = re.compile(
 UI_MORE_RE = re.compile(r'(RichPresence|m_eHudStyle|HudStyle|m_nNameOffset|HealthBarOffset|m_strLocUnitName|'
                         r'm_sLocUnitName|NameOffset|m_bIsHiddenOverhead|vOffset2D|HudSharedStyle|LocToken|'
                         r'SecondaryStatName|CrosshairCSSClass|SpectatePriority|ShowTargetingPreview|'
-                        r'ReverseHudProgressBar|LowAmmoIndicator)')
-META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended)')
+                        r'ReverseHudProgressBar|LowAmmoIndicator|HUDSnippetName)')
+# a respawn time the designers test with (a crate's "Respawn Time Test")
+META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended|(?:Respawn|InitialSpawn)TimeTest)')
 TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
                            r'm_flBurstSpeedDuration|m_flOrbSpawnDelayM(in|ax)|m_vecDependentAbilities|'
                            # physics / netcode / NPC steering, not a number a player plays against
@@ -88,7 +96,9 @@ TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHul
                            r'\{\d+\}\.(nGoldThreshold|m_nTier)$|'
                            # an editor check ("warn the designer if no ability is affected"), shown as NEW
                            # on five headshot items in 2026-01-30
-                           r'm_bWarnIfNoAffectedAbilities)')
+                           r'm_bWarnIfNoAffectedAbilities|'
+                           # the movement solver's iterations, a bot's aim spread (review 2026-10-05)
+                           r'MaxMoveIterationScale|NpcAimingSpread)')
 
 
 # whole entries that are scenery or presentation, not something a player plays with: the city's traffic

@@ -103,7 +103,8 @@ def test_describe_says_where_a_label_came_from_and_the_tooltips_sign():
     d = semantics.describe('m_mapAbilityProperties.BonusHealth.m_strValue', TOK, 'upgrade_x', 'item')
     assert (d['src'], d['sign']) == ('loc', '')
     d = semantics.describe('m_mapAbilityProperties.RegenIncomingDamagePercent.m_strValue', {}, 'x', 'ability')
-    assert (d['label'], d['src'], d['sign']) == ('Regen Incoming Damage Percent', 'fallback', None)
+    # the field's own "Percent" is the value's unit (review 2026-10-05: "Non Hero Heal Pct — → 40")
+    assert (d['label'], d['src'], d['sign'], d['unit']) == ('Regen Incoming Damage', 'fallback', None, '%')
     assert semantics.describe('m_mapWeaponInfos.primary.m_flBulletDamage', {})['src'] == 'curated'
     assert semantics.describe('m_projectileInfo.m_flHoverHeight', {})['src'] == 'fallback'
     # a tier's scaling bonus carries no sign: it is a coefficient

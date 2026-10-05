@@ -1000,6 +1000,56 @@ def test_labels_use_the_games_words():
         'Item Slot Info › Spirit')
 
 
+def test_labels_read_without_engine_words():
+    """Review 2026-10-05: 1,533 rows on 102 pages read engine words — boss tiers, "Phase01", "Pct", an aura's
+    container, CamelCase keys, "Ao E"."""
+    from pipeline import semantics
+    assert semantics.describe('m_flT1BossDPSMaxResist', {})['label'] == 'Damage Resist at most vs Guardian'
+    assert semantics.describe('m_flT2BossDamageResistPct', {})['unit'] == '%'
+    assert semantics.describe('m_flAttackT3BossPhase2MaxRange', {})['label'] == 'Max Range vs Patron Phase 2'
+    assert semantics.describe('m_flBarrackBossDPS', {})['label'] == 'DPS vs Base Guardian'
+    assert semantics.humanize('m_flAttackTimePhase01') == 'Attack Time Phase 1'
+    assert semantics.humanize('m_flPounceToTargetDist') == 'Pounce To Target Distance'
+    assert semantics.context_label('m_AoEModifier.m_flWaveHeight') == 'AoE Modifier › Wave Height'
+    assert semantics.context_label('m_IceDomeModifier.m_EnemyAuraModifier.m_modifierProvidedByAura.m_nEnabledStateMask') \
+        == 'Enemy Aura › Applies'
+    assert semantics.context_label('m_modifierProvidedByAura.m_flModifierProvidedByAuraDuration').startswith('Lingers')
+    assert semantics.context_label('fl_MaxExtraGravityScale') == 'Max Extra Gravity Scale'
+    assert semantics.context_label('ECritDamageBonusScale') == 'Crit Damage Bonus Scale'
+    d = semantics.describe('m_mapAbilityProperties.NonHeroHealPct.m_strValue', {})
+    assert (d['label'], d['unit']) == ('Non Hero Heal', '%')
+    assert semantics.describe('m_mapAbilityProperties.DamageGrowthPctPerMin.m_strValue', {})['label'] \
+        == 'Damage Growth % Per Min'
+    # a coefficient is no percent, a fraction field is shown ×100
+    assert not semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{DealMaxHealthDamagePct|EAddToScale}'
+                                  '.m_strBonus', {}, kind='ability').get('unit')
+    d = semantics.describe('m_mapAbilityProperties.FourthHitDamagePercentage.m_strValue', {})
+    assert d['meters'] == semantics.FRACTION and semantics.show('0.26', d['meters'], d.get('unit', '')) == '26%'
+    # a modifier's resist value is a percent (Walker's passive)
+    path = 'm_vecIntrinsicModifiers{npc_boss_intrinsic}.m_vecScriptValues{MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST}.m_value'
+    assert semantics.describe(path, {})['unit'] == '%'
+    assert not semantics.describe(path.replace('_RESIST}', '_RESIST_REDUCTION_PER_HERO}'), {}).get('unit')
+
+
+def test_a_bare_channel_move_speed_is_engine_units_whatever_the_other_side():
+    """Review 2026-10-05: "Channel Move Speed 50 → no limit" sat next to "1.27m/s → 1.3m/s" in one band (24 rows):
+    Valve wrote it in units until 2025-08-18, so a bare side is units even when the other is no number."""
+    from pipeline import semantics
+    path = 'm_mapAbilityProperties.ChannelMoveSpeed.m_strValue'
+    assert semantics.units_when_bare(path, '50', '-1') == ('1.27m', '-1')
+    assert semantics.units_when_bare(path, '1.3m', '2m') == ('1.3m', '2m')
+    assert semantics.units_when_bare('m_mapAbilityProperties.Radius.m_strValue', '50', '-1') == ('50', '-1')
+
+
+def test_a_units_tag_and_percent_go_the_same_way():
+    """Review 2026-10-05: "T1 Boss DPS Max Resist -35 → -50 DOWN +42.9%" — UP / DOWN say where the number went,
+    the percent with its sign; a helper unit (the Hideout's Sinner's Sacrifice) reads UP / DOWN like its family."""
+    import pytest
+    from pipeline import semantics
+    assert semantics.direction('m_flT1BossDPSMaxResist', -35, -50, 'trooper') == ('down', pytest.approx(-42.857, 0.01))
+    assert semantics.direction('m_flBulletSpeed', 457.2, 152.4, 'helper')[0] == 'down'
+
+
 def test_times_carry_seconds_and_metre_speeds_read_per_second():
     """Advisor round 4: Fire Interval / Reload Time / Bullet Lifetime had no unit (1,867 rows), and
     "Channel Move Speed 20m" read as a length. A T1-T3 bonus keeps its own unit."""
@@ -1008,8 +1058,16 @@ def test_times_carry_seconds_and_metre_speeds_read_per_second():
     assert semantics.describe('m_mapWeaponInfos.primary.m_reloadDuration', {})['unit'] == 's'
     assert semantics.describe('m_flStunDuration', {})['unit'] == 's'
     assert semantics.describe('m_mapAbilityProperties.AbilityPostCastDuration.m_strValue', {})['unit'] == 's'
-    assert not semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus',
+    # a plain T1-T3 bonus to a time no tooltip gives a unit is seconds like the time (review 2026-10-05: Doorman's
+    # "T3: Late Checkout Cooldown 13 → 15" is the notes' 10s → 13s); a scaling coefficient is not
+    assert semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus',
+                              {}, kind='ability').get('unit') == 's'
+    assert not semantics.describe('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{AbilityDuration|EAddToScale}.m_strBonus',
                                   {}, kind='ability').get('unit')
+    assert semantics.describe('m_flCooldownOnHit', {})['unit'] == 's'
+    assert semantics.describe('m_flTimeToGiveUp', {})['unit'] == 's'
+    assert not semantics.describe('m_flCastDelayMaxDist', {}).get('unit') == 's'
+    assert not semantics.describe('m_flGrowthStartTimeInMinutes', {}).get('unit') == 's'
     assert not semantics.describe('m_mapWeaponInfos.primary.m_flBulletDamage', {}).get('unit')
     d = semantics.describe('m_mapAbilityProperties.ChannelMoveSpeed.m_strValue', {})
     assert d['speed_m'] and d['meters'] is False             # the matcher's transforms stay as they were
@@ -1099,6 +1157,12 @@ def test_wordy_lines_link_flags_resist_swaps_components_and_removals():
         return annotate_line(text, changes, by_ent, idx, cat, {})
 
     assert run('Decay: No longer interrupts sliding, to match other similar actives', [beh])['changes'] == [beh.key]
+    # review 2026-10-05: a state's -ing word is the line's verb ("slide" = SLIDING_DISABLED, Bullet Dance 2026-04-30)
+    state = MChange('abilities.vdata', 'decay', 'm_mapModifiers.x.m_nEnabledStateMask', 'change',
+                    'MODIFIER_STATE_SLIDING_DISABLED | MODIFIER_STATE_X', 'MODIFIER_STATE_X', 'mechanic', 'item', None,
+                    'Applies', False)
+    assert 'slide' in flag_words(state)
+    assert run('Decay: Restored being able to slide while using it', [state])['changes'] == [state.key]
     mk = lambda eid, path, a, b, label, cat_='balance': MChange('abilities.vdata', eid, path, 'change', a, b, cat_,  # noqa: E731
                                                                  'item', None, label, False)
     bul, spi = mk('fury', 'p.BulletResist', '40', None, 'Bullet Resist'), mk('fury', 'p.SpiritResist', None, '40', 'Spirit Resist')

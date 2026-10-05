@@ -126,3 +126,24 @@ def test_presentation_fields_are_not_gameplay():
     assert category('m_vecHitReactClips[0].m_ClipID', 1, 2) == 'visual'
     # gameplay stays gameplay
     assert category('m_flSightRangePlayers', 1500, 1338) == 'balance'
+
+
+def test_look_sound_and_engine_tuning_are_not_gameplay():
+    """Review 2026-10-05: 147 rows of looks, sounds, engine tuning and bot wiring sat on the pages as balance
+    ("Time Wall Depth Visual Scale 0.04 → 0.16 BUFF +300%"). Narrow names only: the gameplay fields with the same
+    words stay."""
+    p = 'm_mapAbilityProperties.{}.m_strValue'
+    assert category(p.format('TimeWallDepthVisualScale'), 0.04, 0.16) == 'visual'
+    assert category(p.format('ProjectileModelScale'), 1, 2) == 'visual'
+    assert category('m_flBobHeight', 1, 2) == 'visual'
+    assert category('m_flFakeBulletDistanceFudge', None, 500) == 'visual'
+    assert category('m_flVelocityVolScaleMin', None, 0.25) == 'audio'
+    assert category('m_SpeedToPitchRemap', '1, 2', '1, 3') == 'audio'
+    assert category('EResourceType_Heat.m_strHUDSnippetName', None, 'heat') == 'ui'
+    assert category('m_flMaxMoveIterationScale', 1, 2) == 'technical'
+    assert category('m_NpcAimingSpread', '1, 2', '2, 3') == 'technical'
+    assert category('m_flRespawnTimeTest', 10, 20) == 'meta'
+    for path in ('m_remapCapturersToCaptureTime', 'm_flDamageFalloffBias', 'm_flTrackingDampingCoefficient',
+                 'm_flVerticalAimBias', 'm_flWallJumpPowerBias', p.format('ModelScaleGrowth'), 'm_flSweepingDuration',
+                 'm_flGravityScale'):
+        assert category(path, 1, 2) in ('balance', 'mechanic'), path

@@ -1114,6 +1114,9 @@ def flag_words(c: MChange) -> set[str]:
     split = lambda v: {f.strip() for f in str(v or '').split('|') if f.strip()}      # noqa: E731
     moved = split(c.old) ^ split(c.new)
     out = set().union(*(words(_FLAG_PREFIX.sub('', f).replace('_', ' ')) for f in moved)) if moved else set()
+    # a state is named by its -ing form, a line by the verb: MODIFIER_STATE_SLIDING_DISABLED is "Restored being able
+    # to slide while using Bullet Dance" (2026-04-30; the line had gone to Bullet Dance's channel move speed)
+    out |= {v for w in out if w.endswith('ing') and len(w) > 5 for v in (w[:-3], w[:-3] + 'e')}
     return out - _FLAG_FILLER
 
 
@@ -1181,7 +1184,7 @@ def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = ''
 def change_json(c: MChange) -> dict:
     kind = c.kind or ''
     # one side in metres, the other bare (engine units): both in metres, for the numbers and the % alike
-    old, new = semantics.metres_pair(c.old, c.new)
+    old, new = semantics.units_when_bare(c.path, *semantics.metres_pair(c.old, c.new))
     dirn, pct = semantics.direction(c.path, num(old), num(new), kind, c.drawback, c.neg_base)
     flag = flag_rules.is_flag_field(c.path)
     if flag and kind not in semantics.SHARED_KINDS:

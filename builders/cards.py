@@ -317,7 +317,10 @@ _PLUMBING_PATH = re.compile(
     r'\.m_b(?:IsForMidBoss|KeepMaximumDurationOnRefresh|DurationAffectedByEffectiveness|DurationCanBeTimeScaled|'
     r'BuildupAffectedByEffectiveness|IsBuildup|RequiresTargetFilter|EndCreatedSequenceOnRemove|'
     r'RemoveProvidedModifierOnAuraRemoval|NetworkValuesForStatsPreview)$'
-    r'|^m_mapDependentAbilities\.|(?:^|\.)m_fl(?:Preview)?ModelScale$|Observer(?:Origin|Pitch)$|^m_deploymentInfo\.m_b')
+    r'|^m_mapDependentAbilities\.|(?:^|\.)m_fl(?:Preview)?ModelScale$|Observer(?:Origin|Pitch)$|^m_deploymentInfo\.m_b'
+    # which property a regen reads, and a property block's wait for an upgrade (review 2026-10-05: "Ability
+    # Properties Block #1 › Ability Properties BonusBulletSpeedPercent › Requires Ability Upgrade yes → —")
+    r'|m_strRegenAbilityPropertyName$|AbilityPropertiesBlock.*\.m_bRequiresAbilityUpgrade$')
 
 
 def is_engine(c: dict) -> bool:
