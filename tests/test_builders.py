@@ -1467,7 +1467,7 @@ def test_band_chip_and_matrix_cell_weigh_the_same_rows(monkeypatch):
     monkeypatch.setattr(archive, 'by_date', lambda: list(rows.values()))
     monkeypatch.setattr(archive, 'patch', lambda pid: {'id': pid, 'extras': {}})
     monkeypatch.setattr(archive, 'gameplay', lambda pid: [record(k, cs) for k, cs in per[pid].items()])
-    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: {'entities': cat})
+    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: {'entities': cat, 'abilities': {}, 'heroes': []})
     monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
     dynamics_page._collect.cache_clear()
     try:
@@ -1478,6 +1478,62 @@ def test_band_chip_and_matrix_cell_weigh_the_same_rows(monkeypatch):
     tiles = {pid: mark for mark, pid in _re.findall(r'class="dsq net-(\w+)[^"]*"[^>]*href="x\.html#p-(\w+)"', mx)}
     assert band == want and nets == want
     assert tiles == {p: m or 'mix' for p, m in want.items()}            # '' (no side) is the matrix's mix colour
+
+
+def test_matrix_cell_drops_the_repeats_the_page_drops_and_reads_an_entity_as_one_list(monkeypatch):
+    """2026-10-06, the last 5 of 4,476 cells: the hero page says an alt fire's row its gun repeats once (Shiv
+    2025-05-08: band 1 DEL, cell 2) and a sub-ability's row its parent repeats once (Tengu 2024-06-06: 1 NEW, 3);
+    an item's own and shared records are one list, so a shared Corrupted bonus folds into its Corrupted version
+    (Veil Walker 2026-09-29: band 1 NEW, cell 2). The cell now counts what the band counts."""
+    from builders import archive, dynamics_page, game_systems
+    row = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
+    gun, alt = 'citadel_weapon_x_set', 'citadel_weapon_x_alt'
+    cat = [{'file': 'heroes.vdata', 'id': 'hero_x', 'kind': 'hero', 'name': 'X'},
+           {'file': 'abilities.vdata', 'id': gun, 'kind': 'weapon', 'owner': 'hero_x', 'name': 'Gun'},
+           {'file': 'abilities.vdata', 'id': alt, 'kind': 'weapon', 'owner': 'hero_x', 'name': alt},
+           {'file': 'abilities.vdata', 'id': 'upgrade_y', 'kind': 'item', 'name': 'Y'}]
+    cards = {gun: {'id': gun, 'owner': 'hero_x', 'slot': 'Weapon_Primary', 'name': 'Gun'}}
+    spread = ch(label='Spread', path='m_flSpread', old_s='3', new_s='1.5', dir='buff', pct=-50.0)
+    cor = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
+    own_cor = [ch(key=f'abilities.vdata:upgrade_y:{p}', label=f'Corrupted: {p}', path=cor % p, op='add', old_s=None,
+                  new_s='+5', dir=None, pct=None, status='described') for p in ('Cooldown', 'Range')]
+    shared_cor = [ch(key='abilities.vdata:upgrade_y:Health', label='Corrupted: Bonus Health', path=cor % 'Health',
+                     op='add', old_s=None, new_s='+10', dir=None, pct=None, status='described', shared=True)]
+    records = [{'key': f'abilities.vdata:{gun}', 'file': 'abilities.vdata', 'id': gun, 'kind': 'weapon',
+                'owner': 'hero_x', 'changes': [dict(spread)]},
+               {'key': f'abilities.vdata:{alt}', 'file': 'abilities.vdata', 'id': alt, 'kind': 'weapon',
+                'owner': 'hero_x', 'changes': [dict(spread)]},                     # the gun's row again
+               {'key': 'abilities.vdata:upgrade_y', 'file': 'abilities.vdata', 'id': 'upgrade_y', 'kind': 'item',
+                'changes': own_cor},
+               {'key': 'abilities.vdata:upgrade_y', 'file': 'abilities.vdata', 'id': 'upgrade_y', 'kind': 'item',
+                'changes': shared_cor}]                                            # a shared block's record
+    data = {'entities.json': {'entities': cat}, 'abilities.json': {'abilities': cards},
+            'tables/heroes.json': {'heroes': []}}
+    monkeypatch.setattr(archive, 'by_date', lambda: [row])
+    monkeypatch.setattr(archive, 'patch', lambda pid: {'id': pid, 'extras': {}})
+    monkeypatch.setattr(archive, 'gameplay', lambda pid: records)
+    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: data[name])
+    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
+    dynamics_page._collect.cache_clear()
+    try:
+        cells = dynamics_page._collect()['cells']
+    finally:
+        dynamics_page._collect.cache_clear()
+    assert cells['hero:hero_x']['p1'] == {'buff': 1}                   # the alt fire's repeat is said once
+    assert sum(cells['item:upgrade_y']['p1'].values()) == 1             # one Corrupted version, not 2
+
+
+def test_biggest_changes_stack_on_a_phone():
+    """2026-10-06: a patch's "Biggest changes" was 235px wider than a 390px phone, its values off to the right. The
+    table carries its own class and its rows become two-line grids under 700px."""
+    import re as _re
+    from pathlib import Path
+    src = Path(__file__).resolve().parent.parent
+    assert 'class="hist big px-frame"' in (src / 'builders' / 'patches_pages.py').read_text(encoding='utf-8')
+    css = (src / 'site' / 'styles.css').read_text(encoding='utf-8')
+    block = css[css.index('table.hist.big { overflow-x: visible; }') - 200:]
+    assert '@media (max-width: 700px)' in block[:400]
+    assert _re.search(r'table\.hist\.big tr\.ch \{ display: grid;', css)
 
 
 def test_a_namesake_hint_is_never_a_unit_word():

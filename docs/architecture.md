@@ -1229,6 +1229,16 @@ record of an ability removed in that patch names neither, so the matrix had drop
 (Holliday 2026-09-29: 7 DEL on the band, 1 in the cell) — the cells' counts and stripes now include them too.
 `tests/test_builders.py::test_band_chip_and_matrix_cell_weigh_the_same_rows` builds one hero's band and matrix cell
 from the same fixture (a rule for all, work before release, a removed ability, a sideless patch).
+The matrix also drops the repeats a hero page drops (2026-10-06, the last 5 of 4,476 cells): `hero_page.history_folds`
+maps an alt fire to its gun and a nameless sub-ability to its parent, and `_collect` removes their rows the gun /
+parent already has in the patch (`hero_page.repeats_dropped`, the `_sig` of fold_alt / drop_parent_rows). And it
+reads one entity's records in a patch (its own and each shared block it is in) as ONE list, as the page's group does:
+a shared "Corrupted: Bonus Health" folds into the item's Corrupted version (Veil Walker 2026-09-29 was a second NEW);
+Game entries stay apart. Band chip and cell now agree on every cell of all four matrices;
+`test_matrix_cell_drops_the_repeats_the_page_drops_and_reads_an_entity_as_one_list` keeps it.
+
+A patch page's "Biggest changes" (`patches_pages`, `table.hist.big`) stacks each row into two lines under 700px —
+name and tag, then label and old → new — instead of a table 235px wider than a 390px phone.
 
 classify: `m_bSpawnOnGround`, `BuffTypeValueUnit` are technical.
 

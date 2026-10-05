@@ -266,7 +266,7 @@ def _key_changes(p: dict, rel: str, only_hidden: bool = False) -> str:
         return ''
     from .render import key_change_rows
     trs = key_change_rows(rows, rel, hero_names())
-    return f'<h2>Biggest changes</h2><table class="hist px-frame">{trs}</table>'
+    return f'<h2>Biggest changes</h2><table class="hist big px-frame">{trs}</table>'
 
 
 def _generated_notes(p: dict, only_hidden: bool = False, pages: frozenset[str] | None = None) -> str:

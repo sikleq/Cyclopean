@@ -225,7 +225,8 @@ def test_shared_abilities_live_in_game_movement_and_combat(monkeypatch):
     # the Game matrix counts a shared ability's changes on Movement & combat
     patch = {'entities': [{'file': 'abilities.vdata', 'id': 'citadel_ability_mantle', 'kind': 'shared',
                            'key': 'abilities.vdata:citadel_ability_mantle', 'changes': [change]}]}
-    data = {'patches/index.json': [row], 'patches/2026-09-16.json.gz': patch, 'entities.json': {'entities': ents}}
+    data = {'patches/index.json': [row], 'patches/2026-09-16.json.gz': patch, 'entities.json': {'entities': ents},
+            'abilities.json': {'abilities': {}}, 'tables/heroes.json': {'heroes': []}}    # the heroes' page folds
     from builders import archive
     monkeypatch.setattr(dynamics_page, 'load_json', lambda name: data[name])
     monkeypatch.setattr(archive, 'load_json', lambda name: data[name])

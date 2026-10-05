@@ -79,6 +79,16 @@ def _collect() -> dict:
     from .game_systems import (convar_changes, convar_start, is_template, name_of, place, place_all_row, place_entity, system)
     from .shared_rows import FOLD_FILES, entities as spread_all, own
     cat = {f"{e['file']}:{e['id']}": e for e in ents}
+    # an alt fire or a nameless sub-ability whose rows repeat its gun's / parent's in a patch: the hero's page says
+    # them once (hero_page.history_folds), so the cell does too
+    from .hero_page import history_folds, repeats_dropped
+    cards = load_json('abilities.json')['abilities']
+    trow = {t['id']: t for t in load_json('tables/heroes.json')['heroes']}
+    abil_by_id = {e['id']: e for e in ents if e['file'] == 'abilities.vdata'}
+    folded: dict[str, str] = {}
+    for h in ents:
+        if h['file'] == 'heroes.vdata' and not h.get('template'):
+            folded.update(history_folds(h['id'], cards, trow.get(h['id']), abil_by_id))
     start = convar_start()       # the console variables' first build: a snapshot, not changes (game_systems)
     for r in rows:
         p = archive.patch(r['id'])
@@ -133,6 +143,21 @@ def _collect() -> dict:
         for c in convar_changes(cvs, start):
             sid, pid = place(f'convar:{c["id"]}')
             found.append(([f'game:{sid}'], pid, 'Console variables', [c], ''))
+        # one entity's records in a patch (its own and each shared block it is in) are read as ONE list, as its page's
+        # group reads them: a shared "Corrupted: Bonus Health" folds into the item's Corrupted version there and was a
+        # second NEW here (Veil Walker 2026-09-29; 2026-10-06). A Game system's entries stay apart (they are
+        # different entities under one name; `once` counts their common rows once)
+        merged: dict[tuple, list[dict]] = {}
+        for keys, part, what, changes, abil in found:
+            sep = (len(merged),) if any(k.startswith('game:') for k in keys) else ()
+            merged.setdefault((tuple(keys), part, what, abil, *sep), []).extend(changes)
+        found = [(list(k[0]), k[1], k[2], ch, k[3]) for k, ch in merged.items()]
+        of_abil: dict[str, list[dict]] = {}      # an ability's rows from every record (its own and shared blocks)
+        for _, _, _, changes, abil in found:
+            if abil:
+                of_abil.setdefault(abil, []).extend(changes)
+        found = [(keys, part, what, repeats_dropped(changes, of_abil.get(folded[abil], [])) if abil in folded
+                  else changes, abil) for keys, part, what, changes, abil in found]
         for keys, part, what, changes, abil in found:
             for key in keys:
                 cell = cells.setdefault(key, {}).setdefault(r['id'], {})

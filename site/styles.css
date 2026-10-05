@@ -1417,6 +1417,19 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
   .ability-card table.kvt { display: table; }
   .hero-head .portrait { width: 110px; }
 }
+/* a patch's "Biggest changes" on a phone: each row in two lines (name + tag, then label + old → new) instead of a
+   table 235px wider than the screen whose values sat off to the right (2026-10-06) */
+@media (max-width: 700px) {
+  table.hist.big { overflow-x: visible; }
+  table.hist.big tbody { display: block; }
+  table.hist.big tr.ch { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px;
+    padding: 6px 8px; border-bottom: 1px solid var(--line-soft); }
+  table.hist.big tr.ch td { display: block; padding: 0; border: 0; width: auto; min-width: 0; white-space: normal;
+    text-align: left; }
+  table.hist.big tr.ch td.sc { grid-column: 1; grid-row: 1; }
+  table.hist.big tr.ch td.tg { grid-column: 2; grid-row: 1; justify-self: end; }
+  table.hist.big tr.ch td:nth-child(3), table.hist.big tr.ch td.ov { grid-column: 1 / -1; }
+}
 
 /* ---------- 12. Items index: the game's shop — tabs, Fairfax / Curiosity / MPS catalogs, All Items ----------
    Geometry in the game's design px (a catalog is 1120 x 960, builders/game_shop.py); --u turns one into

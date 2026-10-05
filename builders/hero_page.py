@@ -425,6 +425,26 @@ def drop_parent_rows(by_ent: dict, parents: dict[str, str]) -> dict:
     return out
 
 
+def history_folds(hid: str, cards: dict, table_row: dict | None, ents_by_id: dict) -> dict[str, str]:
+    """ability id -> the id whose rows it repeats on the hero's page: an alt fire -> its gun (fold_alt), a nameless
+    sub-ability -> its parent (drop_parent_rows). The change matrix drops the same repeats, so its cell weighs what
+    the page's band weighs (Shiv 2025-05-08: band 1 DEL, cell 2; Tengu 2024-06-06: band 1 NEW, cell 3; 2026-10-06)."""
+    mine = current_cards(cards, hid)
+    weapon_card = next((c for c in mine if c.get('slot') == 'Weapon_Primary'), None)
+    gun = (weapon_card or {}).get('id') or (table_row or {}).get('weapon')
+    if borrowed_gun(hid, gun, ents_by_id):
+        gun = None
+    out = {a: gun for a in (alt_guns(hid, gun, ents_by_id) if gun else [])}
+    out.update(sub_parents(hid, mine, ents_by_id))
+    return out
+
+
+def repeats_dropped(changes: list[dict], of: list[dict]) -> list[dict]:
+    """`changes` without the rows `of` already says (same label and values): what fold_alt / drop_parent_rows keep."""
+    said = {_sig(c) for c in of}
+    return [c for c in changes if _sig(c) not in said]
+
+
 def current_cards(cards: dict, hid: str) -> list[dict]:
     """The hero's cards as the game shows them: the guns and the four abilities its build binds now.
     Abilities it no longer binds stay in the files (Calico's Nekomata Ward, Catform pounce) and keep
