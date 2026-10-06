@@ -135,6 +135,11 @@ def test_on_a_phone_the_first_tap_shows_the_eyes_words_and_the_second_opens_the_
     page.tap('a.mark')
     assert page.evaluate('() => location.hash') == '' and 'on' in page.locator('.tip').get_attribute('class')
     assert 'build 6444' in page.locator('.tip').text_content()
+    # the compatibility mouseout / focusout a touch browser may fire between two taps (CI's Linux Chromium did, and
+    # they disarmed the link: the second tap only showed the words again, 2026-10-06) keep the link armed
+    page.evaluate("""() => { const a = document.querySelector('a.mark');
+      a.dispatchEvent(new MouseEvent('mouseout', {bubbles: true, relatedTarget: document.body}));
+      a.dispatchEvent(new FocusEvent('focusout', {bubbles: true})); }""")
     page.tap('a.mark')
     assert page.evaluate('() => location.hash') == '#b6444' and not errors
     ctx.close()

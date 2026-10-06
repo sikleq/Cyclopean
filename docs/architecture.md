@@ -1231,7 +1231,9 @@ banner eye (an all-hidden band's only eye).
 as its `aria-label` (an empty `data-tooltip`; scripts.js `tooltip` reads the label); a row's eye is `tabindex="-1"`
 (a hero page has up to ~800), the band's banner eye is the keyboard's way to the proof. A family head's eye sits in a
 `<summary>`: words only, no link (`row_evidence(..., link=False)`), its rows' eyes link. Touch (`(hover: none)`): the
-first tap shows the words, the second follows; a hidden tip disarms. styles.css lights a linked eye on hover.
+first tap shows the words, the second follows; a hidden tip disarms. On a touch screen (`hover: none`) the tooltip
+ignores mouseout / focusout — a tap's compatibility events hid the words and disarmed the link between its two taps on
+CI's Linux Chromium (2026-10-06); a tap elsewhere hides them. styles.css lights a linked eye on hover.
 
 A fragment is written only when the build page has that card (`build_anchors(file)` =
 `patches_pages.own_anchors(builds_pages.page_entities(rec)[:ENTITY_LIMIT])`, read once per build file, 0.5-0.7 s

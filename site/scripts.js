@@ -332,7 +332,10 @@
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
       if (el && el !== current) show(el);
     });
+    // a touch screen has no hover: its taps fire compatibility mouseout / focusout events, which hid the words and
+    // disarmed an eye link between its two taps (CI's Linux Chromium, 2026-10-06) — there a tap elsewhere hides them
     document.addEventListener('mouseout', function (ev) {
+      if (noHover) return;
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
       if (el && !el.contains(ev.relatedTarget)) hide();
     });
@@ -340,7 +343,7 @@
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
       if (el) show(el);
     });
-    document.addEventListener('focusout', hide);
+    document.addEventListener('focusout', function () { if (!noHover) hide(); });
     // touch: a tap fires mouseover and then click — the tap shows the text (never hides
     // it again), a tap anywhere else hides it. An eye that opens its proof (a.mark: the build it came
     // in, builders/evidence.py) shows its words on the first tap and follows the link on the second
