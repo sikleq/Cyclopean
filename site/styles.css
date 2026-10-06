@@ -227,9 +227,11 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .px-frame.bright { --frame: var(--frame-hi); }
 
 /* section banner (Sloppy's ITEM UPDATES band, in verdigris) */
+/* a banner's chips wrap under its title when there are many (Astro's band of 21 changes + net + eye + three
+   "+N for all …" chips ran 67px past a 1440px window; 2026-10-06); a one-line banner looks as before */
 .banner {
-  display: flex; align-items: center; gap: 12px; min-height: 44px;
-  padding: 0 18px; margin: 26px 0 10px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 44px;
+  padding: 6px 18px; margin: 26px 0 10px;
   background: linear-gradient(90deg, var(--banner-a), var(--banner-b) 45%, var(--bg-panel));
   box-shadow: inset 4px 0 0 var(--patina), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page);
 }
@@ -246,8 +248,8 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .banner.named { box-shadow: inset 4px 0 0 var(--tag-new), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
 .ptitle h1 .pdate:not(.solo) { font-size: 16px; }
 .ptitle h1 .pdate.solo { font-size: 30px; }
-.banner .bc { margin-left: auto; display: flex; gap: 8px; align-items: center; font: 18px/1 var(--font-label);
-  color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
+.banner .bc { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 8px; min-width: 0;
+  align-items: center; font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
 .banner.sub { min-height: 36px; margin: 16px 0 8px; }
 .banner.sub .bt { font-size: 19px; }
 

@@ -624,3 +624,10 @@ def test_a_game_system_counts_one_edit_once_in_the_matrix_and_on_the_home_icon()
             if key.startswith('game:') and pid in per and key in feed and sum(per[pid].values()) != feed[key]['n']:
                 off.append((key, pid, sum(per[pid].values()), feed[key]['n']))
     assert not off, off
+
+
+def test_every_zipline_modifier_is_a_combat_rule():
+    """2026-10-06: 'modifier_zipline_' followed by '#' matched only an id that ended there, so the Zip Line speed
+    bonus (modifier_zipline_speed_player_generator_kill) fell to Other and its note line stayed unmatched."""
+    from pipeline import game_map
+    assert game_map.place('modifiers.vdata:modifier_zipline_speed_player_generator_kill#') == ('combat', 'rules')

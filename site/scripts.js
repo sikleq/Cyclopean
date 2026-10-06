@@ -796,8 +796,11 @@
   /* a lazy icon arriving mid-scroll cost a layout, a repaint and a new layering of the ~200 sticky name cells:
      scrolling inside items/changes.html ran at p95 50 ms on a 4x slower CPU, 17 ms with the icons in (perf
      2026-10-05, tools/perf_probe.py --throttle 4). The first screen keeps its lazy start: the rest follow at `load` */
+  /* a patch page's note cards too: they sit in CSS columns, and each icon arriving mid-scroll re-balanced the columns
+     of up to ~2,000 elements — patches/2024-10-10.html spent 1.4 s in 14 layouts while scrolling, p95 83 ms; with
+     the icons in after `load`, 0 layouts (2026-10-06) */
   safe('dyn-icons', function () {
-    var imgs = document.querySelectorAll('table.dyn td.name img[loading="lazy"]');
+    var imgs = document.querySelectorAll('table.dyn td.name img[loading="lazy"], .ecards img[loading="lazy"]');
     if (!imgs.length) return;
     function all() { imgs.forEach(function (i) { i.loading = 'eager'; }); }
     if (document.readyState === 'complete') all(); else window.addEventListener('load', all, { once: true });

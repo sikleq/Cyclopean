@@ -1541,3 +1541,18 @@ def test_a_namesake_hint_is_never_a_unit_word():
     from builders.cards import _hint
     assert _hint('Incoming Damage Deferred', 'IncomingDamageDeferredPct', skip=frozenset()) == ''
     assert _hint('Healing Reduction', 'HealAmpRegenPenaltyPercent') == 'regen'          # the default skip list
+
+
+def test_note_cards_and_matrix_icons_load_after_the_page():
+    """2026-10-06: icons arriving mid-scroll re-balanced the note cards' CSS columns (patches/2024-10-10: 14 layouts,
+    1.4 s, p95 83 ms) as they had cost the matrices a re-layering; both load at `load`. A banner's chips wrap
+    (Astro's ran 67px past a 1440px window)."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    js = (root / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    assert """'table.dyn td.name img[loading="lazy"], .ecards img[loading="lazy"]'""" in js
+    css = (root / 'site' / 'styles.css').read_text(encoding='utf-8')
+    banner = css[css.index('.banner {'):css.index('}', css.index('.banner {'))]
+    assert 'flex-wrap: wrap' in banner
+    bc = css[css.index('.banner .bc {'):css.index('}', css.index('.banner .bc {'))]
+    assert 'flex-wrap: wrap' in bc and 'min-width: 0' in bc

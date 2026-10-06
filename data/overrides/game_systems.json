@@ -158,7 +158,7 @@
         {"id": "guns", "name": "Every gun", "nouns": ["guns"], "match": ["abilities[.]vdata:@all:m_mapWeaponInfos"]},
         {"id": "rules", "name": "Combat rules", "match": [
           "abilities[.]vdata:@all:",
-          "modifiers[.]vdata:(modifier_crowd_control_diminish_watcher|modifier_citadel_catapult_damage_watcher|modifier_zipline_|modifier_citadel_knockdown|modifier_speed_boost|modifier_citadel_unstick|modifier_combat_status|citadel_modifier_teleport|modifier_obscured_by_steam|modifier_bullet_shield_tracker|modifier_magic_shield_tracker|modifier_shield_tracker_base)#",
+          "modifiers[.]vdata:(modifier_crowd_control_diminish_watcher|modifier_citadel_catapult_damage_watcher|modifier_zipline_\\w*|modifier_citadel_knockdown|modifier_speed_boost|modifier_citadel_unstick|modifier_combat_status|citadel_modifier_teleport|modifier_obscured_by_steam|modifier_bullet_shield_tracker|modifier_magic_shield_tracker|modifier_shield_tracker_base)#",
           "convar:citadel_(movement_|movespeed_|stamina_|ability_damage_falloff|damage_falloff)"]}
       ]
     },
