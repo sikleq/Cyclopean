@@ -278,3 +278,23 @@ def test_a_yes_no_field_reads_now_or_no_longer_where_its_name_says_what_holds():
         ('steps', 'now')
     assert shown_pair({**row, 'op': 'add', 'old_s': '', 'new_s': 'no'})[0] == 'pair'       # the default: no news
     assert shown_pair({**row, 'label': 'Melee Resistance'}) == ('pair', 'yes', 'no')       # a thing, not what holds
+
+
+# ---- 6. Unit Stats: resists and sight -----------------------------------------------------------------------------
+
+def test_unit_stats_read_a_units_own_resists_and_sight():
+    """#25a: a unit's bullet / spirit resist is its always-on modifier's value, whatever the modifier is called."""
+    from pipeline.unit_table import COLUMNS, evaluate
+    keys = [c[0] for c in COLUMNS]
+    assert {'res_bullet', 'res_spirit', 'sight'} <= set(keys)
+    neutral = {'m_flSightRangePlayers': 1500, 'm_vecIntrinsicModifiers': [
+        {'_my_subclass_name': 'weak_neutral_bullet_armor', 'm_vecScriptValues': [
+            {'m_eModifierValue': 'MODIFIER_VALUE_BULLET_DAMAGE_REDUCTION_PERCENT', 'm_value': 50},
+            {'m_eModifierValue': 'MODIFIER_VALUE_ABILITY_DAMAGE_REDUCTION_PERCENT', 'm_value': 45}]}]}
+    v = evaluate(neutral)
+    assert (v['res_bullet'], v['res_spirit'], v['sight']) == (50, 45, 38.1)
+    guardian = {'m_vecIntrinsicModifiers': [
+        {'_my_subclass_name': 'npc_boss_intrinsic', 'm_vecScriptValues': [
+            {'m_eModifierValue': 'MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST', 'm_value': '10'}]}]}
+    v = evaluate(guardian)
+    assert v['res_bullet'] == 10 and v['res_spirit'] is None and v['sight'] is None
