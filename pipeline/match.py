@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from functools import lru_cache
 from typing import Callable
 
-from . import cache, catalog, jsonio, labels, loc, semantics, tracker
+from . import cache, catalog, game_map, jsonio, labels, loc, semantics, tracker
 from . import flags as flag_rules
 from . import match_rules as rules
 from . import patches as patches_mod
@@ -184,7 +184,38 @@ def value_matches(v, x: float, meters=False, rel: float = EXACT) -> bool:
     return any(close(c, abs(x), rel) or close(c, x, rel) for c in candidates)
 
 
+def _number_list(v) -> list[float] | None:
+    """A value that is a list of numbers (a soul split per player count, a resist per enemy count), else None."""
+    if not isinstance(v, (tuple, list)) or not v:
+        return None
+    out = [num(x) for x in v]
+    return None if any(x is None for x in out) else out
+
+
+def list_match(c: MChange, pairs, rel: float = EXACT) -> bool:
+    """A number list the line gives element by element: "Trooper bounty split ratios updated from 1/0.65/0.28/…
+    to 1/0.54/0.36/…" is m_flTrooperKillGoldShareFrac (1, 0.65, 0.28, …) -> (1, 0.54, 0.36, …), every element
+    under the field's own transforms (a fraction as the notes' percent). A list never matched a pair: its value
+    is no number (coverage finding 8)."""
+    if len(pairs) < 2:
+        return False
+    for o, n in c.steps():
+        a, b = _number_list(o), _number_list(n)
+        if not a or not b or len(a) != len(b):
+            continue
+        if len(a) == len(pairs) + 1 and a[0] == b[0]:
+            # an entry the notes skip because it did not move: Walkers' resist per nearby enemy starts at
+            # "0 enemies: 0%" (0, 0, 8, … 40 -> 0, 0, 0, 20, … 50), the notes list 1-6 enemies
+            a, b = a[1:], b[1:]
+        if len(a) == len(pairs) and all(value_matches(x, p, c, rel) and value_matches(y, q, c, rel)
+                                        for x, y, (p, q) in zip(a, b, pairs)):
+            return True
+    return False
+
+
 def exact_pair(c: MChange, pairs) -> bool:
+    if list_match(c, pairs):
+        return True
     for a, b in pairs:
         if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in c.steps()):
             return True
@@ -207,7 +238,7 @@ def shown_in_meters(c: MChange, pairs) -> bool:
 
 def data_values(c: MChange, pairs) -> list[str]:
     meters = c.meters or shown_in_meters(c, pairs)
-    return [semantics.display_value(num(c.old), meters), semantics.display_value(num(c.new), meters)]
+    return [semantics.display_value(_number_list(v) or num(v), meters) for v in (c.old, c.new)]
 
 
 def half_match(c: MChange, pairs) -> bool:
@@ -388,6 +419,17 @@ def mark_availability_moves(changes: list[MChange]) -> None:
             flag.moved = state.moved = True
 
 
+@lru_cache(maxsize=1)
+def convar_start() -> int | None:
+    """The first build with console variables (6395, 2026-03-10: the tracker began dumping them): a snapshot of all
+    1,365 of them, no change (builders.game_systems.convar_start reads the same index)."""
+    try:
+        index = json.loads((BUILDS / 'index.json').read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None
+    return next((b['build'] for b in index if b.get('convars')), None)
+
+
 def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple[list[MChange], dict]:
     """Merge the builds of a window. Entities added inside the window are not
     diffed field by field (their whole data is "new"): they become one
@@ -450,12 +492,22 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
             c.old_unit, c.unit = (labels.display_unit(era, {'unit': u}) for u in sw)
     mark_retyped(changes)
     mark_availability_moves(changes)
-    # console variables take part in matching ("Respawn time … from 35s to 38s")
+    # console variables take part in matching ("Respawn time … from 35s to 38s"), and so does one a game system
+    # names that came with a value ("Unstable Rift spawn interval increased from every 6 minutes to every 7
+    # minutes" is citadel_koth_respawn_interval added at 420; coverage finding 8) — not the snapshot that started
+    # the tracking (every variable "added"), nor one that also moved in the window (its change row is the match)
+    moved_cv = {cv['name'] for cv in extras['convars'] if cv.get('op') == 'change'}
     for cv in extras['convars']:
-        if cv.get('op') != 'change' or num(cv.get('old')) is None or num(cv.get('new')) is None:
+        new = num(cv.get('new'))
+        if cv.get('op') == 'change' and num(cv.get('old')) is not None and new is not None:
+            old = cv['old']
+        elif (cv.get('op') == 'add' and new is not None and cv['name'] not in moved_cv
+              and cv.get('build') != convar_start() and game_map.convar_system(cv['name'])):
+            old = None
+        else:
             continue
         label = cv['name'].replace('citadel_', '').replace('_', ' ')
-        changes.append(MChange('convars', cv['name'], cv['name'], 'change', cv['old'], cv['new'], 'balance',
+        changes.append(MChange('convars', cv['name'], cv['name'], cv['op'], old, cv['new'], 'balance',
                                'global', None, label, False, [cv['build']]))
     # an entity added and removed within one window never shipped; one removed and back within one
     # window (or back and removed again) is where it started: only its field changes remain
@@ -474,6 +526,9 @@ class Subject:
     ids: set
     name: str
     kind: str
+    # a game system's entries the line names (`system_alias`): tried by the line's numbers only, after `ids` and the
+    # whole patch (first for a number list) — by words, dozens of them would link
+    numeric_ids: set = field(default_factory=set)
 
 
 def name_index(changes: list[MChange], cat: dict[str, dict], tok: dict[str, str]) -> dict[str, list[str]]:
@@ -501,6 +556,57 @@ def inline_alias(text: str, idx: dict[str, list[str]]) -> set[str]:
     ("Veil Walker" is an item, not the Walkers: 11 lines were given to the bosses)."""
     low = text.lower()
     return rules.alias_keys(text, tuple(n for n in idx if ' ' in n and len(n) > 5 and n in low))
+
+
+def system_pools(by_ent: dict[str, list[MChange]], cat: dict[str, dict]) -> dict[str, set[str]]:
+    """game system id -> the window's changed entries in it (pipeline.game_map): the map objects, game rules and
+    effects no hero, item or unit page claims, and the console variables its parts name."""
+    out: dict[str, set[str]] = {}
+    for k, cs in by_ent.items():
+        c = cs[0]
+        if c.file == 'convars':
+            sid = game_map.convar_system(c.eid)
+        else:
+            e = cat.get(k) or {'file': c.file, 'id': c.eid}
+            hit = None if game_map.claimed(e) else game_map.place(f'{k}#{e.get("kind") or ""}')
+            sid = hit[0] if hit else None
+        if sid:
+            out.setdefault(sid, set()).add(k)
+    return out
+
+
+def _names_moved(text: str, idx: dict[str, list[str]], cat: dict[str, dict], by_ent: dict[str, list[MChange]]) -> bool:
+    """The line names an entity (an alias or its own name) whose gameplay fields moved in the window."""
+    keys = inline_alias(text, idx) | inline_names(text, idx, cat, by_ent)
+    return any(c.cat in GAMEPLAY_CATS for k in keys for c in by_ent.get(k, ()))
+
+
+def system_lines_pools(text: str, pools: dict[str, set[str]] | None) -> dict[str, set[str]] | None:
+    """The game systems' pools for a line that gives numbers (a pair, a percent, a granted value), else None."""
+    if not pools:
+        return None
+    return pools if (parse_pairs(text) or _BY_RE.search(text) or granted_pair(text)) else None
+
+
+# the words that say WHAT a number is: a field labelled by one the line does not use, while the line uses another,
+# is another stat ("movespeed" is not "Extra Stamina")
+STAT_NOUNS = {'stamina', 'speed', 'movespeed', 'health', 'radiu', 'range', 'duration', 'cooldown', 'ammo', 'clip',
+              'regen', 'resist', 'damage', 'dps', 'lifesteal', 'charge', 'sprint', 'slow', 'distance', 'heal'}
+
+
+def names_other_stat(c: MChange, line_words: set[str]) -> bool:
+    """The field's label names a stat the line does not, and the line names one of its own."""
+    own = {w for w in line_words if w in STAT_NOUNS}
+    label = _label_tokens(c) & STAT_NOUNS
+    return bool(own) and bool(label) and not label & rules.expand_label_words(line_words)
+
+
+def system_alias(text: str, pools: dict[str, set[str]] | None) -> set[str]:
+    """The window's entries of every game system a line names by its notes word ("Jump Pad stun window …",
+    "Trooper bounty split …", "Time an Urn will wait …"): the files give these entries no name of their own."""
+    if not pools:
+        return set()
+    return {k for _, sid in game_map.phrases_in(text) for k in pools.get(sid, ())}
 
 
 _PARENS = re.compile(r'\([^)]*\)')
@@ -544,6 +650,8 @@ def _close_hero(prefix: str, idx: dict[str, list[str]]) -> list[str] | None:
 
 
 def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]) -> Subject | None:
+    """The entity a "Name:" prefix names. A game system's word ("Street Brawl:") is no subject: the line goes the way
+    of one without (the rules for all, then its system's entries, `system_alias`)."""
     keys = idx.get(prefix.strip().lower())
     if not keys:
         aliased = rules.alias_keys(prefix)
@@ -724,6 +832,10 @@ def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, 
     """`granted`: the pairs come from "now grants +N" (0 -> N) / "no longer grants +N" (N -> 0)."""
     s = 0
     steps = c.steps()
+    if list_match(c, pairs):
+        s += 10
+    elif list_match(c, pairs, APPROX):
+        s += 7              # "100/70/45/33%" for 1 / 0.7 / 0.45 / 0.333
     for a, b in pairs:
         if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in steps):
             s += 10
@@ -758,6 +870,7 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
     rescale = rules.boon_rescale(notes)
     for c in changes:
         c.scale = rescale[0] if rules.rescaled_field(c, rescale) else 1.0
+    pools = system_pools(by_ent, cat)
     sections = []
     for sec in (p.notes.sections if p.notes else []):
         out_lines = []
@@ -771,7 +884,7 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
                 continue
             own_prefix = ':' in text[:48] and resolve_subject(text.split(':', 1)[0], idx, cat)
             probe = f'{head}: {text}' if head and not own_prefix else text
-            res = annotate_line(probe, changes, by_ent, idx, cat, tok, rescale)
+            res = annotate_line(probe, changes, by_ent, idx, cat, tok, rescale, pools)
             res['text'] = text
             if res['status'] == 'unmatched':
                 topic = rules.untracked_topic(text.split(':', 1)[1] if own_prefix else text, sec.title,
@@ -817,7 +930,11 @@ def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
                     other.lines.append(line)
 
 
-def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
+def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None) -> dict:
+    """`pools`: the window's game systems and their changed entries (`system_pools`), for a line with numbers only:
+    a system holds dozens of entries, and a line without numbers would link whichever shares a word ("Added Dash
+    Speed to the Vitality stat screen" took the zipline's Latch End Speed)."""
+    pools = system_lines_pools(text, pools)
     subject = None
     rest = text
     if ':' in text[:48]:
@@ -857,25 +974,29 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
 
     if not subject:
-        if not pairs and by_pct is None and rules.untracked_topic(text) not in (None, 'visual'):
+        topic = None if pairs or by_pct is not None else rules.untracked_topic(text)
+        if topic not in (None, 'visual') and not (topic == 'interface' and _names_moved(text, idx, cat, by_ent)):
             # sound / interface / map words first: "Lowered volumes for UI death notification sounds
             # and respawn music" is not about respawn (annotate() tags it untracked) — P12; a bug fix
             # stays a fix ("…caused audio bugs as well"); not "visual": "Guardian melee no longer has a
-            # splash range much larger than its visuals" is gameplay
+            # splash range much larger than its visuals" is gameplay. An interface word next to an entity
+            # whose files moved is matched first (#47.2): "Added keybinds for 'Fly Up' and 'Fly Down'. Used for
+            # flying abilities like Ivy's Air Drop and Vindicta's Flight" is their new flight controls
             return _fix_or(result, text)
         covered = (rules.boon_lines(text, changes, rescale, num) or rules.global_line(text, changes, cat, num)
                    or rules.global_delta_line(text, changes, cat, num))
         if covered:
             return _link(result, covered, text, 'described')
         # "Walker bounty increased by 5%": the unit is named inside the line; failing a common word,
-        # an entity's own name ("Medic Pack ally search radius from 30 to 35")
+        # an entity's own name ("Medic Pack ally search radius from 30 to 35"); the game system the line names
+        # ("Jump Pad stun window …"), with an alias or alone
         aliased = inline_alias(text, idx)
-        if aliased:
-            subject = Subject(aliased, None, 'alias_inline')
-        else:
-            named = inline_names(text, idx, cat, by_ent)
-            if named:
-                subject = Subject(named, None, 'name_inline')
+        named = set() if aliased else inline_names(text, idx, cat, by_ent)
+        systems = system_alias(text, pools)
+        if aliased or (systems and not named):
+            subject = Subject(aliased, None, 'alias_inline', systems - aliased)
+        elif named:
+            subject = Subject(named, None, 'name_inline')
 
     if subject:
         # sorted: set order changes between runs (hash randomisation) -> unstable output
@@ -918,7 +1039,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
     # an inline name or alias whose entity did not move at all still gets the whole-patch pass below (the Dash
     # ability had no change on 2026-07-28: "… ground dash time 0.7s to 0.72s" never reached it)
     inline = bool(subject) and subject.kind in ('alias_inline', 'name_inline')
-    if (pairs or by_pct is not None) and (pool or inline):
+    sys_ids = subject.numeric_ids if subject else set()
+    sys_pool = [c for k in sorted(sys_ids) for c in by_ent.get(k, []) if c.cat in GAMEPLAY_CATS]
+    if (pairs or by_pct is not None) and (pool or inline or sys_pool):
         # a line without a subject must also share a word with the field label; so must one whose
         # subject is only named inside it ("Medic Trooper … heal 14% → 12%" is not its range 14 → 12 m).
         # Not an alias's: "Walker HP increased by 40%" shares no word ("HP", "damage" are not words here)
@@ -932,7 +1055,25 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
 
         def enough(b) -> bool:
             return b >= 10 + need or (by_pct is not None and b >= 6 + need)
+        # the game system the line names (`system_alias`): its entries carry no name a line could use and often no
+        # word of it ("Jump Pad stun window increased from 0.6s to 0.9s" is the catapult watcher's Duration;
+        # coverage finding 8) — not a field that names another stat than the line ("Movement Speed powerup
+        # movespeed reduced from 2 to 1" is not the stamina powerup's Extra Stamina 2 -> 1)
+        sys_pool = [c for c in sys_pool if not names_other_stat(c, lw)]
+
+        def system_pass() -> None:
+            nonlocal scored, best, pool, ability_hits, need_word, need
+            before = (scored, best, pool, ability_hits, need_word, need)
+            need_word, need = False, 0
+            pool, ability_hits = sys_pool, set(sys_ids)
+            scored, best = rank(pool, ability_hits)
+            if not enough(best):
+                scored, best, pool, ability_hits, need_word, need = before
         scored, best = rank(pool, ability_hits)
+        if not enough(best) and any(list_match(c, pairs, APPROX) for c in sys_pool):
+            # a whole number list ("Trooper bounty split from 100/60/35/25/20/16% to 100/60/30/20/15/11") is the
+            # list field of its system before any lone number of the patch (it took 87 investment bonuses)
+            system_pass()
         if not enough(best) and subject and subject.kind in ('name_inline', 'alias_inline'):
             # the name was a coincidence ("Gun Powerup … Fire Rate" names the old item "Fire Rate"), or the
             # alias was: "Stamina bucket 3 heroes … ground dash time increased from 0.7s to 0.72s" is not the
@@ -946,6 +1087,8 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None) -> dict:
             if subject.kind == 'alias_inline' and not enough(best):
                 # nothing there either: a disagreement is judged on the alias's own fields, as before
                 scored, best, pool, ability_hits, need_word, need = own_pass
+        if not enough(best) and sys_pool:
+            system_pass()       # last otherwise: a line an earlier pass matched keeps its fields
         if enough(best):
             hits = [c for s, c in scored if s == best]
             if len(pairs) > 1:

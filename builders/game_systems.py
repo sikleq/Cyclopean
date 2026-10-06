@@ -14,14 +14,14 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 
+from pipeline.game_map import claimed, is_template  # noqa: F401  (one rule for the pages and the matcher)
+
 from .common import ICONS, icon_manifest, load_json, pretty_id, visual
 
 CONFIG = 'overrides/game_systems.json'
 CONVAR_PREFIX = 'convars:'          # by_ent key of a console variable's rows ('convars:citadel_koth_warning_time')
 ALL_PREFIX = 'game:all:'            # by_ent key of a patch's rules for every hero / ability ('game:all:heroes.vdata')
 SECTION = 'game'
-# files whose entries can be a page's: everything else is the Game's whatever its id
-PAGE_FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata')
 
 
 @dataclass(frozen=True)
@@ -86,22 +86,6 @@ def place(subject: str) -> tuple[str, str] | None:
 
 def entity_subject(key: str, kind: str | None) -> str:
     return f'{key}#{kind or ""}'
-
-
-def is_template(e: dict) -> bool:
-    """An engine template (trooper_base, hero_base, the breakables' prop base): no player meets it, its heirs do."""
-    return bool(e.get('template')) or str(e.get('id', '')).endswith('_base')
-
-
-def claimed(e: dict) -> bool:
-    """A hero, item or unit page shows this entry (catalog row or patch entity): a hero and its abilities and gun,
-    a shop item ('upgrade_*'), an NPC and the abilities it binds. Templates never."""
-    file, eid = e.get('file'), str(e.get('id', ''))
-    if file not in PAGE_FILES or is_template(e):
-        return False
-    if file in ('heroes.vdata', 'npc_units.vdata'):
-        return True
-    return bool(e.get('owner')) or bool(e.get('units')) or (e.get('kind') == 'item' and eid.startswith('upgrade_'))
 
 
 def is_decor(e: dict) -> bool:

@@ -38,8 +38,11 @@ _alias(("sinner's sacrifice", 'sinners sacrifice', 'sinner sacrifice', 'vault', 
         ('misc.vdata', 'neutral_camp_vaults')])
 _alias(('trooper', 'troopers'), [('npc_units.vdata', 'trooper_normal'), ('npc_units.vdata', 'trooper_medic'),
                                   ('npc_units.vdata', 'trooper_melee')])
+# … and the aura that claims it ("Mid Boss Rejuv claim time reduced from 2.5s to 1.5s" is its Pickup Timer)
 _alias(('rejuvenator', 'rejuv'), [('generic_data.vdata', 'm_RejuvParams'), ('misc.vdata', 'citadel_item_pickup_rejuv'),
-                                  ('npc_units.vdata', 'citadel_item_pickup_rejuv')])
+                                  ('npc_units.vdata', 'citadel_item_pickup_rejuv'),
+                                  ('modifiers.vdata', 'modifier_rejuv_pickup_aura'),
+                                  ('modifiers.vdata', 'modifier_rejuv_pickup_punchable')])
 _alias(('soul urn', 'urn'), [('generic_data.vdata', 'm_IdolParams'), ('abilities.vdata', 'ability_golden_idol'),
                               ('misc.vdata', 'citadel_idol_cashin'), ('misc.vdata', 'citadel_item_pickup_idol'),
                               ('misc.vdata', 'xp_orb_idol_dropoff')])
