@@ -178,12 +178,15 @@ def test_trail_squares_open_the_band_on_the_page(monkeypatch):
     from builders import trail
     rows = [{'id': f'p{i}', 'date': f'2026-0{i}-01', 'title': f'0{i}-01-2026 Update'} for i in range(1, 5)]
     hits = {'abilities.vdata:ab_x': {'p2': {'buff': 1, 'nerf': 2}, 'p4': {'nerf': 1}}}
-    monkeypatch.setattr(trail, '_index', lambda: (rows, hits))
+    hidden = {'abilities.vdata:ab_x': {'p2': 2}}
+    monkeypatch.setattr(trail, '_index', lambda: (rows, hits, hidden))
     trail._positions.cache_clear()
     trail.trail_html.cache_clear()
     local = trail.trail_html('abilities.vdata:ab_x', None, '../', local=True)
     assert 'href="#p-p2" data-p="p2" data-ab="ab_x"' in local and 'data-tooltip' not in local
-    assert 'aria-label="2026-02-01 update · 1 buff, 2 nerfs"' in local
+    # the eye where the notes left something out, as on the strip tiles and the matrices (#44)
+    assert 'aria-label="2026-02-01 update · 1 buff, 2 nerfs, 2 not in patch notes"' in local
+    assert re.search(r'class="sq t-rework hid"', local) and 'class="sq t-nerf"' in local
     assert 'style="background:linear-gradient(' in local                  # striped, not REWORK purple
     archive = trail.trail_html('abilities.vdata:ab_x', 'p4', '../')
     assert 'href="../patches/p4.html"' in archive and 'data-tooltip="2026-04-01 update · 1 nerf"' in archive

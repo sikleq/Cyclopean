@@ -247,7 +247,8 @@ def strip_data(items: list[tuple]) -> dict:
     """The page's hover-card data for its strip tiles and trail squares: t = tiles in strip order,
     [patch id, title, named?, {tag: n}, hidden, [[group, {tag: n}, hidden, samples], …], net mark (weights.net_of:
     'buff' / 'nerf' / 'mix' / '')]; g = the groups
-    [name ('' for the page's own rows), icon url, entity ids, ultimate 0/1]; the tags' icons and words; top /
+    [name ('' for the page's own rows), icon url, entity ids, ultimate 0/1, a rule for all 0/1 (counted apart: the card
+    gives it its own number)]; the tags' icons and words; top /
     per = how many rows the strip card / a trail card lists. The counters' icons are CSS (`.pip.<tag>`)."""
     from .render import TAG_WORD_ONE, TAG_WORDS
     from .weights import NET_WORDS
@@ -365,6 +366,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
     the same merge into one group (unit families). `every_href`: system id -> the Game page's band of this patch
     (the link row of a rule for every hero, cards.every_rows)."""
     from .cards import entity_rows, row
+    from .render import note_badge
     groups: list[dict] = []
     texts = slot.get('texts', {})
     # a hero page fills "[Hero name]" in its texts with the hero's name
@@ -376,7 +378,8 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         rows = entity_rows(changes, (hints or {}).get(key), every_href)
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
-            rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
+            # a line whose wording names no kind gets the neutral NOTE (its tag column was blank)
+            rows += row(ln['status'], text_tag(text, ln.get('topic')) or note_badge('NOTE'), _highlight(text, 'changed'))
         rows += text_rows(texts.get(key, []), hero, changes)
         if not rows:
             continue
@@ -527,13 +530,15 @@ def patch_href(pid: str, rel: str, entity_id: str | None = None, also: tuple[str
 
 def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = (),
             entity_id: str | None = None, texts: str | None = None, href: str | None = None,
-            also: tuple[str, ...] | list[str] = (), net: str | None = None) -> tuple[str, str]:
+            also: tuple[str, ...] | list[str] = (), net: str | None = None,
+            eye: tuple[str | None, str | None] = (None, None)) -> tuple[str, str]:
     """(the band's <summary>, its has-hidden classes). The title is plain text, so a click opens the band in
     place (it used to leave for the patch archive); a small "patch ↗" goes there on purpose, at the entity
     (`patch_href`; `href`: where it goes instead — a band holding only rules for all goes to its Game band). The
     counters and the eye count are what scripts.js recounts while a filter is on. `every`: the rows of rules for
     every hero (shared_rows), counted apart in a chip of their own ("+38 for all heroes"). `net`: the band's net mark
-    (weights.net_of of its counted rows, `_patch_block`); None weighs `counted_all` here."""
+    (weights.net_of of its counted rows, `_patch_block`); None weighs `counted_all` here. `eye`: the eye chip's words
+    and the build page it opens (evidence.band_evidence)."""
     from .render import not_in_notes, tag_summary
     from .weights import net_chip, net_of
     if net is None:
@@ -547,7 +552,8 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     no_notes = all_hidden and all(c.get('status') == 'unannounced' for c in counted_all)
     text = ('no patch notes' if no_notes else f'all {n_hidden} not in notes' if all_hidden and n_hidden > 1
             else f'{n_hidden} not in notes')
-    chips = f'<span class="chip eye-chip">{mark("hidden")}<span class="ec-n">{text}</span></span>' if n_hidden else ''
+    chips = (f'<span class="chip eye-chip">{mark("hidden", *eye)}<span class="ec-n">{text}</span></span>'
+             if n_hidden else '')
     # one short chip per kind: they wrap under the title on a phone (one long chip ran 145px off a 390px screen)
     chips += ''.join(f'<span class="chip shr-chip">+{len(rows)} for {esc(name.lower())}</span>'
                      for name, rows in every_groups(list(every)).items())
@@ -572,15 +578,16 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     """One patch = its banner + ONE full-width panel: per part its icon on a plate in a column of its own,
     then its name and rows (Sloppy's ability block). `hints`: part key -> its cards.history_hints."""
     from . import archive
-    from .cards import (ability_plate, disambiguate, every_key, every_links, is_hidden, patch_builds, player_facing,
-                        sub_head)
+    from .cards import ability_plate, disambiguate, every_key, every_links, is_hidden, player_facing, sub_head
+    from .evidence import band_evidence, patch_builds
     from .render import not_in_notes, tag_of
     from .weights import net_of
     hdr = slot['row']
     from .game_systems import SECTION
     every_href = lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}'      # noqa: E731
     own_slot, every_all = split_every(slot, in_dev)
-    with patch_builds(archive.builds_of(pid)):           # the eye says when a change shipped silently later
+    builds = archive.builds_of(pid)
+    with patch_builds(builds, rel):                      # each eye names the build it came in and opens it
         groups = _groups(own_slot, order, meta, names, hints, merge)
     namesakes = {} if merge else _namesakes(groups, meta, gone)
     band_notes: dict[str, str] = {}
@@ -639,7 +646,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         # every id of a merged group: a filter or a link to its second entry ("Breakable lion statue") found none
         parts.append(f'<div class="{cls}" data-ab="{esc(ids)}" data-area="{esc(area)}">{plate}'
                      f'<div class="hg-b">{head}{g["rows"]}{notes}</div></div>')
-        ref = ('' if headless else nm, ic or '', ids, int(ult))
+        ref = ('' if headless else nm, ic or '', ids, int(ult), 0)
         card.append((ref, disambiguate(fresh, (hints or {}).get(key))))
     # a rule for every hero is ONE block of link rows for the whole band, after its groups: it sat under each of
     # the hero's abilities it touched (Calico 2026-01-22: 15 copies of "All abilities & items: 1 change", ~1000 px)
@@ -660,7 +667,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         for c in counted_all:
             tally[tag_of(c)[0]] = tally.get(tag_of(c)[0], 0) + 1
         for name, rows in every_groups(every_all).items():
-            card.append(((name, '', '', 0), rows))
+            # a rule for all is counted apart (not in the tile's counts): its group says its own number in the card
+            card.append(((name, '', '', 0, 1), rows))
         facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
                                               tile_card(card), net))
     if every_only:
@@ -671,9 +679,11 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     # the entity's place in the patch, its family's members after it (patch_href)
     href = esc(every_href(every_key(every_all[0])[0])) if every_only and every_all else None
     also = [k.partition(':')[2] for g in groups for k in g['keys'] if k.partition(':')[0].endswith('.vdata')]
+    with patch_builds(builds, rel):
+        eye = band_evidence(counted_all, entity_id)     # the banner's eye: the band's builds (an all-hidden band's only eye)
     summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id,
                                   text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]),
-                                  href=href, also=also if entity_id else (), net=net)
+                                  href=href, also=also if entity_id else (), net=net, eye=eye)
     dev_cls = ' dev-only' if all_dev and not in_dev and not every_only else ''
     dev_cls += ' every-only' if every_only else ''
     panel = f'<div class="hpanel{hidden_cls}">{"".join(parts)}</div>'

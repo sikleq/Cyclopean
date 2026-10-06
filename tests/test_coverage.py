@@ -294,6 +294,99 @@ def test_one_count_per_patch(monkeypatch):
     assert c['hidden_on_pages'] == 2 and patch_counts.off_pages(c) == 1          # the pickup has no page
 
 
+def test_a_shared_edit_on_several_icons_is_counted_once_and_said_so(monkeypatch):
+    """Review 2026-10-06 (#16): an edit shared by several heroes counts once on the banner and on each of their icons,
+    so the icons add up to more — the banner says how many of its changes are on several icons."""
+    from builders import archive, home_page, patch_counts, shared_rows
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: _cat(2))
+    p = _patch()
+    c = patch_counts.count(p, PAGES)
+    assert c['hidden_shared'] == 1 and c['hidden_archive'] == 0         # the block's Max Health on hero_0 and hero_1
+    monkeypatch.setattr(patch_counts, 'for_id', lambda pid: {**c, 'hidden_shared': 5, 'hidden_archive': 2})
+    monkeypatch.setattr(archive, 'patch', lambda pid: p)
+    feed = home_page._feed([{'id': 'p1', 'title': p['title'], 'date': p['date']}], {}, frozenset(), {})
+    assert '<span class="au au-shr"><b>5</b> of them on several icons</span>' in feed
+    assert '<a class="au au-arch" href="patches/p1.html#changes"><b>2</b> only in the patch archive</a>' in feed
+    # "N of them in game rules & map objects" leaves out what only the archive lists
+    assert patch_counts.off_pages({'not_in_notes': 10, 'hidden_on_pages': 4, 'hidden_archive': 2}) == 4
+
+
+def test_one_edit_over_two_game_systems_counts_in_each_like_its_icons(monkeypatch):
+    """Review 2026-10-06 (#16): City Never Sleeps' edit over 19 breakables and the powerup spawner was one row with the
+    block's status ("described", in Breakables) in the count, while the Pickups icon and page showed the spawner's own
+    copy, hidden — the Game icons read one more than "N of them in game rules"."""
+    from builders import home_page, patch_counts, shared_rows
+    ids = ('citadel_breakable_item_container', 'citadel_breakable_jar_01', 'citadel_item_powerup_spawner')
+    cat = {f'misc.vdata:{i}': {'file': 'misc.vdata', 'id': i, 'kind': 'global', 'name': i} for i in ids}
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: cat)
+    block = {'key': '@shared:misc.vdata:3:x', 'file': 'misc.vdata', 'id': '@shared', 'kind': 'shared', 'scope': 'some',
+             'name': '3 map objects', 'target_keys': list(cat),
+             'changes': [ch(key='misc.vdata:citadel_breakable_item_container:w', path='m_Pickups[0].m_flWeight',
+                            label='Pickup Weight', old_s='1', new_s='—', status='described',
+                            target_status={'misc.vdata:citadel_breakable_jar_01': 'hidden',
+                                           'misc.vdata:citadel_item_powerup_spawner': 'hidden'})]}
+    p = {'entities': [block]}
+    c = patch_counts.count(p, frozenset())
+    assert c['changes'] == 2 and c['not_in_notes'] == 1 and patch_counts.off_pages(c) == 1
+    feed = home_page.update_feed(p, frozenset(), {}, frozenset())
+    assert {k: v['hidden'] for k, v in feed['game'].items()} == {'game:breakables': 0, 'game:pickups': 1}
+    rows = patch_counts.counted_rows(p, frozenset())
+    # the first system keeps the block (the archive's name of what it covers), the other names its entry
+    assert rows[0][0]['id'] == '@shared' and rows[1][0]['key'] == 'misc.vdata:citadel_item_powerup_spawner'
+    assert [r[1]['status'] for r in rows] == ['described', 'hidden']
+    # a block whose only entry with a Game system is a template still counts, in that system (review 2026-10-06)
+    cat2 = {'misc.vdata:citadel_breakable_prop_pickup_base': {'file': 'misc.vdata', 'id': 'citadel_breakable_prop_pickup_base',
+                                                             'kind': 'global', 'name': 'base'},
+            'npc_units.vdata:neutral_x': {'file': 'npc_units.vdata', 'id': 'neutral_x', 'kind': 'neutral', 'name': 'X'}}
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: cat2)
+    lone = {**block, 'target_keys': list(cat2), 'changes': [ch(key='x:y:w', label='Weight', status='hidden')]}
+    got = patch_counts.counted_rows({'entities': [lone]}, frozenset())
+    assert [(r[0]['id'], r[1]['label']) for r in got] == [('@shared', 'Weight')]
+
+
+def test_a_templates_own_coming_and_going_is_its_own_everywhere(monkeypatch):
+    """Review 2026-10-06 (#16): a template's "Removed from the game files" read as its heirs' (their own '@remove' rows
+    have the same empty values) on the home icon, the Game page and the matrix, while the count kept it."""
+    from builders import archive, dynamics_page, game_pages, game_systems, home_page, patch_counts, shared_rows
+    from builders.game_systems import heir_sig, heir_sigs
+    # the template is a Breakables entry; the entry that also went this patch is the Soul Urn's (another system)
+    ids = ('citadel_breakable_prop_pickup_base', 'citadel_idol_cashin')
+    cat = {f'misc.vdata:{i}': {'file': 'misc.vdata', 'id': i, 'kind': 'global', 'name': i} for i in ids}
+    monkeypatch.setattr(shared_rows, 'catalog', lambda: cat)
+    gone = dict(op='remove', path='@remove', label='Removed from the game files', old_s='', new_s='')
+    tune = dict(path='m_flWeight', label='Weight', old_s='1', new_s='2')
+    ents = [{'key': f'misc.vdata:{i}', 'file': 'misc.vdata', 'id': i, 'kind': 'global',
+             'changes': [ch(key=f'misc.vdata:{i}:@remove', **gone), ch(key=f'misc.vdata:{i}:w', **tune)]} for i in ids]
+    # THE rule: an heir's tuning is inherited, nobody's coming and going is
+    assert heir_sig('misc.vdata', ch(**gone)) is None
+    assert heir_sigs(ents) == {('misc.vdata', 'm_flWeight', '1', '2')}          # the template's own rows are no heir's
+    p = {'entities': ents}
+    # 1. the count, 2. the home icons
+    c = patch_counts.count(p, frozenset())
+    feed = home_page.update_feed(p, frozenset(), {}, frozenset())
+    icons = {k: v['n'] for k, v in feed['game'].items()}
+    assert icons == {'game:breakables': 1, 'game:urn': 2} and c['changes'] == 3          # the template: its removal
+    # 3. the Game page (its history without what an heir shows)
+    row = {'id': 'p1', 'date': '2026-06-30'}
+    by_ent = {e['key']: [(row, e['changes'])] for e in ents}
+    kept = game_pages.template_rows(ents[0]['key'], by_ent[ents[0]['key']], game_pages._heir_sigs(by_ent, cat))
+    assert [c['label'] for _, cs in kept for c in cs] == ['Removed from the game files']
+    # 4. the change matrix
+    monkeypatch.setattr(archive, 'by_date', lambda: [row])
+    monkeypatch.setattr(archive, 'patch', lambda pid: {'id': pid, 'extras': {}})
+    monkeypatch.setattr(archive, 'gameplay', lambda pid: ents)
+    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: {'entities.json': {'entities': list(cat.values())},
+                                                                   'abilities.json': {'abilities': {}},
+                                                                   'tables/heroes.json': {'heroes': []}}[name])
+    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
+    dynamics_page._collect.cache_clear()
+    try:
+        cells = dynamics_page._collect()['cells']
+    finally:
+        dynamics_page._collect.cache_clear()
+    assert {k: sum(v['p1'].values()) for k, v in cells.items() if k.startswith('game:')} == icons
+
+
 def test_off_pages_are_what_the_pages_do_not_show(monkeypatch):
     """`hidden_on_pages` counts by THE pages (entities_pages.page_keys): a helper unit and an ability a unit binds
     have unit pages, though home_page.page_of gives them none — they read "in game rules & map objects"."""
@@ -308,8 +401,10 @@ def test_off_pages_are_what_the_pages_do_not_show(monkeypatch):
     p = {'entities': [helper, stomp, urn]}
     c = patch_counts.count(p, frozenset({'npc_units.vdata:bot', 'abilities.vdata:stomp'}))
     assert c['not_in_notes'] == 3 and c['hidden_on_pages'] == 2 and patch_counts.off_pages(c) == 1
-    # with no pages at all, all three would be the Game's
-    assert patch_counts.off_pages(patch_counts.count(p, frozenset())) == 3
+    # with no pages at all, the urn is still the Game's; a unit and its ability are in no Game system: the patch archive
+    # alone lists them (the home banner says so apart, review 2026-10-06 #16)
+    none = patch_counts.count(p, frozenset())
+    assert patch_counts.off_pages(none) == 1 and none['hidden_archive'] == 2
 
 
 def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):

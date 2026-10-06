@@ -318,7 +318,9 @@ def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
             f'<span class="sep"></span>{pre_release_switch(live)}{shared_page.index_link() if has_shared else ""}</div>'
             + heroes_grid_html(live, other, trow, rel))
-    write('heroes/index.html', page('Heroes', body, rel, 'heroes'))
+    # every tab of a section is one width (the full one, like its stats table and change matrix): the title and the
+    # tabs no longer jump when a tab is changed (low items, review 2026-10-06)
+    write('heroes/index.html', page('Heroes', body, rel, 'heroes', wide=True))
     n_pre = sum(1 for h in live if h.get('state') != 'EHeroDevState_Release')
     dyn = matrix_html(hero_entries(live, rel, trow), 'hero')
     # the roles Hero Stats filters by, as the matrix's row filter too (review 2026-10-05: it had none)
@@ -346,7 +348,7 @@ def _build_items(ctx: dict, items: list[dict]) -> None:
                                      + toolbar('item', n_gone, 'Removed') + matrix_html(entries, 'item'),
                                      rel, 'items', wide=True))
     from .game_shop import FONTS as SHOP_FONTS
-    write('items/index.html', page('Items', body, rel, 'items', fonts=SHOP_FONTS))
+    write('items/index.html', page('Items', body, rel, 'items', fonts=SHOP_FONTS, wide=True))
 
 
 def _unit_group(ms: list[dict]) -> str:
@@ -374,7 +376,7 @@ def _build_units(ctx: dict, units: list[dict]) -> tuple[dict, list[tuple]]:
         write(page_path, unit_page(members, urow, units_t['columns'], ctx['by_ent'], ctx['by_subject'], bound))
         for m in members[1:]:
             write(slug(m['file'], m['id']), redirect_page(page_path.split('/', 1)[1], name))
-    write('units/index.html', page('Units', _units_index(fams, rel), rel, 'units'))
+    write('units/index.html', page('Units', _units_index(fams, rel), rel, 'units', wide=True))
     named = [(n, ms[0]) for n, ms in fams.items() if _unit_group(ms) != 'helper']
     return fams, named
 

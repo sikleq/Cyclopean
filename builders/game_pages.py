@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import entity_icon, esc, page, plural, write
+from .common import EYE_MARK, entity_icon, esc, page, plural, write
 from .game_systems import (ALL_PREFIX, CONVAR_PREFIX, SECTION, is_template, merged_label, name_of, place,
                            place_all_row, place_entity, shown, system, systems)
 from .shared_rows import is_every
@@ -21,24 +21,27 @@ RAW_CONVARS = '@convars:raw'      # by_ent: every patch's console variable rows 
 
 
 def _heir_sigs(by_ent: dict, cat: dict) -> dict[tuple[str, str], set]:
-    """(file, patch id) -> {(path, old, new)} of the entries that are no template: a template's change one of its
-    heirs shows too is the heir's (trooper_base's shrine range is every trooper's)."""
+    """(file, patch id) -> the `game_systems.heir_sig` of the rows of the entries that are no template: a template's
+    change one of its heirs shows too is the heir's (trooper_base's shrine range is every trooper's); never an entry's
+    own coming and going (2026-06-30's pickup template removal was on no Breakables page, icon or cell)."""
+    from .game_systems import heir_sig
     out: dict[tuple[str, str], set] = defaultdict(set)
     for key, hist in by_ent.items():
         file, _, eid = key.partition(':')
         if not file.endswith('.vdata') or is_template(cat.get(key) or {'id': eid}):
             continue
         for row, ch in hist:
-            out[(file, row['id'])] |= {(c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) for c in ch}
+            out[(file, row['id'])] |= {s for c in ch for s in [heir_sig(file, c)] if s}
     return out
 
 
 def template_rows(key: str, hist: list, sigs: dict) -> list:
     """A template's history without the changes an heir shows: (patch row, rows) of the rest."""
+    from .game_systems import heir_sig
     file = key.partition(':')[0]
     out = []
     for row, ch in hist:
-        mine = [c for c in ch if (c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in sigs.get((file, row['id']), ())]
+        mine = [c for c in ch if heir_sig(file, c) not in sigs.get((file, row['id']), ())]
         if mine:
             out.append((row, mine))
     return out
@@ -150,10 +153,12 @@ def system_page(sys_id: str, parts: dict, hist: dict, by_subject: dict, cat: dic
                 description=f'Deadlock: every change to {sys_.name.lower()}, from the game files')
 
 
-def _stats(hist: dict, keys: list[str]) -> tuple[int, str]:
-    """(changes a player reads, the newest patch date) of a system: the history rows of its keys."""
+def _stats(hist: dict, keys: list[str]) -> tuple[int, str, int]:
+    """(changes a player reads, the newest patch date, how many of them the notes left out) of a system: the history
+    rows of its keys."""
     from .cards import player_facing
-    n, last = 0, ''
+    from .render import not_in_notes
+    n, last, hidden = 0, '', 0
     seen: set[tuple] = set()          # one edit over several entries counts once (the band, matrix and home icon)
     for k in keys:
         for row, ch in hist.get(k, ()):
@@ -161,9 +166,10 @@ def _stats(hist: dict, keys: list[str]) -> tuple[int, str]:
                     and (row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) not in seen]
             seen.update((row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows)
             n += len(rows)
+            hidden += sum(1 for c in rows if not_in_notes(c))
             if rows:
                 last = max(last, row['date'][:10])
-    return n, last
+    return n, last, hidden
 
 
 def index_page(entries: dict, hist: dict) -> str:
@@ -174,17 +180,20 @@ def index_page(entries: dict, hist: dict) -> str:
         parts = entries.get(s.id)
         if not parts:
             continue
-        n, last = _stats(hist, [k for got in parts.values() for k, _, _ in got])
-        # the date in the body font (dates are never in the pixel fonts)
-        when = f'<span class="last"><span class="d">last {esc(last)}</span></span>' if last else ''
+        n, last, hidden = _stats(hist, [k for got in parts.values() for k, _, _ in got])
+        # the date in the body font (dates are never in the pixel fonts); the eye with how many of the changes the
+        # notes left out (#44: the cards had none, the system pages say "N not in patch notes")
+        eye = f'<span class="gc-hid">{EYE_MARK}{hidden} not in notes</span>' if hidden else ''
+        when = f'<span class="last"><span class="d">last {esc(last)}</span>{eye}</span>' if last or eye else ''
         cards.append(f'<a class="card px-frame game-card" href="{esc(s.href)}" data-search="{esc(s.name.lower())}">'
                      f'{icon_html(s, rel)}<span class="nm">{esc(s.name)}</span>'
                      f'<span class="sub">{esc(plural(n, "change"))}</span>{when}</a>')
     body = ('<h1>Game</h1>' + section_tabs('index') +
             '<div class="toolbar"><input type="search" placeholder="System…" data-search-target=".game-card"></div>'
             f'<div class="grid units game-grid">{"".join(cards)}</div>')
-    return page('Game', body, rel, SECTION, description='Deadlock: every change to the game rules, map objects, '
-                                                         'souls, respawn and the Soul Urn, from the game files')
+    return page('Game', body, rel, SECTION, wide=True,            # one width for the section's tabs
+                description='Deadlock: every change to the game rules, map objects, souls, respawn and the Soul Urn, '
+                            'from the game files')
 
 
 def section_tabs(active: str) -> str:

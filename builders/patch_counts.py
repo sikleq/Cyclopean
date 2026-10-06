@@ -86,20 +86,17 @@ def drop_inherited(ents: list[dict], pages: frozenset[str] | set[str] | None = N
     page shows; an entity's own coming and going stays). The count and the patch page's All changes start here (review
     2026-10-05: City Never Sleeps' banner counted 15 such rows twice, Rat King's said 3 off the pages over two Game
     icons of one change each). Copies; an emptied template drops out. `pages`: `page_set`."""
-    from .game_systems import is_template
+    from .game_systems import heir_sig, heir_sigs, is_template
     from .shared_rows import catalog, entities as spread_all
     if pages is None:
         pages = page_set()
     cat = catalog()
-    heirs = {(x['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
-             for x in spread_all(ents) if not is_template(x) for c in x['changes']
-             if not str(c.get('path') or '').startswith('@')}
+    heirs = heir_sigs(spread_all(ents))
     out = []
     for e in ents:
         if (e.get('id') != '@shared' and e.get('key') not in pages
                 and is_template({**e, **cat.get(e.get('key'), {})})):
-            kept = [c for c in e['changes']
-                    if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in heirs]
+            kept = [c for c in e['changes'] if heir_sig(e['file'], c) not in heirs]
             if len(kept) != len(e['changes']):
                 if kept:
                     out.append({**e, 'changes': kept})
@@ -113,12 +110,21 @@ def counted_rows(p: dict, pages: frozenset[str] | set[str] | None = None) -> lis
     shows it); a console variable's row has no entity. The patch page's written notes ("Not in patch notes", "From
     the files") list exactly these, so a tab says the number it lists (review 2026-10-05: City Never Sleeps' tab
     said 360 over 353 lines — the console variables were counted, not listed)."""
+    return [(e, c, place == PAGE) for e, c, place, _ in _placed_rows(p, pages)]
+
+
+PAGE, GAME, ARCHIVE = 'page', 'game', 'archive'     # where a counted row is shown besides the patch archive
+
+
+def _placed_rows(p: dict, pages: frozenset[str] | set[str] | None = None):
+    """`counted_rows` with where each row is shown — PAGE (a hero / item / unit page), GAME (a Game system's page and
+    its home icon) or ARCHIVE (the patch archive only: a designers' test object no Game page lists) — and on how many
+    home icons a PAGE row sits (one edit over several heroes or units: on each of theirs, once in the count)."""
     from .cards import gameplay_entities, player_facing
     from .game_systems import place_all_row
     from .shared_rows import spread
     if pages is None:
         pages = page_set()
-    out: list[tuple[dict | None, dict, bool]] = []
     once: set[tuple] = set()
     for e in drop_inherited(gameplay_entities(p['entities']), pages):
         rows = player_facing(e['changes'])
@@ -126,6 +132,13 @@ def counted_rows(p: dict, pages: frozenset[str] | set[str] | None = None) -> lis
             continue
         group, on_page = _counted_as(e, pages)
         on_page = on_page and any(x['key'] in pages for x in spread(e))
+        if e.get('id') == '@shared' and not on_page and group not in (None, ALL_ROWS):
+            # one edit over map objects of several Game systems counts once in each, with the status of its first
+            # entry there — as those systems' pages and home icons show it (City Never Sleeps: the powerup spawner's
+            # copy, hidden, sat on the Pickups icon while the count took the block's "described" once, in Breakables)
+            yield from _by_system(e, once, group)
+            continue
+        icons = _icons(e, pages) if on_page else 0
         for c in rows:
             if group is not None:
                 # one edit over a unit family's members or a Game system's entries counts once, as their pages, the
@@ -135,27 +148,80 @@ def counted_rows(p: dict, pages: frozenset[str] | set[str] | None = None) -> lis
                 if sig in once:
                     continue
                 once.add(sig)
-            out.append((e, c, on_page))
+            yield e, c, PAGE if on_page else GAME if group is not None else ARCHIVE, icons
     # the console variables a game reads: the Game pages and the home icons show them, so they count (2026-09-16:
     # the banner said 8 off the pages, the Game icons 12; review 2026-10-05)
     from .game_systems import convar_changes, convar_start
     convars = (p.get('extras') or {}).get('convars') or []
     for c in player_facing(convar_changes(convars, convar_start())) if convars else ():
-        out.append((None, c, False))
-    return out
+        yield None, c, GAME, 0
+
+
+def _by_system(e: dict, once: set[tuple], group: str):
+    """An '@shared' block on map objects: its rows once per Game system its entries are in (the first entry's copy:
+    its own status, `shared_rows.spread`); the first system keeps the block as the row's entity (the archive's name
+    of what it covers), another names its entry. `group`: the block's system by `_counted_as` — its rows go there
+    when none of its entries but a template has a system (they were dropped then; review 2026-10-06)."""
+    from .cards import player_facing
+    from .game_systems import is_template, place_entity
+    from .shared_rows import catalog, spread
+    cat = catalog()
+    first = None
+    targets = spread(e)
+    # a template among them (citadel_punchable_powerup_base) is its heirs' — the block's other targets carry the edit
+    heirs = [x for x in targets if not is_template({**x, **cat.get(x['key'], {})})]
+    placed = []
+    for x in heirs or targets:
+        hit = place_entity(x['key'], {**x, **cat.get(x['key'], {})})
+        if hit:
+            placed.append((f'game:{hit[0]}', x, player_facing(x['changes'])))
+    for g, x, rows in placed or [(group, e, player_facing(e['changes']))]:
+        first = first or g
+        for c in rows:
+            sig = (g, c.get('label'), c.get('old_s'), c.get('new_s'))
+            if sig not in once:
+                once.add(sig)
+                yield (e if g == first else x), c, GAME, 0
+
+
+def _icons(e: dict, pages: frozenset[str] | set[str]) -> int:
+    """On how many home icons an entity's rows sit: one, or for an '@shared' block the pages of its targets (a unit
+    family's members are one page, a hero's abilities the hero's) and the Game systems of the targets no page shows
+    (one edit over 15 heroes' abilities and an ability no hero owns: 15 hero icons and Other rules & objects)."""
+    if e.get('id') != '@shared':
+        return 1
+    from .game_systems import place_entity
+    from .home_page import page_route
+    from .shared_rows import catalog, spread
+    cat = catalog()
+    icons = set()
+    for x in spread(e):
+        info = {**x, **cat.get(x['key'], {})}
+        where = page_route(x['key'], info, pages, unit_main())
+        hit = None if where else place_entity(x['key'], info)
+        if where or hit:
+            icons.add(where[0] if where else f'game:{hit[0]}')
+    return len(icons)
 
 
 def count(p: dict, pages: frozenset[str] | set[str] | None = None) -> dict[str, int]:
-    """{'changes': n, '<status>': n per status, 'not_in_notes': n, 'hidden_on_pages': n} of one patch. `pages`: the
-    keys the hero, item and unit pages show (`page_set`)."""
+    """{'changes': n, '<status>': n per status, 'not_in_notes': n, 'hidden_on_pages': n, 'hidden_archive': n,
+    'hidden_shared': n} of one patch. `pages`: the keys the hero, item and unit pages show (`page_set`).
+    `hidden_archive`: not in the notes and on no page but the patch archive's (no Game system lists it);
+    `hidden_shared`: not in the notes and on several home icons (an edit shared by several heroes or units counts once
+    here and on each of their icons — the home banner says how many, review 2026-10-06 #16)."""
     from .render import not_in_notes
     out: Counter = Counter()
-    for _, c, on_page in counted_rows(p, pages):
+    for _, c, place, icons in _placed_rows(p, pages):
         out['changes'] += 1
         out[c.get('status', 'hidden')] += 1
-        out['not_in_notes'] += not_in_notes(c)
-        out['hidden_on_pages'] += bool(on_page and not_in_notes(c))
-    return {'changes': 0, 'hidden': 0, 'not_in_notes': 0, 'hidden_on_pages': 0, **out}
+        hid = not_in_notes(c)
+        out['not_in_notes'] += hid
+        out['hidden_on_pages'] += bool(place == PAGE and hid)
+        out['hidden_archive'] += bool(place == ARCHIVE and hid)
+        out['hidden_shared'] += bool(icons > 1 and hid)
+    return {'changes': 0, 'hidden': 0, 'not_in_notes': 0, 'hidden_on_pages': 0, 'hidden_archive': 0,
+            'hidden_shared': 0, **out}
 
 
 @lru_cache(maxsize=None)
@@ -167,5 +233,6 @@ def for_id(pid: str) -> dict[str, int]:
 
 
 def off_pages(counts: dict[str, int]) -> int:
-    """How many of the changes not in the notes no hero, item or unit page shows (game rules, map objects)."""
-    return counts.get('not_in_notes', 0) - counts.get('hidden_on_pages', 0)
+    """How many of the changes not in the notes the Game section shows (game rules, map objects): no hero, item or
+    unit page does, and the patch archive is not the only place that lists them."""
+    return counts.get('not_in_notes', 0) - counts.get('hidden_on_pages', 0) - counts.get('hidden_archive', 0)

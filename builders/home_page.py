@@ -73,13 +73,13 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
     abilities no hero owns, a template's change no heir shows, a rule for every hero or ability — once —, console
     variables). Key of a Game row: 'game:<system>'."""
     from .cards import gameplay_entities
-    from .game_systems import (convar_changes, convar_start, is_template, name_of, part_name, place, place_all_row,
-                               place_entity)
+    from .game_systems import (convar_changes, convar_start, heir_sig, heir_sigs, is_template, name_of, part_name,
+                               place, place_all_row, place_entity)
     from .shared_rows import FOLD_FILES, catalog, entities as spread_all, own
     cat = catalog()
     spread = spread_all(gameplay_entities(p['entities']))
-    heirs = {(e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
-             for e in spread if not is_template(e) for c in e['changes']}
+    # what heirs carry, as the count reads it (game_systems.heir_sig: never an entity's own coming and going)
+    heirs = heir_sigs(spread)
     for e in spread:
         rows = own(e['changes'])
         info = {**e, **cat.get(e['key'], {})}
@@ -91,7 +91,7 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
         if not hit:
             continue
         if is_template(info):
-            rows = [c for c in rows if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in heirs]
+            rows = [c for c in rows if heir_sig(e['file'], c) not in heirs]
         yield {**e, 'what': name_of(e['key'], info)}, rows, f'game:{hit[0]}', 'game'
     rules: dict[tuple[str, str], tuple[dict, list[dict]]] = {}
     for e in gameplay_entities(p['entities']):
@@ -246,6 +246,14 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                 # (the Game index said nothing about the update)
                 eye += (f'<a class="au au-off" href="game/changes.html"><b>{off_pages(pc)}</b> of them in game rules '
                         f'&amp; map objects</a>')
+            # what makes the icons below add up to another number, said once (review 2026-10-06, #16): an edit shared
+            # by several heroes or units counts once here and on each of their icons; a designers' test object only
+            # the patch archive lists is on no icon
+            if pc.get('hidden_shared'):
+                eye += f'<span class="au au-shr"><b>{pc["hidden_shared"]}</b> of them on several icons</span>'
+            if pc.get('hidden_archive'):
+                eye += (f'<a class="au au-arch" href="patches/{esc(row["id"])}.html#changes"><b>{pc["hidden_archive"]}</b>'
+                        f' only in the patch archive</a>')
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
@@ -256,10 +264,13 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
     return ''.join(blocks) + f'<script type="application/json" class="feed-data">{blob}</script>'
 
 
-def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: list[str] = ()) -> str:
+def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: list[str] = (),
+           extra: dict[str, str] | None = None) -> str:
     """The four sections as big tiles (Sloppy's landing tiles, without blurbs). Game: its systems' icons that come
     from the game files (the site glyphs stay on its own pages). Items: shop icons (the shop's tab glyphs when
-    none are known)."""
+    none are known). A tile's number is what its index shows at first; `extra`: section -> what it shows behind a
+    switch, said apart ("+5 pre-release": the Heroes tile said 44 over an index of 39)."""
+    extra = extra or {}
     from .game_systems import icon_url, shown
     game_art = [u for u in (icon_url(s, '') for s in shown()) if u]
     item_art = (''.join(f'<img class="px" src="{esc(u)}" alt="" loading="lazy">' for u in items[:6]) if items else
@@ -271,8 +282,19 @@ def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: li
            'game': ''.join(f'<img src="{esc(u)}" alt="" loading="lazy">' for u in game_art[:6])}
     return '<div class="home-tiles">' + ''.join(
         f'<a class="htile px-frame {sec}" href="{sec}/index.html"><span class="ht-t">{title}</span>'
-        f'<span class="ht-n">{counts.get(sec, 0)}</span><span class="ht-art">{art[sec]}</span></a>'
+        f'<span class="ht-n">{counts.get(sec, 0)}'
+        f'{f"<span class=ht-x>{esc(extra[sec])}</span>" if extra.get(sec) else ""}</span>'
+        f'<span class="ht-art">{art[sec]}</span></a>'
         for sec, title in SECTIONS) + '</div>'
+
+
+def hero_tile(heroes: list[dict]) -> tuple[int, int]:
+    """(released heroes, pre-release ones): what the Heroes index shows at first and what waits behind its switch —
+    the tile said 44 over an index of 39 (review 2026-10-06). Hero Stats writes the state 'release' / 'prerelease',
+    the catalog 'EHeroDevState_Release' / '…_PreRelease'; any other state (in development, disabled) is on neither."""
+    def state(h: dict) -> str:
+        return str(h.get('state') or '').lower().replace('_', '').removeprefix('eherodevstate')
+    return sum(1 for h in heroes if state(h) == 'release'), sum(1 for h in heroes if state(h) == 'prerelease')
 
 
 def build_all() -> int:
@@ -295,7 +317,8 @@ def build_all() -> int:
     last_build = builds[-1] if builds else None
     # (a removed item's last known card, `last`, is no item on sale)
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item') and not c.get('last')]
-    counts = {'heroes': len(heroes),
+    n_released, n_pre = hero_tile(heroes)
+    counts = {'heroes': n_released,
               # what the shop sells now (the tiers 1-4 on the Shop page)
               'items': sum(1 for i in shop if not i.get('disabled') and not i.get('street_brawl')
                            and str(i.get('tier')) in '1234'),
@@ -331,7 +354,7 @@ def build_all() -> int:
     <a class="hs hidden" href="patches/index.html"><span class="n">{total_hidden}</span><span class="l">not in patch notes</span></a>
   </div>
 </div>
-{_tiles(counts, faces, unit_art, item_art)}
+{_tiles(counts, faces, unit_art, item_art, {'heroes': f'+{n_pre} pre-release' if n_pre else ''})}
 <h2 class="home-h">Latest changes</h2>
 {_feed(patches, names, templates, unit_main, page_set())}
 '''

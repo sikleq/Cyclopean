@@ -242,12 +242,14 @@
         // where the value was; a value that went says "removed" (a bare "—" read as no value)
         var firstStep = (h[2] === null || h[2] === undefined);
         var gone = (h[3] === null || h[3] === undefined);
+        // a step the patch notes left out (a sixth element 1: builders/stat_eyes.py) carries the site's eye
+        var eye = h[5] ? '<span class="mark hidden" role="img" aria-label="not in patch notes"></span>' : '';
         esc.textContent = h[1];
         html += '<li><span class="d">' + esc.innerHTML + '</span>' +
           '<span class="o">' + (firstStep ? '<i>added</i>' : fmtU(h[2], digits)) + '</span>' +
           '<span class="arrow">' + (firstStep ? '' : '→') + '</span>' +
           '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + (gone ? '<i>removed</i>' : fmtU(h[3], digits)) +
-          '</span><span class="p">' + pill + '</span></li>';
+          '</span><span class="p">' + pill + eye + '</span></li>';
       }
       html += '</ol>';
       tip.innerHTML = html;
@@ -316,14 +318,16 @@
       tip.style.top = Math.round(y) + 'px';
     }
     function show(el) {
-      var text = el.getAttribute('data-tooltip');
+      // an eye that links its proof writes its words once, as its aria-label (common.mark: data-tooltip is empty)
+      var text = el.getAttribute('data-tooltip') || el.getAttribute('aria-label');
       if (!text) return;
       current = el;
       tip.textContent = text;
       tip.classList.add('on');
       place(el);
     }
-    function hide() { current = null; tip.classList.remove('on'); }
+    // (a hidden tip disarms an eye link: its next tap shows the words again before it follows)
+    function hide() { current = null; armed = null; tip.classList.remove('on'); }
     document.addEventListener('mouseover', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
       if (el && el !== current) show(el);
@@ -338,9 +342,19 @@
     });
     document.addEventListener('focusout', hide);
     // touch: a tap fires mouseover and then click — the tap shows the text (never hides
-    // it again), a tap anywhere else hides it
+    // it again), a tap anywhere else hides it. An eye that opens its proof (a.mark: the build it came
+    // in, builders/evidence.py) shows its words on the first tap and follows the link on the second
+    var noHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
+    var armed = null;
     document.addEventListener('click', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      if (el && noHover && el.matches('a.mark[href]') && armed !== el) {
+        ev.preventDefault();
+        armed = el;
+        show(el);
+        return;
+      }
+      armed = null;
       if (el) { if (el !== current) show(el); } else if (current) hide();
     });
     window.addEventListener('scroll', hide, true);
@@ -496,8 +510,12 @@
         }
         if (!rows.length) return;
         if (heads && ref[0]) {
+          // a rule for all is counted apart from the tile's counts: its group says its own number
+          // (history_view.strip_data: the ref's fifth element), as the band's "+38 for all heroes" chip
+          var n = ref[4] ? total(g[1]) : 0;
           html += '<tr class="dt-grp"><td colspan="3">' + (ref[1] ? '<span class="dt-ic' + (ref[3] ? ' ult' : '') +
-            '"><img src="' + attr(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) + '</td></tr>';
+            '"><img src="' + attr(ref[1]) + '" alt=""></span>' : '') + txt(ref[0]) +
+            (n ? '<span class="dt-every">' + n + ' ' + (n === 1 ? 'change' : 'changes') + '</span>' : '') + '</td></tr>';
         }
         rows.forEach(function (s) {
           shown++;
@@ -519,7 +537,9 @@
       var foot = 'click to open this patch';
       if (!ab) {
         var top = rowsHtml(d, tile[5], function (s) { return s[5] < d.top; }, 99, true);
+        // the rows of rules for all the card lists are not in the tile's counts: "+N more" counts them too
         var n = total(tile[3]);
+        tile[5].forEach(function (g) { if (d.g[g[0]][4]) n += total(g[1]); });
         return card({ patch: tile[1], named: tile[2], counts: tile[3], net: tile[6], hidden: tile[4], d: d,
                       rows: top.html, more: n - top.shown, foot: foot });
       }
@@ -710,6 +730,7 @@
   /* the box is as wide as the name column + a whole number of patch columns, so at the right end the
      first visible column starts exactly at the sticky names (it opened with half a column under them) */
   safe('dyn-scroll', function () {
+    var FIT_MIN_W = 760, FIT_MIN_H = 360, FIT_GAP = 16;     // fitH: desktop only, never a box shorter than this
     document.querySelectorAll('table.dyn').forEach(function (t) {
       var sc = t.closest('.table-scroll');
       var box = sc && sc.parentNode;
@@ -726,26 +747,45 @@
         if (n > 0) box.style.maxWidth = Math.round(nw + n * w + chrome) + 'px';
       }
       function toEnd() { sc.scrollLeft = sc.scrollWidth; }
+      // on a desktop the box ends at the bottom of the first screen: its sideways scrollbar is in sight without
+      // scrolling the page first (at 1440x900 it sat ~190px under the fold, two scrollbars deep; low items,
+      // review 2026-10-06). A short screen or a phone keeps the CSS height (the screen minus the site bar)
+      function fitH() {
+        sc.style.maxHeight = '';
+        if (window.innerWidth < FIT_MIN_W) return;
+        var room = window.innerHeight - (sc.getBoundingClientRect().top + window.scrollY) - FIT_GAP;
+        if (room >= FIT_MIN_H && sc.scrollHeight > room) sc.style.maxHeight = Math.round(room) + 'px';
+      }
       fit();
+      fitH();
       toEnd();
+      // the toolbar above settles once the fonts and images are in: the box's top moves, so fit it again then
+      if (document.readyState !== 'complete') window.addEventListener('load', fitH, { once: true });
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitH);
       // only "Older patches" changes the width; "Buff vs nerf" and the rest leave the scroll alone
       var old = t.classList.contains('show-old');
       new MutationObserver(function () {
         var now = t.classList.contains('show-old');
         if (now !== old) { old = now; fit(); toEnd(); }
       }).observe(t, { attributes: true, attributeFilter: ['class'] });
-      // a resize keeps the user's place: a height-only one (a phone's URL bar hiding while the page
-      // scrolls) does nothing, a new width keeps the same distance from the newest end — re-scrolling to
-      // the end threw a reader of older patches back to the newest ones (review 2026-10-04)
+      // a resize keeps the user's place: a height-only one refits the box's height on a desktop (a taller or
+      // shorter window) and does nothing on a phone (its URL bar hiding while the page scrolls); a new width keeps
+      // the same distance from the newest end — re-scrolling to the end threw a reader of older patches back to the
+      // newest ones (review 2026-10-04)
       var pending = false, lastW = window.innerWidth;
       window.addEventListener('resize', function () {
-        if (pending || window.innerWidth === lastW) return;
+        if (pending) return;
+        if (window.innerWidth === lastW) {
+          if (window.innerWidth >= FIT_MIN_W) { pending = true; requestAnimationFrame(function () { pending = false; fitH(); }); }
+          return;
+        }
         pending = true;
         requestAnimationFrame(function () {
           pending = false;
           lastW = window.innerWidth;
           var gap = sc.scrollWidth - sc.scrollLeft - sc.clientWidth;
           fit();
+          fitH();
           sc.scrollLeft = Math.max(0, sc.scrollWidth - sc.clientWidth - gap);
         });
       });
