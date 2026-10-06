@@ -126,8 +126,15 @@ def fold_tier_swaps(changes: list[dict]) -> list[dict]:
         new = ', '.join(part(x, 'new_s') for x in cs if x.get('op') != 'remove')
         status = min((x.get('status', 'hidden') for x in cs), key=lambda s: _STATUS_WEIGHT.get(s, 9))
         out.append({'op': 'rework', 'cat': cs[0].get('cat'), 'label': f'T{t} upgrade', 'old_s': old,
-                    'new_s': new, 'status': status, 'grad': 8, 'folded': len(cs)})
+                    'new_s': new, 'status': status, 'grad': 8, 'folded': len(cs), **folded_source(cs)})
     return out
+
+
+def folded_source(rows: list[dict]) -> dict:
+    """Where a row folded from several came from: the builds of all of them and its entity's key (`src_key`), so
+    its eye still names and opens the build (evidence.row_evidence; a REWORK row had none)."""
+    builds = sorted({b for c in rows for b in c.get('builds') or () if isinstance(b, int)})
+    return {'builds': builds, 'src_key': rows[0].get('key') or rows[0].get('src_key')} if builds else {}
 
 
 CORRUPTED = 'm_CorruptedItemInfo'
@@ -190,7 +197,7 @@ def _fold_version(changes: list[dict], mine: list[dict], prefix: str, label: str
     row = {**head, 'op': op, 'cat': 'balance', 'label': label, 'path': path,
            'old_s': text if op == 'remove' else '', 'new_s': text if op == 'add' else '',
            'status': status, 'dir': 'changed', 'pct': None, 'folded': len(mine), 'bonus_list': True,
-           'shared': all(c.get('shared') for c in mine)}
+           'shared': all(c.get('shared') for c in mine), **folded_source(mine)}
     folded = {id(c) for c in mine}
     rest = [c for c in changes if id(c) not in folded]
     return rest[:first] + [row] + rest[first:]     # where the first bonus row was

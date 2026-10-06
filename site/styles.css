@@ -448,6 +448,8 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .mark.mismatch { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M7 2h2v8H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
 .mark.unmatched { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v2H5zM4 3h1v2H4zM10 4h2v2h-2zM8 6h3v2H8zM7 8h2v2H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
 .mark.hidden { color: var(--eye); filter: drop-shadow(0 0 4px var(--eye-glow)); }
+/* the eye that opens its proof (builders/evidence.py: the build page of the files it came in) lights up */
+a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }
 .mark.documented { color: var(--patina); }
 .mark.described { color: var(--text-dim); }
 .mark.mismatch { color: var(--tag-mismatch); }

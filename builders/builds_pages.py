@@ -4,6 +4,7 @@ from __future__ import annotations
 from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
                      patch_title_text, pretty_id, slug, write)
 from .cards import GAMEPLAY, facing_scope
+from .evidence import commit_url
 from .patches_pages import _changes_table, _loc_li, convar_li
 
 COSMETIC = ('visual', 'audio', 'ui', 'meta')
@@ -51,17 +52,13 @@ def cosmetics_section(build: int | None, rel: str) -> str:
             f'</summary><ul class="change-list">{rows}</ul></details>')
 
 
-def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
-    rel = '../'
+def page_entities(rec: dict) -> list[dict]:
+    """The record's entities as the build page lists them (in the record's order, before ENTITY_LIMIT): their
+    gameplay rows, an entity that came, went or came back as one event row. The eye on an entity page links into
+    this list (evidence.build_anchors), so both read it from here."""
     ents = []
-    cosmetic: dict[str, int] = {}
     for e in rec['entities']:
-        g = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
-        for c in e['changes']:
-            if c['cat'] in COSMETIC:
-                cosmetic[c['cat']] = cosmetic.get(c['cat'], 0) + 1
-        for c in g:
-            c.setdefault('status', 'raw')
+        g = [{**c, 'status': c.get('status', 'raw')} for c in e['changes'] if c['cat'] in GAMEPLAY]
         if g or e['status'] in ('added', 'removed', 'returned'):
             if e['status'] == 'added' and not g:
                 g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Added to game data', 'new_s': '', 'status': 'raw'}]
@@ -70,12 +67,26 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
             if e['status'] == 'removed':
                 g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': '', 'status': 'raw'}]
             ents.append({**e, 'changes': g})
+    return ents
+
+
+def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
+    rel = '../'
+    ents = page_entities(rec)
+    cosmetic: dict[str, int] = {}
+    for e in rec['entities']:
+        for c in e['changes']:
+            if c['cat'] in COSMETIC:
+                cosmetic[c['cat']] = cosmetic.get(c['cat'], 0) + 1
+    # the proof of every row: the tracker's own commit of this build (evidence.commit_url)
+    commit = (f' · <a href="{esc(commit_url(rec.get("build"), rec["commit"]))}" rel="noopener">tracker commit ↗</a>'
+              if rec.get('commit') else '')
     head = [f'<div class="crumbs"><a href="index.html">Builds</a> / {esc(build_label(rec["build"]))}</div>',
             f'<h1>{esc(build_label(rec["build"]))}</h1>',
             f'<div class="page-head"><div class="meta">Tracked {esc(rec["date"][:16].replace("T", " "))} UTC'
             f'{" · game build date " + esc(rec["version_date"]) if rec.get("version_date") else ""}'
             f'{" · part of <a href=" + chr(34) + rel + "patches/" + esc(patch["id"]) + ".html" + chr(34) + ">" + esc(patch_title_text(patch)) + "</a>" if patch else ""}'
-            f'</div></div>']
+            f'{commit}</div></div>']
     boxes = [
         ('', len(ents), 'entities with gameplay changes'),
         ('', sum(len(e['changes']) for e in ents), 'gameplay fields'),

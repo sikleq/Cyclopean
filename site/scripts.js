@@ -316,14 +316,16 @@
       tip.style.top = Math.round(y) + 'px';
     }
     function show(el) {
-      var text = el.getAttribute('data-tooltip');
+      // an eye that links its proof writes its words once, as its aria-label (common.mark: data-tooltip is empty)
+      var text = el.getAttribute('data-tooltip') || el.getAttribute('aria-label');
       if (!text) return;
       current = el;
       tip.textContent = text;
       tip.classList.add('on');
       place(el);
     }
-    function hide() { current = null; tip.classList.remove('on'); }
+    // (a hidden tip disarms an eye link: its next tap shows the words again before it follows)
+    function hide() { current = null; armed = null; tip.classList.remove('on'); }
     document.addEventListener('mouseover', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
       if (el && el !== current) show(el);
@@ -338,9 +340,19 @@
     });
     document.addEventListener('focusout', hide);
     // touch: a tap fires mouseover and then click — the tap shows the text (never hides
-    // it again), a tap anywhere else hides it
+    // it again), a tap anywhere else hides it. An eye that opens its proof (a.mark: the build it came
+    // in, builders/evidence.py) shows its words on the first tap and follows the link on the second
+    var noHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
+    var armed = null;
     document.addEventListener('click', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      if (el && noHover && el.matches('a.mark[href]') && armed !== el) {
+        ev.preventDefault();
+        armed = el;
+        show(el);
+        return;
+      }
+      armed = null;
       if (el) { if (el !== current) show(el); } else if (current) hide();
     });
     window.addEventListener('scroll', hide, true);

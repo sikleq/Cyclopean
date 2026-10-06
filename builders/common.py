@@ -119,12 +119,19 @@ def json_attr(name: str, value) -> str:
     return f" {name}='{html.escape(raw, quote=False).replace(chr(39), '&#x27;')}'"
 
 
-def mark(status: str, tip: str | None = None) -> str:
+def mark(status: str, tip: str | None = None, href: str | None = None, focusable: bool = True) -> str:
     """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it (`tip`: a
-    row's own words, e.g. when the change shipped silently after the patch)."""
+    row's own words — the build it came in, when it shipped silently after the patch). `href`: the mark is a link
+    to its proof (the eye opens the build page: evidence.row_evidence); its words are written once, as its
+    `aria-label` (the tooltip reads them there: an empty `data-tooltip`). `focusable=False`: out of the tab order —
+    a row's eye (a hero page has up to ~800), the band's banner eye is the keyboard's way to the proof."""
     if status not in STATUS_MARK:
         return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
-    return f'<span class="mark {status}" data-tooltip="{esc(tip or STATUS_MARK[status][1])}"></span>'
+    words = esc(tip or STATUS_MARK[status][1])
+    if href:
+        tab = '' if focusable else ' tabindex="-1"'
+        return f'<a class="mark {status}" href="{esc(href)}"{tab} data-tooltip aria-label="{words}"></a>'
+    return f'<span class="mark {status}" data-tooltip="{words}"></span>'
 
 
 @lru_cache(maxsize=1)

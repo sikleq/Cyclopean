@@ -7,13 +7,13 @@ from __future__ import annotations
 import difflib
 import re
 from contextlib import contextmanager
-from contextvars import ContextVar
 
 from pipeline import flags as flag_rules
 
 from .common import esc, mark, plural, visual
-from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold_versions, not_in_notes, shown_value,
-                     sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
+from .evidence import row_evidence
+from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold_versions, folded_source, not_in_notes,
+                     shown_value, sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
 from .shared_rows import is_every
 
 # documented is the normal case: no mark (a quiet row); every other status is an exception
@@ -24,38 +24,6 @@ ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', '
 def is_hidden(changes: list[dict]) -> bool:
     """Something here was not in the patch notes (the eye; `render.NOT_IN_NOTES`)."""
     return any(c.get('status', 'hidden') in NOT_IN_NOTES for c in changes)
-
-
-# the builds of the patch whose rows are being written: (the window's first build, build -> date); set by
-# `patch_builds` around one band (history_view), read by `change_row` for the eye's tooltip
-_PATCH_BUILDS: ContextVar[tuple[int, dict[int, str]] | None] = ContextVar('patch_builds', default=None)
-
-
-@contextmanager
-def patch_builds(builds: list[dict]):
-    """While a patch's rows are written: its builds ([{build, date}], oldest first), so a change that shipped in a
-    later build of the window than the patch itself says so (a silent hotfix: 1,389 rows; review 2026-10-05)."""
-    got = sorted((b for b in builds or () if b.get('build')), key=lambda b: b['build'])
-    tok = _PATCH_BUILDS.set((got[0]['build'], {b['build']: str(b.get('date') or '')[:10] for b in got})
-                            if got else None)
-    try:
-        yield
-    finally:
-        _PATCH_BUILDS.reset(tok)
-
-
-def hidden_tip(c: dict) -> str | None:
-    """The eye's words for one row: the default, or when it came in a later build of the patch's window than the
-    patch itself, "shipped silently <date>, build N" (the proof: that build's page and the tracker's commit)."""
-    ctx = _PATCH_BUILDS.get()
-    if ctx is None or c.get('status') != 'hidden':
-        return None
-    first, dates = ctx
-    builds = [b for b in c.get('builds') or () if isinstance(b, int)]
-    if not builds or min(builds) == first or min(builds) not in dates:
-        return None
-    b = min(builds)
-    return f'Not in the patch notes — shipped silently {dates[b]}, build {b}'
 
 
 def card_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], sub: str = '', trail: str = '',
@@ -96,11 +64,14 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
 
 
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
-        tip: str | None = None) -> str:
-    m = mark(status, tip) if status in ROW_MARKS else ''
-    # a row with words of its own on the eye (hidden_tip: "shipped silently …") keeps the eye where a band's rows
-    # show none (styles.css .all-hidden): the words are the proof
-    hid = (' is-hidden' if status in NOT_IN_NOTES else '') + (' late' if tip and m else '')
+        tip: str | None = None, href: str | None = None, late: bool | None = None) -> str:
+    """One change row. `tip` / `href`: the eye's own words and the build page it opens (evidence.row_evidence);
+    `late`: it shipped silently after the patch (None: when it has words of its own)."""
+    m = mark(status, tip, href, focusable=False) if status in ROW_MARKS else ''
+    # a row that shipped silently in a later build ("shipped silently …") keeps the eye where a band's rows show
+    # none (styles.css .all-hidden): the words are the proof
+    late = bool(tip) if late is None else late
+    hid = (' is-hidden' if status in NOT_IN_NOTES else '') + (' late' if late and m else '')
     return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
             f'<span class="tg">{tag}</span><span class="tx">{text_html}</span><span class="vv">{values_html}</span></div>')
 
@@ -138,7 +109,7 @@ def merge_renames(changes: list[dict]) -> list[dict]:
             if _same_shown(c.get('old_s'), a.get('new_s')) or (
                     x is not None and y is not None and (x == y or abs(x / UNITS_PER_METER - y) < 0.01)):
                 continue            # same value under a new key (or the same length now in metres)
-            merged = {**a, 'op': 'change', 'old_s': c.get('old_s'), 'old': c.get('old'),
+            merged = {**a, **folded_source([c, a]), 'op': 'change', 'old_s': c.get('old_s'), 'old': c.get('old'),
                       'status': min((a.get('status', 'hidden'), c.get('status', 'hidden')),
                                     key=lambda s: s not in HIDDEN_LIKE)}
             if x is not None and y is not None:
@@ -471,8 +442,9 @@ def change_row(c: dict) -> str:
     # a replaced tier lists both bonus sets: they go on their own full-width line under the
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
+    tip, href, late = row_evidence(c)        # the eye names the build it came in and opens it
     return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra,
-               tip=hidden_tip(c))
+               tip=tip, href=href, late=late)
 
 
 def shared_chip(c: dict) -> str:
@@ -578,7 +550,13 @@ def _family_row(fam: str, group: list[dict]) -> str:
     status = min((c.get('status', 'hidden') for c in group), key=lambda s: s not in HIDDEN_LIKE)
     inner = ''.join(change_row(c) for c in group)
     vals = f'<span class="vals fam-span">{esc(span)}</span>' if span else ''
-    head = row(status, tag_html(rep), f'{esc(label)} <span class="fam-n">· {len(group)} rows</span>', vals, 'fam-head')
+    # the summary's eye names the builds its rows not in the notes came in; it links nothing (a click on a summary
+    # folds the rows, whose own eyes link their build)
+    out = [c for c in group if c.get('status', 'hidden') in NOT_IN_NOTES]
+    tip, href, late = (row_evidence({**out[0], 'status': status, **folded_source(out)}, link=False) if out
+                       else (None, None, False))
+    head = row(status, tag_html(rep), f'{esc(label)} <span class="fam-n">· {len(group)} rows</span>', vals, 'fam-head',
+               tip=tip, href=href, late=late)
     hid = ' has-hidden' if is_hidden(group) else ''
     return f'<details class="fam{hid}"><summary>{head}</summary>{inner}</details>'
 
