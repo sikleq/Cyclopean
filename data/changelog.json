@@ -1,6 +1,19 @@
 [
   {
     "date": "2026-10-06",
+    "title": "Eye links to build pages, game systems show all hidden changes, unit resists and speeds in metres",
+    "items": [
+      "Click the eye on any change to open the game build whose files show that change — the build page links the tracker commit.",
+      "The eye now shows on history squares of ability cards, in every number in Hero/Item/Unit Stats and Game rules, and on Game system cards.",
+      "Changes Valve did announce for jump pads, ziplines, the Urn, soul sharing and other game systems are no longer marked missing from patch notes.",
+      "Air and fall speeds, soul orb and powerup speeds, and pickup radii now read in metres per second or metres; a stat moved to another field shows as one change (Spirit Power 7 → 8), and on/off settings read 'now' or 'no longer'.",
+      "Unit Stats now shows Bullet Resist, Spirit Resist and Sight Range columns for all units.",
+      "The home page counts match the Game section: game rules match what the Game icons show, and the banner explains when an edit shared by several heroes appears on multiple icons.",
+      "Smaller fixes: name and description changes carry a TEXT badge, sortable table headers show arrows, the change matrices fit the screen, every tab section has the same width, the Heroes tile counts released heroes, and note-card icons load after the page."
+    ]
+  },
+  {
+    "date": "2026-10-06",
     "title": "Description numbers, alt fire stats, net buff/nerf marks, and game art for systems",
     "items": [
       "Ability and item description changes now show the real numbers the game printed before and after the patch (\"-17s Cooldown → +1s Sleep Duration\") instead of placeholders like \"[Ability Cooldown]\".",
