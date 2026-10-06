@@ -14,14 +14,16 @@ import re
 from dataclasses import dataclass
 from functools import lru_cache
 
+from pipeline import game_map
+# one rule for the pages and the matcher (pipeline/game_map.py)
+from pipeline.game_map import claimed, convar_start, is_decor, is_dev, is_template  # noqa: F401
+
 from .common import ICONS, icon_manifest, load_json, pretty_id, visual
 
 CONFIG = 'overrides/game_systems.json'
 CONVAR_PREFIX = 'convars:'          # by_ent key of a console variable's rows ('convars:citadel_koth_warning_time')
 ALL_PREFIX = 'game:all:'            # by_ent key of a patch's rules for every hero / ability ('game:all:heroes.vdata')
 SECTION = 'game'
-# files whose entries can be a page's: everything else is the Game's whatever its id
-PAGE_FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata')
 
 
 @dataclass(frozen=True)
@@ -76,49 +78,13 @@ def part_name(sid: str, pid: str) -> str:
 
 
 def place(subject: str) -> tuple[str, str] | None:
-    """(system id, part id) of a subject — 'file:id#kind', 'file:@all:path' or 'convar:name' — or None."""
-    for s in systems():
-        for p in s.parts:
-            if any(rx.match(subject) for rx in p.rules):
-                return s.id, p.id
-    return None
+    """(system id, part id) of a subject — 'file:id#kind', 'file:@all:path' or 'convar:name' — or None (the
+    matcher's own rule: pipeline.game_map.place)."""
+    return game_map.place(subject)
 
 
 def entity_subject(key: str, kind: str | None) -> str:
     return f'{key}#{kind or ""}'
-
-
-def is_template(e: dict) -> bool:
-    """An engine template (trooper_base, hero_base, the breakables' prop base): no player meets it, its heirs do."""
-    return bool(e.get('template')) or str(e.get('id', '')).endswith('_base')
-
-
-def claimed(e: dict) -> bool:
-    """A hero, item or unit page shows this entry (catalog row or patch entity): a hero and its abilities and gun,
-    a shop item ('upgrade_*'), an NPC and the abilities it binds. Templates never."""
-    file, eid = e.get('file'), str(e.get('id', ''))
-    if file not in PAGE_FILES or is_template(e):
-        return False
-    if file in ('heroes.vdata', 'npc_units.vdata'):
-        return True
-    return bool(e.get('owner')) or bool(e.get('units')) or (e.get('kind') == 'item' and eid.startswith('upgrade_'))
-
-
-def is_decor(e: dict) -> bool:
-    """The city's traffic, glass panes, team and outline colours (classify.decor_entity): scenery, no page's. A
-    shared edit spread over the breakable props lands on the cars too."""
-    from pipeline.classify import decor_entity
-    return e.get('file') in DECOR_FILES and decor_entity(str(e.get('id', '')))
-
-
-DECOR_FILES = ('misc.vdata', 'generic_data.vdata')
-# the designers' test objects (review 2026-10-05: "Item projectile test 01, … + 4 more" led the Shop page, "Herotest
-# orbspawner" sat on Souls): no player meets them. Not "dummy" — the Hero Labs target dummy is real
-_DEV_ID = re.compile(r'herotest|(?:^|_)test(?:_|\d|$)|projectile_test|(?:^|_)debug(?:_|$)')
-
-
-def is_dev(e: dict) -> bool:
-    return bool(_DEV_ID.search(str(e.get('id', ''))))
 
 
 def place_entity(key: str, e: dict, pages: set[str] | frozenset[str] | None = None) -> tuple[str, str] | None:
@@ -315,13 +281,6 @@ def convar_changes(rows: list[dict], start_build: int | None) -> list[dict]:
         builds = sorted({cv.get('build') for cv in rows if cv.get('name') == name and cv.get('build')})
         out.append(convar_change(name, op, old, new, a.get('status') or b.get('status'), builds))
     return out
-
-
-@lru_cache(maxsize=1)
-def convar_start() -> int | None:
-    """The first build with console variables (6395, 2026-03-10: the tracker began dumping them): a snapshot of all
-    1,365 of them, not changes."""
-    return next((b['build'] for b in load_json('builds/index.json') if b.get('convars')), None)
 
 
 def merged_label(names: list[str]) -> str:

@@ -124,7 +124,7 @@ def build() -> dict:
             elif e['file'] == 'npc_units.vdata':
                 e['name'] = loc.unit_name(tok, e['id'], {'m_sLocUnitName': e.get('loc_key', '')})
             else:
-                e['name'] = loc.entity_name(tok, e['id'], e.get('owner'))
+                e['name'] = _DEPRECATED.sub('', loc.entity_name(tok, e['id'], e.get('owner'))).strip() or e['id']
     for e in ents.values():
         e['last'] = e['last'][:2]
     # (not a gun: its text is its hero's, so an old variant would take the hero's gun name today)
@@ -139,7 +139,9 @@ def build() -> dict:
     return data
 
 
-_DEPRECATED = re.compile(r'^\s*\[deprecated\]\s*|\s*-\s*deprecated\s*$', re.I)
+# Valve's marks on a dead entry's name, not the name: "[Deprecated] …", "… - Deprecated", "Majestic Leap - Disabled"
+# (the old Majestic Leap read so on its page beside the live one; #39 — it is "Majestic Leap (old)" by dead_namesakes)
+_DEPRECATED = re.compile(r'^\s*\[deprecated\]\s*|\s*-\s*(?:deprecated|disabled)\s*$', re.I)
 
 
 def name_in(tok: dict[str, str], e: dict) -> str | None:

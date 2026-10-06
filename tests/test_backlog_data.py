@@ -1,0 +1,409 @@
+"""Data / pipeline backlog of the review rounds (2026-10-06).
+
+- The matcher reaches what Valve announced about the Game: a game system the line names ("Jump Pad", "Zip Line",
+  "Urn", "Bounty") brings its entries no page claims and its console variables, an added variable included; a number
+  list matches a line that gives it element by element ("1/0.65/0.28 → 1/0.54/0.36"); an interface word next to an
+  entity whose files moved no longer ends the line before it is matched (#47.2)."""
+from pipeline import game_map
+from pipeline.match import MChange, annotate_line, list_match, names_other_stat, system_pools, words
+
+
+def _mc(file, eid, path, old, new, label, op='change', kind='global', **kw) -> MChange:
+    return MChange(file, eid, path, op, old, new, 'balance', kind, None, label, False, **kw)
+
+
+def _by_ent(changes):
+    out = {}
+    for c in changes:
+        out.setdefault(f'{c.file}:{c.eid}', []).append(c)
+    return out
+
+
+def _cat(*keys_kinds):
+    return {k: {'file': k.split(':', 1)[0], 'id': k.split(':', 1)[1], 'kind': kind} for k, kind in keys_kinds}
+
+
+# ---- 1. game systems, lists, added console variables --------------------------------------------------------------
+
+def test_a_line_naming_a_game_system_reaches_its_nameless_entry():
+    """"Jump Pad stun window increased from 0.6s to 0.9s" (2025-11-21) is the catapult watcher's Duration: the entry
+    has no name and its label shares no word with the line — it kept the eye."""
+    watcher = _mc('modifiers.vdata', 'modifier_citadel_catapult_damage_watcher', 'm_flDuration', 0.6, 0.9, 'Duration',
+                  kind='modifier')
+    other = _mc('abilities.vdata', 'ability_x', 'm_flSomething', 0.6, 0.9, 'Something', kind='ability')
+    changes = [watcher, other]
+    cat = _cat(('modifiers.vdata:modifier_citadel_catapult_damage_watcher', 'modifier'),
+               ('abilities.vdata:ability_x', 'ability'))
+    by_ent = _by_ent(changes)
+    pools = system_pools(by_ent, cat)
+    assert 'modifiers.vdata:modifier_citadel_catapult_damage_watcher' in pools['combat']
+    res = annotate_line('Jump Pad stun window increased from 0.6s to 0.9s', changes, by_ent, {}, cat, {}, None, pools)
+    assert res['status'] == 'documented' and res['changes'] == [watcher.key]
+    assert watcher.status == 'documented' and other.status == 'hidden'
+
+
+def test_a_system_entry_that_names_another_stat_is_not_the_lines():
+    """"Movement Speed powerup movespeed reduced from 2 to 1" is not the stamina powerup's Extra Stamina 2 -> 1."""
+    stamina = _mc('misc.vdata', 'extra_stamina_pickup', 'm_sModifer.m_vecScriptValues{X}.m_value', 2, 1,
+                  'Effect › Extra Stamina')
+    assert names_other_stat(stamina, words('Movement Speed powerup movespeed reduced from 2 to 1'))
+    assert not names_other_stat(stamina, words('Stamina powerup reduced from 2 to 1'))
+    by_ent = _by_ent([stamina])
+    cat = _cat(('misc.vdata:extra_stamina_pickup', 'global'))
+    pools = system_pools(by_ent, cat)
+    res = annotate_line('Movement Speed powerup movespeed reduced from 2 to 1', [stamina], by_ent, {}, cat, {}, None,
+                        pools)
+    assert res['status'] == 'unmatched' and stamina.status == 'hidden'
+
+
+def test_a_line_without_numbers_links_no_system_entry_by_a_word():
+    """A system holds dozens of entries: "Added Dash Speed to the Vitality stat screen" took the zipline's Latch
+    End Speed when words could reach them."""
+    latch = _mc('abilities.vdata', 'citadel_ability_zip_line', 'm_mapAbilityProperties.LatchEndSpeed.m_strValue',
+                None, 5, 'Latch End Speed', op='add', kind='shared')
+    by_ent = _by_ent([latch])
+    cat = _cat(('abilities.vdata:citadel_ability_zip_line', 'shared'))
+    pools = system_pools(by_ent, cat)
+    assert pools, 'the zipline is a Movement & combat entry'
+    res = annotate_line('Added Dash Speed to the Vitality stat screen', [latch], by_ent, {}, cat, {}, None, pools)
+    assert res['status'] != 'described' and latch.status == 'hidden'
+
+
+def test_a_number_list_matches_the_line_that_lists_it():
+    split = _mc('generic_data.vdata', 'm_flTrooperKillGoldShareFrac', 'value', (1, 0.65, 0.28, 0.15, 0.12, 0.08),
+                (1, 0.54, 0.36, 0.25, 0.2, 0.16), 'value')
+    pairs = [(1, 1), (0.65, 0.54), (0.28, 0.36), (0.15, 0.25), (0.12, 0.2), (0.08, 0.16)]
+    assert list_match(split, pairs)
+    assert not list_match(split, pairs[:5])                     # another length is another list
+    # percents for fractions, rounded by the notes: "100/70/45/33%" for 1 / 0.7 / 0.45 / 0.333
+    share = _mc('generic_data.vdata', 'm_flPostLanePhaseGoldShareFrac', 'value', (1, 0.7, 0.45, 0.333),
+                (1, 0.6, 0.35, 0.25), 'value')
+    assert list_match(share, [(100, 100), (70, 60), (45, 35), (33, 25)], rel=0.1)
+    # an entry the notes skip because it stayed (0 enemies: 0%)
+    walker = _mc('npc_units.vdata', 'npc_boss_tier2', 'm_NearbyEnemyResist.m_flResistValues', (0, 0, 8, 16),
+                 (0, 0, 0, 20), 'Nearby Enemy Resist › Resist Values')
+    assert list_match(walker, [(0, 0), (8, 0), (16, 20)])
+
+
+def test_the_bounty_split_line_is_the_list_of_its_system():
+    split = _mc('generic_data.vdata', 'm_flTrooperKillGoldShareFrac', 'value', (1, 0.65, 0.28, 0.15, 0.12, 0.08),
+                (1, 0.54, 0.36, 0.25, 0.2, 0.16), 'value')
+    by_ent = _by_ent([split])
+    cat = _cat(('generic_data.vdata:m_flTrooperKillGoldShareFrac', 'global'))
+    pools = system_pools(by_ent, cat)
+    res = annotate_line('Trooper bounty split ratios updated from 1/0.65/0.28/0.15/0.12/0.08 to '
+                        '1/0.54/0.36/0.25/0.2/0.16', [split], by_ent, {}, cat, {}, None, pools)
+    assert res['status'] == 'documented' and res['changes'] == [split.key]
+
+
+def test_an_added_console_variable_of_a_named_system_matches():
+    """"Unstable Rift spawn interval increased from every 6 minutes to every 7 minutes" (2026-06-30) is
+    citadel_koth_respawn_interval, added at 420 seconds."""
+    cv = MChange('convars', 'citadel_koth_respawn_interval', 'citadel_koth_respawn_interval', 'add', None, '420',
+                 'balance', 'global', None, 'koth respawn interval', False)
+    assert game_map.convar_system(cv.eid) == 'urn'
+    by_ent = _by_ent([cv])
+    pools = system_pools(by_ent, {})
+    res = annotate_line('Unstable Rift spawn interval increased from every 6 minutes to every 7 minutes', [cv],
+                        by_ent, {}, {}, {}, None, pools)
+    assert res['status'] in ('documented', 'rounded') and cv.status == 'documented'
+
+
+def test_system_phrases_prefer_the_longer_name():
+    assert game_map.phrases_in('Jump Pads now launch higher')[0] == ('jump pad', 'combat')
+    found = [p for p, _ in game_map.phrases_in('Soul Urn bounty')]
+    assert 'soul urn' in found and 'urn' not in found and 'soul' not in found
+
+
+def test_a_system_entry_with_one_number_and_no_word_of_the_line_is_not_its_match():
+    """Review: a field that only took the line's new value (an add) or moved by its percent, sharing no word, linked
+    whole systems ("Crate respawn time increased from 20 to 25" took any crate field added at 25)."""
+    added = _mc('misc.vdata', 'citadel_breakable_prop_vase', 'm_flFoo', None, 25, 'Foo Bar', op='add')
+    moved = _mc('misc.vdata', 'citadel_breakable_prop_vase', 'm_flBaz', 10, 12, 'Baz Qux')
+    cat = _cat(('misc.vdata:citadel_breakable_prop_vase', 'global'))
+    for line, c in (('Crate respawn time increased from 20 to 25', added), ('Crate respawn time increased by 20%', moved)):
+        by_ent = _by_ent([c])
+        res = annotate_line(line, [c], by_ent, {}, cat, {}, None, system_pools(by_ent, cat))
+        assert res['status'] == 'unmatched' and c.status == 'hidden', line
+
+
+def test_a_rounded_list_of_a_system_is_matched_end_to_end():
+    share = _mc('generic_data.vdata', 'm_flPostLanePhaseGoldShareFrac', 'value', (1, 0.7, 0.45, 0.333, 0.25, 0.2),
+                (1, 0.6, 0.35, 0.25, 0.2, 0.16), 'value')
+    by_ent = _by_ent([share])
+    cat = _cat(('generic_data.vdata:m_flPostLanePhaseGoldShareFrac', 'global'))
+    res = annotate_line('Soul Sharing ratios post-lane reduced from 100/70/45/33/25/20% to 100/60/35/25/20/16%',
+                        [share], by_ent, {}, cat, {}, None, system_pools(by_ent, cat))
+    assert res['status'] in ('documented', 'rounded') and res['changes'] == [share.key]
+
+
+def test_an_interface_line_about_a_moved_ability_is_matched():
+    """#47.2: "Added keybinds for "Fly Up" and "Fly Down". Used for flying abilities like Ivy's Air Drop" names an
+    ability whose flight controls came in that window; the interface word ended the line as untracked."""
+    fly = _mc('abilities.vdata', 'citadel_ability_tengu_airlift', 'm_bUsesFlightControls', None, True,
+              'Uses Flight Controls', op='add', kind='ability')
+    fly.cat = 'mechanic'
+    idx = {'air drop': ['abilities.vdata:citadel_ability_tengu_airlift']}
+    cat = {'abilities.vdata:citadel_ability_tengu_airlift': {'file': 'abilities.vdata', 'id': 'citadel_ability_tengu_airlift',
+                                                              'kind': 'ability', 'owner': 'hero_tengu'}}
+    res = annotate_line('Added keybinds for "Fly Up" and "Fly Down". Used for flying abilities like Ivy\'s Air Drop '
+                        'and its flight', [fly], _by_ent([fly]), idx, cat, {})
+    assert res['status'] == 'described' and fly.status == 'described'
+    # an interface line about nothing that moved still ends early (annotate() calls it untracked)
+    res = annotate_line('Added keybinds for the scoreboard', [fly], _by_ent([fly]), idx, cat, {})
+    assert res['status'] == 'unmatched' and not res['changes']
+
+
+# ---- 2. engine-unit speeds ----------------------------------------------------------------------------------------
+
+def test_capped_and_killer_plane_speeds_read_in_metres_per_second():
+    """#13: Air / Fall Speed Max, the soul orbs' Killer Plane speeds, a modifier's speed bonus, the hook's return
+    speed and a growing value's base were engine units ("Air Speed Max 150 → 161.42" is the notes' 3.8 → 4.1 m/s)."""
+    from pipeline import semantics as s
+
+    def shown(path, v, kind='ability', eid='ability_x'):
+        d = s.describe(path, {}, eid, kind)
+        meters = s.M_SPEED if d.get('speed_m') and not d['meters'] else d['meters']
+        return s.show(v, meters, d.get('unit', ''))
+    assert shown('m_mapAbilityProperties.AirSpeedMax.m_strValue', '161.42') == '4.1m/s'
+    assert shown('m_mapAbilityProperties.FallSpeedMax.m_strValue', '30') == '0.762m/s'
+    assert shown('m_mapAbilityProperties.FallSpeedMax.m_strValue', '1m') == '1m/s'       # written in m: m/s
+    assert shown('m_flKillerPlaneHorizontalSpeedX', 65, 'global', 'xp_orb_spawner') == '1.65m/s'
+    assert shown('m_flKillerPlaneVerticalSpeed', 50, 'global', 'xp_orb_trooper') == '1.27m/s'
+    assert shown('m_sModifer.m_vecScriptValues{MODIFIER_VALUE_SPRINT_SPEED_BONUS}.m_value', 118.11, 'global',
+                 'movement_powerup_pickup') == '3m/s'
+    assert shown('m_SpeedBonusModifier.m_vecScriptValues{MODIFIER_VALUE_MOVEMENT_SPEED_MAX}.m_value', 118.11,
+                 'modifier', 'citadel_modifier_teleporter') == '3m/s'
+    assert shown('m_TargetModifier.m_flReturnSpeed', 2200) == '55.88m/s'
+    assert shown('m_flMaxMovespeed', 600) == '15.24m/s'
+    assert shown('m_flPickupRadius.m_flBase', 85, 'global', 'small_gold_pickup') == '2.16m'
+    assert shown('m_flPickupExpirationDuration.m_flBase', 30, 'global', 'small_gold_pickup') == '30s'
+    # still not travel: a percent, a slow, a decay rate, a start minute
+    assert shown('m_sModifer.m_vecScriptValues{MODIFIER_VALUE_ZIP_LINE_SPEED_PERCENTAGE}.m_value', 30, 'global',
+                 'movement_powerup_pickup') == '30%'
+    assert shown('m_flKillerPlaneHorizontalDecayRate', 15, 'global', 'xp_orb_trooper') == '15'
+    assert shown('m_flPickupRadius.m_flStartMinute', 10, 'global', 'small_gold_pickup') == '10'
+    assert s.engine_unit('m_flInitialOffsetLerpBias') is False and s.engine_unit('m_flTurnRate') is False
+
+
+# ---- 3. a stat moved to another field: one row ---------------------------------------------------------------------
+
+def _row(path, op, old_s, new_s, label, key='abilities.vdata:upgrade_x', **kw):
+    return {'key': f'{key}:{path}', 'path': path, 'op': op, 'old_s': old_s, 'new_s': new_s, 'label': label,
+            'status': 'hidden', 'cat': 'balance', 'dir': 'changed', **kw}
+
+
+def test_a_stat_that_moved_to_another_field_is_one_changed_row():
+    """#12.8: Thermal Detonator's "Spirit Power" left TechPower (7 → 0) for SpiritPower (— → 8): two rows "· old
+    field / · new field"; Headshot Booster's cooldown left HeadShotCooldown (5s → —) for AbilityCooldown (0s → 7s)."""
+    from builders.cards import merge_renames
+    rows = merge_renames([_row('m_mapAbilityProperties.TechPower.m_strValue', 'change', '7', '0', 'Spirit Power'),
+                          _row('m_mapAbilityProperties.SpiritPower.m_strValue', 'add', '', '8', 'Spirit Power')])
+    assert len(rows) == 1 and (rows[0]['old_s'], rows[0]['new_s'], rows[0]['op']) == ('7', '8', 'change')
+    assert rows[0]['dir'] == 'buff'
+    rows = merge_renames([_row('m_mapAbilityProperties.AbilityCooldown.m_strValue', 'change', '0s', '7s', 'Cooldown'),
+                          _row('m_mapAbilityProperties.HeadShotCooldown.m_strValue', 'remove', '5s', '', 'Cooldown')])
+    assert len(rows) == 1 and (rows[0]['old_s'], rows[0]['new_s']) == ('5s', '7s') and rows[0]['dir'] == 'nerf'
+    # the same value under the new field is no change at all
+    assert merge_renames([_row('m_mapAbilityProperties.TetherDistance.m_strValue', 'remove', '16m', '', 'Range'),
+                          _row('m_mapAbilityProperties.AbilityCastRange.m_strValue', 'change', '0m', '16m',
+                               'Range')]) == []
+    # a share now written as a percent in its "…Pct" successor (Mo & Krill, 2025-08-22)
+    assert merge_renames([_row('m_mapAbilityProperties.NonPlayerResourceScale.m_strValue', 'remove', '0.35', '',
+                               'Scale'),
+                          _row('m_mapAbilityProperties.NonPlayerResourceScalePct.m_strValue', 'add', '', '35%',
+                               'Scale')]) == []
+
+
+def test_rows_of_no_or_two_entities_are_never_one_moved_stat():
+    """Review: a build page's card holds rows without a key — "Cooldown 5s → 0s" and "Cooldown 0s → 7s" of two
+    entries made one row."""
+    from builders.cards import merge_renames
+    rows = [_row('m_mapAbilityProperties.A.m_strValue', 'change', '5s', '0s', 'Cooldown'),
+            _row('m_mapAbilityProperties.B.m_strValue', 'change', '0s', '7s', 'Cooldown')]
+    keyless = [{k: v for k, v in r.items() if k != 'key'} for r in rows]
+    assert len(merge_renames(keyless)) == 2
+    two = [rows[0], {**rows[1], 'key': 'abilities.vdata:upgrade_y:m_mapAbilityProperties.B.m_strValue'}]
+    assert len(merge_renames(two)) == 2
+
+
+def test_a_moved_effect_field_keeps_buff_or_nerf():
+    """An effect (modifiers.vdata) is judged BUFF / NERF like enrich judges it; a unit's field UP / DOWN."""
+    from builders.cards import merge_renames
+    key = 'modifiers.vdata:modifier_x'
+    rows = merge_renames([_row('m_flOldDuration', 'remove', '5s', '', 'Duration', key=key),
+                          _row('m_flNewDuration', 'add', '', '7s', 'Duration', key=key)])
+    assert len(rows) == 1 and rows[0]['dir'] in ('buff', 'nerf', 'changed') and rows[0]['dir'] not in ('up', 'down')
+
+
+def test_a_tier_bonus_moved_to_another_property_stays_two_rows():
+    """Drifter's T3 left Damage (0.4 → 0) for DamageHeavyMelee (— → 0.55): a swap of what it buffs, not one stat."""
+    from builders.cards import merge_renames
+    rows = merge_renames([_row('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{Damage}.m_strBonus', 'change', '0.4',
+                               '0', 'T3: Damage'),
+                          _row('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{DamageHeavyMelee}.m_strBonus', 'add', '',
+                               '0.55', 'T3: Damage')])
+    assert len(rows) == 2
+
+
+def test_a_troopers_resist_against_one_foe_is_a_percent():
+    from pipeline import semantics
+    d = semantics.describe('m_VSWalker.m_flDamageResist', {}, 'trooper_base', 'trooper')
+    assert d['label'] == 'Damage Resist vs Walker' and semantics.show(80, d['meters'], d['unit']) == '80%'
+
+
+# ---- 4. lists of named entries: by entry, not by position ---------------------------------------------------------
+
+def test_a_named_entries_list_is_keyed_by_the_entry():
+    from pipeline.match import keyed_list
+    crate = {'m_vecPrimaryPickups': [{'m_sPickup': 'hp_permanent_pickup', 'm_flPickupWeight': 2},
+                                     {'m_sPickup': 'small_gold_pickup', 'm_flPickupWeight': 1}]}
+    assert keyed_list(crate, 'm_vecPrimaryPickups') == {
+        'm_vecPrimaryPickups{hp_permanent_pickup}.m_flPickupWeight': 2,
+        'm_vecPrimaryPickups{small_gold_pickup}.m_flPickupWeight': 1}
+    assert keyed_list({'other': 1}, 'm_vecPrimaryPickups') == {}            # the list came or went whole
+    twice = {'m_vecPrimaryPickups': [{'m_sPickup': 'a'}, {'m_sPickup': 'a'}]}
+    assert keyed_list(twice, 'm_vecPrimaryPickups') is None                # a name twice: positions are the key
+    lanes = [{'m_strLaneName': 'Blue', 'm_bIsEnemyLane': False}]          # a generic_data entry is a bare list
+    assert keyed_list(lanes, 'value') == {'value{Blue}.m_bIsEnemyLane': False}
+
+
+def test_an_entry_inserted_in_a_list_shifts_no_later_row(monkeypatch):
+    """#12.6 / #41: one pickup inserted at #2 read "Primary Pickups #2 › Pickup: B → X", "#3: C → B", … — every later
+    entry as a change. Keyed by the entries' names it is one new entry."""
+    from pipeline import match
+    before = {'crate': {'m_vecPrimaryPickups': [{'m_sPickup': 'a', 'm_flPickupWeight': 1},
+                                                {'m_sPickup': 'b', 'm_flPickupWeight': 1},
+                                                {'m_sPickup': 'c', 'm_flPickupWeight': 1}]}}
+    after = {'crate': {'m_vecPrimaryPickups': [{'m_sPickup': 'a', 'm_flPickupWeight': 1},
+                                               {'m_sPickup': 'x', 'm_flPickupWeight': 2},
+                                               {'m_sPickup': 'b', 'm_flPickupWeight': 1},
+                                               {'m_sPickup': 'c', 'm_flPickupWeight': 1}]}}
+    monkeypatch.setattr(match, 'window_states', lambda p: ('old', 'new'))
+    monkeypatch.setattr(match, '_state', lambda commit, file: before if commit == 'old' else after)
+    shifted = [_mc('misc.vdata', 'crate', f'm_vecPrimaryPickups[{i}].m_sPickup', o, n, 'Primary Pickups › Pickup',
+                   builds=[7]) for i, (o, n) in enumerate((('b', 'x'), ('c', 'b'), (None, 'c')), start=1)]
+    other = _mc('misc.vdata', 'crate', 'm_flRadius', 1, 2, 'Radius', builds=[7])
+    out = match.rekey_lists(None, shifted + [other], {}, {}, {})
+    assert other in out
+    keyed = [c for c in out if c is not other]
+    assert [(c.path, c.op, c.old, c.new) for c in keyed] == [
+        ('m_vecPrimaryPickups{x}.m_flPickupWeight', 'add', None, 2)]
+    assert keyed[0].builds == [7]
+
+
+# ---- 5. booleans and target sets ------------------------------------------------------------------------------------
+
+def test_a_target_set_is_compared_bit_by_bit():
+    """#22: Life Drain's "all enemies → allied heroes, enemy heroes, troopers, … creeps" read "−all enemies" and nine
+    "+…" chips; it gained allied heroes. A union that moved whole is said by its name."""
+    from pipeline import flags
+    t = 'CITADEL_UNIT_TARGET_'
+    new = ' | '.join(t + x for x in ('HERO_FRIENDLY', 'HERO_ENEMY', 'TROOPER_ENEMY', 'BOSS_ENEMY', 'BUILDING_ENEMY',
+                                     'PROP_ENEMY', 'MINION_ENEMY', 'NEUTRAL', 'CREEP_ENEMY'))
+    assert flags.diff('m_nAbilityTargetTypes', t + 'ALL_ENEMY', new) == ([('allied heroes', 1)], [])
+    assert flags.diff('m_nAbilityTargetTypes', t + 'ALL_ENEMY', t + 'ALL_ENEMY | ' + t + 'GOLD_ORBS') == \
+        ([('soul orbs', 1)], [])
+    added, removed = flags.diff('m_iAuraSearchType', t + 'ALL_ENEMY | ' + t + 'NEUTRAL', t + 'ALL_FRIENDLY')
+    assert added == [('all allies', 0)] and removed == [('all enemies', 0)]
+    assert flags.target_bits({t + 'ABILLITY_TRIGGER'}) == {t + 'ABILLITY_TRIGGER'}      # Valve's old spelling stays
+
+
+def test_a_yes_no_field_reads_now_or_no_longer_where_its_name_says_what_holds():
+    from builders.render import shown_pair
+    row = {'path': 'm_AutoIntrinsicModifiers{x}.m_bShouldApplyAbilityCooldown', 'op': 'change', 'old_s': 'yes',
+           'new_s': 'no', 'label': 'Auto Intrinsic Modifiers lifestrike › Should Apply Ability Cooldown',
+           'cat': 'mechanic'}
+    assert shown_pair(row) == ('steps', 'no longer')
+    assert shown_pair({**row, 'old_s': 'no', 'new_s': 'yes'}) == ('steps', 'now')
+    assert shown_pair({**row, 'op': 'add', 'old_s': '', 'new_s': 'yes', 'label': 'Uses Flight Controls'}) == \
+        ('steps', 'now')
+    assert shown_pair({**row, 'op': 'add', 'old_s': '', 'new_s': 'no'})[0] == 'pair'       # the default: no news
+    assert shown_pair({**row, 'label': 'Melee Resistance'}) == ('pair', 'yes', 'no')       # a thing, not what holds
+    assert shown_pair({**row, 'op': 'remove', 'old_s': 'yes', 'new_s': ''}) == ('steps', 'no longer')
+    assert shown_pair({**row, 'label': 'Drops Souls', 'old_s': '1', 'new_s': '0'})[0] == 'pair'   # a count
+
+
+# ---- 6. Unit Stats: resists and sight -----------------------------------------------------------------------------
+
+def test_unit_stats_read_a_units_own_resists_and_sight():
+    """#25a: a unit's bullet / spirit resist is its always-on modifier's value, whatever the modifier is called."""
+    from pipeline.unit_table import COLUMNS, evaluate
+    keys = [c[0] for c in COLUMNS]
+    assert {'res_bullet', 'res_spirit', 'sight'} <= set(keys)
+    neutral = {'m_flSightRangePlayers': 1500, 'm_vecIntrinsicModifiers': [
+        {'_my_subclass_name': 'weak_neutral_bullet_armor', 'm_vecScriptValues': [
+            {'m_eModifierValue': 'MODIFIER_VALUE_BULLET_DAMAGE_REDUCTION_PERCENT', 'm_value': 50},
+            {'m_eModifierValue': 'MODIFIER_VALUE_ABILITY_DAMAGE_REDUCTION_PERCENT', 'm_value': 45}]}]}
+    v = evaluate(neutral)
+    assert (v['res_bullet'], v['res_spirit'], v['sight']) == (50, 45, 38.1)
+    guardian = {'m_vecIntrinsicModifiers': [
+        {'_my_subclass_name': 'npc_boss_intrinsic', 'm_vecScriptValues': [
+            {'m_eModifierValue': 'MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST', 'm_value': '10'}]}]}
+    v = evaluate(guardian)
+    assert v['res_bullet'] == 10 and v['res_spirit'] is None and v['sight'] is None
+
+
+# ---- 7. names and sides ---------------------------------------------------------------------------------------------
+
+def _band(pid, *changes):
+    return ({'id': pid, 'date': pid}, list(changes))
+
+
+def test_a_guns_template_rows_join_the_gun():
+    """#40.2: Holliday's …_shotgun_shared_base held what her shotgun shares: "Weapon (shotgun) · shared base" was a
+    gun group of its own."""
+    from builders.hero_page import fold_into, gun_templates
+    ents = {i: {'id': i, 'owner': 'hero_astro', 'kind': 'weapon'} for i in (
+        'citadel_weapon_astro_set_shotgun', 'citadel_weapon_astro_set_shotgun_shared_base',
+        'citadel_weapon_astro_set_shotgun_shared_weapon_info')}
+    tm = gun_templates('hero_astro', ents)
+    assert tm == {'citadel_weapon_astro_set_shotgun_shared_base': 'citadel_weapon_astro_set_shotgun',
+                  'citadel_weapon_astro_set_shotgun_shared_weapon_info': 'citadel_weapon_astro_set_shotgun'}
+    gone = {'label': 'Removed from the game files', 'old_s': '', 'new_s': ''}
+    by_ent = {'abilities.vdata:citadel_weapon_astro_set_shotgun': [_band('p2', gone)],
+              'abilities.vdata:citadel_weapon_astro_set_shotgun_shared_base': [
+                  _band('p1', {'label': 'Ammo', 'old_s': '10', 'new_s': '20'}), _band('p2', dict(gone))]}
+    out = fold_into(by_ent, 'citadel_weapon_astro_set_shotgun', ['citadel_weapon_astro_set_shotgun_shared_base'])
+    assert 'abilities.vdata:citadel_weapon_astro_set_shotgun_shared_base' not in out
+    bands = {row['id']: ch for row, ch in out['abilities.vdata:citadel_weapon_astro_set_shotgun']}
+    assert [c['label'] for c in bands['p1']] == ['Ammo'] and len(bands['p2']) == 1      # the removal said once
+
+
+def test_a_kit_ability_that_never_shipped_is_marked_pre_release():
+    from builders.hero_page import prerelease_kit
+    ents = {'citadel_ability_shiv_dive': {'id': 'citadel_ability_shiv_dive', 'owner': 'hero_shiv', 'alive': False,
+                                          'name': 'citadel_ability_shiv_dive'},
+            'ability_shiv_live': {'id': 'ability_shiv_live', 'owner': 'hero_shiv', 'alive': True,
+                                  'name': 'ability_shiv_live'},
+            'ability_shiv_named': {'id': 'ability_shiv_named', 'owner': 'hero_shiv', 'alive': False,
+                                   'name': 'Slice and Dice'}}
+    by_ent = {f'abilities.vdata:{i}': [_band('p1', {'status': 'unreleased'})] for i in ents}
+    by_ent['abilities.vdata:citadel_ability_shiv_dive'].append(_band('p2', {'status': 'unreleased'}))
+    assert prerelease_kit('hero_shiv', ents, by_ent) == {'citadel_ability_shiv_dive'}
+    by_ent['abilities.vdata:citadel_ability_shiv_dive'].append(_band('p3', {'status': 'hidden'}))   # it shipped
+    assert prerelease_kit('hero_shiv', ents, by_ent) == set()
+
+
+def test_a_notifications_attributes_have_no_side():
+    """#42.4: "Proc Notification › Attributes +can't be purged" read BUFF (13 rows)."""
+    from pipeline import flags
+    path = 'm_AutoIntrinsicModifiers{x}.m_ProcNotificationModifier.m_nAttributes'
+    assert flags.direction(path, None, 'MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED') == 'changed'
+    assert flags.direction('m_SomeModifier.m_nAttributes', None, 'MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED') == 'buff'
+
+
+def test_a_re_keyed_unit_field_is_up_or_down():
+    """#43.4: merge_renames judged a unit's re-keyed field BUFF / NERF (no unit side passed)."""
+    from builders.cards import merge_renames
+    rows = merge_renames([
+        _row('m_flPlayerDPS', 'remove', '20', '', 'DPS vs Heroes', key='npc_units.vdata:trooper_base'),
+        _row('m_VSPlayer.m_flBaseDPS', 'add', '', '28', 'DPS vs Heroes', key='npc_units.vdata:trooper_base')])
+    assert len(rows) == 1 and rows[0]['dir'] == 'up'
+
+
+def test_valves_disabled_mark_is_not_part_of_a_name():
+    from pipeline.catalog import _DEPRECATED
+    assert _DEPRECATED.sub('', 'Majestic Leap - Disabled').strip() == 'Majestic Leap'
+    assert _DEPRECATED.sub('', '[Deprecated] Bullet Resilience').strip() == 'Bullet Resilience'
+    assert _DEPRECATED.sub('', 'Disabled Dash').strip() == 'Disabled Dash'

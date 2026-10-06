@@ -10,6 +10,7 @@ lists candidate paths and takes the first that exists in that build.
 from __future__ import annotations
 
 import json
+import re
 import time
 
 from .hero_table import history_changes
@@ -22,7 +23,9 @@ PATH = tracker.SCRIPTS + 'npc_units.vdata'
 KINDS = ('building', 'trooper', 'neutral')
 WEAPON_PREFIXES = ('m_mapWeaponInfos.primary.', 'm_WeaponInfo.')
 
-# key, label, group, candidate paths, metres?, polarity (for colouring only), digits
+_INTRINSIC = 'm_vecIntrinsicModifiers{*}.m_vecScriptValues'
+# key, label, group, candidate paths, metres?, polarity (for colouring only), digits. A path segment "name{key}" is
+# the list entry named key (its _my_subclass_name or modifier value), "{*}" any entry that holds the rest of the path
 COLUMNS = (
     ('hp', 'Health', 'Vitality', ('m_nMaxHealth', 'm_iMaxHealth', 'm_iStartingHealth', 'm_iMaxHealthGenerator'), False, 0, 0),
     # the Shrine's second life (after its first generator falls): 10000
@@ -32,6 +35,13 @@ COLUMNS = (
      False, 0, 1),
     ('res_hero', 'Resist vs Heroes', 'Vitality', ('m_flPlayerDamageResistPct', 'm_VSPlayer.m_flDamageResist'), False, 0, 1),
     ('res_trooper', 'Resist vs Troopers', 'Vitality', ('m_flTrooperDamageResistPct', 'm_VSTrooper.m_flDamageResist'), False, 0, 1),
+    # a unit's own resists are its always-on modifier's values (#25a: Guardian 10%, Base Guardian 20%, Mid-Boss 15%,
+    # neutrals' bullet 50-60% / spirit 45-55%), whatever the modifier is called
+    ('res_bullet', 'Bullet Resist', 'Vitality', tuple(f'{_INTRINSIC}{{{v}}}.m_value' for v in (
+        'MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST', 'MODIFIER_VALUE_BULLET_DAMAGE_REDUCTION_PERCENT')), False, 0, 1),
+    ('res_spirit', 'Spirit Resist', 'Vitality', tuple(f'{_INTRINSIC}{{{v}}}.m_value' for v in (
+        'MODIFIER_VALUE_TECH_ARMOR_DAMAGE_RESIST', 'MODIFIER_VALUE_TECH_RESIST',
+        'MODIFIER_VALUE_ABILITY_DAMAGE_REDUCTION_PERCENT')), False, 0, 1),
     ('backdoor_regen', 'Backdoor Regen', 'Vitality', ('m_BackdoorProtectionModifier.m_flHealthPerSecondRegen',
                                                        'm_BackdoorProtection.m_flHealthPerSecondRegen'), False, 0, 1),
     ('dps_hero', 'DPS vs Heroes', 'Attack', ('m_flPlayerDPS', 'm_VSPlayer.m_flBaseDPS'), False, 0, 1),
@@ -41,6 +51,8 @@ COLUMNS = (
     ('bullet', 'Bullet Damage', 'Attack', tuple(p + 'm_flBulletDamage' for p in WEAPON_PREFIXES), False, 0, 2),
     ('cycle', 'Fire Interval (s)', 'Attack', tuple(p + 'm_flCycleTime' for p in WEAPON_PREFIXES), False, 0, 3),
     ('range', 'Range (m)', 'Attack', tuple(p + 'm_flRange' for p in WEAPON_PREFIXES), True, 0, 1),
+    # how far it notices a hero (troopers 25 m, the Guardian 34 m)
+    ('sight', 'Sight Range (m)', 'Attack', ('m_flSightRangePlayers',), True, 0, 1),
     ('bounty', 'Soul Bounty', 'Reward', ('m_flGoldReward',), False, 0, 0),
     ('bounty_min', 'Bounty growth %/min', 'Reward', ('m_flGoldRewardBonusPercentPerMinute',), False, 0, 2),
     ('run', 'Run Speed (m/s)', 'Movement', ('m_flRunSpeed',), True, 0, 2),
@@ -48,12 +60,29 @@ COLUMNS = (
 )
 
 
+_ENTRY = re.compile(r'^(\w+)\{([^}]+)\}$')
+_ENTRY_NAMES = ('_my_subclass_name', 'm_eModifierValue')
+
+
+def _walk(cur, parts: list[str]):
+    if not parts:
+        return cur
+    m = _ENTRY.match(parts[0])
+    if m:
+        items = cur.get(m.group(1)) if isinstance(cur, dict) else None
+        for item in items if isinstance(items, list) else ():
+            if isinstance(item, dict) and (m.group(2) == '*' or m.group(2) in (item.get(k) for k in _ENTRY_NAMES)):
+                v = _walk(item, parts[1:])
+                if v is not None:
+                    return v
+        return None
+    if not isinstance(cur, dict) or parts[0] not in cur:
+        return None
+    return _walk(cur[parts[0]], parts[1:])
+
+
 def _get(obj: dict, dotted: str):
-    cur = obj
-    for part in dotted.split('.'):
-        if not isinstance(cur, dict) or part not in cur:
-            return None
-        cur = cur[part]
+    cur = _walk(obj, dotted.split('.'))
     if isinstance(cur, bool) or cur is None:
         return None
     try:

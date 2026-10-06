@@ -658,10 +658,12 @@ def test_shares_speeds_and_curve_corners():
     assert semantics.show(0.1, semantics.FRACTION) == '10%'
     zip_ = semantics.describe('m_mapAbilityProperties.ZipSpeed.m_strValue', {}, 'citadel_ability_zip_line', 'ability')
     assert semantics.show('693', zip_['meters']) == '17.6m/s'
-    for prop in ('TossSpeedUpWall', 'ReturnSpeedNonPlayer', 'AttackingDashSpeed', 'InitialProjectileVelocity'):
+    # a capped speed is a travel speed too (backlog #13: Rain of Arrows' "Air Speed Max 150 → 161.42" = 3.8 → 4.1 m/s)
+    for prop in ('TossSpeedUpWall', 'ReturnSpeedNonPlayer', 'AttackingDashSpeed', 'InitialProjectileVelocity',
+                 'FallSpeedMax', 'AirSpeedMax'):
         assert semantics.prop_speed(prop), prop
     for prop in ('ChannelMoveSpeed', 'MoveSpeedBonusPct', 'TrackingSpeed', 'ZipMasteryExtraSpeedBonus',
-                 'BonusBulletSpeedPercent', 'FallSpeedMax', 'PostGroundDashSpeed', 'SummonTurnSpeed'):
+                 'BonusBulletSpeedPercent', 'PostGroundDashSpeed', 'SummonTurnSpeed'):
         assert not semantics.prop_speed(prop), prop
     assert not semantics.prop_speed('ZipSpeed', 'm/s')            # the tooltip's own unit: already m/s
     assert semantics.humanize('m_vDomainMaxs') == 'Domain (max)'

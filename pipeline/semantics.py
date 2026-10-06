@@ -259,8 +259,10 @@ SPEED = 'speed'
 _NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|Delay|Rate|Chance|Factor|Alpha|Angle|'
                            r'Yaw|Pitch|Degree|Interval|Cooldown|Damage|Health|DPS|Resist|Reward|Bounty|Gold|Fov|Count|'
                            # recoil, turning, spin, a decay or a blend bias are not travel (audit 2026-10-04: "Recoil
-                           # Speed 0.127m/s", "Hover Speed Decay 0.02286m/s", "Initial Offset Lerp Bias 0.0127m")
-                           r'Recoil|Turn|Spin|Accel|Rotat|Punch|Kick|Decay|Bias|Lerp|Penalty)',
+                           # Speed 0.127m/s", "Hover Speed Decay 0.02286m/s", "Initial Offset Lerp Bias 0.0127m") —
+                           # as words: "KilLERPlane" and "ReTURN" are none (the soul orbs' Killer Plane speeds and the
+                           # hook's Return Speed stayed engine units, #13)
+                           r'Recoil|(?-i:Turn)|Spin|Accel|Rotat|Punch|Kick|Decay|Bias|(?-i:Lerp)|Penalty)',
                            re.I)
 # a field that ENDS in a length word is a length whatever it measures from ("Nearby Enemy Resist Range
 # 2000" stayed engine units: "Resist" said not a length)
@@ -292,8 +294,10 @@ _ALREADY_MPS = re.compile(r'(ClimbSpeed|AirSpeedFor\w*Drag)')
 # an ability property that is a travel speed and carries no unit is engine units per second: Zip
 # Speed "660 -> 693" is 16.8 -> 17.6 m/s, Toss Speed 450 is 11.4 m/s (audit 2026-10-02, #14). Not
 # a move speed / attack speed / slow (percents), a turn, tracking or sweep rate, recoil or fall.
-_PROP_SPEED = re.compile(r'(Speed|Velocity)(Inner|Outer|UpWall|Wall|NonPlayer|Start)?$')
-_PROP_NOT_TRAVEL = re.compile(r'(Move|AttackSpeed|Turn|Tracking|Sweep|Recoil|Fall|AirSpeed|Reload|Bullet|Spin|'
+# A capped speed is one too: Grey Talon's Rain of Arrows "Air Speed Max 150 → 161.42" is the notes' 3.8 → 4.1 m/s,
+# a glide's "Fall Speed Max 30 → 15" 0.76 → 0.38 m/s (#13; they were kept out with the fall damage words)
+_PROP_SPEED = re.compile(r'(Speed|Velocity)(Inner|Outer|UpWall|Wall|NonPlayer|Start|Max|Min)?$')
+_PROP_NOT_TRAVEL = re.compile(r'(Move|AttackSpeed|Turn|Tracking|Sweep|Recoil|Reload|Bullet|Spin|'
                               r'Channel|Hit|Limit|Penalty|Slow|Bonus|Percent|Pct|Mult|Ratio|Scale|Check|Pitch|Vol|'
                               r'Duration|Time|Build|Lost|Boost|Change|PostGroundDash|Summon|'
                               r'Distance|Camera|Rotat|Anim|Preview)')       # DistanceForMaxProjSpeed is a length
@@ -305,7 +309,7 @@ def prop_speed(prop: str, unit: str = '') -> bool:
 
 # a property that is a speed wherever "speed" sits in its name: its "4.5m" is m/s ("Active Movespeed
 # Penalty 4.5m → 6.5m", "Invis Move Speed Mod +4m"; audit 2026-10-04)
-_SPEED_NAME = re.compile(r'Speed$|(?:Move|Sprint|Movement|Run|Walk|Air|Dash)speed', re.I)
+_SPEED_NAME = re.compile(r'Speed(?:Max|Min)?$|(?:Move|Sprint|Movement|Run|Walk|Air|Dash)speed', re.I)
 
 
 def speed_prop(prop: str) -> bool:
@@ -348,7 +352,7 @@ def engine_unit(leaf: str) -> bool | str:
         return True
     if not leaf.startswith('m_fl') or _NOT_A_LENGTH.search(leaf[4:]):
         return False
-    if re.search(r'(Speed|Velocity)', leaf):
+    if re.search(r'Speed|Velocity|[a-z]speed$', leaf):       # "m_flMaxMovespeed 600" is 15.24 m/s
         return SPEED
     return bool(re.search(r'(Range|Radius|Distance|Dist$|Height|Width|Length|Offset)', leaf))
 
@@ -649,7 +653,7 @@ def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', s
     plain_tier = d['group'] == 'tier' and '·' not in d['label'] and 'scaling' not in d['label'] \
         and '(% of base)' not in d['label']
     if not d.get('unit') and d.get('meters') is False and (d['group'] in _TIMED_GROUPS or plain_tier):
-        name = d.get('prop') or re.sub(r'\{.*\}|\[\d+\]', '', path.rsplit('.', 1)[-1])
+        name = d.get('prop') or scaled_parent(path) or re.sub(r'\{.*\}|\[\d+\]', '', path.rsplit('.', 1)[-1])
         if _TIME_FIELD.search(name) and not _NOT_SECONDS.search(name):
             d = {**d, 'unit': 's'}
     d = _percent_word(d)
@@ -814,23 +818,52 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
     if leaf in UNIT_FIELDS:
         label, meters = UNIT_FIELDS[leaf]
         parent = path.rsplit('.', 2)[-2] if path.count('.') >= 1 else ''
+        unit = ''
         if parent.startswith('m_VS'):
             label = f'{label} vs {humanize(parent[4:])}'
+            # a trooper's resist against one foe is the percent its flat "…DamageResistPct" field was: "Damage
+            # Resist vs Walker 80%" moved there on 2026-04-30 and read "80% → —" beside "— → 80" (#12.8)
+            unit = '%' if leaf == 'm_flDamageResist' else ''
         m = _EMPOWERED_RE.search(path)
         if m:
             label = f'{label} (empowered, stage {m.group(1)})'
         m = _WEAK_POINT_RE.search(path)
         if m:
             label = f'Weak point ({m.group(1)}): {label[:1].lower() + label[1:]}'
-        return {'label': label, 'meters': meters, 'group': 'unit'}
+        return {'label': label, 'meters': meters, 'group': 'unit', **({'unit': unit} if unit else {})}
     # a modifier's resist value is a percent (Walker's passive "Bullet Resist 25 → 35"; review 2026-10-05) — not its
     # per-hero reduction or a range
     resist = _RESIST_VALUE.search(path)
-    return {'label': context_label(path, tok=tok), 'meters': engine_unit(leaf), 'group': 'other', 'src': 'fallback',
-            **({'unit': '%'} if resist else {})}
+    return {'label': context_label(path, tok=tok), 'meters': fallback_unit(path, leaf), 'group': 'other',
+            'src': 'fallback', **({'unit': '%'} if resist else {})}
 
 
 _RESIST_VALUE = re.compile(r'm_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_)?[A-Z0-9_]*_RESIST\}\.m_value$')
+# a modifier's speed value (MODIFIER_VALUE_SPRINT_SPEED_BONUS, …_MOVEMENT_SPEED_MAX) is engine units/s like a
+# powerup's: "Effect › Sprint Speed Bonus 78.74 → 118.11" is 2 → 3 m/s (#13) — not a percent, a slow or a rate
+_SPEED_VALUE = re.compile(r'm_vec(?:Script|Modifier)Values\{(?:MODIFIER_VALUE_)?([A-Z0-9_]*SPEED[A-Z0-9_]*)\}'
+                          r'\.m_(?:fl)?[vV]alue$')
+_NOT_SPEED_VALUE = re.compile(r'PERCENT|SLOW|ATTACK|FIRE|RESIST')
+# a value that grows over the match is in the units of the field it is part of: "Pickup Radius › Base 85" is 2.16 m,
+# "Pickup Expiration Duration › Base 30" seconds (#13) — not its start minute
+SCALED_LEAF = re.compile(r'^m_fl(?:Base|MaxValue|MinValue|PerMinuteAfterStart)$')
+
+
+def scaled_parent(path: str) -> str | None:
+    """The field a growing value's part belongs to ('m_flPickupRadius' for 'm_flPickupRadius.m_flBase'), else None."""
+    parts = path.split('.')
+    if len(parts) < 2 or not SCALED_LEAF.match(parts[-1]):
+        return None
+    parent = re.sub(r'[\[{].*$', '', parts[-2])
+    return parent if parent.startswith('m_fl') else None
+
+
+def fallback_unit(path: str, leaf: str) -> bool | str:
+    """How an engine field no curated rule names is shown (see `engine_unit`)."""
+    m = _SPEED_VALUE.search(path)
+    if m and not _NOT_SPEED_VALUE.search(m.group(1)):
+        return SPEED
+    return engine_unit(scaled_parent(path) or leaf)
 
 
 # ---- plain words for structures the game never labels (audit 2026-10-01) ----------------------
