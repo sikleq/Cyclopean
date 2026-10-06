@@ -208,3 +208,43 @@ def test_a_troopers_resist_against_one_foe_is_a_percent():
     from pipeline import semantics
     d = semantics.describe('m_VSWalker.m_flDamageResist', {}, 'trooper_base', 'trooper')
     assert d['label'] == 'Damage Resist vs Walker' and semantics.show(80, d['meters'], d['unit']) == '80%'
+
+
+# ---- 4. lists of named entries: by entry, not by position ---------------------------------------------------------
+
+def test_a_named_entries_list_is_keyed_by_the_entry():
+    from pipeline.match import keyed_list
+    crate = {'m_vecPrimaryPickups': [{'m_sPickup': 'hp_permanent_pickup', 'm_flPickupWeight': 2},
+                                     {'m_sPickup': 'small_gold_pickup', 'm_flPickupWeight': 1}]}
+    assert keyed_list(crate, 'm_vecPrimaryPickups') == {
+        'm_vecPrimaryPickups{hp_permanent_pickup}.m_flPickupWeight': 2,
+        'm_vecPrimaryPickups{small_gold_pickup}.m_flPickupWeight': 1}
+    assert keyed_list({'other': 1}, 'm_vecPrimaryPickups') == {}            # the list came or went whole
+    twice = {'m_vecPrimaryPickups': [{'m_sPickup': 'a'}, {'m_sPickup': 'a'}]}
+    assert keyed_list(twice, 'm_vecPrimaryPickups') is None                # a name twice: positions are the key
+    lanes = [{'m_strLaneName': 'Blue', 'm_bIsEnemyLane': False}]          # a generic_data entry is a bare list
+    assert keyed_list(lanes, 'value') == {'value{Blue}.m_bIsEnemyLane': False}
+
+
+def test_an_entry_inserted_in_a_list_shifts_no_later_row(monkeypatch):
+    """#12.6 / #41: one pickup inserted at #2 read "Primary Pickups #2 › Pickup: B → X", "#3: C → B", … — every later
+    entry as a change. Keyed by the entries' names it is one new entry."""
+    from pipeline import match
+    before = {'crate': {'m_vecPrimaryPickups': [{'m_sPickup': 'a', 'm_flPickupWeight': 1},
+                                                {'m_sPickup': 'b', 'm_flPickupWeight': 1},
+                                                {'m_sPickup': 'c', 'm_flPickupWeight': 1}]}}
+    after = {'crate': {'m_vecPrimaryPickups': [{'m_sPickup': 'a', 'm_flPickupWeight': 1},
+                                               {'m_sPickup': 'x', 'm_flPickupWeight': 2},
+                                               {'m_sPickup': 'b', 'm_flPickupWeight': 1},
+                                               {'m_sPickup': 'c', 'm_flPickupWeight': 1}]}}
+    monkeypatch.setattr(match, 'window_states', lambda p: ('old', 'new'))
+    monkeypatch.setattr(match, '_state', lambda commit, file: before if commit == 'old' else after)
+    shifted = [_mc('misc.vdata', 'crate', f'm_vecPrimaryPickups[{i}].m_sPickup', o, n, 'Primary Pickups › Pickup',
+                   builds=[7]) for i, (o, n) in enumerate((('b', 'x'), ('c', 'b'), (None, 'c')), start=1)]
+    other = _mc('misc.vdata', 'crate', 'm_flRadius', 1, 2, 'Radius', builds=[7])
+    out = match.rekey_lists(None, shifted + [other], {}, {}, {})
+    assert other in out
+    keyed = [c for c in out if c is not other]
+    assert [(c.path, c.op, c.old, c.new) for c in keyed] == [
+        ('m_vecPrimaryPickups{x}.m_flPickupWeight', 'add', None, 2)]
+    assert keyed[0].builds == [7]

@@ -27,6 +27,8 @@ from typing import Callable
 
 from . import cache, catalog, game_map, jsonio, labels, loc, semantics, tracker
 from . import flags as flag_rules
+from . import flatten as flatten_mod
+from .diff import _eq as diff_eq, _jsonable as jsonable
 from . import match_rules as rules
 from . import patches as patches_mod
 from .classify import category, decor_entity
@@ -430,6 +432,94 @@ def convar_start() -> int | None:
     return next((b['build'] for b in index if b.get('convars')), None)
 
 
+def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared: bool, tok: dict[str, str],
+                   canon: dict[str, dict]) -> MChange:
+    """A record's field change `c` of entity `tid` as the window's MChange (labels of that build's text)."""
+    key = f"{file}:{tid}:{c['path']}"
+    d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'), c.get('loc_token'))
+    cn = canon[key] = labels.canonical(key, d)
+    return MChange(
+        file, tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
+        # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
+        'unit' if ce.get('units') else ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
+        builds, shared, chain=[c.get('old'), c.get('new')],
+        drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
+        unit=labels.display_unit(d, cn), invert=bool(d.get('invert')),
+        speed_m=bool(d.get('speed_m')), shown=cn['label'], sign=cn['sign'])
+
+
+# lists whose entries carry their own name (a breakable's pickups, a loot table's items, the lanes): one entry
+# inserted at #2 shifted every later row — "Primary Pickups #3 › Pickup: Medium → Large", "#4 …" (#12.6 / #41)
+LIST_IDS = ('m_sPickup', 'm_strItem', 'm_strLaneName')
+_LIST_INDEX = re.compile(r'^(\w+)\[\d+\]\.')
+# the files that hold such lists (an ability's T1-T3 list IS positional: never re-read the big abilities.vdata)
+LIST_FILES = ('misc.vdata', 'loot_tables.vdata', 'generic_data.vdata')
+
+
+def keyed_list(entity, name: str) -> dict[str, object] | None:
+    """{path: value} of an entity's list `name` keyed by the name its entries carry ("m_vecPrimaryPickups
+    {spirit_permanent_pickup}.m_flPickupWeight"), or None when an entry has none or two share one."""
+    obj = entity if isinstance(entity, dict) else {'value': entity}
+    items = obj.get(name)
+    if items is None and entity is not None:
+        return {}                                   # the list came or went whole: every entry is new / gone
+    if not isinstance(items, list) or not items or not all(isinstance(x, dict) for x in items):
+        return None
+    for id_field in LIST_IDS:
+        ids = [x.get(id_field) for x in items]
+        if all(isinstance(i, str) and i for i in ids) and len(set(ids)) == len(ids):
+            out = {}
+            for x in items:
+                flat = flatten_mod.flatten(x)
+                if len(flat) > 1:
+                    flat.pop(id_field, None)        # the entry's other rows say it came or went; its name is the key
+                out.update({f'{name}{{{x[id_field]}}}.{path}': v for path, v in flat.items()})
+            return out
+    return None
+
+
+@lru_cache(maxsize=8)
+def _state(commit: str, file: str) -> dict:
+    """A vdata file as a build left it, parsed once (a shared edit over 23 breakables reads misc.vdata 46 times)."""
+    return cache.vdata(commit, tracker.SCRIPTS + file)
+
+
+def rekey_lists(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[str, str],
+                canon: dict[str, dict]) -> list[MChange]:
+    """The window's rows of a named-entries list (`LIST_IDS`) by entry instead of by position: the list as the
+    window found it and left it (`window_states`), diffed by the entries' names. The build records keep their
+    positions (keying them in pipeline/flatten.py needs every record rebuilt: `history --rebuild`, ~25 min)."""
+    lists: dict[tuple[str, str, str], list[MChange]] = {}
+    for c in changes:
+        m = _LIST_INDEX.match(c.path)
+        if m and c.file in LIST_FILES:
+            lists.setdefault((c.file, c.eid, m.group(1)), []).append(c)
+    if not lists:
+        return changes
+    before, after = window_states(p)
+    if not before or not after:
+        return changes
+    drop: set[int] = set()
+    out: list[MChange] = []
+    for (file, eid, name), rows in sorted(lists.items()):
+        a = keyed_list(_state(before, file).get(eid), name)
+        b = keyed_list(_state(after, file).get(eid), name)
+        if a is None or b is None:
+            continue
+        drop |= {id(c) for c in rows}
+        builds = sorted({x for c in rows for x in c.builds})
+        shared = any(c.shared for c in rows)
+        ce = cat.get(f'{file}:{eid}', {})
+        for path in sorted(a.keys() | b.keys()):
+            old, new = a.get(path), b.get(path)
+            if path in a and path in b and diff_eq(old, new):
+                continue
+            op = 'change' if path in a and path in b else 'add' if path in b else 'remove'
+            rec = {'path': path, 'op': op, 'old': jsonable(old), 'new': jsonable(new), 'cat': category(path, old, new)}
+            out.append(_window_change(file, eid, rec, ce, builds, shared, tok, canon))
+    return [c for c in changes if id(c) not in drop] + out
+
+
 def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple[list[MChange], dict]:
     """Merge the builds of a window. Entities added inside the window are not
     diffed field by field (their whole data is "new"): they become one
@@ -464,17 +554,8 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
                     key = f"{e['file']}:{tid}:{c['path']}"
                     mc = merged.get(key)
                     if mc is None:
-                        d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'),
-                                               c.get('loc_token'))
-                        cn = canon[key] = labels.canonical(key, d)
-                        merged[key] = MChange(
-                            e['file'], tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
-                            # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
-                            'unit' if ce.get('units') else ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
-                            [rec['build']], bool(c.get('targets')), chain=[c.get('old'), c.get('new')],
-                            drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
-                            unit=labels.display_unit(d, cn), invert=bool(d.get('invert')),
-                            speed_m=bool(d.get('speed_m')), shown=cn['label'], sign=cn['sign'])
+                        merged[key] = _window_change(e['file'], tid, c, ce, [rec['build']], bool(c.get('targets')),
+                                                     tok, canon)
                     else:
                         mc.new = c.get('new')
                         mc.chain.append(c.get('new'))
@@ -485,6 +566,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
         if rec.get('assets'):
             extras['assets'].append({'build': rec['build'], **rec['assets']})
     changes = [c for c in merged.values() if not (c.op == 'change' and c.old == c.new)]
+    changes = rekey_lists(p, changes, cat, tok, canon)
     for c in changes:
         sw = labels.unit_switch(canon.get(c.key) or {}, c.builds) if c.op == 'change' else None
         if sw:
