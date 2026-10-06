@@ -334,11 +334,26 @@ def has_content(c: dict) -> bool:
                 or any(t.get('text') or t.get('bonuses') for t in c.get('tiers', [])))
 
 
+def prerelease_kit(hid: str, ents_by_id: dict, by_ent: dict) -> set[str]:
+    """The hero's nameless abilities from before its release that never shipped: gone from the files, and every change
+    they had came while the hero was in development (Shiv's "Dive" and "Blood Rage" of 2024, Drifter's "Ability 1"):
+    their stand-in names read like the kit's (#39)."""
+    out = set()
+    for e in ents_by_id.values():
+        if e.get('owner') != hid or e.get('alive') or (e.get('name') and e['name'] != e['id']):
+            continue
+        rows = [c for _, ch in by_ent.get(f'abilities.vdata:{e["id"]}', []) for c in ch]
+        if rows and all(c.get('status') == 'unreleased' for c in rows):
+            out.add(e['id'])
+    return out
+
+
 def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str, skip: set[str] = frozenset(),
-                parents: dict[str, str] | None = None) -> list[tuple]:
+                parents: dict[str, str] | None = None, prerelease: set[str] = frozenset()) -> list[tuple]:
     """History entities in page order: base stats, weapon, abilities by slot, the rest by name. `skip`: ids whose
     rows sit in another group (an alt fire's are its gun's); `parents`: a nameless sub-ability -> the ability it
-    belongs to ("Ava · trigger" with Ava's icon, not "Catform trigger")."""
+    belongs to ("Ava · trigger" with Ava's icon, not "Catform trigger"); `prerelease`: stand-in names marked
+    "(pre-release)" (`prerelease_kit`)."""
     keys = [(f'heroes.vdata:{hid}', 'Base stats', hero_icon(hid, rel))]
     slot_of = {c['id']: c.get('slot') for c in mine}
     owned = [e for e in ents_by_id.values() if e.get('owner') == hid and e['id'] not in skip]
@@ -355,6 +370,8 @@ def _owned_keys(hid: str, mine: list[dict], ents_by_id: dict, rel: str, skip: se
         else:
             nm = display_name(e)                 # its owner is this hero
             ic = entity_icon('abilities.vdata', e['id'], e.get('kind', ''), rel, nm, hid)
+            if e['id'] in prerelease:
+                nm = f'{nm} (pre-release)'
         keys.append((f'abilities.vdata:{e["id"]}', nm, ic))
     return keys
 
@@ -399,17 +416,34 @@ def _sig(c: dict) -> tuple:
 def fold_alt(by_ent: dict, gun: str, alts: list[str]) -> dict:
     """by_ent with the alt fire's rows in its gun's group, "Alt fire: …" — a row the gun has in the same band with
     the same label and values is said once. Returns a new mapping; `by_ent` is shared and stays as it is."""
-    gk = f'abilities.vdata:{gun}'
+    return fold_into(by_ent, gun, alts, 'Alt fire: ')
+
+
+def fold_into(by_ent: dict, into: str, ids: list[str], prefix: str = '') -> dict:
+    """by_ent with the rows of `ids` in the group of `into` (labels prefixed with `prefix`); a row `into` has in the
+    same band with the same label and values is said once. A new mapping: `by_ent` is shared and stays as it is."""
+    gk = f'abilities.vdata:{into}'
     bands = {row['id']: (row, list(ch)) for row, ch in by_ent.get(gk, [])}
-    for a in alts:
+    for a in ids:
         for row, ch in by_ent.get(f'abilities.vdata:{a}', []):
             row_, have = bands.setdefault(row['id'], (row, []))
             seen = {_sig(c) for c in have}
-            have += [{**c, 'label': f'Alt fire: {c.get("label")}'} for c in ch if _sig(c) not in seen]
+            have += [{**c, 'label': f'{prefix}{c.get("label")}'} if prefix else c for c in ch if _sig(c) not in seen]
     out = {**by_ent, gk: sorted(bands.values(), key=lambda rc: rc[0]['date'])}
-    for a in alts:
+    for a in ids:
         out.pop(f'abilities.vdata:{a}', None)
     return out
+
+
+_GUN_TEMPLATE = re.compile(r'^(citadel_weapon_\w+?)_shared_(?:base|weapon_info)$')
+
+
+def gun_templates(hid: str, ents_by_id: dict) -> dict[str, str]:
+    """A gun's template entries -> the gun (Holliday's citadel_weapon_astro_set_shotgun_shared_base and …_weapon_info
+    hold what the shotgun and its backwards copy share): their rows read "Weapon (shotgun) · shared base" as a gun of
+    their own (#40.2)."""
+    return {e['id']: m.group(1) for e in ents_by_id.values()
+            if e.get('owner') == hid for m in [_GUN_TEMPLATE.match(e['id'])] if m and m.group(1) in ents_by_id}
 
 
 def drop_parent_rows(by_ent: dict, parents: dict[str, str]) -> dict:
@@ -436,6 +470,7 @@ def history_folds(hid: str, cards: dict, table_row: dict | None, ents_by_id: dic
         gun = None
     out = {a: gun for a in (alt_guns(hid, gun, ents_by_id) if gun else [])}
     out.update(sub_parents(hid, mine, ents_by_id))
+    out.update(gun_templates(hid, ents_by_id))
     return out
 
 
@@ -498,8 +533,12 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
     now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
     parents = sub_parents(hid, mine, ents_by_id)
-    keys = _owned_keys(hid, mine, ents_by_id, rel, skip=set(alts) if gun else set(), parents=parents)
+    templates = gun_templates(hid, ents_by_id)
+    keys = _owned_keys(hid, mine, ents_by_id, rel, skip=(set(alts) if gun else set()) | set(templates),
+                       parents=parents, prerelease=prerelease_kit(hid, ents_by_id, by_ent))
     hist_ents = drop_parent_rows(fold_alt(by_ent, gun, alts) if gun and alts else by_ent, parents)
+    for tmpl, real in templates.items():
+        hist_ents = fold_into(hist_ents, real, [tmpl])
     ults = frozenset(f'abilities.vdata:{c["id"]}' for c in mine if c.get('slot') == ULT_SLOT)
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}

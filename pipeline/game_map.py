@@ -22,10 +22,7 @@ PAGE_FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata')
 
 @lru_cache(maxsize=1)
 def _config() -> dict:
-    try:
-        return json.loads(CONFIG.read_text(encoding='utf-8'))
-    except FileNotFoundError:
-        return {'systems': []}
+    return json.loads(CONFIG.read_text(encoding='utf-8'))
 
 
 @lru_cache(maxsize=1)
@@ -67,29 +64,44 @@ def subject_phrases() -> tuple[tuple[str, str], ...]:
 
 
 def phrases_in(text: str) -> list[tuple[str, str]]:
-    """The (phrase, system id) a line names as whole words, a longer phrase hiding the ones inside it ("Soul Urn"
+    """The (phrase, system id) a line names as whole words, a longer phrase hiding the words inside it ("Soul Urn"
     is the Urn's, not "Souls & economy"'s); a trailing "s" / "es" counts ("Jump Pads")."""
     low = text.lower()
     found: list[tuple[str, str]] = []
     for phrase, sid in subject_phrases():
-        if any(phrase in longer and phrase != longer for longer, _ in found):
+        if any(phrase != longer and re.search(rf'\b{re.escape(phrase)}\b', longer) for longer, _ in found):
             continue
         if re.search(rf'\b{re.escape(phrase)}(?:s|es)?\b', low):
             found.append((phrase, sid))
     return found
 
 
-def system_entries(cat: dict[str, dict]) -> dict[str, frozenset[str]]:
-    """system id -> the catalog keys placed in it that no page claims (a hero's own fields stay the hero's: the
-    progression part takes every hero, and "Level 3 …" would have reached all of them)."""
-    out: dict[str, set[str]] = {}
-    for key, e in cat.items():
-        if claimed(e):
-            continue
-        hit = place(f'{key}#{e.get("kind") or ""}')
-        if hit:
-            out.setdefault(hit[0], set()).add(key)
-    return {sid: frozenset(keys) for sid, keys in out.items()}
+DECOR_FILES = ('misc.vdata', 'generic_data.vdata')
+# the designers' test objects (review 2026-10-05: "Item projectile test 01, … + 4 more" led the Shop page, "Herotest
+# orbspawner" sat on Souls): no player meets them. Not "dummy" — the Hero Labs target dummy is real
+_DEV_ID = re.compile(r'herotest|(?:^|_)test(?:_|\d|$)|projectile_test|(?:^|_)debug(?:_|$)')
+
+
+def is_decor(e: dict) -> bool:
+    """The city's traffic, glass panes, team and outline colours (classify.decor_entity): scenery, no page's. A
+    shared edit spread over the breakable props lands on the cars too."""
+    from .classify import decor_entity
+    return e.get('file') in DECOR_FILES and decor_entity(str(e.get('id', '')))
+
+
+def is_dev(e: dict) -> bool:
+    return bool(_DEV_ID.search(str(e.get('id', ''))))
+
+
+@lru_cache(maxsize=1)
+def convar_start() -> int | None:
+    """The first build with console variables (6395, 2026-03-10: the tracker began dumping them): a snapshot of all
+    1,365 of them, not changes."""
+    try:
+        index = json.loads((tracker.ROOT / 'data' / 'builds' / 'index.json').read_text(encoding='utf-8'))
+    except FileNotFoundError:
+        return None                         # no build records yet: nothing to skip
+    return next((b['build'] for b in index if b.get('convars')), None)
 
 
 def convar_system(name: str) -> str | None:

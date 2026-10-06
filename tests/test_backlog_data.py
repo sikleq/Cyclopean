@@ -111,9 +111,30 @@ def test_an_added_console_variable_of_a_named_system_matches():
 
 def test_system_phrases_prefer_the_longer_name():
     assert game_map.phrases_in('Jump Pads now launch higher')[0] == ('jump pad', 'combat')
-    assert ('urn', 'urn') in game_map.phrases_in('Soul Urn bounty') or ('soul urn', 'urn') in game_map.phrases_in(
-        'Soul Urn bounty')
-    assert all(p != 'soul' for p, _ in game_map.phrases_in('Soul Urn bounty'))
+    found = [p for p, _ in game_map.phrases_in('Soul Urn bounty')]
+    assert 'soul urn' in found and 'urn' not in found and 'soul' not in found
+
+
+def test_a_system_entry_with_one_number_and_no_word_of_the_line_is_not_its_match():
+    """Review: a field that only took the line's new value (an add) or moved by its percent, sharing no word, linked
+    whole systems ("Crate respawn time increased from 20 to 25" took any crate field added at 25)."""
+    added = _mc('misc.vdata', 'citadel_breakable_prop_vase', 'm_flFoo', None, 25, 'Foo Bar', op='add')
+    moved = _mc('misc.vdata', 'citadel_breakable_prop_vase', 'm_flBaz', 10, 12, 'Baz Qux')
+    cat = _cat(('misc.vdata:citadel_breakable_prop_vase', 'global'))
+    for line, c in (('Crate respawn time increased from 20 to 25', added), ('Crate respawn time increased by 20%', moved)):
+        by_ent = _by_ent([c])
+        res = annotate_line(line, [c], by_ent, {}, cat, {}, None, system_pools(by_ent, cat))
+        assert res['status'] == 'unmatched' and c.status == 'hidden', line
+
+
+def test_a_rounded_list_of_a_system_is_matched_end_to_end():
+    share = _mc('generic_data.vdata', 'm_flPostLanePhaseGoldShareFrac', 'value', (1, 0.7, 0.45, 0.333, 0.25, 0.2),
+                (1, 0.6, 0.35, 0.25, 0.2, 0.16), 'value')
+    by_ent = _by_ent([share])
+    cat = _cat(('generic_data.vdata:m_flPostLanePhaseGoldShareFrac', 'global'))
+    res = annotate_line('Soul Sharing ratios post-lane reduced from 100/70/45/33/25/20% to 100/60/35/25/20/16%',
+                        [share], by_ent, {}, cat, {}, None, system_pools(by_ent, cat))
+    assert res['status'] in ('documented', 'rounded') and res['changes'] == [share.key]
 
 
 def test_an_interface_line_about_a_moved_ability_is_matched():
@@ -192,6 +213,27 @@ def test_a_stat_that_moved_to_another_field_is_one_changed_row():
                                'Scale'),
                           _row('m_mapAbilityProperties.NonPlayerResourceScalePct.m_strValue', 'add', '', '35%',
                                'Scale')]) == []
+
+
+def test_rows_of_no_or_two_entities_are_never_one_moved_stat():
+    """Review: a build page's card holds rows without a key — "Cooldown 5s → 0s" and "Cooldown 0s → 7s" of two
+    entries made one row."""
+    from builders.cards import merge_renames
+    rows = [_row('m_mapAbilityProperties.A.m_strValue', 'change', '5s', '0s', 'Cooldown'),
+            _row('m_mapAbilityProperties.B.m_strValue', 'change', '0s', '7s', 'Cooldown')]
+    keyless = [{k: v for k, v in r.items() if k != 'key'} for r in rows]
+    assert len(merge_renames(keyless)) == 2
+    two = [rows[0], {**rows[1], 'key': 'abilities.vdata:upgrade_y:m_mapAbilityProperties.B.m_strValue'}]
+    assert len(merge_renames(two)) == 2
+
+
+def test_a_moved_effect_field_keeps_buff_or_nerf():
+    """An effect (modifiers.vdata) is judged BUFF / NERF like enrich judges it; a unit's field UP / DOWN."""
+    from builders.cards import merge_renames
+    key = 'modifiers.vdata:modifier_x'
+    rows = merge_renames([_row('m_flOldDuration', 'remove', '5s', '', 'Duration', key=key),
+                          _row('m_flNewDuration', 'add', '', '7s', 'Duration', key=key)])
+    assert len(rows) == 1 and rows[0]['dir'] in ('buff', 'nerf', 'changed') and rows[0]['dir'] not in ('up', 'down')
 
 
 def test_a_tier_bonus_moved_to_another_property_stays_two_rows():
@@ -278,6 +320,8 @@ def test_a_yes_no_field_reads_now_or_no_longer_where_its_name_says_what_holds():
         ('steps', 'now')
     assert shown_pair({**row, 'op': 'add', 'old_s': '', 'new_s': 'no'})[0] == 'pair'       # the default: no news
     assert shown_pair({**row, 'label': 'Melee Resistance'}) == ('pair', 'yes', 'no')       # a thing, not what holds
+    assert shown_pair({**row, 'op': 'remove', 'old_s': 'yes', 'new_s': ''}) == ('steps', 'no longer')
+    assert shown_pair({**row, 'label': 'Drops Souls', 'old_s': '1', 'new_s': '0'})[0] == 'pair'   # a count
 
 
 # ---- 6. Unit Stats: resists and sight -----------------------------------------------------------------------------
@@ -298,3 +342,68 @@ def test_unit_stats_read_a_units_own_resists_and_sight():
             {'m_eModifierValue': 'MODIFIER_VALUE_BULLET_ARMOR_DAMAGE_RESIST', 'm_value': '10'}]}]}
     v = evaluate(guardian)
     assert v['res_bullet'] == 10 and v['res_spirit'] is None and v['sight'] is None
+
+
+# ---- 7. names and sides ---------------------------------------------------------------------------------------------
+
+def _band(pid, *changes):
+    return ({'id': pid, 'date': pid}, list(changes))
+
+
+def test_a_guns_template_rows_join_the_gun():
+    """#40.2: Holliday's …_shotgun_shared_base held what her shotgun shares: "Weapon (shotgun) · shared base" was a
+    gun group of its own."""
+    from builders.hero_page import fold_into, gun_templates
+    ents = {i: {'id': i, 'owner': 'hero_astro', 'kind': 'weapon'} for i in (
+        'citadel_weapon_astro_set_shotgun', 'citadel_weapon_astro_set_shotgun_shared_base',
+        'citadel_weapon_astro_set_shotgun_shared_weapon_info')}
+    tm = gun_templates('hero_astro', ents)
+    assert tm == {'citadel_weapon_astro_set_shotgun_shared_base': 'citadel_weapon_astro_set_shotgun',
+                  'citadel_weapon_astro_set_shotgun_shared_weapon_info': 'citadel_weapon_astro_set_shotgun'}
+    gone = {'label': 'Removed from the game files', 'old_s': '', 'new_s': ''}
+    by_ent = {'abilities.vdata:citadel_weapon_astro_set_shotgun': [_band('p2', gone)],
+              'abilities.vdata:citadel_weapon_astro_set_shotgun_shared_base': [
+                  _band('p1', {'label': 'Ammo', 'old_s': '10', 'new_s': '20'}), _band('p2', dict(gone))]}
+    out = fold_into(by_ent, 'citadel_weapon_astro_set_shotgun', ['citadel_weapon_astro_set_shotgun_shared_base'])
+    assert 'abilities.vdata:citadel_weapon_astro_set_shotgun_shared_base' not in out
+    bands = {row['id']: ch for row, ch in out['abilities.vdata:citadel_weapon_astro_set_shotgun']}
+    assert [c['label'] for c in bands['p1']] == ['Ammo'] and len(bands['p2']) == 1      # the removal said once
+
+
+def test_a_kit_ability_that_never_shipped_is_marked_pre_release():
+    from builders.hero_page import prerelease_kit
+    ents = {'citadel_ability_shiv_dive': {'id': 'citadel_ability_shiv_dive', 'owner': 'hero_shiv', 'alive': False,
+                                          'name': 'citadel_ability_shiv_dive'},
+            'ability_shiv_live': {'id': 'ability_shiv_live', 'owner': 'hero_shiv', 'alive': True,
+                                  'name': 'ability_shiv_live'},
+            'ability_shiv_named': {'id': 'ability_shiv_named', 'owner': 'hero_shiv', 'alive': False,
+                                   'name': 'Slice and Dice'}}
+    by_ent = {f'abilities.vdata:{i}': [_band('p1', {'status': 'unreleased'})] for i in ents}
+    by_ent['abilities.vdata:citadel_ability_shiv_dive'].append(_band('p2', {'status': 'unreleased'}))
+    assert prerelease_kit('hero_shiv', ents, by_ent) == {'citadel_ability_shiv_dive'}
+    by_ent['abilities.vdata:citadel_ability_shiv_dive'].append(_band('p3', {'status': 'hidden'}))   # it shipped
+    assert prerelease_kit('hero_shiv', ents, by_ent) == set()
+
+
+def test_a_notifications_attributes_have_no_side():
+    """#42.4: "Proc Notification › Attributes +can't be purged" read BUFF (13 rows)."""
+    from pipeline import flags
+    path = 'm_AutoIntrinsicModifiers{x}.m_ProcNotificationModifier.m_nAttributes'
+    assert flags.direction(path, None, 'MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED') == 'changed'
+    assert flags.direction('m_SomeModifier.m_nAttributes', None, 'MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED') == 'buff'
+
+
+def test_a_re_keyed_unit_field_is_up_or_down():
+    """#43.4: merge_renames judged a unit's re-keyed field BUFF / NERF (no unit side passed)."""
+    from builders.cards import merge_renames
+    rows = merge_renames([
+        _row('m_flPlayerDPS', 'remove', '20', '', 'DPS vs Heroes', key='npc_units.vdata:trooper_base'),
+        _row('m_VSPlayer.m_flBaseDPS', 'add', '', '28', 'DPS vs Heroes', key='npc_units.vdata:trooper_base')])
+    assert len(rows) == 1 and rows[0]['dir'] == 'up'
+
+
+def test_valves_disabled_mark_is_not_part_of_a_name():
+    from pipeline.catalog import _DEPRECATED
+    assert _DEPRECATED.sub('', 'Majestic Leap - Disabled').strip() == 'Majestic Leap'
+    assert _DEPRECATED.sub('', '[Deprecated] Bullet Resilience').strip() == 'Bullet Resilience'
+    assert _DEPRECATED.sub('', 'Disabled Dash').strip() == 'Disabled Dash'

@@ -215,6 +215,12 @@ def list_match(c: MChange, pairs, rel: float = EXACT) -> bool:
     return False
 
 
+def two_sided(c: MChange, pairs) -> bool:
+    """Both numbers of a pair (or a whole list) are the field's, within the notes' rounding: not one value alone."""
+    return list_match(c, pairs, APPROX) or any(value_matches(o, a, c, APPROX) and value_matches(n, b, c, APPROX)
+                                               for a, b in pairs for o, n in c.steps())
+
+
 def exact_pair(c: MChange, pairs) -> bool:
     if list_match(c, pairs):
         return True
@@ -421,17 +427,6 @@ def mark_availability_moves(changes: list[MChange]) -> None:
             flag.moved = state.moved = True
 
 
-@lru_cache(maxsize=1)
-def convar_start() -> int | None:
-    """The first build with console variables (6395, 2026-03-10: the tracker began dumping them): a snapshot of all
-    1,365 of them, no change (builders.game_systems.convar_start reads the same index)."""
-    try:
-        index = json.loads((BUILDS / 'index.json').read_text(encoding='utf-8'))
-    except FileNotFoundError:
-        return None
-    return next((b['build'] for b in index if b.get('convars')), None)
-
-
 def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared: bool, tok: dict[str, str],
                    canon: dict[str, dict]) -> MChange:
     """A record's field change `c` of entity `tid` as the window's MChange (labels of that build's text)."""
@@ -516,7 +511,7 @@ def rekey_lists(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dic
                 continue
             op = 'change' if path in a and path in b else 'add' if path in b else 'remove'
             rec = {'path': path, 'op': op, 'old': jsonable(old), 'new': jsonable(new), 'cat': category(path, old, new)}
-            out.append(_window_change(file, eid, rec, ce, builds, shared, tok, canon))
+            out.append(_window_change(file, eid, rec, ce, list(builds), shared, tok, canon))
     return [c for c in changes if id(c) not in drop] + out
 
 
@@ -584,7 +579,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
         if cv.get('op') == 'change' and num(cv.get('old')) is not None and new is not None:
             old = cv['old']
         elif (cv.get('op') == 'add' and new is not None and cv['name'] not in moved_cv
-              and cv.get('build') != convar_start() and game_map.convar_system(cv['name'])):
+              and cv.get('build') != game_map.convar_start() and game_map.convar_system(cv['name'])):
             old = None
         else:
             continue
@@ -650,7 +645,9 @@ def system_pools(by_ent: dict[str, list[MChange]], cat: dict[str, dict]) -> dict
             sid = game_map.convar_system(c.eid)
         else:
             e = cat.get(k) or {'file': c.file, 'id': c.eid}
-            hit = None if game_map.claimed(e) else game_map.place(f'{k}#{e.get("kind") or ""}')
+            # as the Game pages place it (game_systems.place_entity): not a page's entry, scenery or a test object
+            skip = game_map.claimed(e) or game_map.is_decor(e) or game_map.is_dev(e)
+            hit = None if skip else game_map.place(f'{k}#{e.get("kind") or ""}')
             sid = hit[0] if hit else None
         if sid:
             out.setdefault(sid, set()).add(k)
@@ -732,8 +729,9 @@ def _close_hero(prefix: str, idx: dict[str, list[str]]) -> list[str] | None:
 
 
 def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]) -> Subject | None:
-    """The entity a "Name:" prefix names. A game system's word ("Street Brawl:") is no subject: the line goes the way
-    of one without (the rules for all, then its system's entries, `system_alias`)."""
+    """The entity a "Name:" prefix names (an alias word too: "Urn:", "Rejuv:"). A game system's word that is no alias
+    ("Street Brawl:") is no subject: the line goes the way of one without (the rules for all, then its system's
+    entries, `system_alias`)."""
     keys = idx.get(prefix.strip().lower())
     if not keys:
         aliased = rules.alias_keys(prefix)
@@ -917,7 +915,7 @@ def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, 
     if list_match(c, pairs):
         s += 10
     elif list_match(c, pairs, APPROX):
-        s += 7              # "100/70/45/33%" for 1 / 0.7 / 0.45 / 0.333
+        s += 8              # "100/70/45/33%" for 1 / 0.7 / 0.45 / 0.333: a whole list within the notes' rounding
     for a, b in pairs:
         if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in steps):
             s += 10
@@ -1141,10 +1139,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         # word of it ("Jump Pad stun window increased from 0.6s to 0.9s" is the catapult watcher's Duration;
         # coverage finding 8) — not a field that names another stat than the line ("Movement Speed powerup
         # movespeed reduced from 2 to 1" is not the stamina powerup's Extra Stamina 2 -> 1)
-        sys_pool = [c for c in sys_pool if not names_other_stat(c, lw)]
+        # — and no word is waived for one number alone: a field that only took the line's new value (an add, "now
+        # grants") or moved by its percent must share a word with the line; both sides of a pair need none
+        sys_pool = [c for c in sys_pool if not names_other_stat(c, lw)
+                    and (label_words(c) & lw or two_sided(c, pairs))]
+        tried = False
 
         def system_pass() -> None:
-            nonlocal scored, best, pool, ability_hits, need_word, need
+            nonlocal scored, best, pool, ability_hits, need_word, need, tried
+            tried = True
             before = (scored, best, pool, ability_hits, need_word, need)
             need_word, need = False, 0
             pool, ability_hits = sys_pool, set(sys_ids)
@@ -1169,7 +1172,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             if subject.kind == 'alias_inline' and not enough(best):
                 # nothing there either: a disagreement is judged on the alias's own fields, as before
                 scored, best, pool, ability_hits, need_word, need = own_pass
-        if not enough(best) and sys_pool:
+        if not enough(best) and sys_pool and not tried:
             system_pass()       # last otherwise: a line an earlier pass matched keeps its fields
         if enough(best):
             hits = [c for s, c in scored if s == best]

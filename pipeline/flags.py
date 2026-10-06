@@ -186,6 +186,11 @@ def bit_words(kind: str, bit: str) -> tuple[str, int] | None:
     return _VOCAB[kind].get(name)
 
 
+# a modifier that only tells the player something happened (Proc Notification, Interrupt Notification): its
+# attributes have no side — "Proc Notification › Attributes +can't be purged" read BUFF on 13 rows
+_NOTIFICATION = re.compile(r'Notification', re.I)
+
+
 def diff(path: str, old, new) -> tuple[list[tuple[str, int]], list[tuple[str, int]]] | None:
     """(added, removed) listed bits of a flag field as (words, side for the owner); None when the path is
     not a flag field. Unlisted bits are left out."""
@@ -193,6 +198,8 @@ def diff(path: str, old, new) -> tuple[list[tuple[str, int]], list[tuple[str, in
     if not f:
         return None
     kind, how = f
+    if kind == 'attribute' and _NOTIFICATION.search(str(path).rsplit('.', 1)[0]):
+        how = 0              # a notification's "can't be purged" is how its icon lasts, nobody's gain (#42.4)
     a, b = bits(old), bits(new)
     if kind == 'target':
         a, b = target_bits(a), target_bits(b)

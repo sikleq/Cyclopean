@@ -153,11 +153,23 @@ def _moved(gone: dict, came: dict) -> dict | None:
               'status': min((came.get('status', 'hidden'), gone.get('status', 'hidden')),
                             key=lambda s: s not in HIDDEN_LIKE)}
     if x is not None and y is not None:
-        # the NEW row carried dir='changed': judge the pair like any other change
+        # the NEW row carried dir='changed': judge the pair like any other change — a unit's or a game object's as
+        # UP / DOWN, as its other rows (#43.4: a re-keyed trooper field read BUFF on a unit page)
         from pipeline.semantics import direction, gradient
-        d, pct = direction(str(came.get('path', '')), x, y)
+        d, pct = direction(str(came.get('path', '')), x, y, 'unit' if _unit_side(gone, came) else '')
         merged.update(dir=d, pct=pct, grad=gradient(pct))
     return merged
+
+
+# files whose entries enrich judges with no owner side (semantics.SHARED_KINDS: units, map objects, game rules); an
+# effect (modifiers.vdata) keeps BUFF / NERF there
+_UNIT_FILES = ('npc_units.vdata', 'misc.vdata', 'generic_data.vdata', 'loot_tables.vdata')
+
+
+def _unit_side(*rows: dict) -> bool:
+    """The rows are a unit's or a game object's (no owner side): by their file, or a sibling row judged UP / DOWN
+    (an NPC's ability)."""
+    return any(str(r.get('key') or '').split(':', 1)[0] in _UNIT_FILES or r.get('dir') in ('up', 'down') for r in rows)
 
 
 _ZERO = re.compile(r'^\s*[-+]?0(?:\.0+)?\s*(?:m/s|m|s|%)?\s*$')
@@ -169,6 +181,10 @@ def _leaves(c: dict) -> bool:
 
 def _arrives(c: dict) -> bool:
     return c.get('op') == 'add' or (c.get('op') == 'change' and bool(_ZERO.match(str(c.get('old_s') or ''))))
+
+
+def _entity_of(c: dict) -> str:
+    return ':'.join(str(c.get('key') or '').split(':', 2)[:2])
 
 
 def _merge_moves(rows: list[dict]) -> list[dict]:
@@ -194,6 +210,8 @@ def _merge_moves(rows: list[dict]) -> list[dict]:
         g, a = gone[0], came[0]
         if g.get('path') == a.get('path') or 'change' not in (g.get('op'), a.get('op')):
             continue                # remove + add is merge_renames' own; this is a field set to / from 0
+        if not _entity_of(g) or _entity_of(g) != _entity_of(a):
+            continue                # rows of two entities (or with no key: a build page's card) are never one stat
         if _unit_of(g.get('old_s')) != _unit_of(a.get('new_s')) and not _same_value(g.get('old_s'), a.get('new_s'), g, a):
             continue
         pairs[id(g)] = None

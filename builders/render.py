@@ -511,8 +511,9 @@ _PREDICATE = re.compile(r'^(?:can|is|are|has|have|should|does|do|uses?|requires?
 
 
 def _yes_no(v) -> bool | None:
+    """yes / no only: "Drops 1 → 0" of a counting field is a number, not "no longer"."""
     s = str(v).strip().lower() if v is not None else ''
-    return True if s in _TRUE else False if s in _FALSE else None
+    return True if s in ('yes', 'true') else False if s in ('no', 'false') else None
 
 
 def bool_move(c: dict, old_s, new_s) -> str | None:
