@@ -120,8 +120,8 @@ def merge_renames(changes: list[dict]) -> list[dict]:
         if c.get('op') == 'add':
             adds.setdefault(_rename_key(c.get('label')), []).append(c)
     if not adds:
-        return list(changes)
-    added =[a for g in adds.values() for a in g]
+        return _merge_moves(list(changes))
+    added = [a for g in adds.values() for a in g]
     out, used = [], set()
     for c in changes:
         pool = adds.get(_rename_key(c.get('label'))) if c.get('op') == 'remove' else None
@@ -134,22 +134,74 @@ def merge_renames(changes: list[dict]) -> list[dict]:
         if a is not None:
             adds[_rename_key(a.get('label'))].remove(a)
             used.add(id(a))
-            x, y = _num(c.get('old_s', c.get('old'))), _num(a.get('new_s', a.get('new')))
-            if _same_shown(c.get('old_s'), a.get('new_s')) or (
-                    x is not None and y is not None and (x == y or abs(x / UNITS_PER_METER - y) < 0.01)):
-                continue            # same value under a new key (or the same length now in metres)
-            merged = {**a, 'op': 'change', 'old_s': c.get('old_s'), 'old': c.get('old'),
-                      'status': min((a.get('status', 'hidden'), c.get('status', 'hidden')),
-                                    key=lambda s: s not in HIDDEN_LIKE)}
-            if x is not None and y is not None:
-                # the NEW row carried dir='changed': judge the pair like any other change
-                from pipeline.semantics import direction, gradient
-                d, pct = direction(str(a.get('path', '')), x, y)
-                merged.update(dir=d, pct=pct, grad=gradient(pct))
-            out.append(merged)
+            merged = _moved(c, a)
+            if merged is not None:
+                out.append(merged)
             continue
         out.append(c)
-    return [c for c in out if id(c) not in used]
+    return _merge_moves([c for c in out if id(c) not in used])
+
+
+def _moved(gone: dict, came: dict) -> dict | None:
+    """One CHANGED row for a value that left one field (`gone`, its old value) and arrived in another (`came`, its
+    new value) — None when it is the same value (a re-key, a length now in metres, a share now a percent)."""
+    x, y = _num(gone.get('old_s', gone.get('old'))), _num(came.get('new_s', came.get('new')))
+    if _same_shown(gone.get('old_s'), came.get('new_s')) or _same_value(gone.get('old_s'), came.get('new_s'), gone, came) \
+            or (x is not None and y is not None and (x == y or abs(x / UNITS_PER_METER - y) < 0.01)):
+        return None
+    merged = {**came, 'op': 'change', 'old_s': gone.get('old_s'), 'old': gone.get('old'),
+              'status': min((came.get('status', 'hidden'), gone.get('status', 'hidden')),
+                            key=lambda s: s not in HIDDEN_LIKE)}
+    if x is not None and y is not None:
+        # the NEW row carried dir='changed': judge the pair like any other change
+        from pipeline.semantics import direction, gradient
+        d, pct = direction(str(came.get('path', '')), x, y)
+        merged.update(dir=d, pct=pct, grad=gradient(pct))
+    return merged
+
+
+_ZERO = re.compile(r'^\s*[-+]?0(?:\.0+)?\s*(?:m/s|m|s|%)?\s*$')
+
+
+def _leaves(c: dict) -> bool:
+    return c.get('op') == 'remove' or (c.get('op') == 'change' and bool(_ZERO.match(str(c.get('new_s') or ''))))
+
+
+def _arrives(c: dict) -> bool:
+    return c.get('op') == 'add' or (c.get('op') == 'change' and bool(_ZERO.match(str(c.get('old_s') or ''))))
+
+
+def _merge_moves(rows: list[dict]) -> list[dict]:
+    """A stat that moved to another field of the same name, one side through 0: Thermal Detonator's "Spirit Power"
+    left TechPower (7 → 0) for SpiritPower (— → 8), Headshot Booster's "Cooldown" left HeadShotCooldown (5s → —)
+    for AbilityCooldown (0s → 7s) — two rows "· old field / · new field" (#12.8; 15 pairs over all patches). One
+    CHANGED row 7 → 8 (none when the value is the same). Only one leaving and one arriving row under the label, in
+    one unit, never a T1-T3 / Enhanced bonus (a bonus moved to another property is a tier swap, `fold_tier_swaps`)."""
+    by: dict[str, tuple[list[dict], list[dict]]] = {}
+    for c in rows:
+        label = _rename_key(c.get('label'))
+        if not label or _TIER_HEAD.match(label):
+            continue
+        gone, came = by.setdefault(label, ([], []))
+        if _leaves(c) and not _arrives(c):
+            gone.append(c)
+        elif _arrives(c) and not _leaves(c):
+            came.append(c)
+    pairs: dict[int, dict | None] = {}
+    for gone, came in by.values():
+        if len(gone) != 1 or len(came) != 1:
+            continue
+        g, a = gone[0], came[0]
+        if g.get('path') == a.get('path') or 'change' not in (g.get('op'), a.get('op')):
+            continue                # remove + add is merge_renames' own; this is a field set to / from 0
+        if _unit_of(g.get('old_s')) != _unit_of(a.get('new_s')) and not _same_value(g.get('old_s'), a.get('new_s'), g, a):
+            continue
+        pairs[id(g)] = None
+        pairs[id(a)] = _moved(g, a)
+    if not pairs:
+        return rows
+    out = (pairs.get(id(c), c) for c in rows)
+    return [c for c in out if c is not None]
 
 
 def _rename_key(label) -> str:
@@ -266,9 +318,16 @@ def _same_value(old_s, new_s, r: dict, a: dict) -> bool:
     if _same_shown(old_s, new_s):
         return True
     x, y = _num(old_s), _num(new_s)
-    if x is None or x != y:
+    if x is None or y is None:
         return False
     ur, ua = _unit_of(old_s), _unit_of(new_s)
+    if x != y and {ur, ua} == {'', '%'}:
+        # a share written as a fraction in one field and as a percent in its "…Pct" successor: Mo & Krill's
+        # "Non Player Resource Scale 0.35" → "35%" (NonPlayerResourceScalePct) is one value
+        frac, pct, row = (x, y, a) if ua == '%' else (y, x, r)
+        return 0 < abs(frac) <= 1 and abs(frac * 100 - pct) < 1e-6 and bool(_PCT_NAME.search(_prop_of(row)))
+    if x != y:
+        return False
     if x == 0 or ur == ua or '%' not in (ur, ua):
         return True
     return bool(_PCT_NAME.search(_prop_of(r if ur != '%' else a)))

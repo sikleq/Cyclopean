@@ -818,15 +818,19 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
     if leaf in UNIT_FIELDS:
         label, meters = UNIT_FIELDS[leaf]
         parent = path.rsplit('.', 2)[-2] if path.count('.') >= 1 else ''
+        unit = ''
         if parent.startswith('m_VS'):
             label = f'{label} vs {humanize(parent[4:])}'
+            # a trooper's resist against one foe is the percent its flat "…DamageResistPct" field was: "Damage
+            # Resist vs Walker 80%" moved there on 2026-04-30 and read "80% → —" beside "— → 80" (#12.8)
+            unit = '%' if leaf == 'm_flDamageResist' else ''
         m = _EMPOWERED_RE.search(path)
         if m:
             label = f'{label} (empowered, stage {m.group(1)})'
         m = _WEAK_POINT_RE.search(path)
         if m:
             label = f'Weak point ({m.group(1)}): {label[:1].lower() + label[1:]}'
-        return {'label': label, 'meters': meters, 'group': 'unit'}
+        return {'label': label, 'meters': meters, 'group': 'unit', **({'unit': unit} if unit else {})}
     # a modifier's resist value is a percent (Walker's passive "Bullet Resist 25 → 35"; review 2026-10-05) — not its
     # per-hero reduction or a range
     resist = _RESIST_VALUE.search(path)

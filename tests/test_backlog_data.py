@@ -163,3 +163,48 @@ def test_capped_and_killer_plane_speeds_read_in_metres_per_second():
     assert shown('m_flKillerPlaneHorizontalDecayRate', 15, 'global', 'xp_orb_trooper') == '15'
     assert shown('m_flPickupRadius.m_flStartMinute', 10, 'global', 'small_gold_pickup') == '10'
     assert s.engine_unit('m_flInitialOffsetLerpBias') is False and s.engine_unit('m_flTurnRate') is False
+
+
+# ---- 3. a stat moved to another field: one row ---------------------------------------------------------------------
+
+def _row(path, op, old_s, new_s, label, key='abilities.vdata:upgrade_x', **kw):
+    return {'key': f'{key}:{path}', 'path': path, 'op': op, 'old_s': old_s, 'new_s': new_s, 'label': label,
+            'status': 'hidden', 'cat': 'balance', 'dir': 'changed', **kw}
+
+
+def test_a_stat_that_moved_to_another_field_is_one_changed_row():
+    """#12.8: Thermal Detonator's "Spirit Power" left TechPower (7 → 0) for SpiritPower (— → 8): two rows "· old
+    field / · new field"; Headshot Booster's cooldown left HeadShotCooldown (5s → —) for AbilityCooldown (0s → 7s)."""
+    from builders.cards import merge_renames
+    rows = merge_renames([_row('m_mapAbilityProperties.TechPower.m_strValue', 'change', '7', '0', 'Spirit Power'),
+                          _row('m_mapAbilityProperties.SpiritPower.m_strValue', 'add', '', '8', 'Spirit Power')])
+    assert len(rows) == 1 and (rows[0]['old_s'], rows[0]['new_s'], rows[0]['op']) == ('7', '8', 'change')
+    assert rows[0]['dir'] == 'buff'
+    rows = merge_renames([_row('m_mapAbilityProperties.AbilityCooldown.m_strValue', 'change', '0s', '7s', 'Cooldown'),
+                          _row('m_mapAbilityProperties.HeadShotCooldown.m_strValue', 'remove', '5s', '', 'Cooldown')])
+    assert len(rows) == 1 and (rows[0]['old_s'], rows[0]['new_s']) == ('5s', '7s') and rows[0]['dir'] == 'nerf'
+    # the same value under the new field is no change at all
+    assert merge_renames([_row('m_mapAbilityProperties.TetherDistance.m_strValue', 'remove', '16m', '', 'Range'),
+                          _row('m_mapAbilityProperties.AbilityCastRange.m_strValue', 'change', '0m', '16m',
+                               'Range')]) == []
+    # a share now written as a percent in its "…Pct" successor (Mo & Krill, 2025-08-22)
+    assert merge_renames([_row('m_mapAbilityProperties.NonPlayerResourceScale.m_strValue', 'remove', '0.35', '',
+                               'Scale'),
+                          _row('m_mapAbilityProperties.NonPlayerResourceScalePct.m_strValue', 'add', '', '35%',
+                               'Scale')]) == []
+
+
+def test_a_tier_bonus_moved_to_another_property_stays_two_rows():
+    """Drifter's T3 left Damage (0.4 → 0) for DamageHeavyMelee (— → 0.55): a swap of what it buffs, not one stat."""
+    from builders.cards import merge_renames
+    rows = merge_renames([_row('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{Damage}.m_strBonus', 'change', '0.4',
+                               '0', 'T3: Damage'),
+                          _row('m_vecAbilityUpgrades[2].m_vecPropertyUpgrades{DamageHeavyMelee}.m_strBonus', 'add', '',
+                               '0.55', 'T3: Damage')])
+    assert len(rows) == 2
+
+
+def test_a_troopers_resist_against_one_foe_is_a_percent():
+    from pipeline import semantics
+    d = semantics.describe('m_VSWalker.m_flDamageResist', {}, 'trooper_base', 'trooper')
+    assert d['label'] == 'Damage Resist vs Walker' and semantics.show(80, d['meters'], d['unit']) == '80%'
