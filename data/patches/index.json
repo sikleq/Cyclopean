@@ -2528,11 +2528,11 @@
   "id": "2026-09-29",
   "title": "City Never Sleeps",
   "date": "2026-09-29",
-  "builds": 7,
+  "builds": 12,
   "counts": {
    "documented": 1,
-   "described": 670,
-   "hidden": 561,
+   "described": 671,
+   "hidden": 582,
    "unannounced": 0,
    "unreleased": 262
   },
@@ -2546,18 +2546,23 @@
   "has_notes": true
  },
  {
-  "id": "build-6736",
-  "title": "Listen up, Crumbums! Your King is here.",
-  "date": "2026-10-02",
-  "builds": 5,
+  "id": "2026-10-05",
+  "title": "Minor Update - 10-05-2026",
+  "date": "2026-10-05",
+  "builds": 1,
   "counts": {
-   "documented": 0,
-   "described": 0,
-   "hidden": 0,
-   "unannounced": 46,
+   "documented": 21,
+   "described": 5,
+   "hidden": 15,
+   "unannounced": 0,
    "unreleased": 0
   },
-  "line_counts": {},
-  "has_notes": false
+  "line_counts": {
+   "fix": 1,
+   "described": 4,
+   "documented": 19,
+   "unmatched": 1
+  },
+  "has_notes": true
  }
 ]
