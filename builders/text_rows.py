@@ -7,8 +7,8 @@ beside the entity's changes, and `history_view` adds them to the entity's group 
 - a description (or an upgrade tier's) is a folded row "Description changed" that opens on the old text and the new
   one, the words that went struck through and the words that came highlighted.
 
-They are text, not changes the counters count: no tag, no eye, never a band's counters or its strip tile; a tag or
-"not in patch notes" filter hides them (scripts.js `hist-filter`: `.st-text`)."""
+They are text, not changes the counters count: a neutral TEXT badge (render.note_badge), no eye, never a band's
+counters or its strip tile; a tag or "not in patch notes" filter hides them (scripts.js `hist-filter`: `.st-text`)."""
 from __future__ import annotations
 
 import difflib
@@ -151,6 +151,8 @@ def text_rows(texts: list[dict], hero: str | None = None, changes: list[dict] | 
     fills into "[Hero name]" (61 rows showed the token; review 2026-10-05). `changes`: the entity's change rows of the
     same patch (`numbers_only`)."""
     from .cards import row
+    from .render import note_badge
+    tag = note_badge('TEXT')            # neutral: no counter or tag filter takes it (the column was blank)
     out = []
     for t in sorted(texts, key=lambda t: list(PART_LABEL).index(t['part']) if t['part'] in PART_LABEL else 9):
         a, b, gap = sides(t, hero)
@@ -160,14 +162,14 @@ def text_rows(texts: list[dict], hero: str | None = None, changes: list[dict] | 
         if t['part'] == 'name':
             vals = (f'<span class="vals wrap"><span class="old">{esc(a)}</span><span class="arrow">→</span>'
                     f'<span class="new">{esc(b)}</span></span>')
-            out.append(row('text', '', esc(label), vals))
+            out.append(row('text', tag, esc(label), vals))
             continue
         old, new = _marked(a, b)
         if cosmetic(a, b):
             # the wording only ("infront" → "in front", a key binding spelled the new way): one quiet line, still
             # there — the owner wants every change, but it is no description change
             label = label.replace('description changed', 'wording fixed').replace('Description changed', 'Wording fixed')
-        head = row('text', '', esc(label), '')
+        head = row('text', tag, esc(label), '')
         # a short text opens on its old and new versions, like a tooltip card side by side, with the values the game
         # filled in at each build — not one with a value no build record knows (its gaps are no reading), nor one whose
         # only change is numbers the patch's rows already say

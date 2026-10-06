@@ -151,6 +151,10 @@
   --entity-w: 1180px;         /* a hero / item / unit page: ONE centred column (owner 2026-10-04) */
   --tag-w: 80px;              /* every tag badge one width (CHANGED, the longest, fits), so a row's text starts on one line */
   --gutter: 20px;
+  /* a sortable header's hint and the sorted one's direction (pixel_icons.SORT_ART) */
+  --mask-sort: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E");
+  --mask-sort-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 3h8v1h-8zM2 4h6v1h-6zM3 5h4v1h-4zM4 6h2v1h-2z'/%3E%3C/svg%3E");
+  --mask-sort-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 3h2v1h-2zM3 4h4v1h-4zM2 5h6v1h-6zM1 6h8v1h-8z'/%3E%3C/svg%3E");
 
   /* the eye as a mask (the strip tiles draw it in --eye; an inline SVG per tile cost 13 KB a page) */
   --mask-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1zM13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z'/%3E%3C/svg%3E");
@@ -566,6 +570,8 @@ a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }
 .erow.rw .vals .old { color: var(--text-dimmer); }
 .erow.rw .vals .new { color: var(--text-main); font-weight: 600; }
 .tag.topic-tag { --c: var(--text-dimmer); }
+/* TEXT on a name / description change, NOTE on a line the files cannot back (render.note_badge): neutral, no icon */
+.tag.note-tag { --c: var(--text-dimmer); }
 .eye-chip { color: var(--eye); }
 /* the entity head's way to what the notes left out (history_view.hidden_link) */
 a.chip.eye-link { color: var(--eye); }
@@ -994,7 +1000,13 @@ table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; fon
 table.stats thead tr.cols th:hover { color: var(--text-bright); }
 /* the sorted column: a gold header with its arrow, its cells under a faint gold wash (Sloppy) */
 table.stats thead th.sorted { color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
-table.stats thead th.sorted::after { content: attr(data-arrow); margin-left: 3px; font-family: var(--font-px-small); }
+/* a column that sorts says so: a quiet two-way arrow; the sorted one points the way it sorts (aria-sort, set by
+   scripts.js table-sort on every sortable header; pixel_icons.SORT_ART — the font ▼ / ▲ is gone) */
+table.stats thead tr.cols th[aria-sort]::after { content: ""; display: inline-block; width: 10px; height: 10px;
+  margin-left: 2px; vertical-align: -1px; background: currentColor; opacity: .35;
+  -webkit-mask: var(--sort-ic, var(--mask-sort)) center / 10px 10px no-repeat; mask: var(--sort-ic, var(--mask-sort)) center / 10px 10px no-repeat; }
+table.stats thead tr.cols th[aria-sort="descending"]::after { --sort-ic: var(--mask-sort-down); opacity: 1; }
+table.stats thead tr.cols th[aria-sort="ascending"]::after { --sort-ic: var(--mask-sort-up); opacity: 1; }
 table.stats th.name, table.stats td.name { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--bg-panel); }
 table.stats thead th.name { text-align: center; }
 table.stats thead th.name { z-index: 4; }
@@ -1294,6 +1306,8 @@ a.au.au-hidden:hover b { text-decoration: underline; }
 .htile:hover { --frame: var(--patina); transform: translateY(-2px); }
 .htile .ht-t { font: 34px/1 var(--font-px); }
 .htile .ht-n { font: 22px/1 var(--font-label); color: var(--label); }
+/* what the index shows behind a switch, apart from the number (home_page._tiles: "+5 pre-release") */
+.htile .ht-x { margin-left: 8px; font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; }
 .htile .ht-art { grid-column: 1 / -1; display: flex; gap: 6px; }
 .htile .ht-art img { width: 40px; height: 40px; object-fit: cover; background: var(--bg-panel-4); }
 /* the Game systems' icons are glyphs and small paintings from the game files: whole, not cropped */
@@ -1806,6 +1820,8 @@ table.dt-rows td:last-child { border-right: 0; }
 .dt-eye .mark, .dt-e .mark, .dt-eye .mark::before, .dt-e .mark::before { width: 14px; height: 14px; flex: none; }
 .dt-e { display: inline-flex; vertical-align: -2px; margin-right: 4px; color: var(--eye); }
 table.dt-rows tr.dt-grp td { padding: 7px 6px 4px; text-align: left; font: 600 12.5px/1 var(--font-ui); color: var(--name); border-right: 0; }
+/* a rule for all's own number in a strip tile's card (it is not in the tile's counts) */
+table.dt-rows tr.dt-grp .dt-every { margin-left: 8px; font-weight: 500; color: var(--text-dimmer); }
 .dt-ic { display: inline-flex; position: relative; width: 22px; height: 22px; padding: 2px; margin-right: 7px; vertical-align: -6px;
   background: var(--bg-panel-4); box-shadow: 0 0 0 1px var(--frame-line); }
 .dt-ic img { width: 100%; height: 100%; object-fit: contain; }

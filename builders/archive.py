@@ -94,6 +94,7 @@ def change_anchors(pid: str) -> frozenset[str]:
 
 
 def clear() -> None:
-    """Forget everything (tests that swap data/ for fixtures)."""
-    for f in (index, by_date, patch, gameplay, note_anchors, change_anchors, note_lines):
-        f.cache_clear()
+    """Forget everything (tests that swap data/ for fixtures): the archive and what every builder memoised from it
+    (caches.clear_all: trail, patch_counts, stat_eyes, evidence… kept answering from the data before the swap)."""
+    from .caches import clear_all
+    clear_all()

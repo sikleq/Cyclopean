@@ -191,8 +191,9 @@ def index_page(entries: dict, hist: dict) -> str:
     body = ('<h1>Game</h1>' + section_tabs('index') +
             '<div class="toolbar"><input type="search" placeholder="System…" data-search-target=".game-card"></div>'
             f'<div class="grid units game-grid">{"".join(cards)}</div>')
-    return page('Game', body, rel, SECTION, description='Deadlock: every change to the game rules, map objects, '
-                                                         'souls, respawn and the Soul Urn, from the game files')
+    return page('Game', body, rel, SECTION, wide=True,            # one width for the section's tabs
+                description='Deadlock: every change to the game rules, map objects, souls, respawn and the Soul Urn, '
+                            'from the game files')
 
 
 def section_tabs(active: str) -> str:

@@ -71,6 +71,13 @@ def tag_html(c: dict) -> str:
     return tag_badge(cls, txt)
 
 
+def note_badge(word: str) -> str:
+    """A neutral badge for a row that is no counted change: TEXT on a name / description change (text_rows), NOTE on a
+    patch-note line the files cannot back (history_view: status `code`). The tag column of those rows was blank, so
+    they read as rows that had lost their tag (low items, review 2026-10-06); no filter or counter takes this class."""
+    return tag_badge('note-tag', word)
+
+
 def sort_changes(changes: list[dict]) -> list[dict]:
     return sorted(changes, key=lambda c: (TAG_ORDER.get(tag_of(c)[0], 9), c.get('label', '')))
 

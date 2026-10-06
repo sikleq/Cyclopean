@@ -203,3 +203,52 @@ def tag_mask(tag: str) -> str:
     (not :root): a tag badge and a counter draw it with ::before in their colour. tests/test_entity_page.py keeps
     those rules in sync with TAG_ART."""
     return svg_mask(art_path(TAG_ART[tag]), GRID)
+
+
+# a stats table's header says it sorts (low items, review 2026-10-06: nothing told a column could be clicked; the
+# sorted one carried a font ▼ / ▲): a quiet two-way arrow on every sortable header, the way it sorts on the sorted one
+# (styles.css `--mask-sort*` on `th[aria-sort]::after`)
+SORT_ART: dict[str, tuple[str, ...]] = {
+    'sort': (
+        '..........',
+        '....##....',
+        '...####...',
+        '..######..',
+        '..........',
+        '..........',
+        '..######..',
+        '...####...',
+        '....##....',
+        '..........',
+    ),
+    'sort-down': (
+        '..........',
+        '..........',
+        '..........',
+        '.########.',
+        '..######..',
+        '...####...',
+        '....##....',
+        '..........',
+        '..........',
+        '..........',
+    ),
+    'sort-up': (
+        '..........',
+        '..........',
+        '..........',
+        '....##....',
+        '...####...',
+        '..######..',
+        '.########.',
+        '..........',
+        '..........',
+        '..........',
+    ),
+}
+
+
+def sort_mask(name: str) -> str:
+    """A SORT_ART shape as a CSS mask: the `--mask-<name>` tokens in styles.css (tests/test_page_polish.py keeps them
+    equal)."""
+    return svg_mask(art_path(SORT_ART[name]), GRID)

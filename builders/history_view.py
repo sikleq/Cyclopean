@@ -247,7 +247,8 @@ def strip_data(items: list[tuple]) -> dict:
     """The page's hover-card data for its strip tiles and trail squares: t = tiles in strip order,
     [patch id, title, named?, {tag: n}, hidden, [[group, {tag: n}, hidden, samples], …], net mark (weights.net_of:
     'buff' / 'nerf' / 'mix' / '')]; g = the groups
-    [name ('' for the page's own rows), icon url, entity ids, ultimate 0/1]; the tags' icons and words; top /
+    [name ('' for the page's own rows), icon url, entity ids, ultimate 0/1, a rule for all 0/1 (counted apart: the card
+    gives it its own number)]; the tags' icons and words; top /
     per = how many rows the strip card / a trail card lists. The counters' icons are CSS (`.pip.<tag>`)."""
     from .render import TAG_WORD_ONE, TAG_WORDS
     from .weights import NET_WORDS
@@ -365,6 +366,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
     the same merge into one group (unit families). `every_href`: system id -> the Game page's band of this patch
     (the link row of a rule for every hero, cards.every_rows)."""
     from .cards import entity_rows, row
+    from .render import note_badge
     groups: list[dict] = []
     texts = slot.get('texts', {})
     # a hero page fills "[Hero name]" in its texts with the hero's name
@@ -376,7 +378,8 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         rows = entity_rows(changes, (hints or {}).get(key), every_href)
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
-            rows += row(ln['status'], text_tag(text, ln.get('topic')), _highlight(text, 'changed'))
+            # a line whose wording names no kind gets the neutral NOTE (its tag column was blank)
+            rows += row(ln['status'], text_tag(text, ln.get('topic')) or note_badge('NOTE'), _highlight(text, 'changed'))
         rows += text_rows(texts.get(key, []), hero, changes)
         if not rows:
             continue
@@ -643,7 +646,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         # every id of a merged group: a filter or a link to its second entry ("Breakable lion statue") found none
         parts.append(f'<div class="{cls}" data-ab="{esc(ids)}" data-area="{esc(area)}">{plate}'
                      f'<div class="hg-b">{head}{g["rows"]}{notes}</div></div>')
-        ref = ('' if headless else nm, ic or '', ids, int(ult))
+        ref = ('' if headless else nm, ic or '', ids, int(ult), 0)
         card.append((ref, disambiguate(fresh, (hints or {}).get(key))))
     # a rule for every hero is ONE block of link rows for the whole band, after its groups: it sat under each of
     # the hero's abilities it touched (Calico 2026-01-22: 15 copies of "All abilities & items: 1 change", ~1000 px)
@@ -664,7 +667,8 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         for c in counted_all:
             tally[tag_of(c)[0]] = tally.get(tag_of(c)[0], 0) + 1
         for name, rows in every_groups(every_all).items():
-            card.append(((name, '', '', 0), rows))
+            # a rule for all is counted apart (not in the tile's counts): its group says its own number in the card
+            card.append(((name, '', '', 0, 1), rows))
         facts.setdefault('strip', []).append((pid, hdr, tally, sum(not_in_notes(c) for c in counted_all),
                                               tile_card(card), net))
     if every_only:

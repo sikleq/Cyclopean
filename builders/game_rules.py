@@ -122,6 +122,7 @@ def rules_page(raw: list, led: dict | None = None) -> str:
                f'<table class="game-rules"><thead><tr><th>Console variable</th><th>Now</th><th>Changes</th>'
                f'<th>Last change</th></tr></thead><tbody>{"".join(body)}</tbody></table>'
                if body else '<p class="muted">No console variables recorded.</p>')
-    return page('Game rules', '<div class="rules-col"><h1>Game rules</h1>' + section_tabs('stats') + content + '</div>',
-                rel, SECTION,
+    # the title and the tabs where the section's other tabs have them; the table stays a centred column
+    return page('Game rules', '<h1>Game rules</h1>' + section_tabs('stats') + '<div class="rules-col">' + content + '</div>',
+                rel, SECTION, wide=True,
                 description='Deadlock: respawn times, soul rewards and objective timers as the game sets them today')
