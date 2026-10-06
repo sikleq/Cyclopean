@@ -76,7 +76,8 @@ def _collect() -> dict:
     hidden: dict = {}
     weighed: dict = {}         # {row key: {pid: [rows]}}: the cell's net mark (weights.net_of)
     once: set = set()
-    from .game_systems import (convar_changes, convar_start, is_template, name_of, place, place_all_row, place_entity, system)
+    from .game_systems import (convar_changes, convar_start, heir_sig, heir_sigs, is_template, name_of, place,
+                               place_all_row, place_entity, system)
     from .shared_rows import FOLD_FILES, entities as spread_all, own
     cat = {f"{e['file']}:{e['id']}": e for e in ents}
     # an alt fire or a nameless sub-ability whose rows repeat its gun's / parent's in a patch: the hero's page says
@@ -94,9 +95,8 @@ def _collect() -> dict:
         p = archive.patch(r['id'])
         found: list[tuple[list[str], str, str, list[dict], str]] = []     # (row keys, part, what, rows, ability id)
         spread = spread_all(archive.gameplay(r['id']))
-        # a template's change an heir shows is the heir's (game_pages.template_rows)
-        heirs = {(e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
-                 for e in spread if not is_template(e) for c in e['changes']}
+        # a template's change an heir shows is the heir's (game_systems.heir_sig, as the count and the Game pages)
+        heirs = heir_sigs(spread)
         # a change one edit made in some heroes counts in each one's cell; a rule for every hero (the level
         # curve) in none of theirs — it would fill a whole column (shared_rows) — but in its Game system's
         for e in spread:
@@ -108,8 +108,7 @@ def _collect() -> dict:
             if game:                                 # not a hero, item or unit: its Game system's row
                 ch = e['changes']
                 if is_template(info):
-                    ch = [c for c in ch if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
-                          not in heirs]
+                    ch = [c for c in ch if heir_sig(e['file'], c) not in heirs]
                 if ch:
                     found.append(([f'game:{game[0]}'], game[1], name_of(e['key'], info), ch, ''))
                 continue

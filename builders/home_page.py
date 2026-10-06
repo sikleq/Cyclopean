@@ -73,13 +73,13 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
     abilities no hero owns, a template's change no heir shows, a rule for every hero or ability — once —, console
     variables). Key of a Game row: 'game:<system>'."""
     from .cards import gameplay_entities
-    from .game_systems import (convar_changes, convar_start, is_template, name_of, part_name, place, place_all_row,
-                               place_entity)
+    from .game_systems import (convar_changes, convar_start, heir_sig, heir_sigs, is_template, name_of, part_name,
+                               place, place_all_row, place_entity)
     from .shared_rows import FOLD_FILES, catalog, entities as spread_all, own
     cat = catalog()
     spread = spread_all(gameplay_entities(p['entities']))
-    heirs = {(e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
-             for e in spread if not is_template(e) for c in e['changes']}
+    # what heirs carry, as the count reads it (game_systems.heir_sig: never an entity's own coming and going)
+    heirs = heir_sigs(spread)
     for e in spread:
         rows = own(e['changes'])
         info = {**e, **cat.get(e['key'], {})}
@@ -91,7 +91,7 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
         if not hit:
             continue
         if is_template(info):
-            rows = [c for c in rows if (e['file'], c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in heirs]
+            rows = [c for c in rows if heir_sig(e['file'], c) not in heirs]
         yield {**e, 'what': name_of(e['key'], info)}, rows, f'game:{hit[0]}', 'game'
     rules: dict[tuple[str, str], tuple[dict, list[dict]]] = {}
     for e in gameplay_entities(p['entities']):
@@ -246,6 +246,14 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                 # (the Game index said nothing about the update)
                 eye += (f'<a class="au au-off" href="game/changes.html"><b>{off_pages(pc)}</b> of them in game rules '
                         f'&amp; map objects</a>')
+            # what makes the icons below add up to another number, said once (review 2026-10-06, #16): an edit shared
+            # by several heroes or units counts once here and on each of their icons; a designers' test object only
+            # the patch archive lists is on no icon
+            if pc.get('hidden_shared'):
+                eye += f'<span class="au au-shr"><b>{pc["hidden_shared"]}</b> of them on several icons</span>'
+            if pc.get('hidden_archive'):
+                eye += (f'<a class="au au-arch" href="patches/{esc(row["id"])}.html#changes"><b>{pc["hidden_archive"]}</b>'
+                        f' only in the patch archive</a>')
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
                       f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')

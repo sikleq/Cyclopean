@@ -93,6 +93,22 @@ def is_template(e: dict) -> bool:
     return bool(e.get('template')) or str(e.get('id', '')).endswith('_base')
 
 
+def heir_sig(file: str, c: dict) -> tuple | None:
+    """What makes a template's row its heirs' when one of them has it too: (file, path, old, new). None for an
+    entity's own coming and going (`@add` / `@remove`): an heir removed in the same patch does not carry the
+    template's removal. THE rule for every place that drops a template's inherited rows — the count
+    (patch_counts.drop_inherited), the home icons, the Game pages and the change matrix; four hand copies had drifted
+    (review 2026-10-06: 2026-06-30's pickup template removal was in the count and on no icon, page or cell)."""
+    if str(c.get('path') or '').startswith('@'):
+        return None
+    return file, c.get('path'), str(c.get('old_s')), str(c.get('new_s'))
+
+
+def heir_sigs(entities) -> set[tuple]:
+    """`heir_sig` of every row of the entities that are no template (a patch's entities, '@shared' blocks spread)."""
+    return {s for e in entities if not is_template(e) for c in e['changes'] for s in [heir_sig(e['file'], c)] if s}
+
+
 def claimed(e: dict) -> bool:
     """A hero, item or unit page shows this entry (catalog row or patch entity): a hero and its abilities and gun,
     a shop item ('upgrade_*'), an NPC and the abilities it binds. Templates never."""

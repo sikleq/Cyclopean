@@ -21,24 +21,27 @@ RAW_CONVARS = '@convars:raw'      # by_ent: every patch's console variable rows 
 
 
 def _heir_sigs(by_ent: dict, cat: dict) -> dict[tuple[str, str], set]:
-    """(file, patch id) -> {(path, old, new)} of the entries that are no template: a template's change one of its
-    heirs shows too is the heir's (trooper_base's shrine range is every trooper's)."""
+    """(file, patch id) -> the `game_systems.heir_sig` of the rows of the entries that are no template: a template's
+    change one of its heirs shows too is the heir's (trooper_base's shrine range is every trooper's); never an entry's
+    own coming and going (2026-06-30's pickup template removal was on no Breakables page, icon or cell)."""
+    from .game_systems import heir_sig
     out: dict[tuple[str, str], set] = defaultdict(set)
     for key, hist in by_ent.items():
         file, _, eid = key.partition(':')
         if not file.endswith('.vdata') or is_template(cat.get(key) or {'id': eid}):
             continue
         for row, ch in hist:
-            out[(file, row['id'])] |= {(c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) for c in ch}
+            out[(file, row['id'])] |= {s for c in ch for s in [heir_sig(file, c)] if s}
     return out
 
 
 def template_rows(key: str, hist: list, sigs: dict) -> list:
     """A template's history without the changes an heir shows: (patch row, rows) of the rest."""
+    from .game_systems import heir_sig
     file = key.partition(':')[0]
     out = []
     for row, ch in hist:
-        mine = [c for c in ch if (c.get('path'), str(c.get('old_s')), str(c.get('new_s'))) not in sigs.get((file, row['id']), ())]
+        mine = [c for c in ch if heir_sig(file, c) not in sigs.get((file, row['id']), ())]
         if mine:
             out.append((row, mine))
     return out

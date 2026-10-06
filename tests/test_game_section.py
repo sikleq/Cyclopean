@@ -560,7 +560,7 @@ def test_every_gameplay_row_lands_on_a_hero_item_unit_or_game_page():
     from builders.common import load_json
     from builders.entities_pages import _history, changed, page_entities, page_keys
     from builders.game_pages import _heir_sigs, collect
-    from builders.game_systems import is_decor, is_dev, is_template
+    from builders.game_systems import heir_sig, is_decor, is_dev, is_template
     from builders.shared_rows import entities as spread_all, is_every
     ents = {f"{e['file']}:{e['id']}": e for e in load_json('entities.json')['entities']}
     by_ent, _ = _history()
@@ -580,7 +580,7 @@ def test_every_gameplay_row_lands_on_a_hero_item_unit_or_game_page():
             for c in rows:
                 if c.get('status') == 'unreleased' or is_every(c):
                     continue                  # a rule for all is its part's own group ('game:…:all')
-                sig = (c.get('path'), str(c.get('old_s')), str(c.get('new_s')))
+                sig = heir_sig(e['file'], c)          # game_systems' one rule (its own coming and going: None)
                 if is_template(info) and sig in sigs.get((e['file'], row['id']), ()):
                     continue                  # a template's change an heir shows (the heir's page)
                 if e['key'] not in in_game:

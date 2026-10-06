@@ -879,8 +879,8 @@ table.kvt.tier-grid td.v { text-align: center; }
 .sum-audit .au { display: inline-flex; align-items: center; gap: 5px; }
 .sum-audit .au b { color: var(--text-bright); font-weight: 600; }
 .sum-audit .au-hidden b { color: var(--eye); }
-.sum-audit .au-off, .update .bc .au.au-off { color: var(--text-dimmer); }
-.sum-audit .au-off b, .update .bc .au.au-off b { color: var(--text-dim); }
+.sum-audit .au-off, .update .bc .au.au-off, .update .bc .au.au-shr, .update .bc .au.au-arch { color: var(--text-dimmer); }
+.sum-audit .au-off b, .update .bc .au.au-off b, .update .bc .au.au-shr b, .update .bc .au.au-arch b { color: var(--text-dim); }
 .sum-audit .au-mismatch b { color: var(--tag-mismatch); }
 
 /* ---------- 07. Change lists ---------- */
