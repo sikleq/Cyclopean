@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from .common import entity_icon, esc, page, plural, write
+from .common import EYE_MARK, entity_icon, esc, page, plural, write
 from .game_systems import (ALL_PREFIX, CONVAR_PREFIX, SECTION, is_template, merged_label, name_of, place,
                            place_all_row, place_entity, shown, system, systems)
 from .shared_rows import is_every
@@ -150,10 +150,12 @@ def system_page(sys_id: str, parts: dict, hist: dict, by_subject: dict, cat: dic
                 description=f'Deadlock: every change to {sys_.name.lower()}, from the game files')
 
 
-def _stats(hist: dict, keys: list[str]) -> tuple[int, str]:
-    """(changes a player reads, the newest patch date) of a system: the history rows of its keys."""
+def _stats(hist: dict, keys: list[str]) -> tuple[int, str, int]:
+    """(changes a player reads, the newest patch date, how many of them the notes left out) of a system: the history
+    rows of its keys."""
     from .cards import player_facing
-    n, last = 0, ''
+    from .render import not_in_notes
+    n, last, hidden = 0, '', 0
     seen: set[tuple] = set()          # one edit over several entries counts once (the band, matrix and home icon)
     for k in keys:
         for row, ch in hist.get(k, ()):
@@ -161,9 +163,10 @@ def _stats(hist: dict, keys: list[str]) -> tuple[int, str]:
                     and (row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) not in seen]
             seen.update((row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows)
             n += len(rows)
+            hidden += sum(1 for c in rows if not_in_notes(c))
             if rows:
                 last = max(last, row['date'][:10])
-    return n, last
+    return n, last, hidden
 
 
 def index_page(entries: dict, hist: dict) -> str:
@@ -174,9 +177,11 @@ def index_page(entries: dict, hist: dict) -> str:
         parts = entries.get(s.id)
         if not parts:
             continue
-        n, last = _stats(hist, [k for got in parts.values() for k, _, _ in got])
-        # the date in the body font (dates are never in the pixel fonts)
-        when = f'<span class="last"><span class="d">last {esc(last)}</span></span>' if last else ''
+        n, last, hidden = _stats(hist, [k for got in parts.values() for k, _, _ in got])
+        # the date in the body font (dates are never in the pixel fonts); the eye with how many of the changes the
+        # notes left out (#44: the cards had none, the system pages say "N not in patch notes")
+        eye = f'<span class="gc-hid">{EYE_MARK}{hidden} not in notes</span>' if hidden else ''
+        when = f'<span class="last"><span class="d">last {esc(last)}</span>{eye}</span>' if last or eye else ''
         cards.append(f'<a class="card px-frame game-card" href="{esc(s.href)}" data-search="{esc(s.name.lower())}">'
                      f'{icon_html(s, rel)}<span class="nm">{esc(s.name)}</span>'
                      f'<span class="sub">{esc(plural(n, "change"))}</span>{when}</a>')

@@ -154,6 +154,8 @@
 
   /* the eye as a mask (the strip tiles draw it in --eye; an inline SVG per tile cost 13 KB a page) */
   --mask-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1zM13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z'/%3E%3C/svg%3E");
+  /* the eye drawn 1:1 at 10px for a 12px trail square (pixel_icons.EYE_SMALL) */
+  --mask-eye-sm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 2h4v1h-4zM1 3h2v1h-2zM7 3h2v1h-2zM0 4h1v1h-1zM4 4h2v1h-2zM9 4h1v1h-1zM0 5h1v1h-1zM4 5h2v1h-2zM9 5h1v1h-1zM1 6h2v1h-2zM7 6h2v1h-2zM3 7h4v1h-4z'/%3E%3C/svg%3E");
 
   /* z ladder: tooltips float over the sticky site bar (they rendered under it at the top of a page) */
   --z-sticky: 20;
@@ -634,6 +636,11 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .trail .sq.t-mech, .trail .sq.t-changed { background: var(--tag-changed); }
 .trail .sq.t-on { background: var(--tag-on); }
 .trail .sq.t-off { background: var(--tag-off); }
+/* not in the notes: the site's eye on a dark plate, the tag colour left as a bar above and below (trail.py `hid`) */
+.trail .sq.hid { position: relative; }
+.trail .sq.hid::before { content: ""; position: absolute; left: 1px; top: 2px; width: 10px; height: 8px; background: var(--bg-page); }
+.trail .sq.hid::after { content: ""; position: absolute; left: 1px; top: 1px; width: 10px; height: 10px; background: var(--eye);
+  -webkit-mask: var(--mask-eye-sm) center / 10px 10px no-repeat; mask: var(--mask-eye-sm) center / 10px 10px no-repeat; }
 .trail a.sq:hover { outline: 1px solid var(--text-bright); }
 .trail a.sq { cursor: pointer; }
 
@@ -911,6 +918,10 @@ table.kvt.tier-grid td.v { text-align: center; }
 .card .last .tsum { margin: 0; gap: 6px; }
 .card .last .pip { font-size: 17px; }
 .card .last .d { font: 500 11px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+/* a Game card's changes the notes left out: the eye and the count, in the date's quiet type (game_pages) */
+.card .last .gc-hid { display: inline-flex; align-items: center; gap: 2px; font: 500 11px/1 var(--font-ui); color: var(--eye);
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.card .last .gc-hid .mark, .card .last .gc-hid .mark::before { width: 14px; height: 14px; }
 .card.gone { opacity: .55; }
 .card.gone .nm::after { content: " †"; color: var(--tag-del); }
 .grid-group-title { font: 20px/1 var(--font-px); color: var(--text-bright); margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
@@ -1026,6 +1037,9 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .hist-tip li .n.dir-changed, .hist-tip li .n.dir-up, .hist-tip li .n.dir-down { color: var(--text-bright); }
 .hist-tip li .p { text-align: right; }
 .hist-tip li .p .pct { margin-left: 0; }
+/* a step the notes left out (stat_eyes.py): the eye after its % */
+.hist-tip li .p .mark { width: 16px; height: 14px; margin-left: 4px; vertical-align: -2px; }
+.hist-tip li .p .mark::before { width: 14px; height: 14px; }
 .hist-tip li .d { font: 500 13px/1.4 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
 .hist-tip li > span { line-height: 1.4; }
 

@@ -151,6 +151,28 @@ TAG_ART: dict[str, tuple[str, ...]] = {
 }
 
 
+# the site's eye for a 12px square (an ability card's trail, history_view / trail.py): the 16-grid eye
+# (`--mask-eye`) at 12px loses pixels, this one is drawn 1:1 at 10px on a dark plate, the square's tag colour left
+# as a bar above and below (review 2026-10-06, #44: the trail squares had no eye)
+EYE_SMALL: tuple[str, ...] = (
+    '..........',
+    '..........',
+    '...####...',
+    '.##....##.',
+    '#...##...#',
+    '#...##...#',
+    '.##....##.',
+    '...####...',
+    '..........',
+    '..........',
+)
+
+
+def eye_small_mask() -> str:
+    """EYE_SMALL as a CSS mask: the `--mask-eye-sm` token in styles.css (tests/test_eye_evidence.py keeps them equal)."""
+    return svg_mask(art_path(EYE_SMALL), GRID)
+
+
 def art_path(rows: tuple[str, ...]) -> str:
     """Horizontal runs of '#' as one SVG path ('M x y h w v 1 h -w z' per run)."""
     parts = []

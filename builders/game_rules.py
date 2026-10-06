@@ -73,6 +73,8 @@ def value_parts(name: str, slot: dict) -> tuple[str, str, str]:
         x = convar_number(name, v)
         return v if x is None else x
     hist = [[b, d, None if o is None else scaled(o), scaled(n)] for b, d, o, n in slot['hist'] if n is not None]
+    from .stat_eyes import mark_convar
+    hist = mark_convar(name, hist)            # a move the patch notes left out carries the eye in the tip
     attrs = f' data-pol="{convar_side(name)}" data-digits="{DIGITS}"' + (f' data-unit="{esc(unit)}"' if unit else '')
     cls = 'v'
     if hist:

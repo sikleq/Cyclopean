@@ -119,11 +119,23 @@ def hero_paths() -> dict[str, str]:
 
 
 def heroes_data() -> dict:
-    """data/tables/heroes.json with every history directed: the Hero Stats table and the hero pages' stat
-    tiles read the same steps."""
+    """data/tables/heroes.json with every history directed and its steps the notes left out marked (stat_eyes): the
+    Hero Stats table and the hero pages' stat tiles read the same steps."""
+    from .stat_eyes import mark_row
     t = load_json('tables/heroes.json')
     paths = hero_paths()
-    return {**t, 'heroes': [directed(h, paths, 'hero') for h in t['heroes']]}
+
+    def one(h: dict) -> dict:
+        row = mark_row(directed(h, paths, 'hero'), [f'heroes.vdata:{h["id"]}', _weapon_key(h.get('weapon'))], paths)
+        alt = h.get('alt')
+        if alt:                        # the alt fire's own gun
+            row = {**row, 'alt': mark_row(alt, [_weapon_key(alt.get('weapon'))], paths)}
+        return row
+    return {**t, 'heroes': [one(h) for h in t['heroes']]}
+
+
+def _weapon_key(wid: str | None) -> str:
+    return f'abilities.vdata:{wid}' if wid else ''
 
 
 def unit_paths() -> dict[str, str]:
@@ -458,7 +470,8 @@ def units_table() -> str:
 
     groups = []
     paths = unit_paths()
-    units = [directed(u, paths, u['kind']) for u in t['units']]
+    from .stat_eyes import mark_row
+    units = [mark_row(directed(u, paths, u['kind']), [f'npc_units.vdata:{u["id"]}'], paths) for u in t['units']]
     for kind, title in UNIT_SECTIONS:
         # what the Units index shows: named units (unit_families.is_named) with a stat besides a placeholder
         rows = [u for u in units if (u['kind'] if u['kind'] in dict(UNIT_SECTIONS) else 'unit') == kind
@@ -616,7 +629,8 @@ def items_table() -> str:
     # item-filter), "Souls per point" turns each stat into what one point of it costs
     order = {slot: i for i, (slot, _, _) in enumerate(ITEM_SECTIONS)}
     cat_of = {slot: css for slot, css, _ in ITEM_SECTIONS}
-    rows = sorted((it for it in t['items'] if in_shop(it)),
+    from .stat_eyes import mark_row         # a step the notes left out carries the eye in its history tip
+    rows = sorted((mark_row(it, [f'abilities.vdata:{it["id"]}']) for it in t['items'] if in_shop(it)),
                   key=lambda it: (order.get(it.get('slot'), 9), it['values'].get('tier') or 9, it['name'].lower()))
     names = {it['id']: it['name'] for it in t['items']}
     into: dict[str, list[str]] = {}

@@ -242,12 +242,14 @@
         // where the value was; a value that went says "removed" (a bare "—" read as no value)
         var firstStep = (h[2] === null || h[2] === undefined);
         var gone = (h[3] === null || h[3] === undefined);
+        // a step the patch notes left out (a sixth element 1: builders/stat_eyes.py) carries the site's eye
+        var eye = h[5] ? '<span class="mark hidden" role="img" aria-label="not in patch notes"></span>' : '';
         esc.textContent = h[1];
         html += '<li><span class="d">' + esc.innerHTML + '</span>' +
           '<span class="o">' + (firstStep ? '<i>added</i>' : fmtU(h[2], digits)) + '</span>' +
           '<span class="arrow">' + (firstStep ? '' : '→') + '</span>' +
           '<span class="n ' + (firstStep ? 'dir-changed' : cls) + '">' + (gone ? '<i>removed</i>' : fmtU(h[3], digits)) +
-          '</span><span class="p">' + pill + '</span></li>';
+          '</span><span class="p">' + pill + eye + '</span></li>';
       }
       html += '</ol>';
       tip.innerHTML = html;
