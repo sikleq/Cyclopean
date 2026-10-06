@@ -107,6 +107,47 @@ BOOLS = {'m_bDurationReducibleByCrowdControlDiminish': -1}   # the owner's crowd
 _PLURAL = {'HERO': 'heroes', 'BOSS': 'bosses', 'TROPHY': 'trophies', 'ALL': 'everything', 'GOLD_ORBS': 'soul orbs',
            'ABILLITY_TRIGGER': 'ability triggers', 'BREAKABLE_PROP': 'breakable props'}
 
+# CITADEL_UNIT_TARGET_TYPE as the game defines it (DumpSource2/schemas/client/CITADEL_UNIT_TARGET_TYPE.h): one bit a
+# kind of unit on one side, the rest are unions. A set is compared bit by bit, so "ALL_ENEMY → HERO_FRIENDLY |
+# HERO_ENEMY | TROOPER_ENEMY | … | CREEP_ENEMY" (Life Drain, 2024-10-11) is "+allied heroes", not "−all enemies"
+# and nine "+…" chips (#22)
+TARGET_BITS = {'HERO_FRIENDLY': 1, 'TROOPER_FRIENDLY': 2, 'BOSS_FRIENDLY': 4, 'BUILDING_FRIENDLY': 8,
+               'PROP_FRIENDLY': 16, 'MINION_FRIENDLY': 32, 'GOLD_ORBS_FRIENDLY': 64, 'TROPHY_FRIENDLY': 128,
+               'HERO_ENEMY': 256, 'TROOPER_ENEMY': 512, 'BOSS_ENEMY': 1024, 'BUILDING_ENEMY': 2048,
+               'PROP_ENEMY': 4096, 'MINION_ENEMY': 8192, 'GOLD_ORBS_ENEMY': 16384, 'TROPHY_ENEMY': 32768,
+               'NEUTRAL': 65536, 'ZIPLINE': 131072, 'BREAKABLE_PROP': 262144, 'ABILITY_TRIGGER': 524288}
+# unions, widest first: a group of bits that moved together is said by its name
+TARGET_UNIONS = (('ALL', 81727), ('ALL_ENEMY', 81664), ('CREEP', 67078), ('CREEP_ENEMY', 67072),
+                 ('ALL_FRIENDLY', 63), ('GOLD_ORBS', 16448), ('TROPHY', 32896), ('MINION', 8224), ('PROP', 4112),
+                 ('BUILDING', 2056), ('BOSS', 1028), ('TROOPER', 514), ('HERO', 257), ('CREEP_FRIENDLY', 6))
+_TARGET_VALUE = {**TARGET_BITS, **dict(TARGET_UNIONS), 'DYNAMIC_PROP': 262144}
+_TARGET_PREFIX = 'CITADEL_UNIT_TARGET_'
+
+
+def target_bits(names: set[str]) -> set[str]:
+    """A target set as single bits ('ALL_ENEMY' -> HERO_ENEMY, TROOPER_ENEMY, … NEUTRAL); a name the game's list does
+    not hold (Valve's old 'ABILLITY_TRIGGER') stays as it is."""
+    out = set()
+    for n in names:
+        v = _TARGET_VALUE.get(n.removeprefix(_TARGET_PREFIX)) if n.startswith(_TARGET_PREFIX) else None
+        if v is None:
+            out.add(n)
+            continue
+        out |= {_TARGET_PREFIX + b for b, x in TARGET_BITS.items() if v & x}
+    return out
+
+
+def target_groups(bits_: set[str]) -> set[str]:
+    """Single bits that moved, a union's worth of them said by the union's name ("+all enemies")."""
+    left = set(bits_)
+    out = set()
+    for name, v in TARGET_UNIONS:
+        members = {_TARGET_PREFIX + b for b, x in TARGET_BITS.items() if v & x}
+        if members <= left:
+            out.add(_TARGET_PREFIX + name)
+            left -= members
+    return out | left
+
 
 def leaf(path: str) -> str:
     return _LEAF.sub('', str(path or '').rsplit('.', 1)[-1])
@@ -153,6 +194,8 @@ def diff(path: str, old, new) -> tuple[list[tuple[str, int]], list[tuple[str, in
         return None
     kind, how = f
     a, b = bits(old), bits(new)
+    if kind == 'target':
+        a, b = target_bits(a), target_bits(b)
 
     def listed(names: set[str]) -> list[tuple[str, int]]:
         out = []
@@ -161,7 +204,10 @@ def diff(path: str, old, new) -> tuple[list[tuple[str, int]], list[tuple[str, in
             if w and all(w[0] != x for x, _ in out):
                 out.append((w[0], w[1] if how == 'own' else int(how)))
         return out
-    added, removed = listed(b - a), listed(a - b)
+    if kind == 'target':
+        added, removed = listed(target_groups(b - a)), listed(target_groups(a - b))
+    else:
+        added, removed = listed(b - a), listed(a - b)
     # a bit renamed to one that reads the same (DASH_DISABLED -> DASH_DISABLED_DEBUFF) is no change
     same = {w for w, _ in added} & {w for w, _ in removed}
     return [x for x in added if x[0] not in same], [x for x in removed if x[0] not in same]

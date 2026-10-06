@@ -248,3 +248,33 @@ def test_an_entry_inserted_in_a_list_shifts_no_later_row(monkeypatch):
     assert [(c.path, c.op, c.old, c.new) for c in keyed] == [
         ('m_vecPrimaryPickups{x}.m_flPickupWeight', 'add', None, 2)]
     assert keyed[0].builds == [7]
+
+
+# ---- 5. booleans and target sets ------------------------------------------------------------------------------------
+
+def test_a_target_set_is_compared_bit_by_bit():
+    """#22: Life Drain's "all enemies → allied heroes, enemy heroes, troopers, … creeps" read "−all enemies" and nine
+    "+…" chips; it gained allied heroes. A union that moved whole is said by its name."""
+    from pipeline import flags
+    t = 'CITADEL_UNIT_TARGET_'
+    new = ' | '.join(t + x for x in ('HERO_FRIENDLY', 'HERO_ENEMY', 'TROOPER_ENEMY', 'BOSS_ENEMY', 'BUILDING_ENEMY',
+                                     'PROP_ENEMY', 'MINION_ENEMY', 'NEUTRAL', 'CREEP_ENEMY'))
+    assert flags.diff('m_nAbilityTargetTypes', t + 'ALL_ENEMY', new) == ([('allied heroes', 1)], [])
+    assert flags.diff('m_nAbilityTargetTypes', t + 'ALL_ENEMY', t + 'ALL_ENEMY | ' + t + 'GOLD_ORBS') == \
+        ([('soul orbs', 1)], [])
+    added, removed = flags.diff('m_iAuraSearchType', t + 'ALL_ENEMY | ' + t + 'NEUTRAL', t + 'ALL_FRIENDLY')
+    assert added == [('all allies', 0)] and removed == [('all enemies', 0)]
+    assert flags.target_bits({t + 'ABILLITY_TRIGGER'}) == {t + 'ABILLITY_TRIGGER'}      # Valve's old spelling stays
+
+
+def test_a_yes_no_field_reads_now_or_no_longer_where_its_name_says_what_holds():
+    from builders.render import shown_pair
+    row = {'path': 'm_AutoIntrinsicModifiers{x}.m_bShouldApplyAbilityCooldown', 'op': 'change', 'old_s': 'yes',
+           'new_s': 'no', 'label': 'Auto Intrinsic Modifiers lifestrike › Should Apply Ability Cooldown',
+           'cat': 'mechanic'}
+    assert shown_pair(row) == ('steps', 'no longer')
+    assert shown_pair({**row, 'old_s': 'no', 'new_s': 'yes'}) == ('steps', 'now')
+    assert shown_pair({**row, 'op': 'add', 'old_s': '', 'new_s': 'yes', 'label': 'Uses Flight Controls'}) == \
+        ('steps', 'now')
+    assert shown_pair({**row, 'op': 'add', 'old_s': '', 'new_s': 'no'})[0] == 'pair'       # the default: no news
+    assert shown_pair({**row, 'label': 'Melee Resistance'}) == ('pair', 'yes', 'no')       # a thing, not what holds

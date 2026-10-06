@@ -503,6 +503,33 @@ def number_lists(path: str, old, new) -> tuple | None:
     return None
 
 
+# a yes / no field whose name says what holds: "Can Proc From Items", "Is Hidden", "Should Apply Ability Cooldown",
+# "Uses Flight Controls", "Reduced by CC diminishing returns" (#22: "yes → no" said nothing a player reads)
+_PREDICATE = re.compile(r'^(?:can|is|are|has|have|should|does|do|uses?|requires?|ignores?|applies|apply|allows?|'
+                        r'blocks?|shows?|counts?|pierces?|breaks?|interrupts?|triggers?|reveals?|drops?|scales?|'
+                        r'affects?|disables?|prevents?|keeps?|reduced|chases?|returns?)\b', re.I)
+
+
+def _yes_no(v) -> bool | None:
+    s = str(v).strip().lower() if v is not None else ''
+    return True if s in _TRUE else False if s in _FALSE else None
+
+
+def bool_move(c: dict, old_s, new_s) -> str | None:
+    """'now' / 'no longer' for a yes / no field whose label reads as what holds ("Can Proc From Items · no longer",
+    "Uses Flight Controls · now"); None for any other field or a label that names a thing ("yes → no" stays)."""
+    if not _PREDICATE.match(str(c.get('label') or '').rsplit(' › ', 1)[-1]):
+        return None
+    o, n, op = _yes_no(old_s), _yes_no(new_s), c.get('op')
+    if op == 'change' and o is not None and n is not None and o != n:
+        return 'now' if n else 'no longer'
+    if op == 'add' and n:
+        return 'now'
+    if op == 'remove' and o:
+        return 'no longer'
+    return None
+
+
 def shown_pair(c: dict) -> tuple:
     """A row's values as the page prints them — ONE function for the rows (vals_html), the hover cards (vals_text)
     and the change matrices' cards (dynamics_page._sample_values); review 2026-10-05: three hand copies disagreed
@@ -531,6 +558,9 @@ def shown_pair(c: dict) -> tuple:
     lists = number_lists(path, old_s, new_s)
     if lists:
         return lists
+    moved = bool_move(c, old_s, new_s)
+    if moved:
+        return ('steps', moved)
     # "EItemSlotType_Tech → EItemSlotType_Armor" is the item moving from the Spirit to the Vitality shop; the
     # sentinels judge each side against the other's value BEFORE either is replaced
     old_s, new_s = (flag_rules.enum_words(path, v) or ('—' if flag_rules.enum_none(path, v) else v)
