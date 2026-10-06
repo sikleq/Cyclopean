@@ -131,3 +131,35 @@ def test_an_interface_line_about_a_moved_ability_is_matched():
     # an interface line about nothing that moved still ends early (annotate() calls it untracked)
     res = annotate_line('Added keybinds for the scoreboard', [fly], _by_ent([fly]), idx, cat, {})
     assert res['status'] == 'unmatched' and not res['changes']
+
+
+# ---- 2. engine-unit speeds ----------------------------------------------------------------------------------------
+
+def test_capped_and_killer_plane_speeds_read_in_metres_per_second():
+    """#13: Air / Fall Speed Max, the soul orbs' Killer Plane speeds, a modifier's speed bonus, the hook's return
+    speed and a growing value's base were engine units ("Air Speed Max 150 → 161.42" is the notes' 3.8 → 4.1 m/s)."""
+    from pipeline import semantics as s
+
+    def shown(path, v, kind='ability', eid='ability_x'):
+        d = s.describe(path, {}, eid, kind)
+        meters = s.M_SPEED if d.get('speed_m') and not d['meters'] else d['meters']
+        return s.show(v, meters, d.get('unit', ''))
+    assert shown('m_mapAbilityProperties.AirSpeedMax.m_strValue', '161.42') == '4.1m/s'
+    assert shown('m_mapAbilityProperties.FallSpeedMax.m_strValue', '30') == '0.762m/s'
+    assert shown('m_mapAbilityProperties.FallSpeedMax.m_strValue', '1m') == '1m/s'       # written in m: m/s
+    assert shown('m_flKillerPlaneHorizontalSpeedX', 65, 'global', 'xp_orb_spawner') == '1.65m/s'
+    assert shown('m_flKillerPlaneVerticalSpeed', 50, 'global', 'xp_orb_trooper') == '1.27m/s'
+    assert shown('m_sModifer.m_vecScriptValues{MODIFIER_VALUE_SPRINT_SPEED_BONUS}.m_value', 118.11, 'global',
+                 'movement_powerup_pickup') == '3m/s'
+    assert shown('m_SpeedBonusModifier.m_vecScriptValues{MODIFIER_VALUE_MOVEMENT_SPEED_MAX}.m_value', 118.11,
+                 'modifier', 'citadel_modifier_teleporter') == '3m/s'
+    assert shown('m_TargetModifier.m_flReturnSpeed', 2200) == '55.88m/s'
+    assert shown('m_flMaxMovespeed', 600) == '15.24m/s'
+    assert shown('m_flPickupRadius.m_flBase', 85, 'global', 'small_gold_pickup') == '2.16m'
+    assert shown('m_flPickupExpirationDuration.m_flBase', 30, 'global', 'small_gold_pickup') == '30s'
+    # still not travel: a percent, a slow, a decay rate, a start minute
+    assert shown('m_sModifer.m_vecScriptValues{MODIFIER_VALUE_ZIP_LINE_SPEED_PERCENTAGE}.m_value', 30, 'global',
+                 'movement_powerup_pickup') == '30%'
+    assert shown('m_flKillerPlaneHorizontalDecayRate', 15, 'global', 'xp_orb_trooper') == '15'
+    assert shown('m_flPickupRadius.m_flStartMinute', 10, 'global', 'small_gold_pickup') == '10'
+    assert s.engine_unit('m_flInitialOffsetLerpBias') is False and s.engine_unit('m_flTurnRate') is False
