@@ -108,6 +108,17 @@
     "hero_ratking"
    ],
    "files": 1
+  },
+  {
+   "build": 6757,
+   "date": "2026-10-06",
+   "commit": "7148202f",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_baba"
+   ],
+   "files": 1
   }
  ],
  "heroes": {
@@ -115,6 +126,9 @@
    "cosmetic animation"
   ],
   "hero_atlas": [
+   "cosmetic animation"
+  ],
+  "hero_baba": [
    "cosmetic animation"
   ],
   "hero_bebop": [

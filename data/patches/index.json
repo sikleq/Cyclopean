@@ -2550,11 +2550,11 @@
   "id": "2026-10-05",
   "title": "Minor Update - 10-05-2026",
   "date": "2026-10-05",
-  "builds": 1,
+  "builds": 3,
   "counts": {
    "documented": 21,
    "described": 5,
-   "hidden": 15,
+   "hidden": 39,
    "unannounced": 0,
    "unreleased": 0
   },
