@@ -119,6 +119,17 @@
     "hero_baba"
    ],
    "files": 1
+  },
+  {
+   "build": 6769,
+   "date": "2026-10-09",
+   "commit": "8f572f6e",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_chessmaster"
+   ],
+   "files": 1
   }
  ],
  "heroes": {
@@ -139,6 +150,9 @@
   ],
   "hero_bookworm": [
    "base body",
+   "cosmetic animation"
+  ],
+  "hero_chessmaster": [
    "cosmetic animation"
   ],
   "hero_chrono": [
