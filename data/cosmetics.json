@@ -130,6 +130,17 @@
     "hero_chessmaster"
    ],
    "files": 1
+  },
+  {
+   "build": 6779,
+   "date": "2026-10-13",
+   "commit": "0c38f9d3",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_deadpack"
+   ],
+   "files": 1
   }
  ],
  "heroes": {
@@ -159,7 +170,8 @@
    "cosmetic animation"
   ],
   "hero_deadpack": [
-   "base body"
+   "base body",
+   "cosmetic animation"
   ],
   "hero_doorman": [
    "cosmetic animation"
