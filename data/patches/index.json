@@ -2582,18 +2582,22 @@
   "has_notes": false
  },
  {
-  "id": "build-6779",
-  "title": "Fairfax Industries Employee Spotlight",
-  "date": "2026-10-13",
-  "builds": 2,
+  "id": "2026-10-14",
+  "title": "Minor Update - 10-14-2026",
+  "date": "2026-10-14",
+  "builds": 3,
   "counts": {
-   "documented": 0,
-   "described": 0,
-   "hidden": 0,
-   "unannounced": 25,
+   "documented": 10,
+   "described": 5,
+   "hidden": 19,
+   "unannounced": 0,
    "unreleased": 0
   },
-  "line_counts": {},
-  "has_notes": false
+  "line_counts": {
+   "documented": 10,
+   "unmatched": 13,
+   "described": 4
+  },
+  "has_notes": true
  }
 ]
