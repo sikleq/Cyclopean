@@ -121,9 +121,15 @@
         var tr = ev.target.closest('tr');
         if (tr) tr.classList.toggle('marked');
       });
-      // sticky second header row sits below the category row
-      var cats = table.querySelector('thead tr.cats');
-      if (cats) table.style.setProperty('--cat-row-h', cats.getBoundingClientRect().height + 'px');
+      // sticky second header row sits below the category row; a group's sticky name keeps clear of the sticky names
+      // (measured again once the fonts are in: they change both)
+      var cats = table.querySelector('thead tr.cats'), names = table.querySelector('thead tr.cols th.name');
+      function pin() {
+        if (cats) table.style.setProperty('--cat-row-h', cats.getBoundingClientRect().height + 'px');
+        if (names) table.style.setProperty('--name-w', names.getBoundingClientRect().width + 'px');
+      }
+      pin();
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(pin);
     });
   });
 
@@ -321,6 +327,8 @@
       // an eye that links its proof writes its words once, as its aria-label (common.mark: data-tooltip is empty)
       var text = el.getAttribute('data-tooltip') || el.getAttribute('aria-label');
       if (!text) return;
+      // the words were written for a mouse: on a touch screen the first tap shows them, the second opens the build
+      if (noHover) text = text.replace('click to open', 'tap again to open');
       current = el;
       tip.textContent = text;
       tip.classList.add('on');
@@ -761,7 +769,6 @@
   /* the box is as wide as the name column + a whole number of patch columns, so at the right end the
      first visible column starts exactly at the sticky names (it opened with half a column under them) */
   safe('dyn-scroll', function () {
-    var FIT_MIN_W = 760, FIT_MIN_H = 360, FIT_GAP = 16;     // fitH: desktop only, never a box shorter than this
     document.querySelectorAll('table.dyn').forEach(function (t) {
       var sc = t.closest('.table-scroll');
       var box = sc && sc.parentNode;
@@ -778,48 +785,73 @@
         if (n > 0) box.style.maxWidth = Math.round(nw + n * w + chrome) + 'px';
       }
       function toEnd() { sc.scrollLeft = sc.scrollWidth; }
-      // on a desktop the box ends at the bottom of the first screen: its sideways scrollbar is in sight without
-      // scrolling the page first (at 1440x900 it sat ~190px under the fold, two scrollbars deep; low items,
-      // review 2026-10-06). A short screen or a phone keeps the CSS height (the screen minus the site bar)
-      function fitH() {
-        sc.style.maxHeight = '';
-        if (window.innerWidth < FIT_MIN_W) return;
-        var room = window.innerHeight - (sc.getBoundingClientRect().top + window.scrollY) - FIT_GAP;
-        if (room >= FIT_MIN_H && sc.scrollHeight > room) sc.style.maxHeight = Math.round(room) + 'px';
-      }
       fit();
-      fitH();
       toEnd();
-      // the toolbar above settles once the fonts and images are in: the box's top moves, so fit it again then
-      if (document.readyState !== 'complete') window.addEventListener('load', fitH, { once: true });
-      if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitH);
-      // only "Older patches" changes the width; "Buff vs nerf" and the rest leave the scroll alone
+      // (the box's height: table-fit) only "Older patches" changes the width; "Buff vs nerf" and the rest leave the
+      // scroll alone
       var old = t.classList.contains('show-old');
       new MutationObserver(function () {
         var now = t.classList.contains('show-old');
         if (now !== old) { old = now; fit(); toEnd(); }
       }).observe(t, { attributes: true, attributeFilter: ['class'] });
-      // a resize keeps the user's place: a height-only one refits the box's height on a desktop (a taller or
-      // shorter window) and does nothing on a phone (its URL bar hiding while the page scrolls); a new width keeps
-      // the same distance from the newest end — re-scrolling to the end threw a reader of older patches back to the
-      // newest ones (review 2026-10-04)
+      // a new width keeps the user's place: the same distance from the newest end — re-scrolling to the end threw a
+      // reader of older patches back to the newest ones (review 2026-10-04); a height-only resize leaves it alone
       var pending = false, lastW = window.innerWidth;
       window.addEventListener('resize', function () {
-        if (pending) return;
-        if (window.innerWidth === lastW) {
-          if (window.innerWidth >= FIT_MIN_W) { pending = true; requestAnimationFrame(function () { pending = false; fitH(); }); }
-          return;
-        }
+        if (pending || window.innerWidth === lastW) return;
         pending = true;
         requestAnimationFrame(function () {
           pending = false;
           lastW = window.innerWidth;
           var gap = sc.scrollWidth - sc.scrollLeft - sc.clientWidth;
           fit();
-          fitH();
           sc.scrollLeft = Math.max(0, sc.scrollWidth - sc.clientWidth - gap);
         });
       });
+    });
+  });
+
+  /* ---------- a table's box fits the room under the stuck bars: its header row is never scrolled away ---------- */
+  /* the box scrolls inside (its header row sticks to the box's top) and the page around it scrolls too: a box as tall
+     as the screen took its header under the site bar once the page scrolled on (Hero Stats: 270px down, 820px tall,
+     its header at -64px at the page's end; review 2026-10-17). So a box is never taller than the room under the site
+     bar and a stuck toolbar; the page's last table also leaves room for what follows it (the footer), so at the
+     page's end its header row sits right under the bars; on a desktop the page's first table also ends on the first
+     screen, its sideways scrollbar in sight without scrolling the page (review 2026-10-06). A resize refits it: a new
+     width always, a new height on a desktop only (a phone's URL bar comes and goes while the page scrolls) */
+  safe('table-fit', function () {
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('.table-fade > .table-scroll'));
+    if (!boxes.length) return;
+    var GAP = 16, MIN_H = 300, DESK_W = 760;
+    function stuckTop() {                       // the bottom of what stays stuck at the top: the site bar, a toolbar
+      var nav = document.querySelector('.top-nav'), bar = document.querySelector('main > .toolbar');
+      var top = nav ? nav.offsetHeight : 0;
+      if (bar && getComputedStyle(bar).position === 'sticky') top += bar.offsetHeight;
+      return top;
+    }
+    function fitAll() {
+      boxes.forEach(function (sc) { sc.style.maxHeight = ''; });
+      var vh = window.innerHeight, top = stuckTop(), docH = document.documentElement.scrollHeight;
+      var desk = window.innerWidth >= DESK_W;
+      // every height read before any is written: one layout
+      var hs = boxes.map(function (sc, i) {
+        var r = sc.getBoundingClientRect(), y = r.top + window.scrollY, after = docH - (y + r.height);
+        var h = vh - top - GAP, c;
+        if (after < vh / 3 && (c = vh - top - after) >= MIN_H) h = Math.min(h, c);
+        if (desk && i === 0 && (c = vh - y - GAP) >= MIN_H) h = Math.min(h, c);
+        return sc.scrollHeight + sc.offsetHeight - sc.clientHeight > h ? Math.round(Math.max(h, MIN_H)) : 0;
+      });
+      boxes.forEach(function (sc, i) { if (hs[i]) sc.style.maxHeight = hs[i] + 'px'; });
+    }
+    fitAll();
+    // the bars above settle once the fonts and images are in: the box's top moves, so fit it again then
+    if (document.readyState !== 'complete') window.addEventListener('load', fitAll, { once: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitAll);
+    var pending = false, lastW = window.innerWidth;
+    window.addEventListener('resize', function () {
+      if (pending || (window.innerWidth === lastW && window.innerWidth < DESK_W)) return;
+      pending = true;
+      requestAnimationFrame(function () { pending = false; lastW = window.innerWidth; fitAll(); });
     });
   });
 
@@ -840,19 +872,30 @@
   /* ---------- wide tables: hide the right-edge fade once scrolled to the end ---------- */
   safe('table-fade', function () {
     document.querySelectorAll('.table-fade > .table-scroll').forEach(function (sc) {
+      var wrap = sc.parentNode, edges = '';
       function check() {
-        sc.parentNode.classList.toggle('at-end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2);
+        wrap.classList.toggle('at-end', sc.scrollLeft + sc.clientWidth >= sc.scrollWidth - 2);
+      }
+      // the shadow sits on the content's edge, not on the box's scrollbars (sizes change on a resize only)
+      function sized() {
+        var r = sc.offsetWidth - sc.clientWidth - sc.clientLeft, b = sc.offsetHeight - sc.clientHeight - sc.clientTop;
+        if (r + ',' + b !== edges) {
+          edges = r + ',' + b;
+          wrap.style.setProperty('--fade-r', r + 'px');
+          wrap.style.setProperty('--fade-b', b + 'px');
+        }
+        check();
       }
       sc.addEventListener('scroll', check, { passive: true });
       // the Details button widens the table: watch sizes, not only window resizes
       if (window.ResizeObserver) {
-        var ro = new ResizeObserver(check);
+        var ro = new ResizeObserver(sized);
         ro.observe(sc);
         ro.observe(sc.firstElementChild);
       } else {
-        window.addEventListener('resize', check);
+        window.addEventListener('resize', sized);
       }
-      check();
+      sized();
     });
   });
 
@@ -1306,6 +1349,9 @@
       });
       table.addEventListener('statcols', function () { recount(true); });
       recount();
+      // a phone's Item Stats hides its Tier column (styles.css): the spans follow a turn of the screen across 760px
+      var narrow = window.matchMedia && window.matchMedia('(max-width: 760px)');
+      if (narrow && narrow.addEventListener) narrow.addEventListener('change', function () { recount(); });
     });
   });
 
@@ -1682,9 +1728,15 @@
     up.textContent = '↑';
     up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
     document.body.appendChild(up);
-    var upOn = false;
+    // a touch screen shows it only while the page goes up: the rest of the time it sat on the right-hand values
+    var upOn = false, lastY = window.scrollY, touch = window.matchMedia && window.matchMedia('(hover: none)').matches;
     window.addEventListener('scroll', function () {
-      var on = window.scrollY > window.innerHeight;
+      var y = window.scrollY, on = y > window.innerHeight;
+      if (touch && on) {
+        if (Math.abs(y - lastY) < 6) return;          // a jitter of the finger is no direction
+        on = y < lastY;
+      }
+      lastY = y;
       if (on !== upOn) { upOn = on; up.classList.toggle('on', on); }
     }, { passive: true });
     function pressAll(attr, value) {           // one of the part / ability buttons, or none

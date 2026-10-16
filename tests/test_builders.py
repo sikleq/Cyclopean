@@ -1349,10 +1349,13 @@ def test_table_bar_scrolls_away_and_its_legend_wraps():
     from builders.tables_pages import _toolbar
     bar = _toolbar('Item…', heat_on=True)
     assert 'class="toolbar tbl-bar"' in bar and 'data-heatmap checked' in bar
-    assert '<span class="lg-tail"> · hover a value for its history</span>' in bar
+    assert ('<span class="lg-tail"> · <span class="lg-hover">hover</span><span class="lg-tap">tap</span>'
+            ' a value for its history</span>') in bar
     assert 'data-heatmap checked' not in _toolbar('Hero…')
     css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.toolbar.tbl-bar, .toolbar.dyn-bar { position: static; }' in css
+    # static on a phone or a short window; a desktop keeps it under the site bar (tests/test_vis_layout.py)
+    assert ('@media (max-width: 760px), (max-height: 560px) { .toolbar.tbl-bar, .toolbar.dyn-bar { position: static; } }'
+            in css)
     assert '.chip.legend-hist { white-space: normal; max-width: 100%; }' in css
     # a unit without art: the glyph gets the icon's fixed box (Shrine's grew to a 300x210 picture)
     assert 'table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px;' in css

@@ -93,8 +93,9 @@ def test_the_matrix_box_ends_on_the_first_screen(browser):
     page.set_viewport_size({'width': 1440, 'height': 700})
     page.wait_for_timeout(100)
     assert 660 <= page.evaluate(bottom) <= 700
+    # a phone: not the first screen (524px) but the room under the bars (here no site bar: 800 - 16)
     phone, _ = _open(browser, body, width=390, height=800)
-    assert phone.evaluate("() => document.querySelector('.table-scroll').style.maxHeight") == ''
+    assert phone.evaluate("() => document.querySelector('.table-scroll').style.maxHeight") == '784px'
 
 
 def test_the_strip_keeps_the_entitys_latest_own_patches():

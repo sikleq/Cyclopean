@@ -32,7 +32,7 @@
   --text-main: #e0d8c6;
   --text-bright: #f6f0e2;
   --text-dim: #9aa59e;
-  --text-dimmer: #6b7772;
+  --text-dimmer: #85918b;     /* 4.5:1 on every panel up to --bg-panel-3 (#6b7772 was 3.2:1 there; review 2026-10-17) */
 
   /* accents */
   --patina: #5fc4a4;          /* primary accent — oxidised copper */
@@ -155,6 +155,8 @@
   --mask-sort: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E");
   --mask-sort-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 3h8v1h-8zM2 4h6v1h-6zM3 5h4v1h-4zM4 6h2v1h-2z'/%3E%3C/svg%3E");
   --mask-sort-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 3h2v1h-2zM3 4h4v1h-4zM2 5h6v1h-6zM1 6h8v1h-8z'/%3E%3C/svg%3E");
+  /* a wide table's "more columns this way" arrow, the sort arrows' pixel triangle turned right (.table-fade::before) */
+  --mask-more: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h1v1h-1zM3 2h2v1h-2zM3 3h3v1h-3zM3 4h4v2h-4zM3 6h3v1h-3zM3 7h2v1h-2zM3 8h1v1h-1z'/%3E%3C/svg%3E");
 
   /* the eye as a mask (the strip tiles draw it in --eye; an inline SVG per tile cost 13 KB a page) */
   --mask-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1zM13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z'/%3E%3C/svg%3E");
@@ -321,7 +323,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 
 /* ---------- 05. Page shell ---------- */
 .page { max-width: var(--content-w); margin: 0 auto; padding: 18px var(--gutter) 60px; }
-.page.wide { max-width: none; }
+/* a wide page (an index, a table, a matrix) shares the site bar's width: its title, toolbar and table start where the
+   brand does (at 1920 they sat at x=20 under a brand at x=140, the matrix centred between; review 2026-10-17) */
+.page.wide { max-width: var(--content-w); }
 /* a hero / item / unit page: head, today's stats, strip, toolbar and every band share ONE centred column
    (the history sat in 1120px pinned left under a 1640px head: 134px of margin left, 666px right at 1920); a patch or
    build page's cards are the same one column (`column`, common.page) */
@@ -334,8 +338,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .crumbs { font: 17px/1 var(--font-label); color: var(--text-dimmer); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .crumbs a { color: var(--text-dim); }
 
+/* flush under the site bar: a 2px gap let the content scroll through between the two */
 .toolbar {
-  position: sticky; top: calc(var(--nav-h) + 2px); z-index: var(--z-sticky);
+  position: sticky; top: var(--nav-h); z-index: var(--z-sticky);
   display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center;
   padding: 10px 12px;
   background: var(--bg-panel);
@@ -343,6 +348,12 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
   margin: 0 0 18px;
 }
 .toolbar .sep { width: 2px; height: 26px; background: var(--line); margin: 0 4px; }
+/* a phone: an index's toolbar scrolls away like a table's (stuck, it took 96px for a search box), and the separators
+   go — once a bar wraps they dangled at a row's end or stood alone on a row */
+@media (max-width: 760px) {
+  main.page.wide > .toolbar { position: static; }
+  .toolbar .sep { display: none; }
+}
 .toolbar input[type=search], .site-search input[type=search] {
   font: 15px var(--font-ui); color: var(--text-main);
   background: var(--bg-page); border: var(--px) solid var(--line); padding: 6px 10px; min-width: 220px;
@@ -687,6 +698,11 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
   box-shadow: 0 0 0 2px var(--frame-line), 0 6px 14px var(--shadow-deep); }
 .back-to-top.on { display: flex; }
 .back-to-top:hover, .back-to-top:focus-visible { background: var(--bg-hover); box-shadow: 0 0 0 2px var(--patina); }
+/* a touch screen: smaller, in the corner, see-through, and only while the page goes up (scripts.js hist-filter) — it
+   sat on the right-hand values and filter chips of every long page (review 2026-10-17) */
+@media (hover: none) {
+  .back-to-top { right: 6px; bottom: 6px; width: 32px; height: 32px; font-size: 18px; opacity: .72; }
+}
 .hblocks .pblock { margin-bottom: 6px; }
 .hblocks .pblock > .banner { margin: 0; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
@@ -1063,9 +1079,15 @@ table.kvt.tier-grid td.v { text-align: center; }
 /* a table's frame hugs it and sits centred, the fade on its own edge (review 2026-10-05: Unit Stats' 570px tables in
    full-width frames, half empty) */
 .table-fade { position: relative; width: fit-content; max-width: 100%; margin-inline: auto; }
-.table-fade::after { content: ""; position: absolute; top: 2px; right: 2px; bottom: 2px; width: 44px; pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--bg-page)); transition: opacity .2s; }
-.table-fade.at-end::after { opacity: 0; }
+/* "more columns this way" until the box is scrolled to its end: a shadow over the content's right edge with a copper
+   rule and an arrow at the top (a fade into --bg-page was the table's own colour: nobody saw it, review 2026-10-17).
+   scripts.js table-fade keeps it off the box's scrollbars (--fade-r / --fade-b) */
+.table-fade::before, .table-fade::after { content: ""; position: absolute; pointer-events: none; transition: opacity .2s; }
+.table-fade::after { top: 2px; right: var(--fade-r, 2px); bottom: var(--fade-b, 2px); width: 40px;
+  background: linear-gradient(90deg, transparent, var(--shadow) 80%); box-shadow: inset -2px 0 0 var(--patina-dim); }
+.table-fade::before { z-index: 1; top: 8px; right: calc(var(--fade-r, 2px) + 5px); width: 10px; height: 10px; background: var(--patina);
+  -webkit-mask: var(--mask-more) center / 10px 10px no-repeat; mask: var(--mask-more) center / 10px 10px no-repeat; }
+.table-fade.at-end::before, .table-fade.at-end::after { opacity: 0; }
 .table-scroll {
   position: relative; contain: paint;
   overflow: auto;
@@ -1073,9 +1095,13 @@ table.kvt.tier-grid td.v { text-align: center; }
   border: var(--px) solid var(--line);
 }
 table.stats { border-collapse: separate; border-spacing: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-table.stats th, table.stats td { padding: 3px 6px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+/* 4px a side, not 6: two more of Hero Stats' 33 default columns in a 1440px window (review 2026-10-17) */
+table.stats th, table.stats td { padding: 3px 4px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
 table.stats thead th { position: sticky; background: var(--bg-panel-2); z-index: 3; color: var(--text-dim); font-weight: 600; }
 table.stats thead tr.cats th { top: 0; font: 600 12px/1 var(--font-ui); color: var(--text-bright); text-align: center; padding: 6px 10px; border-bottom: 1px solid var(--grid-strong); border-left: 1px solid var(--grid-strong); }
+/* a group's name stays in sight while its group runs off either edge (scripts.js table-sort pins --name-w): centred
+   over the group when it fits, else held just past the sticky names or short of the right-edge fade */
+table.stats thead tr.cats th.cat > .cl { display: inline-block; position: sticky; left: calc(var(--name-w, 0px) + 8px); right: 48px; }
 /* one line per header: short labels, the full one is the tooltip */
 table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: 11.5px; line-height: 1.2; white-space: nowrap; min-width: 40px; vertical-align: bottom; }
 .table-scroll:not(.show-details) .g-details { display: none; }
@@ -1520,6 +1546,25 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .dimmer { color: var(--text-dimmer); }
 .hidden-el { display: none !important; }
 .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* a finger's targets: links drawn smaller than 24px get a bigger hit area, the look unchanged — padding the link and
+   taking it back with a negative margin, or a transparent box around it (review 2026-10-17: "patch ↗" 43x12, a
+   matrix date 13x14, a trail square 12x12, an ability card's History 51x15, a one-digit value 8x20) */
+@media (pointer: coarse) {
+  .nav-brand { padding: 7px; margin: -7px; }
+  .banner .pnotes { padding: 8px 6px; margin: -8px -6px -8px -2px; }
+  table.dyn thead tr.cols th.dd { overflow: visible; }
+  table.dyn thead tr.cols th.dd > a { position: relative; display: inline-block; }
+  table.dyn thead tr.cols th.dd > a::after { content: ""; position: absolute; left: -9px; right: -8px; top: -7px; bottom: -6px; }
+  /* every square alike, so the row keeps its baseline (taken 6px back by vertical-align); !important: the tag colours'
+     `background` shorthand would paint the transparent border too */
+  .trail { vertical-align: -6px; }
+  .trail .sq { box-sizing: content-box; border: 6px solid transparent; margin: -6px; background-clip: padding-box !important; }
+  .trail a.sq.cur { box-shadow: none; outline: 1px solid var(--patina); outline-offset: -6px; }   /* the ring, as before */
+  .trail a.sq:hover { outline-offset: -6px; }
+  .ac-hist, .ac-last, .lu-more, footer.site-foot a { padding-block: 6px; margin-block: -6px; }
+  .lu-more { padding-inline: 8px; margin-inline: -8px; }
+  .sc-row .v.has-hist { padding: 4px 8px; margin: -4px -8px; }
+}
 @media (max-width: 860px) {
   .timeline > li { grid-template-columns: 1fr; }
   /* phones keep the menu: the sections scroll sideways next to the eye (it was hidden outright) */
@@ -1529,7 +1574,7 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
   .nav-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
   .nav-tab { font-size: 18px; padding: 0 8px; white-space: nowrap; }
 }
-footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px 16px 40px; color: var(--text-dimmer); font-size: 13px; border-top: var(--px) solid var(--line-soft); }
+footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px var(--gutter) 40px; color: var(--text-dimmer); font-size: 13px; border-top: var(--px) solid var(--line-soft); }
 
 /* notes written from the files (written_notes): Valve's sections, one line per change with its tag badge */
 h3.gn-h { margin: 22px 0 8px; }
@@ -1803,10 +1848,15 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 /* a Sloppy-style switch: label + small track (Pre-release, Hide old, Show deleted) */
 .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: 600 13px/1 var(--font-ui); color: var(--text-main); }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
-.switch .track { position: relative; width: 30px; height: 14px; background: var(--bg-page); box-shadow: inset 0 0 0 2px var(--frame-line); }
-.switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; background: var(--text-dimmer); transition: left .12s; }
-.switch input:checked + .track { box-shadow: inset 0 0 0 2px var(--patina); }
-.switch input:checked + .track::after { left: 19px; background: var(--patina-strong); }
+/* off: a dark slot with a bone knob on the left; on: the slot filled copper, the knob bright on the right (a dark
+   30px bar with a tiny grey square read as a broken input, review 2026-10-17) */
+.switch .track { flex: none; position: relative; width: 32px; height: 18px; background: var(--bg-page);
+  box-shadow: inset 0 0 0 2px var(--line-bright); transition: background-color .12s; }
+.switch .track::after { content: ""; position: absolute; left: 4px; top: 4px; width: 10px; height: 10px; background: var(--text-dim);
+  transition: left .12s; }
+.switch:hover .track { box-shadow: inset 0 0 0 2px var(--patina-dim); }
+.switch input:checked + .track { background: var(--patina); box-shadow: inset 0 0 0 2px var(--patina-strong); }
+.switch input:checked + .track::after { left: 18px; background: var(--text-bright); box-shadow: 0 0 0 1px var(--patina-deep); }
 .switch input:focus-visible + .track { outline: 2px solid var(--patina); outline-offset: 2px; }
 .switch .n { color: var(--text-dimmer); font-weight: 500; }
 #heroes-grid:not(.show-pre) .hgcard.pre { display: none; }
@@ -2057,9 +2107,13 @@ table.dt-rows tr.dt-part td { padding: 6px 6px 3px; text-align: left; font: 600 
 table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 60%, var(--label)); }
 
 /* ---------- 21. stats tables: bars, heat, bands; Item Stats (tables_pages.items_table) ---------- */
-/* the table bars scroll away: stuck, they covered the table's own sticky header (a third of a phone) */
-.toolbar.tbl-bar, .toolbar.dyn-bar { position: static; }
+/* a table's bar stays under the site bar on a desktop, the table's box fits the room under both (scripts.js table-fit),
+   so its header row lands right under the bar instead of scrolling away under the site bar (review 2026-10-17). On a
+   phone or a short window the bar scrolls away: stuck, it covered the table's own sticky header (a third of a phone) */
+@media (max-width: 760px), (max-height: 560px) { .toolbar.tbl-bar, .toolbar.dyn-bar { position: static; } }
 .chip.legend-hist { white-space: normal; max-width: 100%; }
+.legend-hist .lg-tap { display: none; }            /* "hover a value", on a touch screen "tap a value" */
+@media (hover: none) { .legend-hist .lg-hover { display: none; } .legend-hist .lg-tap { display: inline; } }
 /* a table narrower than the page sits in the middle (Item Stats, the change matrices) */
 .table-fade.center { width: fit-content; max-width: 100%; margin-inline: auto; }
 /* a one-patch month's label ("2026-10" over 30px) spilled past the table and made the box scroll 25px
@@ -2067,14 +2121,27 @@ table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 6
 table.dyn thead tr.cats th { overflow: hidden; text-overflow: clip; }
 table.stats .col-gone { display: none; }
 /* heat by rank: cells and an item's stat chips (scripts.js heatmap) */
-table.stats td.hm-g1, table.stats .sc.hm-g1 { background-color: var(--heat-g1); }
-table.stats td.hm-g2, table.stats .sc.hm-g2 { background-color: var(--heat-g2); }
-table.stats td.hm-g3, table.stats .sc.hm-g3 { background-color: var(--heat-g3); }
-table.stats td.hm-g4, table.stats .sc.hm-g4 { background-color: var(--heat-g4); }
-table.stats td.hm-b1, table.stats .sc.hm-b1 { background-color: var(--heat-b1); }
-table.stats td.hm-b2, table.stats .sc.hm-b2 { background-color: var(--heat-b2); }
-table.stats td.hm-b3, table.stats .sc.hm-b3 { background-color: var(--heat-b3); }
-table.stats td.hm-b4, table.stats .sc.hm-b4 { background-color: var(--heat-b4); }
+table.stats td.hm-g1 { background-color: var(--heat-g1); }
+table.stats td.hm-g2 { background-color: var(--heat-g2); }
+table.stats td.hm-g3 { background-color: var(--heat-g3); }
+table.stats td.hm-g4 { background-color: var(--heat-g4); }
+table.stats td.hm-b1 { background-color: var(--heat-b1); }
+table.stats td.hm-b2 { background-color: var(--heat-b2); }
+table.stats td.hm-b3 { background-color: var(--heat-b3); }
+table.stats td.hm-b4 { background-color: var(--heat-b4); }
+/* a chip keeps the one fill every chip has; its rank is a bar along its foot in the same four steps (a maroon fill
+   under a green Vitality number read as the category's colour, not the rank; review 2026-10-17) */
+table.stats .sc.hm-g1 { --heat-c: color-mix(in srgb, var(--tag-buff) 35%, transparent); }
+table.stats .sc.hm-g2 { --heat-c: color-mix(in srgb, var(--tag-buff) 55%, transparent); }
+table.stats .sc.hm-g3 { --heat-c: color-mix(in srgb, var(--tag-buff) 75%, transparent); }
+table.stats .sc.hm-g4 { --heat-c: var(--tag-buff); }
+table.stats .sc.hm-b1 { --heat-c: color-mix(in srgb, var(--tag-nerf) 35%, transparent); }
+table.stats .sc.hm-b2 { --heat-c: color-mix(in srgb, var(--tag-nerf) 55%, transparent); }
+table.stats .sc.hm-b3 { --heat-c: color-mix(in srgb, var(--tag-nerf) 75%, transparent); }
+table.stats .sc.hm-b4 { --heat-c: var(--tag-nerf); }
+table.stats .sc.hm-g1::before, table.stats .sc.hm-g2::before, table.stats .sc.hm-g3::before, table.stats .sc.hm-g4::before,
+table.stats .sc.hm-b1::before, table.stats .sc.hm-b2::before, table.stats .sc.hm-b3::before, table.stats .sc.hm-b4::before {
+  content: ""; position: absolute; left: 1px; right: 1px; bottom: 1px; height: 2px; background: var(--heat-c); pointer-events: none; }
 table.stats td.sorted-col { background-image: linear-gradient(var(--sorted-col), var(--sorted-col)); }
 /* band rows (a category) and tier dividers stand aside while the table is sorted by a column */
 table.stats.is-sorted tr.sec { display: none; }
@@ -2126,6 +2193,7 @@ table.per-soul th.cat.sumc::after, table.per-soul th.cat.stc::after { content: "
 .sc b, .fx b { font-weight: 700; font-size: 12px; color: var(--text-bright); font-variant-numeric: tabular-nums; }
 .sc i, .fx i { font-style: normal; }
 .sc .pi, .fx .pi { width: 13px; height: 13px; margin: 0; }
+.sc > b:first-child, .fx > b:first-child { margin-left: 3px; }   /* no icon: no empty slot (tables_pages._chip) */
 .sc { cursor: pointer; }
 .sc:hover { box-shadow: inset 0 0 0 1px var(--patina); }
 .sc.gone { display: none; }
@@ -2159,4 +2227,13 @@ table.per-soul .sc b { color: var(--patina-strong); }
   /* change matrices: the names shrink to their icons (they took 210 of 390px) */
   table.dyn { --dyn-name: 44px; }
   table.dyn td.name a { font-size: 0; gap: 0; }
+}
+/* Item Stats on a phone: one line a row — the chips run on in one line from the column's left edge (they stacked two
+   and three high; centred in a column as wide as its longest row, a short row's chips sat off the screen), a name's
+   two lines fit beside its icon, and the Tier column goes: the price says the tier (800 / 1,600 / 3,200 / 6,400) and a
+   rule divides the tiers (review 2026-10-17: rows two lines high, the Effect column cut) */
+@media (max-width: 760px) {
+  #items-table .chips { flex-wrap: nowrap; justify-content: flex-start; min-width: 0; max-width: none; margin: 0; }
+  #items-table td.name a { line-height: 1.05; }
+  #items-table [data-col="tier"] { display: none; }
 }
