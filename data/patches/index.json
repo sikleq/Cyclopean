@@ -2585,11 +2585,11 @@
   "id": "2026-10-14",
   "title": "Minor Update - 10-14-2026",
   "date": "2026-10-14",
-  "builds": 3,
+  "builds": 4,
   "counts": {
    "documented": 10,
    "described": 5,
-   "hidden": 19,
+   "hidden": 79,
    "unannounced": 0,
    "unreleased": 0
   },

@@ -141,9 +141,78 @@
     "hero_deadpack"
    ],
    "files": 1
+  },
+  {
+   "build": 6790,
+   "date": "2026-10-16",
+   "commit": "9b616d30",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_artist"
+   ],
+   "files": 1
+  },
+  {
+   "build": 6790,
+   "date": "2026-10-16",
+   "commit": "9b616d30",
+   "kind": "cosmetic animation",
+   "op": "modified",
+   "subjects": [
+    "hero_astro",
+    "hero_atlas",
+    "hero_baba",
+    "hero_bebop",
+    "hero_boho",
+    "hero_bookworm",
+    "hero_chessmaster",
+    "hero_chrono",
+    "hero_deadpack",
+    "hero_doorman",
+    "hero_drifter",
+    "hero_druid",
+    "hero_dynamo",
+    "hero_familiar",
+    "hero_fencer",
+    "hero_forge",
+    "hero_fortuna",
+    "hero_frank",
+    "hero_ghost",
+    "hero_gigawatt",
+    "hero_haze",
+    "hero_hornet",
+    "hero_inferno",
+    "hero_kelvin",
+    "hero_krill",
+    "hero_lash",
+    "hero_magician",
+    "hero_mirage",
+    "hero_nano",
+    "hero_necro",
+    "hero_orion",
+    "hero_priest",
+    "hero_punkgoat",
+    "hero_ratking",
+    "hero_shiv",
+    "hero_synth",
+    "hero_tengu",
+    "hero_unicorn",
+    "hero_vampirebat",
+    "hero_viper",
+    "hero_viscous",
+    "hero_warden",
+    "hero_werewolf",
+    "hero_wraith",
+    "hero_yamato"
+   ],
+   "files": 48
   }
  ],
  "heroes": {
+  "hero_artist": [
+   "cosmetic animation"
+  ],
   "hero_astro": [
    "cosmetic animation"
   ],
