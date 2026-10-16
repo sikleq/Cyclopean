@@ -160,6 +160,33 @@ def test_units_and_game_systems_take_the_art_the_game_draws_for_them():
         assert (ROOT / 'icons' / ic).exists(), ic
 
 
+def test_home_folds_units_without_art_into_one_tile():
+    from builders.home_page import _fold_tile, fold_bare
+    rows = [('', {'dir': 'nerf', 'status': 'unannounced'})]
+    got = [('npc_units.vdata:trooper_normal', {'n': 3, 'hidden': 0, 'rows': rows, 'kind': 'unit'}),
+           ('npc_units.vdata:neutral_rooftop_pigeon_weak', {'n': 1, 'hidden': 1, 'rows': rows, 'kind': 'unit'}),
+           ('npc_units.vdata:citadel_basketball', {'n': 1, 'hidden': 0, 'rows': rows, 'kind': 'unit'})]
+    names = {'npc_units.vdata:neutral_rooftop_pigeon_weak': 'Overseer I'}
+    drawn, bare = fold_bare(got, names)
+    assert [k for k, _ in drawn] == ['npc_units.vdata:trooper_normal']
+    assert [k for k, _ in bare] == ['npc_units.vdata:neutral_rooftop_pigeon_weak', 'npc_units.vdata:citadel_basketball']
+    tile = _fold_tile(bare, '2026-09-29', names, named=False)
+    assert tile.startswith('<a class="lu lu-fold net-nerf" href="patches/2026-09-29.html#changes"')
+    assert '<span class="lu-fold-n">+2</span>' in tile and 'glyph' not in tile
+    assert 'data-tooltip="2 more units without game art: Overseer I, Basketball"' in tile
+    assert 'lu-eye' in tile and 'lu-nm' not in tile
+    assert 'lu-nm' in _fold_tile(bare, 'p', names, named=True)
+
+
+def test_the_built_home_page_draws_no_unit_glyph():
+    """The built page (when there is one): no grey unit glyph among the feed's icons."""
+    page = ROOT / 'dist' / 'index.html'
+    if not page.exists():
+        pytest.skip('no dist/ (python build_site.py)')
+    html = page.read_text(encoding='utf-8')
+    assert 'class="px glyph g-units"' not in html
+
+
 def test_a_hero_with_no_portrait_shows_the_hero_glyph(monkeypatch):
     """A hero whose only picture was its name has no portrait now: the hero glyph, not an <img src="">."""
     from builders import hero_page
@@ -174,3 +201,22 @@ def test_a_hero_with_no_portrait_shows_the_hero_glyph(monkeypatch):
     html = hero_page.hero_page(h, cards, None, [], ents, {}, {})
     head = html.split('class="hero-head"')[1].split('<h1>')[0]
     assert '<span class="portrait px-frame glyph g-hero"></span>' in head and '<img' not in head
+
+
+def test_card_art_sits_on_one_tile_and_the_fold_tile_centres_its_count(browser):
+    from test_perf_browser import _open
+    page, errors = _open(browser,
+                         '<div class="grid units"><a class="card"><img src="data:image/gif;base64,R0lGODlhAQABAAAAACw='
+                         '"></a><a class="card"><span class="glyph g-units"></span></a></div>'
+                         '<div class="lu-row"><a class="lu lu-fold net-mix" href="#"><span class="lu-fold-n">+13</span>'
+                         '</a></div>')
+    got = page.evaluate("""() => {
+      const bg = s => getComputedStyle(document.querySelector(s)).backgroundColor;
+      const n = document.querySelector('.lu-fold-n').getBoundingClientRect();
+      const t = document.querySelector('.lu-fold').getBoundingClientRect();
+      return [bg('.card img'), bg('.card .glyph'), n.width === t.width, n.height === t.height,
+              getComputedStyle(document.querySelector('.lu-fold-n')).alignItems];
+    }""")
+    assert got[0] == got[1] and got[0] not in ('rgba(0, 0, 0, 0)', 'transparent')
+    assert got[2:] == [True, True, 'center']
+    assert not errors

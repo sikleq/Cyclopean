@@ -173,6 +173,31 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
             f'{pic}<span class="lu-n">{s["n"]}</span>{eye}{label}</a>')
 
 
+def fold_bare(got: list[tuple[str, dict]], names: dict[str, str]) -> tuple[list, list]:
+    """(the units with game art, the units without): a unit the game files have no picture for (Overseer, the
+    Hideout's toys, test bugs, removed summons; data/overrides/unit_icons.json) is not drawn as the site's grey unit
+    glyph on the home page — seventeen such squares were its "strongest unfinished signal" (review 2026-10-17)."""
+    drawn, bare = [], []
+    for k, s in got:
+        file, _, eid = k.partition(':')
+        art = entity_icon(file, eid, s.get('kind') or '', '', names.get(k))
+        (drawn if art else bare).append((k, s))
+    return drawn, bare
+
+
+def _fold_tile(bare: list[tuple[str, dict]], pid: str, names: dict[str, str], named: bool, eye: bool = True) -> str:
+    """ONE '+N' tile for the units with no game art, after the drawn ones; its tooltip names them (the tooltips their
+    own icons had) and it opens the update's patch page, where every one of them is listed."""
+    who = ', '.join(names.get(k) or pretty_id(k.partition(':')[2]) for k, _ in bare)
+    rows = [c for _, s in bare for _, c in s['rows']]
+    tip = f'{plural(len(bare), "more unit")} without game art: {who}'
+    hidden = eye and any(s['hidden'] for _, s in bare)
+    mark_html = f'<span class="lu-eye">{mark("hidden")}</span>' if hidden else ''
+    label = '<span class="lu-nm">no game art</span>' if named else ''
+    return (f'<a class="lu lu-fold net-{net_of(rows) or "mix"}" href="patches/{esc(pid)}.html#changes" '
+            f'data-tooltip="{esc(tip)}"><span class="lu-fold-n">+{len(bare)}</span>{mark_html}{label}</a>')
+
+
 def chip_card(s: dict) -> list:
     """[{tag: n}, hidden, samples] for a feed icon's hover card: its CHIP_SAMPLES biggest changes as
     [what (a hero's ability; '' for an item's / unit's own rows), label, old, new, tag, hidden 0/1]."""
@@ -218,16 +243,21 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                 notes = row.get('has_notes', True)
                 all_out = notes and all(s['hidden'] == s['n'] for _, s in got)
                 chips = []
-                for k, s in got:
+                # units the game files have no picture for fold into one '+N' tile at the end (fold_bare)
+                drawn, bare = (fold_bare(got, names) if sec == 'units' else (got, []))
+                for k, s in drawn:
                     net = net_of(c for _, c in s['rows'])              # once: the icon's underline and its card
                     chips.append(_chip(k, s, row['id'], names, named, len(cards), eye=notes and not all_out, net=net))
                     # [update, {tag: n}, hidden, samples, net mark (weights.net_of) for the card's chip]
                     cards.append([len(updates) - 1, *chip_card(s), net])
+                if bare:
+                    chips.append(_fold_tile(bare, row['id'], names, named, eye=notes and not all_out))
                 whole = f'<span class="lu-all">{EYE_MARK}all not in notes</span>' if all_out else ''
                 # a phone shows three rows of icons (styles.css); the rest is the patch page's (City Never Sleeps'
-                # 102 items were 17 rows, ~900px)
-                more = (f'<a class="lu-more" href="patches/{esc(row["id"])}.html#changes">+{len(got) - PHONE_ICONS} '
-                        f'more</a>' if len(got) > PHONE_ICONS and not named else '')
+                # 102 items were 17 rows, ~900px). The fold tile stands for all its units.
+                past = sum(([1] * len(drawn) + ([len(bare)] if bare else []))[PHONE_ICONS:])
+                more = (f'<a class="lu-more" href="patches/{esc(row["id"])}.html#changes">+{past} '
+                        f'more</a>' if past and not named else '')
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b>{whole}</span>'
                               f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}{more}</div></div>')
         # the update's one count (patch_counts: as its patch page and the patch list); what no icon below carries is
