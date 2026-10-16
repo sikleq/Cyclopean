@@ -278,6 +278,8 @@ def test_on_a_phone_a_feed_icons_first_tap_shows_its_card_and_the_second_opens_i
     icon.tap()
     assert page.evaluate('() => window.__clicks') == [True]
     assert page.locator('.dyn-tip.on').count() == 1 and 'Bullet Dance' in page.locator('.dyn-tip').inner_text()
+    # the card's foot speaks to a finger: its second tap opens it (it said "click for its history")
+    assert page.locator('.dyn-tip .dt-foot').inner_text().endswith('tap again for its history at this patch')
     page.evaluate("""() => { const a = document.querySelector('a.lu');
       a.dispatchEvent(new MouseEvent('mouseout', {bubbles: true, relatedTarget: document.body}));
       a.dispatchEvent(new FocusEvent('focusout', {bubbles: true})); }""")

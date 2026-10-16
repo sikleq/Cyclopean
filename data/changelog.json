@@ -1,9 +1,22 @@
 [
   {
     "date": "2026-10-17",
-    "title": "Visual pass",
+    "title": "Visual pass: game art for the new heroes, tidier pages, one-column patch pages, cards on touch screens",
     "items": [
-      "Month labels on the Hero, Item, Unit and Game change matrices sit over their own dates again (they had slid 3-4 columns left)."
+      "Violet, Deadman Danny, Baba and Solomon show their real ability icons, card portraits and minimap faces; Solomon's bishop and queen, Violet's ink wall, Graves' skeletons and Calico's cat have their game art, and \"Shop & item rules\" and \"Other rules & objects\" have icons from the game.",
+      "Units with no picture in the game files no longer show grey squares on the home page: they gather in one \"+N\" tile. Heroes in development whose only picture is their name in plain letters are left out of the patch archive and show a plain silhouette on their pages.",
+      "Month labels on the Hero, Item, Unit and Game change matrices sit over their own dates again (they had slid 3-4 columns left).",
+      "Hero, item, unit and Game pages: the current values fill the width, ability cards end at their last tier, the weapon's name heads its numbers, the percent follows the new value, and every chip in a patch header has one size and style.",
+      "Patch strips and change matrices keep their stripes whole: a change not in the patch notes is an orange top edge, and the count sits on a dark plate. Ability trails show quiet patches as faint dots.",
+      "Patch pages show their cards in one centred column (two columns left big empty gaps); the patch list no longer prints numbers over each other on tablets and phones.",
+      "Home page: each update's Heroes, Items, Units and Game icons sit side by side, and every update looks alike.",
+      "Phones: history rows use the whole width, a hero's portrait stays beside its name, patch page tabs are one row you swipe, and the Heroes index shows three heroes a row (Units and Game two).",
+      "Touch screens: the first tap on a matrix cell, strip tile, history square, home icon or shop item shows its card, the second opens it. Hover cards are wider, so names stay on one line.",
+      "Smaller fixes: the Walker's weak points are named, long console variable names break after an underscore, folds show their + / − before the words, and a cut-off rework list says \"more\".",
+      "Stats tables and change matrices keep their column headers and filter bar in sight while you scroll, group names stay above their columns, and wide tables show a shadow and an arrow on the right until you reach the last column.",
+      "Index, table and matrix pages line up with the top bar on wide screens; switches clearly show on and off; Item Stats chips have no empty icon gaps and the heatmap marks a value with a thin bar.",
+      "Touch screens: small links are easier to tap, the back-to-top button is smaller and only shows while you scroll up, and faint labels are brighter everywhere.",
+      "On an iPhone an eye link to its build opens on the second tap (it took three), and hover cards say \"tap again\" on touch screens."
     ]
   },
   {

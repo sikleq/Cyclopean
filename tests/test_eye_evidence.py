@@ -145,6 +145,25 @@ def test_on_a_phone_the_first_tap_shows_the_eyes_words_and_the_second_opens_the_
     ctx.close()
 
 
+def test_on_an_iphone_the_eye_opens_its_build_on_the_second_tap(browser):
+    """iOS drops the click of a tap whose mouseover showed something: the first tap there is a touch and a mouseover
+    only. The link armed itself at click time, so the second tap only armed it and a third opened it."""
+    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    ctx = browser.new_context(viewport={'width': 390, 'height': 800}, is_mobile=True, has_touch=True)
+    page = ctx.new_page()
+    page.set_content(f'<!doctype html><html><head><style>{css}</style></head><body><p style="height:200px">x</p>'
+                     '<a class="mark hidden" href="#b6444" data-tooltip="Not in the patch notes — build 6444" '
+                     f'aria-label="Not in the patch notes — build 6444"></a><script>{js}</script></body></html>')
+    page.evaluate("""() => { const a = document.querySelector('a.mark');
+      a.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, pointerType: 'touch'}));
+      a.dispatchEvent(new MouseEvent('mouseover', {bubbles: true})); }""")     # the first tap, as iOS sends it
+    assert 'on' in page.locator('.tip').get_attribute('class') and page.evaluate('() => location.hash') == ''
+    page.tap('a.mark')
+    assert page.evaluate('() => location.hash') == '#b6444'
+    ctx.close()
+
+
 @pytest.mark.skipif(not (ROOT / 'data' / 'builds' / '6444_ed400792.json.gz').exists(), reason='no build record')
 def test_a_build_pages_anchors_are_its_cards():
     from builders.evidence import build_anchors

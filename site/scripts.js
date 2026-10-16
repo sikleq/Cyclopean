@@ -335,7 +335,7 @@
       place(el);
     }
     // (a hidden tip disarms an eye link: its next tap shows the words again before it follows)
-    function hide() { current = null; armed = null; tip.classList.remove('on'); }
+    function hide() { current = null; upBefore = null; tip.classList.remove('on'); }
     document.addEventListener('mouseover', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
       if (el && el !== current) show(el);
@@ -356,16 +356,25 @@
     // it again), a tap anywhere else hides it. An eye that opens its proof (a.mark: the build it came
     // in, builders/evidence.py) shows its words on the first tap and follows the link on the second
     var noHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
-    var armed = null;
+    // whether the words were up is read when the touch begins, before the tap's own mouseover shows them: iOS drops
+    // the click of a tap whose mouseover showed something, so a flag set at click time took a third tap there (the
+    // hover cards' rule, dyn-tip; review 2026-10-17)
+    var upBefore = null;
+    function touchStart(ev) {
+      var el = ev.target.closest && ev.target.closest('[data-tooltip]');
+      upBefore = el && el === current ? el : null;
+    }
+    if (noHover) {
+      document.addEventListener('pointerdown', touchStart, true);
+      document.addEventListener('touchstart', touchStart, { capture: true, passive: true });
+    }
     document.addEventListener('click', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
-      if (el && noHover && el.matches('a.mark[href]') && armed !== el) {
+      if (el && noHover && el.matches('a.mark[href]') && upBefore !== el) {
         ev.preventDefault();
-        armed = el;
         show(el);
         return;
       }
-      armed = null;
       if (el) { if (el !== current) show(el); } else if (current) hide();
     });
     window.addEventListener('scroll', hide, true);
@@ -463,7 +472,9 @@
       if (o.counts) html += countsHtml(o.counts, o.d, o.net);
       if (o.hidden) html += '<div class="dt-eye">' + (o.d.eye || '') + o.hidden + ' not in patch notes</div>';
       if (o.rows) html += '<table class="dt-rows">' + o.rows + '</table>';
-      if (o.foot) html += '<div class="dt-foot">' + (o.more > 0 ? '+' + o.more + ' more · ' : '') + txt(o.foot) + '</div>';
+      // a touch screen's first tap showed this card: the second opens it (as the tooltip module words an eye's link)
+      var foot = o.foot && noHover ? o.foot.replace(/^click/, 'tap again') : o.foot;
+      if (foot) html += '<div class="dt-foot">' + (o.more > 0 ? '+' + o.more + ' more · ' : '') + txt(foot) + '</div>';
       return html;
     }
     function total(counts) { var n = 0; Object.keys(counts).forEach(function (t) { n += counts[t]; }); return n; }
