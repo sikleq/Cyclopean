@@ -976,6 +976,9 @@ table.kvt.tier-grid td.v { text-align: center; }
 .card:hover { background: var(--bg-hover); color: var(--text-bright); }
 /* a unit without game art shows its glyph in the same square (an empty span has no size of its own) */
 .card img, .card .glyph { width: 72px; height: 72px; object-fit: contain; }
+/* every card's art sits on the glyph's tile, at one inset: cut-out renders, a render with its own backdrop (Base
+   Defense Sentry), white HUD marks and the site glyph read as one set (review 2026-10-17) */
+.card img { padding: 5px; background: var(--bg-panel-3); }
 .card .nm { font: 600 14px/1.15 var(--font-ui); }
 .card .sub { font: 17px/1 var(--font-label); color: var(--text-dimmer); text-transform: uppercase; }
 .card .sub:empty { display: none; }
@@ -1159,6 +1162,9 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .hero-head .portrait { grid-row: 1 / span 2; width: 150px; aspect-ratio: 280 / 380; object-fit: cover; background: var(--bg-panel-2); }
 .hero-head .hh-id { min-width: 0; }
 .hero-head .keystats { grid-column: 2; }
+/* a hero in development with no portrait in the files: the hero glyph, square and dim, not stretched to the frame */
+.hero-head .portrait.glyph { display: flex; color: var(--text-dimmer); }
+.hero-head .portrait.glyph::before { width: 48%; height: auto; aspect-ratio: 1; }
 .hero-head h1 { font-size: 40px; margin: 0; }
 .hero-head .meta { color: var(--text-dim); font-size: 13px; margin: 4px 0 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1424,6 +1430,8 @@ a.au.au-hidden:hover b { text-decoration: underline; }
 /* the Game section (builders/game_pages.py): a system's card holds its icon, glyph or painting, at one size */
 .game-card img, .game-card .glyph { width: 72px; height: 72px; object-fit: contain; }
 .game-card .glyph { color: var(--label); }
+/* the game's flat HUD marks fill their whole square: inset more, to the visual weight of the paintings beside them */
+.game-card img[src$=".svg"] { padding: 13px; }
 .dyn td.name .mx-g { display: inline-block; width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; color: var(--label); }
 /* Game rules: one table, a band row per system; centred cells and translucent lines both ways, names left */
 /* the page is one centred column: heading, tabs, search and the table share its width; the table scrolls with the
@@ -1472,6 +1480,10 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .lu.net-nerf { --lu-c: var(--tag-nerf); }
 .lu img, .lu .glyph { display: block; width: 44px; height: 44px; object-fit: cover; }
 .lu.lu-game img, .lu.lu-game .glyph { object-fit: contain; padding: 7px; color: var(--label); }
+/* the units the game has no picture for, folded into one tile (home_page.fold_bare): "+N", not N grey glyphs */
+.lu-fold-n { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; padding-bottom: 3px;
+  font: 18px/1 var(--font-label); color: var(--text-dim); }
+.lu.lu-fold:hover .lu-fold-n { color: var(--text-bright); }
 .lu:hover { box-shadow: 0 0 0 2px var(--patina), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
 .lu-n { position: absolute; right: 1px; bottom: 3px; padding: 0 3px; font: 600 11px/14px var(--font-ui); color: var(--text-bright);
   background: var(--shadow); }

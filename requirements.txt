@@ -2,3 +2,4 @@ pytest>=8
 rcssmin>=1.1
 rjsmin>=1.2
 Pillow>=10  # tools/extract_icons.py only
+lz4>=4  # tools/vtex.py only (LZ4-packed mip levels)

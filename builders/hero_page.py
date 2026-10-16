@@ -566,10 +566,13 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
                          every_label='For all heroes', chip_of=chip_of, facts_out=told)
     from .history_view import head_strip, hidden_link
     chips.append(hidden_link(told.get('hidden', 0)))
+    pic = (f'<img class="portrait px-frame" src="{esc(portrait)}" alt="{esc(name)}">' if portrait
+           else img(None, name, 'portrait px-frame', 'hero'))
     head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
             # portrait, the name block and the key stats are the head grid's own items: under 980px the stats go below
-            # both and the portrait keeps the name beside it (styles.css .hero-head)
-            f'<div class="hero-head"><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}">'
+            # both and the portrait keeps the name beside it (styles.css .hero-head); a hero in development whose only
+            # picture is its name (extract_icons.name_placeholder) shows the hero glyph, not an empty frame
+            f'<div class="hero-head">{pic}'
             f'<div class="hh-id"><h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
             f'{first_seen(h["first"])}</div>'
             f'{key_stats(table_row, cols, name, rel) if table_row else ""}'

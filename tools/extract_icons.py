@@ -14,6 +14,9 @@ Gotchas (see docs/data-sources.md):
 - Never pass --vpk_cache: it writes a manifest file into the game folder.
 - `<name>_psd_<hash>.vtex_c` duplicates exist; we always use the unhashed one.
 - Ability and mod icons are white masks (the game tints them via CSS).
+- Textures of Valve's newer compiler stop the CLI (unknown value type in the edit info): tools/vtex.py decodes them
+  from the packed copies (decode_unread).
+- A hero portrait that is only the hero's name in plain letters is no art (name_placeholder): allow-listed.
 """
 from __future__ import annotations
 
@@ -24,10 +27,12 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / 'tools'))
 
 from pipeline import cache, tracker  # noqa: E402
 
@@ -62,6 +67,8 @@ PREFIXES = (
     'panorama/images/hud/zipline_icon',
     'panorama/images/hud/ledge_climb',
     'panorama/images/hud/teleport_icon',
+    # the getting-started map's legend: the Mid-Boss mark at full size (data/overrides/unit_icons.json)
+    'panorama/images/getting_started/map_',
 )
 # heroes/ root files are passed as an explicit list: the folder also holds
 # heroes/backgrounds/ (~1.7 GB) and -f has no exclude.
@@ -113,9 +120,44 @@ def extract_raw() -> None:
         _vrf(','.join(chunk))
 
 
+RAW_C = ROOT / '.cache' / 'vpk_compiled'    # the same files as packed, for tools/vtex.py
+UNREAD: list[str] = []                      # textures the CLI could not read this run (decoded by tools/vtex.py)
+
+
 def _vrf(filter_arg: str) -> None:
-    cmd = [str(VRF), '-i', str(VPK), '-o', str(RAW), '-d', '-f', filter_arg]
-    subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL)
+    """Decompile the filtered files into RAW; copy them as packed into RAW_C too, for the textures the CLI cannot
+    read (`decode_unread`). The CLI writes its exceptions per file and goes on: they are counted, not printed, and its
+    exceptions.txt lands in .cache/ (it writes one into its working folder: the repo root otherwise)."""
+    since = time.time()
+    RAW.parent.mkdir(parents=True, exist_ok=True)
+    for out, flags in ((RAW, ['-d']), (RAW_C, [])):
+        cmd = [str(VRF), '-i', str(VPK), '-o', str(out), *flags, '-f', filter_arg]
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, cwd=RAW.parent)
+    UNREAD.extend(decode_unread(since))
+
+
+def decode_unread(since: float, raw_c: Path | None = None, raw: Path | None = None) -> list[str]:
+    """Textures packed this run (`since`) the CLI left without a PNG, or with one from an earlier run: decoded by
+    tools/vtex.py. Source2Viewer-CLI 19.2 and 20.0 give up on every file of Valve's newer texture compiler (an unknown
+    value type in the edit info): Violet's and Deadman Danny's ability art, their portraits and two reworked items'
+    icons stayed missing or stale for days after their release (build 6790, review 2026-10-17)."""
+    import vtex
+    raw_c, raw = raw_c or RAW_C, raw or RAW
+    done = []
+    for src in sorted(raw_c.rglob('*.vtex_c')):
+        if src.stat().st_mtime < since:
+            continue                        # packed by an earlier run, not in this run's filter
+        rel = src.relative_to(raw_c)
+        dst = raw / rel.with_suffix('.png')
+        if dst.exists() and dst.stat().st_mtime >= since:
+            continue                        # the CLI read it
+        try:
+            vtex.to_png(src, dst)
+        except ValueError as exc:
+            print(f'  unreadable texture {rel.as_posix()}: {exc}')
+            continue
+        done.append(rel.as_posix())
+    return done
 
 
 TRIM_BELOW = 0.35   # a rule's marker drawn small on an empty canvas (minimap: 20x24 px of 64x64) is cut to its art
@@ -151,11 +193,39 @@ def _to_webp(src: Path, dst: Path, max_side: int, trim: bool = False) -> None:
 
 
 RAW_OWNER: dict[str, str] = {}      # decompiled file -> manifest key of the entity that uses it
+PORTRAITS = ('heroes:', 'heroes/card:', 'heroes/minimap:', 'heroes/vertical:')
+PLACEHOLDER_COVER = 0.25            # a name placeholder's letters cover a few percent of the canvas; a portrait fills it
+PLACEHOLDER_COLOUR = 0.005          # ... and have no colour at all (white or black letters)
+
+
+def name_placeholder(im) -> bool:
+    """A hero picture that is only the hero's name: heroes in development ship it in plain letters on an empty canvas
+    as every portrait ('DRUID', 'SWAN', 'Gun slinger'), and the patch archive showed "DRUID" as a face (review
+    2026-10-17). A portrait is coloured and fills its canvas; the word covers a few percent of it, white or black."""
+    rgba = im.convert('RGBA')
+    data = rgba.tobytes()
+    seen = coloured = 0
+    for i in range(0, len(data), 4):
+        r, g, b, a = data[i:i + 4]
+        if a >= 128:
+            seen += 1
+            coloured += max(r, g, b) - min(r, g, b) > 24
+    return 0 < seen < PLACEHOLDER_COVER * rgba.width * rgba.height and coloured < PLACEHOLDER_COLOUR * seen
+
+
+def _is_name_placeholder(src: Path) -> bool:
+    from PIL import Image
+    with Image.open(src) as im:
+        return name_placeholder(im)
 
 
 def _store(ref, out_rel: str, max_side: int, manifest: dict, missing: list, key: str) -> None:
     src = raw_path(ref) if ref else None
     if src is None or not src.exists():
+        missing.append({'key': key, 'ref': ref})
+        return
+    # a portrait that is only the hero's name is no art: missing, allow-listed (data/overrides/missing_icons.json)
+    if key.startswith(PORTRAITS) and src.suffix == '.png' and _is_name_placeholder(src):
         missing.append({'key': key, 'ref': ref})
         return
     RAW_OWNER.setdefault(str(src), key)
@@ -189,7 +259,7 @@ def convert(rev: str = 'HEAD') -> tuple[dict, list]:
         if not hid.startswith('hero_') or f'heroes:{hid}' in manifest or not isinstance(h, dict):
             continue
         src = raw_path(h.get('m_strTopBarVertical', ''))
-        if src is None or not src.exists():
+        if src is None or not src.exists() or _is_name_placeholder(src):
             continue
         from PIL import Image
         with Image.open(src) as im:
@@ -453,6 +523,8 @@ def main() -> int:
     if not args.check:
         MANIFEST.parent.mkdir(parents=True, exist_ok=True)
         MANIFEST.write_text(json.dumps(dict(sorted(manifest.items())), indent=1), encoding='utf-8', newline='\n')
+    if UNREAD:
+        print(f'{len(UNREAD)} textures Source2Viewer-CLI could not read were decoded by tools/vtex.py')
     print(f'icons: {len(manifest)} stored, {len(missing)} missing ({len(unexpected)} not allow-listed)')
     for m in unexpected[:40]:
         print('  MISSING', m['key'], m['ref'])
