@@ -1268,6 +1268,9 @@
       });
       table.addEventListener('statcols', function () { recount(true); });
       recount();
+      // a phone's Item Stats hides its Tier column (styles.css): the spans follow a turn of the screen across 760px
+      var narrow = window.matchMedia && window.matchMedia('(max-width: 760px)');
+      if (narrow && narrow.addEventListener) narrow.addEventListener('change', function () { recount(); });
     });
   });
 

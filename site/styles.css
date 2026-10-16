@@ -318,7 +318,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 
 /* ---------- 05. Page shell ---------- */
 .page { max-width: var(--content-w); margin: 0 auto; padding: 18px var(--gutter) 60px; }
-.page.wide { max-width: none; }
+/* a wide page (an index, a table, a matrix) shares the site bar's width: its title, toolbar and table start where the
+   brand does (at 1920 they sat at x=20 under a brand at x=140, the matrix centred between; review 2026-10-17) */
+.page.wide { max-width: var(--content-w); }
 /* a hero / item / unit page: head, today's stats, strip, toolbar and every band share ONE centred column
    (the history sat in 1120px pinned left under a 1640px head: 134px of margin left, 666px right at 1920) */
 .page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
@@ -339,6 +341,12 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
   margin: 0 0 18px;
 }
 .toolbar .sep { width: 2px; height: 26px; background: var(--line); margin: 0 4px; }
+/* a phone: an index's toolbar scrolls away like a table's (stuck, it took 96px for a search box), and the separators
+   go — once a bar wraps they dangled at a row's end or stood alone on a row */
+@media (max-width: 760px) {
+  main.page.wide > .toolbar { position: static; }
+  .toolbar .sep { display: none; }
+}
 .toolbar input[type=search], .site-search input[type=search] {
   font: 15px var(--font-ui); color: var(--text-main);
   background: var(--bg-page); border: var(--px) solid var(--line); padding: 6px 10px; min-width: 220px;
@@ -1409,7 +1417,7 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
   .nav-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
   .nav-tab { font-size: 18px; padding: 0 8px; white-space: nowrap; }
 }
-footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px 16px 40px; color: var(--text-dimmer); font-size: 13px; border-top: var(--px) solid var(--line-soft); }
+footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px var(--gutter) 40px; color: var(--text-dimmer); font-size: 13px; border-top: var(--px) solid var(--line-soft); }
 
 /* notes written from the files (written_notes): Valve's sections, one line per change with its tag badge */
 h3.gn-h { margin: 22px 0 8px; }
@@ -2027,4 +2035,13 @@ table.per-soul .sc b { color: var(--patina-strong); }
   /* change matrices: the names shrink to their icons (they took 210 of 390px) */
   table.dyn { --dyn-name: 44px; }
   table.dyn td.name a { font-size: 0; gap: 0; }
+}
+/* Item Stats on a phone: one line a row — the chips run on in one line from the column's left edge (they stacked two
+   and three high; centred in a column as wide as its longest row, a short row's chips sat off the screen), a name's
+   two lines fit beside its icon, and the Tier column goes: the price says the tier (800 / 1,600 / 3,200 / 6,400) and a
+   rule divides the tiers (review 2026-10-17: rows two lines high, the Effect column cut) */
+@media (max-width: 760px) {
+  #items-table .chips { flex-wrap: nowrap; justify-content: flex-start; min-width: 0; max-width: none; margin: 0; }
+  #items-table td.name a { line-height: 1.05; }
+  #items-table [data-col="tier"] { display: none; }
 }
