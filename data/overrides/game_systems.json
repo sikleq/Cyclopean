@@ -131,7 +131,7 @@
     {
       "id": "shop",
       "name": "Shop & item rules",
-      "icon": "shop/tab_all.webp",
+      "icon": "game/icon_cart.svg",
       "subjects": ["Shop", "Corrupted items", "Corrupted Item Shop"],
       "parts": [
         {"id": "prices", "name": "Prices & slots", "match": [
@@ -178,7 +178,7 @@
     {
       "id": "other",
       "name": "Other rules & objects",
-      "icon": "glyph:map",
+      "icon": "game/icon_book.svg",
       "subjects": [],
       "parts": [
         {"id": "abilities", "name": "Abilities with no hero", "match": ["abilities[.]vdata:"]},

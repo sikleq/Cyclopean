@@ -1,11 +1,13 @@
 {
   "_why": "Game systems' entries and tiles whose vdata names no art of their own (tools/extract_icons.py game_icons, review 2026-10-05: Game tiles and groups were site glyphs). Each gets the art the game itself shows for that same thing elsewhere: its minimap marker, its ping-wheel icon (scripts/ping_wheel_messages.vdata), its HUD icon. Rules are regexes on '<file>:<id>', first match wins; an entry's own art from the vdata always wins. Paths are under panorama/images/ as Source2Viewer-CLI extracts them (a .psd/.png becomes <name>_psd.png / <name>_png.png). A minimap marker drawn small on an empty canvas is cut to its art (TRIM_BELOW). Nothing here is drawn or fetched: where no game art fits, the site keeps its pixel glyph (AGENTS rule 8).",
-  "_why_systems": "Art for the Game index tiles and system page heads (game_systems.json 'icon': 'game/<name>'): the crate the minimap marks crate spawns with (Breakables & crates), the level-up icon the HUD shows for a new ability point (Hero progression), Street Brawl's own HUD icon (Modes: its only mode), the Soul Urn as the minimap shows it (Urn & Unstable Rift; its old icon was ability_golden_idol's, which the files borrow from Wraith's Telekinesis).",
+  "_why_systems": "Art for the Game index tiles and system page heads (game_systems.json 'icon': 'game/<name>'): the crate the minimap marks crate spawns with (Breakables & crates), the level-up icon the HUD shows for a new ability point (Hero progression), Street Brawl's own HUD icon (Modes: its only mode), the Soul Urn as the minimap shows it (Urn & Unstable Rift; its old icon was ability_golden_idol's, which the files borrow from Wraith's Telekinesis). Review 2026-10-17 (the Game index's icons did not match): Shop & item rules take the game's own shopping-cart icon (icons/icon_cart: the shop's tab grid it had was dark brown on the dark card, nearly invisible), Other rules & objects the game's rule-book icon (icons/icon_book) instead of the site's map glyph.",
   "systems": [
     "minimap/item_crate_spawn_psd.png",
     "hud/levelup_ap_icon.svg",
     "hud/brawl/icon_brawl.svg",
-    "minimap/soul_jar_marker_psd.png"
+    "minimap/soul_jar_marker_psd.png",
+    "icons/icon_cart.svg",
+    "icons/icon_book.svg"
   ],
   "rules": [
     ["^misc\\.vdata:citadel_idol_cashin$", "minimap/soul_jar_marker_return_psd.png", "where the Urn is delivered: the minimap's Urn return marker"],
@@ -24,8 +26,9 @@
     ["^misc\\.vdata:neutral_camp_medium(_herotest)?$", "minimap/neutral_medium_psd.png", "a tier II camp: the medium camp marker"],
     ["^misc\\.vdata:neutral_camp_strong(_herotest)?$", "minimap/neutral_large_psd.png", "a tier III camp: the large camp marker"],
     ["^misc\\.vdata:neutral_camp_vaults(_herotest)?$", "minimap/neutral_vault_psd.png", "the vault camp: the minimap's vault marker (the 'Sinner's Here' ping icon)"],
-    ["^misc\\.vdata:neutral_camp_midboss$", "minimap/super_neutral_marker_psd.png", "the Mid-Boss camp: the Mid-Boss marker (the 'Enemy Taking Mid Boss' ping icon)"],
-    ["^abilities\\.vdata:citadel_ability_(trooper_)?zip_line$", "hud/zipline_icon_psd.png", "riding a zipline: the HUD's zipline icon"],
+    ["^misc\\.vdata:neutral_camp_midboss$", "getting_started/map_rejuv_png.png", "the Mid-Boss camp: the Mid-Boss mark (the 'Enemy Taking Mid Boss' ping icon) as the getting-started map draws it, full size"],
+    ["^abilities\\.vdata:(citadel_ability_(trooper_)?zip_line|ability_[a-z]+_zip_line)$", "hud/zipline_icon_psd.png", "riding a zipline: the HUD's zipline icon (Deadman Danny has a zip line ability of his own, with no art, 2026-10-17)"],
+    ["^misc\\.vdata:pickup_artist_drawing_", "hud/abilities/artist/artist_portrait_psd.png", "the sketches Violet's Still Life drops for her to pick up: that ability's art"],
     ["^abilities\\.vdata:citadel_ability_melee_parry$", "hud/modifiers/icon_parry.svg", "Parry: the parry effect's own HUD icon"],
     ["^abilities\\.vdata:citadel_ability_mantle$", "hud/ledge_climb_psd.png", "Mantle: the HUD's ledge-climb prompt"],
     ["^modifiers\\.vdata:citadel_modifier_teleport$", "hud/teleport_icon_psd.png", "'Teleporting': the HUD's teleport icon"],

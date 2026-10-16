@@ -63,8 +63,9 @@ def main() -> int:
             issues.append(('MEDIUM', f'hero {h["name"]} has no icon (run tools/extract_icons.py)'))
     # a hero released with its final art while the site still holds the pre-release stand-in:
     # Rat King kept the crop of his placeholder portrait for two days after release (2026-10-03)
-    released = {e['id']: e.get('name') for e in json.loads((DATA / 'entities.json').read_text(encoding='utf-8'))['entities']
-                if e.get('kind') == 'hero' and e.get('state') == 'EHeroDevState_Release' and e.get('alive')}
+    # (the release state is the hero table's: entities.json carries none, so this check never fired and four heroes
+    # released 2026-10-14 kept their "no card art yet" entries, review 2026-10-17)
+    released = {h['id']: h['name'] for h in table['heroes'] if h.get('state') == 'release'}
     for hid, nm in released.items():
         if f'heroes/card:{hid}' not in manifest and f'heroes/card:{hid}' in allowed:
             issues.append(('MEDIUM', f'hero {nm} is released but the site has only its pre-release art '
