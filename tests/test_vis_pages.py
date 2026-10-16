@@ -327,6 +327,9 @@ def test_on_a_phone_a_strip_tiles_first_tap_shows_its_card_before_jumping(browse
     tile.tap()
     assert page.evaluate('() => location.hash') == '' and page.locator('.dyn-tip.on').count() == 1
     page.evaluate("() => window.dispatchEvent(new Event('scroll'))")    # a late scroll event moves nothing
+    # the browser's own mouseover after a tap, off the tiles (CI's Linux Chromium sent one and it hid the card)
+    page.evaluate("() => document.body.dispatchEvent(new MouseEvent('mouseover', {bubbles: true}))")
+    assert page.locator('.dyn-tip.on').count() == 1
     tile.tap()
     assert page.evaluate('() => location.hash') == '#p-2026-01-01' and not errors
     ctx.close()

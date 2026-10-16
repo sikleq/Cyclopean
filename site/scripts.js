@@ -619,7 +619,10 @@
     function hide() { if (tip) tip.classList.remove('on'); current = null; }
     function over(ev) {
       var a = ev.target.closest && ev.target.closest(SEL);
-      if (!a) { if (current) hide(); return; }
+      // on a touch screen a mouseover off the tiles is not a finger leaving: the browser sends its own after a tap
+      // (to update hover under the last touch point — CI's Linux Chromium hid the card that way, 2026-10-17); there a
+      // finger put down elsewhere hides the card (touchStart)
+      if (!a) { if (current && !(noHover && ev.type === 'mouseover')) hide(); return; }
       if (a === current) return;                 // moving inside the same tile: nothing to redraw
       var html = a.classList.contains('dsq') ? matrixCard(a) : a.classList.contains('lu') ? feedCard(a) : stripCard(a);
       if (!html) { hide(); return; }
@@ -657,6 +660,8 @@
     function touchStart(ev) {
       var a = ev.target.closest && ev.target.closest(SEL);
       upBefore = a && a === current ? a : null;
+      // a finger down anywhere else (not on the card itself) lets the card go
+      if (!a && current && !(tip && tip.contains(ev.target))) hide();
     }
     if (noHover) {
       document.addEventListener('pointerdown', touchStart, true);
