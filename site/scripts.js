@@ -424,13 +424,18 @@
       return feed;
     }
     // `net`: the build's net mark of the patch for this entity (builders/weights.net_of; d.nets its words): one quiet
-    // chip at the end of the counts, as on the band's banner
+    // chip at the end of the counts, as on the band's banner — tied to the last count, so it never wraps to a line
+    // of its own (review 2026-10-17: "MIXED" alone under the counts)
     function countsHtml(counts, d, net) {
-      return '<div class="dt-counts">' + ORDER.filter(function (t) { return counts[t]; }).map(function (t) {
+      var pips = ORDER.filter(function (t) { return counts[t]; }).map(function (t) {
         var word = (counts[t] === 1 && d.word1 && d.word1[t]) || d.words[t] || t;     // "1 buff", "2 buffs"
         return '<span class="pip ' + t + '">' + counts[t] + '<em>' + txt(word) + '</em></span>';     // icon: CSS
-      }).join('') + (net && d.nets && d.nets[net] ? '<span class="net-chip net-' + net + '">' + txt(d.nets[net]) +
-        '</span>' : '') + '</div>';
+      });
+      if (net && d.nets && d.nets[net]) {
+        var chip = '<span class="net-chip net-' + net + '">' + txt(d.nets[net]) + '</span>';
+        pips.push('<span class="dt-tail">' + (pips.pop() || '') + chip + '</span>');
+      }
+      return '<div class="dt-counts">' + pips.join('') + '</div>';
     }
     function valsHtml(old, now, tag) {
       return old && now ? txt(old) + '<i>→</i><b class="t-' + tag + '">' + txt(now) + '</b>'

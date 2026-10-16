@@ -630,7 +630,8 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .net-chip.net-buff { --c: var(--tag-buff); }
 .net-chip.net-nerf { --c: var(--tag-nerf); }
 .hblocks.filtering .banner .net-chip { display: none; }
-.dt-counts .net-chip { margin-left: auto; align-self: center; }
+/* the chip rides with the last count (scripts.js dyn-tip countsHtml): never on a line of its own */
+.dt-counts .dt-tail { display: inline-flex; align-items: center; gap: 12px; white-space: nowrap; }
 /* the band's rules for every hero: ONE block after its groups (history_view.split_every), quieter than a group */
 .hgroup.shr-band { background: var(--bg-panel-2); padding: 2px 0; }
 /* a band that holds only such rules waits behind "For all heroes" (toolbar), in place */
@@ -1839,7 +1840,10 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 table.dyn th, table.dyn td { border-bottom: 1px solid var(--grid); }
 table.dyn thead tr.cats th { text-align: center; border-left: 1px solid var(--grid-strong); }
 table.dyn th.name { text-align: center; }
-.dyn-tip { position: fixed; z-index: var(--z-tooltip); display: none; min-width: 260px; max-width: 420px; padding: 10px 12px;
+/* 360px at least (inside a phone's screen): at 288px "Bullet Dance" and "Min Rounds Per Second" took two lines each
+   (review 2026-10-17) */
+.dyn-tip { position: fixed; z-index: var(--z-tooltip); display: none; min-width: min(360px, calc(100vw - 16px));
+  max-width: min(420px, calc(100vw - 16px)); padding: 10px 12px;
   background: var(--bg-panel-3); pointer-events: none; font-size: 13px; }
 .dyn-tip.on { display: block; }
 .dt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
