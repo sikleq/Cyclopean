@@ -1746,11 +1746,19 @@
   safe('tabs', function () {
     var buttons = document.querySelectorAll('[data-tab]');
     if (!buttons.length) return;                     // no tabs on the page: no listeners either
+    // a phone's tab bar is one row that scrolls sideways (styles.css): the open tab is brought into sight
+    function reveal(b) {
+      var bar = b.parentNode;
+      if (!bar || bar.scrollWidth <= bar.clientWidth) return;
+      var r = b.getBoundingClientRect(), br = bar.getBoundingClientRect();
+      if (r.left < br.left || r.right > br.right) bar.scrollLeft += r.left - br.left - 8;
+    }
     function open(id) {
       buttons.forEach(function (b) {
         var on = b.getAttribute('data-tab') === id;
         b.classList.toggle('on', on);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (on) reveal(b);
       });
       document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('on', p.id === id); });
     }

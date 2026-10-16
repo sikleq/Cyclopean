@@ -1283,6 +1283,13 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 
 /* patch page tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+/* a phone: the tabs are ONE row that scrolls sideways, like the history bar's ability chips — wrapped, the sticky bar
+   was three rows (138px; 194 of an 844px screen with the site bar, review 2026-10-17); scripts.js `tabs` scrolls the
+   open one into sight */
+@media (max-width: 760px) {
+  .tabs.toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 8px; }
+  .tabs.toolbar > * { flex: none; }
+}
 .tab-panel { display: none; }
 .tab-panel.on { display: block; }
 .mark.untracked, .mark.nodata, .mark.repeated, .mark.unmatched { color: var(--text-dimmer); }
