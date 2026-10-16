@@ -1102,9 +1102,35 @@
   });
 
   safe('rework-lines', function () {
+    // a replaced tier's bonus lists stop at two lines; a list the clamp cut gets "more ▾" (its row's `clamped`), and a
+    // tap on the list or on that word opens it. Measured after load, after a band opens (a folded band's rows are in a
+    // <template> until then) and after a resize: reads first, then the class writes
+    function mark() {
+      var rows = [], cut = [];
+      document.querySelectorAll('.erow.rw .vals.wrap').forEach(function (v) {
+        if (v.classList.contains('open') || !v.offsetParent) return;
+        rows.push(v.closest('.erow'));
+        cut.push(v.scrollHeight > v.clientHeight + 1);
+      });
+      rows.forEach(function (r, i) { if (r) r.classList.toggle('clamped', cut[i]); });
+    }
+    var queued = false;
+    function later() {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(function () { queued = false; mark(); });
+    }
+    if (document.querySelector('.erow.rw .vals.wrap') || document.querySelector('template.hp-t')) {
+      if (document.readyState === 'complete') later(); else window.addEventListener('load', later);
+      window.addEventListener('resize', later);
+      document.addEventListener('toggle', later, true);
+    }
     document.addEventListener('click', function (ev) {
-      var v = ev.target.closest && ev.target.closest('.erow.rw .vals.wrap');
-      if (v) v.classList.toggle('open');
+      var vv = ev.target.closest && ev.target.closest('.erow.rw .vv');
+      var v = vv && vv.querySelector('.vals.wrap');
+      if (!v) return;
+      var open = v.classList.toggle('open');
+      vv.parentNode.classList.toggle('open', open);
     });
   });
 

@@ -262,9 +262,23 @@ def _gun_links(aid: str, group: str, rel: str) -> str:
             f'{trail_html("abilities.vdata:" + aid, None, rel, local=True)}</div>')
 
 
+WB_ROW_MAX = 8            # weapon numbers a row holds on a wide screen (styles.css .wb-cells: 4 under 1100px, 3 on a phone)
+
+
+def wb_per_row(n: int, most: int = WB_ROW_MAX) -> int:
+    """How many weapon numbers a row holds so the rows come out even: 14 → 7 + 7, not 8 + 6 (or 6 + 6 + 2, which left
+    a hole of four tiles); a short last row stretches (styles.css)."""
+    if n <= 0:
+        return 1
+    rows = -(-n // most)
+    return -(-n // rows)
+
+
 def _more_weapon(cells: list[str]) -> str:
-    """Every other weapon number in an even grid under the six headline tiles — shown, not folded."""
-    return f'<div class="wb-cells">{"".join(cells)}</div>' if cells else ''
+    """Every other weapon number in even rows under the six headline tiles — shown, not folded."""
+    if not cells:
+        return ''
+    return f'<div class="wb-cells" style="--wb-per:{wb_per_row(len(cells))}">{"".join(cells)}</div>'
 
 
 def prop_icon(css: str | None, rel: str) -> str:
@@ -553,11 +567,13 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     from .history_view import head_strip, hidden_link
     chips.append(hidden_link(told.get('hidden', 0)))
     head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
-            f'<div class="hero-head"><div><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}"></div><div>'
-            f'<h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(h["first"])}'
+            # portrait, the name block and the key stats are the head grid's own items: under 980px the stats go below
+            # both and the portrait keeps the name beside it (styles.css .hero-head)
+            f'<div class="hero-head"><img class="portrait px-frame" src="{esc(portrait or "")}" alt="{esc(name)}">'
+            f'<div class="hh-id"><h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
+            f'{first_seen(h["first"])}</div>'
             f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
-            f'</div></div>')
+            f'</div>')
     # the patch strip right under the head: the first screen shows what changed (History sat at y=1365-2096)
     body = head + head_strip(told) + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',

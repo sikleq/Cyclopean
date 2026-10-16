@@ -72,6 +72,20 @@ def header_only(card: dict) -> list[dict]:
     return [h for h in card.get('header', []) if h.get('prop') not in listed]
 
 
+def header_host(sections: list[dict]) -> int | None:
+    """The section whose card carries the item's header values (cooldown, duration, cast time…): the Active one —
+    the game's tooltip prints them there (Silencer's "Duration 4s" is its Active's "for the next 4s") — else the
+    Passive, else the first that is not the Innate, else the first; None without sections. The chips floated
+    centred over the cards, belonging to none (visual pass 2026-10-17)."""
+    if not sections:
+        return None
+    kinds = [str(s.get('type') or '') for s in sections]
+    for want in ('Active', 'Passive'):
+        if want in kinds:
+            return kinds.index(want)
+    return next((i for i, k in enumerate(kinds) if k != 'Innate'), 0)
+
+
 def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     rel = '../'
     name = display_name(it)
@@ -91,18 +105,20 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             chips.append(f'<span class="chip">{esc(info["cost"])} souls</span>')
     sections = ''
     if card:
+        header = header_only(card)
+        chips_html = ''.join(
+            f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
+            f'<b>{esc(h["value"])}</b></span>' for h in header)
+        host = header_host(card.get('sections', [])) if header else None
         blocks = []
-        for s in card.get('sections', []):
+        for i, s in enumerate(card.get('sections', [])):
             rows = prop_rows(s['props'], rel)
             desc = f'<div class="ac-desc">{esc(s["desc"])}</div>' if s.get('desc') else ''
+            hdr_in = f'<div class="ac-hdr">{chips_html}</div>' if i == host else ''
             blocks.append(f'<div class="ability-card px-frame"><div class="ac-head"><div class="ac-name">{esc(s["type"])}</div></div>'
-                          f'{desc}<table class="kvt">{rows}</table></div>')
-        hdr = ''
-        header = header_only(card)
-        if header:
-            hdr = '<div class="chips item-hdr">' + ''.join(
-                f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
-                f'<b>{esc(h["value"])}</b></span>' for h in header) + '</div>'
+                          f'{hdr_in}{desc}<table class="kvt">{rows}</table></div>')
+        # an item without sections keeps its values as a row of chips over nothing else
+        hdr = f'<div class="chips item-hdr">{chips_html}</div>' if header and host is None else ''
         # the sections side by side as cards, not full-width tables (a label and its value sat 1300px apart)
         grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
         sections = (hdr + grid) if blocks or hdr else ''

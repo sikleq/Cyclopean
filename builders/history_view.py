@@ -46,6 +46,26 @@ def _drop_prefix(text: str, names: list[str]) -> str:
     return out[:1].upper() + out[1:] if out else text
 
 
+_BAND_CLASS = re.compile(r'<details class="([^"]*)"')
+
+
+def band_kind(block: str) -> str:
+    """'every' / 'dev' for a band that waits behind "For all …" / "Before release" (its `every-only` / `dev-only`
+    class, `_patch_block`), '' for one shown by default."""
+    m = _BAND_CLASS.match(block)
+    cls = m.group(1).split() if m else []
+    return 'every' if 'every-only' in cls else 'dev' if 'dev-only' in cls else ''
+
+
+def year_class(kinds: list[str]) -> str:
+    """The year banner's class from its bands' kinds: a year whose bands all wait behind a toolbar switch waits with
+    them (Silencer's "2026" stood over nothing; styles.css hides it while no switch shows a band of it). No :has()."""
+    got = set(kinds)
+    if not got or '' in got:
+        return ''
+    return ' every-only' if got == {'every'} else ' dev-only' if got == {'dev'} else ' ed-only'
+
+
 def _entity_of_line(ln: dict, key_set: set[str], names_by_key: dict[str, str], fallback: str) -> str:
     for ck in ln.get('changes', []):
         file, eid = ck.split(':', 2)[:2]
@@ -129,6 +149,7 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
     hints = {key: history_hints(ch) for key, ch in every.items()}
     blocks, facts = [], {'tags': set(), 'hidden': 0, 'dev': 0, 'areas': set(), 'abs': set()}
     year = None
+    years: list[tuple[int, str, list[str]]] = []          # (its place in blocks, the year, its bands' kinds)
     # "patch ↗" lands on the page's own entity in the patch (a Game system is no entity of the files)
     link_id = own.partition(':')[2] if own.partition(':')[0].endswith('.vdata') else None
     for pid in sorted(per_patch, key=lambda k: per_patch[k]['row']['date'], reverse=True):
@@ -147,9 +168,14 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         y = slot['row']['date'][:4]
         if y != year and len(per_patch) > YEAR_BANNERS_MIN:
             # a hero has 55-65 bands: the year in the section-banner style tells where one is (no fold)
-            blocks.append(f'<h3 class="banner sub hyear"><span class="bt">{esc(y)}</span></h3>')
+            years.append((len(blocks), y, []))
+            blocks.append('')
             year = y
+        if years:
+            years[-1][2].append(band_kind(block))
         blocks.append(block)
+    for at, y, kinds in years:
+        blocks[at] = f'<h3 class="banner sub hyear{year_class(kinds)}"><span class="bt">{esc(y)}</span></h3>'
     if every_label is None:
         # what the bands of rules for all hold, in words ("For all abilities & items"; a unit page's button read
         # "For all 1", review 2026-10-05)

@@ -10,7 +10,7 @@ from contextlib import contextmanager
 
 from pipeline import flags as flag_rules
 
-from .common import esc, mark, plural, visual
+from .common import esc, mark, plural, visual, wbr_ids
 from .evidence import row_evidence
 from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold_versions, folded_source, not_in_notes,
                      shown_value, sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
@@ -521,7 +521,8 @@ def change_row(c: dict) -> str:
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
     tip, href, late = row_evidence(c)        # the eye names the build it came in and opens it
-    return row(c.get('status', 'hidden'), tag_html(c), esc(c.get('label')) + shared_chip(c), vals_html(c), extra,
+    # a long console variable's name breaks after its underscores, not mid-word (common.wbr_ids)
+    return row(c.get('status', 'hidden'), tag_html(c), wbr_ids(esc(c.get('label'))) + shared_chip(c), vals_html(c), extra,
                tip=tip, href=href, late=late)
 
 

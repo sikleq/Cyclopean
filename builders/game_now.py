@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import re
 
-from .common import esc
+from .common import esc, wbr_ids
 from .game_systems import merged_label, system
 
 NOW_PANELS = 6         # entry panels a system's block shows (two rows of three): its most recently tuned entries
@@ -74,7 +74,7 @@ def _convar_rows(got: list[tuple[str, dict]]) -> str:
     out = []
     for name, slot in got:
         cls, attrs, text = value_parts(name, slot)
-        out.append(f'<div class="sc-row"><span class="k"><code>{esc(name)}</code></span>'
+        out.append(f'<div class="sc-row"><span class="k"><code>{wbr_ids(esc(name))}</code></span>'
                    f'<span class="{cls}"{attrs}>{text}</span></div>')
     return f'<div class="cv-rows">{"".join(out)}</div>'
 

@@ -11,6 +11,7 @@ from .common import esc, patch_title_text
 from .render import counts_text, tag_of
 
 TRAIL_LEN = 12
+TRAIL_MIN_LOCAL = 2       # changes a trail on the entity's own page needs to be drawn
 
 
 def dominant_of(counts: dict[str, int]) -> str:
@@ -101,7 +102,10 @@ def trail_html(key: str, current: str | None = None, rel: str = '../', n: int = 
     hid_of = hidden.get(key) or {}
     end = _positions().get(current, len(rows) - 1) + 1 if current else len(rows)
     span = rows[max(0, end - n):end]
-    if not any(r['id'] in hits for r in span):
+    changed = sum(1 for r in span if r['id'] in hits)
+    # on the entity's own page a trail of one change says nothing its "last change" link beside it does not (11 dots
+    # and one square on an ability head; visual pass 2026-10-17)
+    if changed < (TRAIL_MIN_LOCAL if local else 1):
         return ''
     eid = key.partition(':')[2]
     cells = []
