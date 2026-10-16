@@ -111,6 +111,16 @@ def esc(s) -> str:
     return html.escape('' if s is None else str(s), quote=True)
 
 
+_LONG_ID = re.compile(r'[A-Za-z0-9]+(?:_[A-Za-z0-9]+)+')
+WBR_MIN = 14              # an underscored name this long may break after its underscores
+
+
+def wbr_ids(text_html: str) -> str:
+    """Escaped text with a break chance (<wbr>) after each "_" of a long underscored name: a console variable on a
+    phone broke mid-word, "citadel_movement_ter|locker_new" (overflow-wrap: anywhere; visual pass 2026-10-17)."""
+    return _LONG_ID.sub(lambda m: m.group().replace('_', '_<wbr>') if len(m.group()) >= WBR_MIN else m.group(), text_html)
+
+
 def json_attr(name: str, value) -> str:
     """ name='[…]': JSON in a single-quoted attribute, its double quotes left as they are (a value's
     history in a cell — Hero Stats carried ~60 KB of &quot;, 2026-10-03). Only & < > ' are escaped."""

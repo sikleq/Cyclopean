@@ -341,7 +341,8 @@ def test_a_system_opens_on_its_values_today(monkeypatch):
     block = now_block('urn', entries['urn'], hist, {}, cvs['urn'])
     text = re.sub(r'<[^>]+>', ' ', block)
     assert 'Soul Urn delivery' in text and re.search(r'Bounty\s+800', text)
-    assert re.search(r'citadel_koth_capture_radius\s*</code>', block) and '10m' in text and '20s' in text
+    # (a long name breaks after its underscores: common.wbr_ids)
+    assert re.search(r'citadel_koth_capture_radius\s*</code>', block.replace('<wbr>', '')) and '10m' in text and '20s' in text
     # (a step the patch notes left out carries the eye: a sixth element 1, builders/stat_eyes.py)
     assert re.search(r'data-hist=.*?\[6601,"2026-06-04",25,20(?:,null,1)?\]', block)
     page = system_page('urn', entries['urn'], hist, {}, {}, cvs['urn'])
