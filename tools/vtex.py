@@ -87,7 +87,17 @@ def _from_ycocg(im):
 
 
 def decode(data: bytes):
-    """The full-size picture of a .vtex_c file's bytes, as a Pillow RGBA image."""
+    """The full-size picture of a .vtex_c file's bytes, as a Pillow RGBA image. A file it cannot read (cut short, a
+    layout or format it does not know) raises ValueError, whatever broke inside."""
+    try:
+        return _decode(data)
+    except ValueError:
+        raise
+    except (struct.error, IndexError, OSError, ImportError, RuntimeError) as exc:     # RuntimeError: lz4's own
+        raise ValueError(f'unreadable texture: {exc}') from exc
+
+
+def _decode(data: bytes):
     from PIL import Image
     blocks = _blocks(data)
     if b'DATA' not in blocks:

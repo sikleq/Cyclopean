@@ -60,6 +60,10 @@ def test_vtex_reads_the_full_picture_past_an_edit_info_the_cli_cannot_parse():
     assert padded.size == (3, 2)
     with pytest.raises(ValueError):
         vtex.decode(_vtex(4, 2, [big], fmt=13))              # a float format it does not read: said, not guessed
+    with pytest.raises(ValueError):
+        vtex.decode(_vtex(4, 2, [big, small])[:60])          # a file cut short: ValueError, not struct.error
+    with pytest.raises(ValueError):
+        vtex.decode(_vtex(4, 2, [big[:20]]))                 # a mip shorter than its picture
 
 
 def test_vtex_turns_scaled_ycocg_back_into_colour():
