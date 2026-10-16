@@ -46,7 +46,8 @@ def cosmetics_section(build: int | None, rel: str) -> str:
     def by_name(e):              # heroes alphabetically by the name shown, not by internal id (hero_astro = Holliday)
         return sorted(e['subjects'], key=lambda s: (names_by_id().get(s) or pretty_id(s)).lower())
     rows = ''.join(f'<li><span class="lbl">{esc(COSMETIC_KINDS.get(e["kind"], e["kind"]))} · {esc(e["op"])}</span>'
-                   f'<span class="vals">{", ".join(_cosmetic_subject(s, e["kind"], rel) for s in by_name(e))}</span></li>'
+                   # a list of names wraps (40 heroes on one line made build 6790's page 2646px wide at 1440)
+                   f'<span class="vals wrap">{", ".join(_cosmetic_subject(s, e["kind"], rel) for s in by_name(e))}</span></li>'
                    for e in evs)
     return (f'<details class="collapsible section px-frame" open><summary>Cosmetics<span class="chip">{len(evs)}</span>'
             f'</summary><ul class="change-list">{rows}</ul></details>')
@@ -133,7 +134,7 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     if next_b:
         nav.append(f'<a class="px-btn" href="{esc(next_b)}.html">{esc(next_b)} →</a>')
     body.append('<div class="flex">' + ''.join(nav) + '</div>')
-    return page(build_label(rec['build']), ''.join(body), rel, 'builds')
+    return page(build_label(rec['build']), ''.join(body), rel, 'builds', cls='column')     # its cards: one column
 
 
 def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:

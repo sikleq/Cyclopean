@@ -318,8 +318,10 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .page { max-width: var(--content-w); margin: 0 auto; padding: 18px var(--gutter) 60px; }
 .page.wide { max-width: none; }
 /* a hero / item / unit page: head, today's stats, strip, toolbar and every band share ONE centred column
-   (the history sat in 1120px pinned left under a 1640px head: 134px of margin left, 666px right at 1920) */
+   (the history sat in 1120px pinned left under a 1640px head: 134px of margin left, 666px right at 1920); a patch or
+   build page's cards are the same one column (`column`, common.page) */
 .page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
+.page.column { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
 .page-head { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
 .page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
 .page-head .meta { color: var(--text-dim); font-size: 14px; }
@@ -498,8 +500,10 @@ a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }
 .pct.dir-nerf { --c: var(--tag-nerf); }
 
 /* ---------- 07a. Entity cards (patch notes, all changes, builds, entity history) ---------- */
-/* two columns on wide screens; a card never splits between them */
-.ecards { columns: 2 560px; column-gap: 16px; }
+/* one column, as an entity page's history (Sloppy): two columns of cards of any height left black holes — Radiant
+   Regeneration's one row beside Baba's 25, Deadman Danny alone with the right half empty (review 2026-10-17). The
+   patch and build pages are one centred column (`.page.column`) */
+.ecards { display: flow-root; }
 .ecards > .ecard { margin-bottom: 16px; }
 .ecard {
   break-inside: avoid; display: block; margin: 0 2px 14px;
