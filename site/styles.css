@@ -248,6 +248,11 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .banner.named { box-shadow: inset 4px 0 0 var(--tag-new), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
 .ptitle h1 .pdate:not(.solo) { font-size: 16px; }
 .ptitle h1 .pdate.solo { font-size: 30px; }
+/* a date is one word: a phone broke "2026-10-14" after "2026-10-" under the patch's name; on a line of its own it
+   starts at the name's edge (review 2026-10-17) */
+.pdate { white-space: nowrap; }
+.ptitle h1 { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
+.ptitle h1 > *, .ptitle h1 > .pdate:not(.solo) { margin-left: 0; }
 .banner .bc { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 8px; min-width: 0;
   align-items: center; font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
 .banner.sub { min-height: 36px; margin: 16px 0 8px; }
