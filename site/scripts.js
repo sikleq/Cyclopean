@@ -600,7 +600,30 @@
     }
     document.addEventListener('mouseover', over);
     document.addEventListener('focusin', over);              // a tile reached with the keyboard shows it too
-    document.addEventListener('focusout', hide);
+    // a touch screen has no hover (the tooltip module's rule): a tap fires mouseover and click together, so a tile
+    // opened its link at once and its card was never seen (review 2026-10-17). The first tap shows the card, a second
+    // tap on the same tile follows the link, a tap elsewhere hides it (its mouseover). Whether the card was up is
+    // read when the touch begins, before the tap's own mouseover draws it — iOS drops the click of a tap whose
+    // mouseover showed something, Android sends it. The compatibility focusout a tap may fire is not a leave.
+    var noHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
+    var upBefore = null;
+    function touchStart(ev) {
+      var a = ev.target.closest && ev.target.closest(SEL);
+      upBefore = a && a === current ? a : null;
+    }
+    if (noHover) {
+      document.addEventListener('pointerdown', touchStart, true);
+      document.addEventListener('touchstart', touchStart, { capture: true, passive: true });
+      document.addEventListener('click', function (ev) {
+        var a = ev.target.closest && ev.target.closest(SEL);
+        // the second tap opens the link; so does a key (a click with no pointer: detail 0)
+        if (!a || a === upBefore || ev.detail === 0) return;
+        ev.preventDefault();
+        if (a !== current) over(ev);
+      }, true);
+    } else {
+      document.addEventListener('focusout', hide);
+    }
     window.addEventListener('scroll', hide, true);
   });
 
@@ -985,6 +1008,24 @@
       tip.hidden = false;
       place(card);
     }
+    // a touch screen (the tooltip module's rule): the first tap on a card lights it and shows its tooltip, a second tap
+    // on it opens the item, a tap elsewhere lets go — a tap sent hover and click together, so the item opened at once
+    // and the tooltip was never seen (review 2026-10-17). Whether the card was lit is read when the touch begins,
+    // before the tap's own mouseover lights it; the compatibility mouseleave a tap may fire is not a leave.
+    var noHover = window.matchMedia && window.matchMedia('(hover: none)').matches;
+    var litBefore = null;
+    if (noHover) {
+      var touchStart = function (ev) {
+        var c = ev.target.closest && ev.target.closest('.gcard');
+        litBefore = c && c === active ? c : null;
+      };
+      document.addEventListener('pointerdown', touchStart, true);
+      document.addEventListener('touchstart', touchStart, { capture: true, passive: true });
+      root.addEventListener('click', function (ev) {
+        var c = ev.target.closest && ev.target.closest('.gcard[href]');
+        if (c && c !== litBefore && ev.detail !== 0) ev.preventDefault();
+      });
+    }
     root.querySelectorAll('.gs-board').forEach(function (board) {
       var byId = {}, lit = [], leaveT = 0;
       board.querySelectorAll('.gcard[data-id]').forEach(function (c) { byId[c.getAttribute('data-id')] = c; });
@@ -1025,7 +1066,14 @@
         var cat = (card.className.match(/p-([wsv])/) || [])[1] || 'w';
         play('hover_' + cat + '_' + pick(hoverN[cat] || 1), HOVER_GAIN[cat] || 0.35, 1.2);
       });
-      board.addEventListener('mouseleave', function () { clearTimeout(leaveT); leave(); });
+      if (!noHover) {
+        board.addEventListener('mouseleave', function () { clearTimeout(leaveT); leave(); });
+        return;
+      }
+      // touch: a tap outside this board lets its card go (a tap on its gaps does through mouseover)
+      document.addEventListener('pointerdown', function (ev) {
+        if (active && board.contains(active) && !board.contains(ev.target)) { clearTimeout(leaveT); leave(); }
+      }, true);
     });
     // the card moves with the page: the tooltip follows it
     window.addEventListener('scroll', function () {
@@ -1731,7 +1779,8 @@
     window.addEventListener('hashchange', function () { go(); });
     document.addEventListener('click', function (ev) {
       var a = ev.target.closest && ev.target.closest('a[href^="#p-"]');
-      if (!a || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
+      // a touch screen's first tap on a strip tile only shows its card (dyn-tip): no jump
+      if (!a || ev.defaultPrevented || ev.button !== 0 || ev.ctrlKey || ev.metaKey || ev.shiftKey || ev.altKey) return;
       var href = a.getAttribute('href');
       if (!document.getElementById(href.slice(1))) return;
       ev.preventDefault();
@@ -1778,7 +1827,7 @@
     // a link to a card inside another tab (the hero strip -> "#c-hero_atlas"): open that tab, then scroll
     document.addEventListener('click', function (ev) {
       var a = ev.target.closest && ev.target.closest('a[href^="#"]');
-      if (!a) return;
+      if (!a || ev.defaultPrevented) return;        // a first tap that only showed a hover card (dyn-tip)
       var target = document.getElementById(a.getAttribute('href').slice(1));
       var panel = target && target.closest('.tab-panel');
       if (!panel || panel.classList.contains('on')) return;
