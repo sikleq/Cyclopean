@@ -262,15 +262,23 @@ def _gap(n: int, old: bool) -> str:
     return f'<td{cls}{span}></td>'
 
 
-def _head(rows: list[dict], cutoff: str, label: str) -> str:
-    months: list[tuple[str, int, bool]] = []
+def _months(rows: list[dict], cutoff: str) -> list[tuple[str, int, bool, bool]]:
+    """(month, columns, old, continues the month before) — a month the cutoff splits is two headers: its old part
+    hides with the old columns, so the newer part spans only the columns still in sight. One header over both
+    parts spanned the hidden ones too, and every month after it sat 3-4 columns left of its dates (2026-10-16)."""
+    months: list[tuple[str, int, bool, bool]] = []
     for r in rows:
         m, old = r['date'][:7], r['date'] < cutoff
-        if months and months[-1][0] == m:
-            months[-1] = (m, months[-1][1] + 1, months[-1][2] and old)
+        if months and months[-1][0] == m and months[-1][2] == old:
+            months[-1] = (m, months[-1][1] + 1, old, months[-1][3])
         else:
-            months.append((m, 1, old))
-    top = ''.join(f'<th class="dm{" old" if old else ""}" colspan="{n}">{esc(m)}</th>' for m, n, old in months)
+            months.append((m, 1, old, bool(months) and months[-1][0] == m))
+    return months
+
+
+def _head(rows: list[dict], cutoff: str, label: str) -> str:
+    top = ''.join(f'<th class="dm{" old" if old else ""}{" cont" if cont else ""}" colspan="{n}">{esc(m)}</th>'
+                  for m, n, old, cont in _months(rows, cutoff))
     sub = ''.join(f'<th class="dd{" old" if r["date"] < cutoff else ""}{" named" if patch_name(r["title"]) else ""}">'
                   f'<a href="../patches/{esc(r["id"])}.html" data-tooltip="{esc(patch_title_text(r))}">{esc(r["date"][8:])}</a></th>'
                   for r in rows)

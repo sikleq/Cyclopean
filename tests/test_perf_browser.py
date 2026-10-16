@@ -264,3 +264,33 @@ def test_matrix_row_icons_load_with_the_page_not_under_a_scroll(browser):
                                   f'loading="lazy">')
     got = page.evaluate("() => [document.querySelector('table.dyn img').loading, document.getElementById('other').loading]")
     assert got == ['eager', 'lazy'] and not errors
+
+
+@pytest.mark.parametrize('show_old', [False, True])
+def test_every_month_header_sits_over_its_own_dates(browser, show_old):
+    """A month the old/new cutoff split spanned its hidden old columns too: every month after it sat 3-4 columns
+    left of its dates on all three matrices (2026-10-16)."""
+    from builders.dynamics_page import _head
+    dates = ['2025-09-02', '2025-09-20', '2025-10-03', '2025-10-17', '2025-10-24', '2025-11-21', '2025-11-22',
+             '2025-12-03']
+    rows = [{'id': d, 'date': d, 'title': ''} for d in dates]
+    cutoff = '2025-10-10'                                          # splits October: 03 old, 17 and 24 new
+    n_new = sum(d >= cutoff for d in dates)
+    body = '<td class="name">Row</td>' + ''.join(f'<td{" class=old" if d < cutoff else ""}></td>' for d in dates)
+    html = (f'<table class="dyn{" show-old" if show_old else ""}" style="--n-all:{len(dates)};--n-new:{n_new}">'
+            f'{_head(rows, cutoff, "Hero")}<tbody><tr>{body}</tr></tbody></table>')
+    page, errors = _open(browser, html)
+    got = page.evaluate("""() => {
+      const box = el => el.getBoundingClientRect(), shown = el => getComputedStyle(el).display !== 'none';
+      const dd = [...document.querySelectorAll('th.dd')].filter(shown);
+      return [...document.querySelectorAll('th.dm')].filter(shown).map(th => {
+        const mine = dd.filter(d => box(d).left >= box(th).left - 1 && box(d).right <= box(th).right + 1);
+        return [th.textContent, mine.map(d => d.querySelector('a').getAttribute('href').slice(11, 18))];
+      });
+    }""")
+    for month, under in got:
+        assert under and all(m == month for m in under), (month, under)
+    seen = sorted({m for _, under in got for m in under})
+    want = sorted({d[:7] for d in dates if show_old or d >= cutoff})
+    assert seen == want
+    assert not errors

@@ -1708,6 +1708,8 @@ table.dyn.bvn .dsq.net-nerf { background: var(--tag-nerf) !important; }
 table.dyn.bvn .dsq.net-mix { background: var(--tag-changed) !important; }
 /* old columns: month headers by class; the cells by column number (scripts.js dyn-old) */
 table.dyn:not(.show-old) .old { display: none; }
+/* a month the cutoff splits (dynamics_page._months): with the old columns in sight its newer part reads on */
+table.dyn.show-old thead th.dm.cont { color: transparent; border-left-color: transparent; }
 table.dyn:not(.show-extra) tr.extra { display: none; }
 table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
 .dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }

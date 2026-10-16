@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-10-17",
+    "title": "Visual pass",
+    "items": [
+      "Month labels on the Hero, Item, Unit and Game change matrices sit over their own dates again (they had slid 3-4 columns left)."
+    ]
+  },
+  {
     "date": "2026-10-06",
     "title": "Eye links to build pages, game systems show all hidden changes, unit resists and speeds in metres",
     "items": [

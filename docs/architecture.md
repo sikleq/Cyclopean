@@ -857,7 +857,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Hero / item / unit change matrices (`builders/dynamics_page.py`, Sloppy's "Dynamics"): heroes/changes.html,
   items/changes.html and units/changes.html, sub-tabs of the three indexes. A row per hero (its stats + every
   ability it owns), item or unit (in the Units index order), a column per patch (months above, gold day =
-  named update), a cell = a square striped in the
+  named update; a month the old-patches cutoff splits is two headers, `_months`, so with the old columns
+  hidden the newer part spans only its own dates), a cell = a square striped in the
   tag colours, each stripe as tall as its share (same counting rule as every counter). Switches: older
   patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
   colour), tag filters, pre-release heroes / removed items and units. Heroes index: pre-release heroes hide behind
