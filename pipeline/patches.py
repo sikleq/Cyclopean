@@ -36,6 +36,7 @@ ANNOUNCEMENT_GAP = timedelta(days=2)  # an announcement names a notes-less big b
 # a hero's release build is a window of its own, with the hotfixes of its release day (Baba's 6757 at 21:03, its fix
 # 6759 at 00:03; Rat King's 6736 and three builds within 4 h); a later build goes back to the notes window around it
 RELEASE_TAIL = timedelta(hours=6)
+HOTFIX_MAX_FIELDS = 20                # ... a hotfix moves a few fields (6759: 2); a bigger build is a balance build
 
 
 @dataclass
@@ -165,7 +166,16 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
     patches = [Patch(n.date, _titled(n, anns), n.date, n) for n in sorted(notes, key=lambda n: n.date)]
     releases = release_windows(builds, notes, anns + named_only)
     patches += releases
-    released = {r.builds[0]['date'] for r in releases}
+
+    def release_of(b: dict) -> Patch | None:
+        """The release window a build belongs to: its own, or the latest release whose day it hotfixes."""
+        t = _dt(b['date'])
+        own = next((r for r in releases if r.builds[0]['date'] == b['date']), None)
+        if own is not None:
+            return own
+        if gameplay_fields(b) >= HOTFIX_MAX_FIELDS:
+            return None           # a balance build of the notes around it, not a release-day hotfix
+        return next((r for r in reversed(releases) if r.start <= t < r.start + RELEASE_TAIL), None)
 
     # big builds far from any changelog get their own patch, named after a
     # nearby announcement when there is one ("City Never Sleeps")
@@ -174,7 +184,7 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
     # 1,029 changes called hidden; hero reveal days in hotfix windows, ~500; audit 2026-10-01)
     main = [p for p in patches if p.notes and ' · follow-up ' not in p.notes.title]
     for b in builds:
-        if gameplay_fields(b) < UNANNOUNCED_MIN_FIELDS or b['date'] in released:
+        if gameplay_fields(b) < UNANNOUNCED_MIN_FIELDS or release_of(b) is not None:
             continue
         t = _dt(b['date'])
         near = [a for a in anns if abs(t - _dt(a.date)) <= ANNOUNCEMENT_GAP]
@@ -194,12 +204,12 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
 
     pre = Patch('pre-notes', 'Before public patch notes', builds[0]['date'][:10] if builds else '', None)
     windows = [p for p in patches if not p.release]
+    owners = {b['date']: release_of(b) for b in builds}
     for r in releases:
         r.builds = []
     for b in builds:
-        t = _dt(b['date'])
         # a release takes its build and that day's hotfixes; the notes window around it goes on after them
-        owner = next((r for r in releases if r.start <= t < r.start + RELEASE_TAIL), None) or locate(windows, t)
+        owner = owners[b['date']] or locate(windows, _dt(b['date']))
         (owner if owner is not None else pre).builds.append(b)
     # in the order their builds shipped: Danny's release (10-13 21:02) before the 10-14 window it interrupts
     patches.sort(key=lambda p: _dt(p.builds[0]['date']) if p.builds else p.start)
@@ -225,6 +235,16 @@ def release_windows(builds: list[dict], changelogs: list[Notes], posts: list[Not
         a = min(near, key=lambda a: abs(t - _dt(a.date)))
         out.append(Patch(f'build-{b["build"]}', a.title, b['date'], None, [b], link=a.url, release=list(b['released'])))
     return out
+
+
+def gap_builds(p: Patch, builds: list[dict] | None = None) -> list[dict]:
+    """Other windows' builds between a window's first and last build (the 10-05 window around Baba's and Solomon's
+    releases): the game state before its first build and after its last one hold their edits too."""
+    dates = [b.get('date') for b in (p.builds if p else ()) if b.get('date')]
+    if len(dates) < 2:
+        return []
+    first, last, mine = min(dates), max(dates), set(dates)
+    return [b for b in (builds or build_index()) if first < b['date'] < last and b['date'] not in mine]
 
 
 def locate(patches: list[Patch], t: datetime) -> Patch | None:

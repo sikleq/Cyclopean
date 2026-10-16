@@ -63,7 +63,8 @@ _SYNONYMS = rules.stemmed_synonyms(SYNONYMS)       # as words() writes them ('br
 _ARROW_RE = re.compile(rf'(?P<a>{_NUM})\s*[a-z%]*\s*(?:->|→)\s*(?P<b>{_NUM})', re.I)
 _BY_RE = re.compile(rf'(increased|reduced|decreased|lowered|raised)\s+by\s+~?(?P<p>{_NUM})\s*%', re.I)
 _PCT_LESS = re.compile(rf'(?P<p>{_NUM})\s*%\s+(?:less|more|shorter|longer|lower|higher)\b', re.I)
-_HALF_DAMAGE = re.compile(r'\bhalf\s+(?:the\s+)?damage\b', re.I)
+_HALF_DAMAGE = re.compile(r'\bhalf\s+(?:the\s+)?damage\s+(?:to|against|on|vs\.?)\s+(?:the\s+)?(?:objectives?|bosse?s?)\b',
+                          re.I)
 _WORD_RE = re.compile(r'[a-z]{3,}')
 _TIER_RE = re.compile(r'\bT([1-3])\b')
 _STOP = {'the', 'and', 'from', 'now', 'with', 'for', 'increased', 'reduced', 'decreased', 'per', 'base',
@@ -571,10 +572,18 @@ def rekey_lists(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dic
     """The window's rows of a named-entries list (`LIST_IDS`) by entry instead of by position: the list as the
     window found it and left it (`window_states`), diffed by the entries' names. The build records keep their
     positions (keying them in pipeline/flatten.py needs every record rebuilt: `history --rebuild`, ~25 min)."""
+    # a window a hero's release interrupts: its "before" and "after" states hold the release build's edits too — a list
+    # that build moved stays by position (its rows are the release's)
+    theirs: set[tuple[str, str, str]] = set()
+    for row in patches_mod.gap_builds(p):
+        for e in load_record(row['file'])['entities']:
+            if e['file'] in LIST_FILES:
+                theirs |= {(e['file'], e['id'], m.group(1)) for c in e.get('changes', ())
+                           for m in [_LIST_INDEX.match(c['path'])] if m}
     lists: dict[tuple[str, str, str], list[MChange]] = {}
     for c in changes:
         m = _LIST_INDEX.match(c.path)
-        if m and c.file in LIST_FILES:
+        if m and c.file in LIST_FILES and (c.file, c.eid, m.group(1)) not in theirs:
             lists.setdefault((c.file, c.eid, m.group(1)), []).append(c)
     if not lists:
         return changes
@@ -1141,7 +1150,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         g = granted_pair(outer)
         if g:
             pairs, granted = g, True
-    if not pairs and _HALF_DAMAGE.search(rest):
+    if not pairs and not fix_line and _HALF_DAMAGE.search(rest):
         # "Vexing Bolt - Now does half damage to objectives": its Boss Damage Scale 100% -> 50% (review 2026-10-17)
         pairs = [(100.0, 50.0)]
     # "Threadsap duration lasts 35% less" says by how much as "increased by 35%" does
@@ -1195,8 +1204,10 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             nm = loc.plain(loc.entity_name(tok, e.get('id', ''), e.get('owner'))).lower()
             if nm and len(nm) > 2 and any(v in low for v in rules.name_variants(nm)):
                 ability_hits.add(k)
-                # a name of its own: every hero's "Melee" names no one ability ("Gloom Bomb T2 … Melee Resist")
-                if not k.startswith('heroes.vdata:') and len(idx.get(nm, ())) <= INLINE_NAME_MAX_KEYS:
+                # a name of its own, as a whole word: every hero's "Melee" names no one ability ("Gloom Bomb T2 …
+                # Melee Resist"), nor does "Heal" inside "Health"
+                if (not k.startswith('heroes.vdata:') and len(idx.get(nm, ())) <= INLINE_NAME_MAX_KEYS
+                        and any(re.search(rf'\b{re.escape(v)}s?\b', low) for v in rules.name_variants(nm))):
                     by_name.add(k)
         if _BASE_DAMAGE.search(rest) and not ability_hits:
             # a hero's "base damage" is its gun's bullet damage ("Celeste: Base damage reduced from 29 to

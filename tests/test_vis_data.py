@@ -51,6 +51,24 @@ def test_a_release_takes_its_days_hotfixes_and_the_notes_window_resumes_after():
     assert by_id == {'2026-10-05': [6753, 6762], 'build-6757': [6757, 6759]}
 
 
+def test_two_releases_hours_apart_keep_their_builds_and_a_balance_build_is_no_hotfix():
+    """A second hero released inside the first one's 6 h is its own window; a build of many fields an hour after a
+    release is the notes window's balance build, not a release-day hotfix."""
+    post = Notes('Two heroes', '2026-10-06', 'u', TITLE_ONLY, [])
+    builds = [_b(1, '2026-10-05T23:00:00Z', 41), _b(2, '2026-10-06T21:00:00Z', 300, ['hero_a']),
+              _b(3, '2026-10-06T22:00:00Z', 300, ['hero_b']), _b(4, '2026-10-06T23:00:00Z', 1),
+              _b(5, '2026-10-07T00:00:00Z', 40)]
+    by_id = {p.id: [b['build'] for b in p.builds] for p in group([_notes('2026-10-05'), post], builds)}
+    assert by_id == {'2026-10-05': [1, 5], 'build-2': [2], 'build-3': [3, 4]}
+
+
+def test_a_window_a_release_interrupts_knows_the_builds_in_its_gap():
+    from pipeline.patches import gap_builds
+    rows = [_b(1, '2026-10-05T23:00:00Z'), _b(2, '2026-10-06T21:00:00Z'), _b(3, '2026-10-07T22:00:00Z')]
+    assert gap_builds(Patch('x', 'x', '2026-10-05', None, [rows[0], rows[2]]), rows) == [rows[1]]
+    assert gap_builds(Patch('x', 'x', '2026-10-05', None, rows), rows) == []
+
+
 def test_a_release_with_its_own_days_changelog_stays_in_it():
     """01-17-2025: four heroes released the day of a changelog that announces them — the notes are the release's."""
     post = Notes('Holliday, Vyper, Calico', '2025-01-17', 'u', TITLE_ONLY, [])
@@ -302,6 +320,9 @@ def test_half_damage_to_objectives_is_the_boss_damage_scale():
     res = annotate_line('Sinclair: Vexing Bolt - Now does half damage to objectives', [boss],
                         {'abilities.vdata:ability_magician_magicbolt': [boss]}, idx, cat, tok)
     assert res['status'] == 'documented' and boss.status == 'documented'
+    from pipeline.match import _HALF_DAMAGE
+    assert _HALF_DAMAGE.search('Pocket: Affliction now does half damage on objectives')
+    assert not _HALF_DAMAGE.search('Warden now takes half damage from troopers')
 
 
 def test_street_brawl_values_are_balance_and_draft_weights_are_not():
