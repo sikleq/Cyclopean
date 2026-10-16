@@ -155,6 +155,8 @@
   --mask-sort: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E");
   --mask-sort-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 3h8v1h-8zM2 4h6v1h-6zM3 5h4v1h-4zM4 6h2v1h-2z'/%3E%3C/svg%3E");
   --mask-sort-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 3h2v1h-2zM3 4h4v1h-4zM2 5h6v1h-6zM1 6h8v1h-8z'/%3E%3C/svg%3E");
+  /* a wide table's "more columns this way" arrow, the sort arrows' pixel triangle turned right (.table-fade::before) */
+  --mask-more: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h1v1h-1zM3 2h2v1h-2zM3 3h3v1h-3zM3 4h4v2h-4zM3 6h3v1h-3zM3 7h2v1h-2zM3 8h1v1h-1z'/%3E%3C/svg%3E");
 
   /* the eye as a mask (the strip tiles draw it in --eye; an inline SVG per tile cost 13 KB a page) */
   --mask-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1zM13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z'/%3E%3C/svg%3E");
@@ -327,8 +329,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 .crumbs { font: 17px/1 var(--font-label); color: var(--text-dimmer); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .crumbs a { color: var(--text-dim); }
 
+/* flush under the site bar: a 2px gap let the content scroll through between the two */
 .toolbar {
-  position: sticky; top: calc(var(--nav-h) + 2px); z-index: var(--z-sticky);
+  position: sticky; top: var(--nav-h); z-index: var(--z-sticky);
   display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center;
   padding: 10px 12px;
   background: var(--bg-panel);
@@ -983,9 +986,15 @@ table.kvt.tier-grid td.v { text-align: center; }
 /* a table's frame hugs it and sits centred, the fade on its own edge (review 2026-10-05: Unit Stats' 570px tables in
    full-width frames, half empty) */
 .table-fade { position: relative; width: fit-content; max-width: 100%; margin-inline: auto; }
-.table-fade::after { content: ""; position: absolute; top: 2px; right: 2px; bottom: 2px; width: 44px; pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--bg-page)); transition: opacity .2s; }
-.table-fade.at-end::after { opacity: 0; }
+/* "more columns this way" until the box is scrolled to its end: a shadow over the content's right edge with a copper
+   rule and an arrow at the top (a fade into --bg-page was the table's own colour: nobody saw it, review 2026-10-17).
+   scripts.js table-fade keeps it off the box's scrollbars (--fade-r / --fade-b) */
+.table-fade::before, .table-fade::after { content: ""; position: absolute; pointer-events: none; transition: opacity .2s; }
+.table-fade::after { top: 2px; right: var(--fade-r, 2px); bottom: var(--fade-b, 2px); width: 40px;
+  background: linear-gradient(90deg, transparent, var(--shadow) 80%); box-shadow: inset -2px 0 0 var(--patina-dim); }
+.table-fade::before { z-index: 1; top: 8px; right: calc(var(--fade-r, 2px) + 5px); width: 10px; height: 10px; background: var(--patina);
+  -webkit-mask: var(--mask-more) center / 10px 10px no-repeat; mask: var(--mask-more) center / 10px 10px no-repeat; }
+.table-fade.at-end::before, .table-fade.at-end::after { opacity: 0; }
 .table-scroll {
   position: relative; contain: paint;
   overflow: auto;
@@ -993,9 +1002,13 @@ table.kvt.tier-grid td.v { text-align: center; }
   border: var(--px) solid var(--line);
 }
 table.stats { border-collapse: separate; border-spacing: 0; font-size: 12.5px; font-variant-numeric: tabular-nums; }
-table.stats th, table.stats td { padding: 3px 6px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+/* 4px a side, not 6: two more of Hero Stats' 33 default columns in a 1440px window (review 2026-10-17) */
+table.stats th, table.stats td { padding: 3px 4px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
 table.stats thead th { position: sticky; background: var(--bg-panel-2); z-index: 3; color: var(--text-dim); font-weight: 600; }
 table.stats thead tr.cats th { top: 0; font: 600 12px/1 var(--font-ui); color: var(--text-bright); text-align: center; padding: 6px 10px; border-bottom: 1px solid var(--grid-strong); border-left: 1px solid var(--grid-strong); }
+/* a group's name stays in sight while its group runs off either edge (scripts.js table-sort pins --name-w): centred
+   over the group when it fits, else held just past the sticky names or short of the right-edge fade */
+table.stats thead tr.cats th.cat > .cl { display: inline-block; position: sticky; left: calc(var(--name-w, 0px) + 8px); right: 48px; }
 /* one line per header: short labels, the full one is the tooltip */
 table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: 11.5px; line-height: 1.2; white-space: nowrap; min-width: 40px; vertical-align: bottom; }
 .table-scroll:not(.show-details) .g-details { display: none; }
@@ -1908,9 +1921,13 @@ table.dt-rows tr.dt-part td { padding: 6px 6px 3px; text-align: left; font: 600 
 table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 60%, var(--label)); }
 
 /* ---------- 21. stats tables: bars, heat, bands; Item Stats (tables_pages.items_table) ---------- */
-/* the table bars scroll away: stuck, they covered the table's own sticky header (a third of a phone) */
-.toolbar.tbl-bar, .toolbar.dyn-bar { position: static; }
+/* a table's bar stays under the site bar on a desktop, the table's box fits the room under both (scripts.js table-fit),
+   so its header row lands right under the bar instead of scrolling away under the site bar (review 2026-10-17). On a
+   phone or a short window the bar scrolls away: stuck, it covered the table's own sticky header (a third of a phone) */
+@media (max-width: 760px), (max-height: 560px) { .toolbar.tbl-bar, .toolbar.dyn-bar { position: static; } }
 .chip.legend-hist { white-space: normal; max-width: 100%; }
+.legend-hist .lg-tap { display: none; }            /* "hover a value", on a touch screen "tap a value" */
+@media (hover: none) { .legend-hist .lg-hover { display: none; } .legend-hist .lg-tap { display: inline; } }
 /* a table narrower than the page sits in the middle (Item Stats, the change matrices) */
 .table-fade.center { width: fit-content; max-width: 100%; margin-inline: auto; }
 /* a one-patch month's label ("2026-10" over 30px) spilled past the table and made the box scroll 25px

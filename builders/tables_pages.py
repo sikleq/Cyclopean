@@ -182,8 +182,11 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
 
     def gcls(group: str) -> str:
         return (' g-details' if group == DETAILS else '') + (f' {group_cls[group]}' if group_cls.get(group) else '')
+    # the group's name in a span of its own: sticky inside its header, it stays in sight while the group runs off
+    # either edge (a phone showed an empty band over Weapon's 14 columns; review 2026-10-17)
     cat_row = ('<tr class="cats"><th class="name"></th>' + ''.join(
-        f'<th colspan="{n}" class="cat{gcls(g)}" data-group="{esc(g)}">{esc(g)}</th>' for g, n in groups) + '</tr>')
+        f'<th colspan="{n}" class="cat{gcls(g)}" data-group="{esc(g)}"><span class="cl">{esc(g)}</span></th>'
+        for g, n in groups) + '</tr>')
 
     def cell_cls(c: dict) -> list[str]:
         return ((['grp-start'] if c['key'] in first_of_group else []) + (['g-details'] if c['group'] == DETAILS else [])
@@ -252,8 +255,10 @@ def _toolbar(placeholder: str, details: bool = False, extra: str = '', heat_on: 
             if details else '')
     # the corner notch explained once, at the end of the bar (advisor round 4: "recent" had no legend);
     # on a phone only its first half, and it wraps (the 489px chip scrolled the page sideways)
+    # a touch screen has no hover: its word is "tap" (styles.css swaps the two by `hover: none`)
     legend = (f'<span class="chip legend-hist">changed in the last {RECENT_DAYS} days'
-              f'<span class="lg-tail"> · hover a value for its history</span></span>')
+              f'<span class="lg-tail"> · <span class="lg-hover">hover</span><span class="lg-tap">tap</span>'
+              f' a value for its history</span></span>')
     checked = ' checked' if heat_on else ''
     # not sticky: stuck, it covered the table's own sticky header (a third of a phone screen)
     return ('<div class="toolbar tbl-bar">'
