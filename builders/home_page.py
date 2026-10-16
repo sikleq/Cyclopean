@@ -142,13 +142,14 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     return out
 
 
-def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = False, k: int | None = None,
+def _chip(key: str, s: dict, pid: str, names: dict[str, str], k: int | None = None,
           eye: bool = True, net: str | None = None) -> str:
-    """`names`: entity key -> its name today (common.display_name: never an id). `named`: the name under
-    the icon (the newest update; advisor round 4: names were in tooltips only). `k`: the icon's entry in the
-    feed's hover-card data (chip_card) — the card replaces the one-line tooltip. `eye`: False when the group's
-    label carries the one eye (every icon of it all out of the notes). `net`: the icon's net mark (weights.net_of
-    of its rows, as `_feed` gives its card); None weighs them here."""
+    """`names`: entity key -> its name today (common.display_name: never an id). `k`: the icon's entry in the
+    feed's hover-card data (chip_card) — the card, named, replaces the one-line tooltip; on a touch screen the first
+    tap shows it (scripts.js dyn-tip). Every update's icons look alike: the newest one's names under its icons (advisor
+    round 4) made its card four icons a row on a phone against six on the others (review 2026-10-17). `eye`: False
+    when the group's label carries the one eye (every icon of it all out of the notes). `net`: the icon's net mark
+    (weights.net_of of its rows, as `_feed` gives its card); None weighs them here."""
     file, _, eid = key.partition(':')
     if file == 'game':                 # a Game system (game_systems): its icon from the game files or a site glyph
         from .game_systems import SECTION, icon_html, system
@@ -165,12 +166,11 @@ def _chip(key: str, s: dict, pid: str, names: dict[str, str], named: bool = Fals
     # with a card the eye says nothing of its own (its tooltip stacked on the card)
     eye_mark = mark('hidden') if k is None else EYE_MARK
     eye = f'<span class="lu-eye">{eye_mark}</span>' if s['hidden'] and eye else ''
-    label = f'<span class="lu-nm">{esc(name)}</span>' if named else ''
     hover = (f'aria-label="{esc(tip)}" data-name="{esc(name)}" data-k="{k}"' if k is not None
              else f'data-tooltip="{esc(tip)}"')
     game = ' lu-game' if file == 'game' else ''
     return (f'<a class="lu net-{net or "mix"}{game}" href="{esc(href)}#p-{esc(pid)}" {hover}>'
-            f'{pic}<span class="lu-n">{s["n"]}</span>{eye}{label}</a>')
+            f'{pic}<span class="lu-n">{s["n"]}</span>{eye}</a>')
 
 
 def chip_card(s: dict) -> list:
@@ -211,7 +211,6 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
         for sec, title in SECTIONS:
             got = sorted(feed.get(sec, {}).items(), key=lambda kv: (-kv[1]['n'], kv[0]))
             if got:
-                named = not blocks
                 # every icon of the group all out of the notes: ONE eye on the group's label, none on the icons,
                 # as one eye on an all-hidden band (review 2026-10-05: 171 of 246 icons had it, it marked nothing)
                 # (an update with no notes at all says so once, on its banner: no eye anywhere below)
@@ -220,16 +219,16 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                 chips = []
                 for k, s in got:
                     net = net_of(c for _, c in s['rows'])              # once: the icon's underline and its card
-                    chips.append(_chip(k, s, row['id'], names, named, len(cards), eye=notes and not all_out, net=net))
+                    chips.append(_chip(k, s, row['id'], names, len(cards), eye=notes and not all_out, net=net))
                     # [update, {tag: n}, hidden, samples, net mark (weights.net_of) for the card's chip]
                     cards.append([len(updates) - 1, *chip_card(s), net])
                 whole = f'<span class="lu-all">{EYE_MARK}all not in notes</span>' if all_out else ''
                 # a phone shows three rows of icons (styles.css); the rest is the patch page's (City Never Sleeps'
                 # 102 items were 17 rows, ~900px)
                 more = (f'<a class="lu-more" href="patches/{esc(row["id"])}.html#changes">+{len(got) - PHONE_ICONS} '
-                        f'more</a>' if len(got) > PHONE_ICONS and not named else '')
+                        f'more</a>' if len(got) > PHONE_ICONS else '')
                 groups.append(f'<div class="lu-group"><span class="lu-h">{title} <b>{len(got)}</b>{whole}</span>'
-                              f'<div class="lu-row{" named" if named else ""}">{"".join(chips)}{more}</div></div>')
+                              f'<div class="lu-row">{"".join(chips)}{more}</div></div>')
         # the update's one count (patch_counts: as its patch page and the patch list); what no icon below carries is
         # named apart — the game's rules and map objects only the patch page lists
         pc = for_id(row['id'])
@@ -254,9 +253,11 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             if pc.get('hidden_archive'):
                 eye += (f'<a class="au au-arch" href="patches/{esc(row["id"])}.html#changes"><b>{pc["hidden_archive"]}</b>'
                         f' only in the patch archive</a>')
+        # the groups side by side, each its label over its icons, wrapping as the width runs out (review 2026-10-17: one
+        # under another at 1920 they filled 360 of a 1640px card)
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
                       f'<span class="bt"><a href="patches/{esc(row["id"])}.html">{patch_title_html(row)}</a></span>'
-                      f'<span class="bc">{eye}</span></div>{"".join(groups)}</section>')
+                      f'<span class="bc">{eye}</span></div><div class="lu-groups">{"".join(groups)}</div></section>')
     # the counters' icons are CSS (`.pip.<tag>`), the eye a mark
     data = {'u': updates, 'c': cards, 'words': TAG_WORDS, 'word1': TAG_WORD_ONE, 'eye': EYE_MARK, 'nets': NET_WORDS}
     # JSON inside a script element: "</" would end it early
@@ -286,6 +287,18 @@ def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: li
         f'{f"<span class=ht-x>{esc(extra[sec])}</span>" if extra.get(sec) else ""}</span>'
         f'<span class="ht-art">{art[sec]}</span></a>'
         for sec, title in SECTIONS) + '</div>'
+
+
+def _top(total: int, hidden: int) -> str:
+    """The logo, the search and the two counters (all changes, those not in the patch notes)."""
+    return f'''<div class="home-top">
+  <div class="home-brand">{EYE_MARK}<h1>Cyclopean</h1></div>
+  {search_box()}
+  <div class="home-stats">
+    <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
+    <a class="hs hidden" href="patches/index.html"><span class="n">{hidden}</span><span class="l">not in patch notes</span></a>
+  </div>
+</div>'''
 
 
 def hero_tile(heroes: list[dict]) -> tuple[int, int]:
@@ -346,14 +359,7 @@ def build_all() -> int:
                                             key=lambda e: (order[e['kind']], display_name(e)))) if u]
     unit_art = list(dict.fromkeys(unit_art))       # the same icon on namesakes once
     body = f'''
-<div class="home-top">
-  <div class="home-brand">{EYE_MARK}<h1>Cyclopean</h1></div>
-  {search_box()}
-  <div class="home-stats">
-    <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
-    <a class="hs hidden" href="patches/index.html"><span class="n">{total_hidden}</span><span class="l">not in patch notes</span></a>
-  </div>
-</div>
+{_top(total, total_hidden)}
 {_tiles(counts, faces, unit_art, item_art, {'heroes': f'+{n_pre} pre-release' if n_pre else ''})}
 <h2 class="home-h">Latest changes</h2>
 {_feed(patches, names, templates, unit_main, page_set())}

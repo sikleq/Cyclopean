@@ -1337,7 +1337,8 @@ a.au.au-hidden:hover b { text-decoration: underline; }
 .htile .ht-n { font: 22px/1 var(--font-label); color: var(--label); }
 /* what the index shows behind a switch, apart from the number (home_page._tiles: "+5 pre-release") */
 .htile .ht-x { margin-left: 8px; font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; }
-.htile .ht-art { grid-column: 1 / -1; display: flex; gap: 6px; }
+/* as many whole icons as the tile has room for: the rest wrap out of sight (two tiles a row on a tablet) */
+.htile .ht-art { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; height: 40px; overflow: hidden; }
 .htile .ht-art img { width: 40px; height: 40px; object-fit: cover; background: var(--bg-panel-4); }
 /* the Game systems' icons are glyphs and small paintings from the game files: whole, not cropped */
 .htile.game .ht-art img { object-fit: contain; padding: 5px; }
@@ -1374,11 +1375,15 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .update > .banner { margin: 0 0 6px; }
 .update .bc .au { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-dim); }
 .update .bc .au b { color: var(--eye); }
-.lu-group { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: start; padding: 8px 16px 0; }
-.lu-h { padding-top: 12px; font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
+/* the sections side by side, each its label over its icons; a section as wide as its icons, a long one takes the
+   whole width and wraps (review 2026-10-17: stacked under a 110px label column, five heroes and two items filled
+   360px of a 1640px card) */
+.lu-groups { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 44px; padding: 10px 16px 0; }
+.lu-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+.lu-h { font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
 .lu-h b { color: var(--text-bright); font-weight: 400; }
 /* a group whose icons all hold only changes the notes left out: one eye here, none on the icons */
-.lu-h .lu-all { display: block; margin-top: 5px; color: var(--eye); font: 600 11px/1.2 var(--font-ui); text-transform: none;
+.lu-h .lu-all { margin-left: 10px; color: var(--eye); font: 600 11px/1.2 var(--font-ui); text-transform: none;
   letter-spacing: 0; white-space: nowrap; }
 .lu-h .lu-all .mark { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
 .lu-row { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -1393,19 +1398,20 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
   background: var(--shadow); }
 .lu-eye { position: absolute; left: 1px; top: 1px; display: flex; color: var(--eye); }
 .lu-eye .mark, .lu-eye .mark::before { width: 14px; height: 14px; }
-/* the newest update names its icons (two lines at most under each; round 4: names were tooltips only) */
-.lu-row.named { gap: 34px 30px; padding-bottom: 30px; }
-.lu-nm { position: absolute; left: -15px; top: 48px; width: 74px; font: 600 11px/1.15 var(--font-ui); color: var(--text-dim);
-  text-align: center; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
-.lu:hover .lu-nm { color: var(--text-bright); }
 @media (max-width: 1180px) {
   .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) {
-  .home-tiles { grid-template-columns: minmax(0, 1fr); }
   .home-stats { margin-left: 0; }
-  .lu-group { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .lu-h { padding-top: 4px; }
+}
+/* a tablet keeps two tiles a row (one a row, each card showed its 6 icons in a 720px box); a phone one. Its two counters
+   share the width the tiles take: they ended 24px short of them, 6px off their left edge (review 2026-10-17) */
+@media (max-width: 640px) {
+  .home-tiles { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .home-stats { flex: 1 1 100%; flex-wrap: nowrap; margin: 0 calc(3px + var(--px)); }     /* the tiles' box edges */
+  .home-stats .hs { flex: 1 1 auto; }
 }
 @media (max-width: 980px) { .hero-head { grid-template-columns: minmax(0, 1fr); } }
 
@@ -1771,7 +1777,7 @@ table.per-soul th.cat[data-group="Stats"]::after { content: " · souls per point
 }
 .lu-more { display: none; align-self: center; font: 600 13px/1 var(--font-ui); color: var(--patina); }
 @media (max-width: 600px) {
-  .lu-row:not(.named) .lu:nth-child(n+19) { display: none; }
+  .lu-row .lu:nth-child(n+19) { display: none; }
   .lu-row .lu-more { display: inline-block; }
 }
 .it-filter .cat-i { width: 16px; height: 16px; margin-right: 6px; vertical-align: -3px; }
