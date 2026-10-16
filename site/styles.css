@@ -32,7 +32,7 @@
   --text-main: #e0d8c6;
   --text-bright: #f6f0e2;
   --text-dim: #9aa59e;
-  --text-dimmer: #6b7772;
+  --text-dimmer: #85918b;     /* 4.5:1 on every panel up to --bg-panel-3 (#6b7772 was 3.2:1 there; review 2026-10-17) */
 
   /* accents */
   --patina: #5fc4a4;          /* primary accent — oxidised copper */
@@ -678,6 +678,11 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
   box-shadow: 0 0 0 2px var(--frame-line), 0 6px 14px var(--shadow-deep); }
 .back-to-top.on { display: flex; }
 .back-to-top:hover, .back-to-top:focus-visible { background: var(--bg-hover); box-shadow: 0 0 0 2px var(--patina); }
+/* a touch screen: smaller, in the corner, see-through, and only while the page goes up (scripts.js hist-filter) — it
+   sat on the right-hand values and filter chips of every long page (review 2026-10-17) */
+@media (hover: none) {
+  .back-to-top { right: 6px; bottom: 6px; width: 32px; height: 32px; font-size: 18px; opacity: .72; }
+}
 .hblocks .pblock { margin-bottom: 6px; }
 .hblocks .pblock > .banner { margin: 0; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
@@ -1408,6 +1413,25 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .dimmer { color: var(--text-dimmer); }
 .hidden-el { display: none !important; }
 .flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* a finger's targets: links drawn smaller than 24px get a bigger hit area, the look unchanged — padding the link and
+   taking it back with a negative margin, or a transparent box around it (review 2026-10-17: "patch ↗" 43x12, a
+   matrix date 13x14, a trail square 12x12, an ability card's History 51x15, a one-digit value 8x20) */
+@media (pointer: coarse) {
+  .nav-brand { padding: 7px; margin: -7px; }
+  .banner .pnotes { padding: 8px 6px; margin: -8px -6px -8px -2px; }
+  table.dyn thead tr.cols th.dd { overflow: visible; }
+  table.dyn thead tr.cols th.dd > a { position: relative; display: inline-block; }
+  table.dyn thead tr.cols th.dd > a::after { content: ""; position: absolute; left: -9px; right: -8px; top: -7px; bottom: -6px; }
+  /* every square alike, so the row keeps its baseline (taken 6px back by vertical-align); !important: the tag colours'
+     `background` shorthand would paint the transparent border too */
+  .trail { vertical-align: -6px; }
+  .trail .sq { box-sizing: content-box; border: 6px solid transparent; margin: -6px; background-clip: padding-box !important; }
+  .trail a.sq.cur { box-shadow: none; outline: 1px solid var(--patina); outline-offset: -6px; }   /* the ring, as before */
+  .trail a.sq:hover { outline-offset: -6px; }
+  .ac-hist, .ac-last, .lu-more, footer.site-foot a { padding-block: 6px; margin-block: -6px; }
+  .lu-more { padding-inline: 8px; margin-inline: -8px; }
+  .sc-row .v.has-hist { padding: 4px 8px; margin: -4px -8px; }
+}
 @media (max-width: 860px) {
   .timeline > li { grid-template-columns: 1fr; }
   /* phones keep the menu: the sections scroll sideways next to the eye (it was hidden outright) */

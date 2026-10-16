@@ -327,6 +327,8 @@
       // an eye that links its proof writes its words once, as its aria-label (common.mark: data-tooltip is empty)
       var text = el.getAttribute('data-tooltip') || el.getAttribute('aria-label');
       if (!text) return;
+      // the words were written for a mouse: on a touch screen the first tap shows them, the second opens the build
+      if (noHover) text = text.replace('click to open', 'tap again to open');
       current = el;
       tip.textContent = text;
       tip.classList.add('on');
@@ -1647,9 +1649,15 @@
     up.textContent = '↑';
     up.addEventListener('click', function () { window.scrollTo({ top: 0 }); });
     document.body.appendChild(up);
-    var upOn = false;
+    // a touch screen shows it only while the page goes up: the rest of the time it sat on the right-hand values
+    var upOn = false, lastY = window.scrollY, touch = window.matchMedia && window.matchMedia('(hover: none)').matches;
     window.addEventListener('scroll', function () {
-      var on = window.scrollY > window.innerHeight;
+      var y = window.scrollY, on = y > window.innerHeight;
+      if (touch && on) {
+        if (Math.abs(y - lastY) < 6) return;          // a jitter of the finger is no direction
+        on = y < lastY;
+      }
+      lastY = y;
       if (on !== upOn) { upOn = on; up.classList.toggle('on', on); }
     }, { passive: true });
     function pressAll(attr, value) {           // one of the part / ability buttons, or none
