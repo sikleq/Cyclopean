@@ -221,7 +221,7 @@ def test_hero_page_is_one_open_column(monkeypatch):
     html = hero_page.hero_page(h, cards, row, cols, ents, {}, {})
     assert '<main class="page entity">' in html
     assert '<details' not in html.split('class="h2row"')[0]                # nothing folded above the history
-    assert '<section class="now-open">' in html and '<div class="wb-cells">' in html and '<h2>Stats</h2>' in html
+    assert '<section class="now-open">' in html and '<div class="wb-cells"' in html and '<h2>Stats</h2>' in html
     assert 'class="ab-ic ult"' in html and 'href="#p-p9" data-p="p9" data-ab="ult"' in html
     # review 2026-10-05: the alt fire is a line of the weapon block, never an (empty) ability card; a card with
     # nothing to read is not drawn; the grid holds the ability slots only
@@ -375,7 +375,8 @@ def test_an_item_page_lists_each_value_once_and_a_removed_item_its_last_ones():
             'last': [5554, '2025-05-08']}
     html = item_page(it, card, {}, {})
     assert 'Last values (build 5554, 2025-05-08)' in html and 'Current values' not in html
-    hdr = html.split('class="chips item-hdr"')[1].split('</div>')[0]
+    # the header values a section does not list sit in that card (visual pass 2026-10-17: entities_pages.header_host)
+    hdr = html.split('class="ac-hdr"')[1].split('</div>')[0]
     assert 'Cast Time' in hdr and 'Cooldown' not in hdr
     html = item_page({**it, 'alive': True}, {k: v for k, v in card.items() if k != 'last'}, {}, {})
     assert 'Current values' in html
@@ -424,8 +425,10 @@ def test_phone_tier_table_matrices_and_item_cards_css():
     phone = [b for b in css.split('@media (max-width: 700px) {')[1:] if 'table.tier-grid' in b.split('\n}')[0]]
     assert phone and 'table.tier-grid { width: 100%; min-width: 0; }' in phone[0]
     assert '.page.wide .table-fade' not in css
-    # review 2026-10-05: flex, so a one-row card is not stretched and a lone card sits centred
-    assert '.ability-grid.item-secs { display: flex; flex-wrap: wrap; justify-content: center; align-items: flex-start; }' in css
+    # review 2026-10-05: a one-row card is not stretched; visual pass 2026-10-17: the cards share the width from the left
+    # (a lone card sat centred with ~300px of nothing each side), their rows in columns (tests/test_vis_entity.py)
+    assert ('.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); '
+            'align-items: start; }') in css
     assert 'details.more' not in css and '.hist-bar .switch' not in css
     js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
     anchor = js.split("safe('patch-anchor'")[1].split("safe('tabs'")[0]

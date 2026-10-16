@@ -215,7 +215,9 @@ def test_the_trail_square_eye_is_drawn_one_to_one():
     css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
     assert all(len(r) == 10 for r in EYE_SMALL) and len(EYE_SMALL) == 10
     assert f'--mask-eye-sm: {eye_small_mask()};' in css
-    assert re.search(r'\.trail \.sq\.hid::after \{[^}]*background: var\(--eye\)[^}]*--mask-eye-sm', css)
+    # the eye's colour as the square's top edge, the stripes whole below it (visual pass 2026-10-17: the eye on a dark
+    # plate bit a hole out of them)
+    assert re.search(r'\.trail \.sq\.hid \{[^}]*border-top: 3px solid var\(--eye\)', css)
 
 
 def test_a_game_card_says_how_many_changes_the_notes_left_out(monkeypatch):
