@@ -333,6 +333,17 @@
       tip.textContent = text;
       tip.classList.add('on');
       place(el);
+      var r = el.getBoundingClientRect();
+      shownAt = [r.left, r.top];
+    }
+    // a scroll hides the words only when it moved their marker (dyn-tip's rule: a late scroll event of the tap that
+    // showed them is not a leave)
+    var shownAt = null;
+    function scrolled() {
+      if (!current) return;
+      var r = current.getBoundingClientRect();
+      if (shownAt && Math.abs(r.left - shownAt[0]) < 4 && Math.abs(r.top - shownAt[1]) < 4) return;
+      hide();
     }
     // (a hidden tip disarms an eye link: its next tap shows the words again before it follows)
     function hide() { current = null; upBefore = null; tip.classList.remove('on'); }
@@ -377,7 +388,7 @@
       }
       if (el) { if (el !== current) show(el); } else if (current) hide();
     });
-    window.addEventListener('scroll', hide, true);
+    window.addEventListener('scroll', scrolled, true);
     window.addEventListener('resize', hide);
   });
 
@@ -621,6 +632,18 @@
       tip.classList.add('on');
       current = a;
       place(a);
+      var r = a.getBoundingClientRect();
+      shownAt = [r.left, r.top];
+    }
+    // a scroll hides the card only when it moved its tile: a scroll event can land after the tap that drew the card
+    // (the scroll that brought the tile into sight, a finger's jitter) and hid it before its second tap (CI's Linux
+    // Chromium, 2026-10-17)
+    var shownAt = null;
+    function scrolled() {
+      if (!current) return;
+      var r = current.getBoundingClientRect();
+      if (shownAt && Math.abs(r.left - shownAt[0]) < 4 && Math.abs(r.top - shownAt[1]) < 4) return;
+      hide();
     }
     document.addEventListener('mouseover', over);
     document.addEventListener('focusin', over);              // a tile reached with the keyboard shows it too
@@ -648,7 +671,7 @@
     } else {
       document.addEventListener('focusout', hide);
     }
-    window.addEventListener('scroll', hide, true);
+    window.addEventListener('scroll', scrolled, true);
   });
 
   /* ---------- change matrices: rows by slot / tier (items) or role (heroes) — one choice per group, pressed again

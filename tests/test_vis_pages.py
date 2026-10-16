@@ -280,6 +280,10 @@ def test_on_a_phone_a_feed_icons_first_tap_shows_its_card_and_the_second_opens_i
     assert page.locator('.dyn-tip.on').count() == 1 and 'Bullet Dance' in page.locator('.dyn-tip').inner_text()
     # the card's foot speaks to a finger: its second tap opens it (it said "click for its history")
     assert page.locator('.dyn-tip .dt-foot').inner_text().endswith('tap again for its history at this patch')
+    # a scroll event landing after the tap (the scroll that brought the icon into sight: CI's Linux Chromium sent it
+    # late and it hid the card, 2026-10-17) moves nothing: the card stays
+    page.evaluate("() => window.dispatchEvent(new Event('scroll'))")
+    assert page.locator('.dyn-tip.on').count() == 1
     page.evaluate("""() => { const a = document.querySelector('a.lu');
       a.dispatchEvent(new MouseEvent('mouseout', {bubbles: true, relatedTarget: document.body}));
       a.dispatchEvent(new FocusEvent('focusout', {bubbles: true})); }""")
@@ -322,8 +326,19 @@ def test_on_a_phone_a_strip_tiles_first_tap_shows_its_card_before_jumping(browse
     tile = page.locator('.ps-tile')
     tile.tap()
     assert page.evaluate('() => location.hash') == '' and page.locator('.dyn-tip.on').count() == 1
+    page.evaluate("() => window.dispatchEvent(new Event('scroll'))")    # a late scroll event moves nothing
     tile.tap()
     assert page.evaluate('() => location.hash') == '#p-2026-01-01' and not errors
+    ctx.close()
+
+
+def test_a_scroll_that_moves_the_tile_hides_its_card(browser):
+    ctx, page, errors = _open(browser, STRIP, touch=True, **PHONE)
+    page.locator('.ps-tile').tap()
+    assert page.locator('.dyn-tip.on').count() == 1
+    page.evaluate('() => window.scrollBy(0, 300)')
+    page.wait_for_function("() => !document.querySelector('.dyn-tip.on')")
+    assert not errors
     ctx.close()
 
 
