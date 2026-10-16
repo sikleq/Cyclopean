@@ -442,8 +442,9 @@ def test_a_long_home_section_says_how_many_more_a_phone_hides(monkeypatch):
     monkeypatch.setattr(patch_counts, 'for_id', lambda pid: {'not_in_notes': 0, 'hidden_on_pages': 0})
     rows = [{'id': f'p{i}', 'title': f'0{i}-01-2026 Update', 'date': f'2026-0{i}-01'} for i in (1, 2)]
     feed = home_page._feed(rows, {}, frozenset(), {})
-    # the newest update (names under its icons) is whole; the older one says how many more
-    assert feed.count('class="lu-more"') == 1 and '>+5 more</a>' in feed and 'patches/p1.html#changes' in feed
+    # every update says how many more, the newest too: its icons look like the others' (review 2026-10-17)
+    assert feed.count('class="lu-more"') == 2 and '>+5 more</a>' in feed
+    assert 'patches/p1.html#changes' in feed and 'patches/p2.html#changes' in feed
 
 
 def test_the_home_icons_go_where_the_pages_are_and_count_like_the_banner(monkeypatch):

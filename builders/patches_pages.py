@@ -381,7 +381,9 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     if nxt:
         nav.append(f'<a class="px-btn" href="{esc(nxt["id"])}.html">{esc(patch_title_text(nxt))} →</a>')
     parts.append('<div class="flex">' + ''.join(nav) + '</div>')
-    return page(patch_title_text(p), ''.join(parts), rel, 'patches',
+    # one centred column, as an entity page: the cards are one under another (review 2026-10-17: two columns of
+    # cards of any height left black holes)
+    return page(patch_title_text(p), ''.join(parts), rel, 'patches', cls='column',
                 description=f'Deadlock {patch_title_text(p)}: official notes vs game files')
 
 

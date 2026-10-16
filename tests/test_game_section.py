@@ -393,7 +393,7 @@ def test_an_update_that_only_changed_the_game_is_in_the_feed(monkeypatch):
     feed = home_page.update_feed(p)
     assert set(feed) == {'game'} and set(feed['game']) == {'game:urn', 'game:respawn'}
     assert feed['game']['game:urn']['rows'][0][0] == 'Soul Urn delivery'
-    html = home_page._chip('game:urn', feed['game']['game:urn'], ROW['id'], {}, True, 0)
+    html = home_page._chip('game:urn', feed['game']['game:urn'], ROW['id'], {}, k=0)
     assert 'href="game/urn.html#p-2026-06-04"' in html and 'Urn &amp; Unstable Rift' in html
 
 
