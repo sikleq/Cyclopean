@@ -516,9 +516,12 @@ def item_columns(cols: list[dict]) -> list[dict]:
 
 
 def _chip(cls: str, value: str, label: str, css: str | None, attrs: str, rel: str) -> str:
-    """One number as the game's tooltip shows it: the property's icon, the value, its label."""
-    from .hero_page import prop_icon
-    return f'<span class="{cls}"{attrs}>{prop_icon(css, rel)}<b>{esc(value)}</b> <i>{esc(label)}</i></span>'
+    """One number as the game's tooltip shows it: the property's icon, the value, its label. A property without an
+    icon in the game's files has no empty slot ("+20% Melee Resist" kept a blank square; review 2026-10-17)."""
+    from .common import icon
+    src = icon(f'prop:{css}', rel) if css else None
+    pic = f'<img class="pi" src="{esc(src)}" alt="" loading="lazy">' if src else ''
+    return f'<span class="{cls}"{attrs}>{pic}<b>{esc(value)}</b> <i>{esc(label)}</i></span>'
 
 
 def stats_cell(row: dict, stat_cols: list[dict], cutoff: str, rel: str = '../') -> str:

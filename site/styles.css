@@ -1677,10 +1677,15 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 /* a Sloppy-style switch: label + small track (Pre-release, Hide old, Show deleted) */
 .switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: 600 13px/1 var(--font-ui); color: var(--text-main); }
 .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
-.switch .track { position: relative; width: 30px; height: 14px; background: var(--bg-page); box-shadow: inset 0 0 0 2px var(--frame-line); }
-.switch .track::after { content: ""; position: absolute; left: 3px; top: 3px; width: 8px; height: 8px; background: var(--text-dimmer); transition: left .12s; }
-.switch input:checked + .track { box-shadow: inset 0 0 0 2px var(--patina); }
-.switch input:checked + .track::after { left: 19px; background: var(--patina-strong); }
+/* off: a dark slot with a bone knob on the left; on: the slot filled copper, the knob bright on the right (a dark
+   30px bar with a tiny grey square read as a broken input, review 2026-10-17) */
+.switch .track { flex: none; position: relative; width: 32px; height: 18px; background: var(--bg-page);
+  box-shadow: inset 0 0 0 2px var(--line-bright); transition: background-color .12s; }
+.switch .track::after { content: ""; position: absolute; left: 4px; top: 4px; width: 10px; height: 10px; background: var(--text-dim);
+  transition: left .12s; }
+.switch:hover .track { box-shadow: inset 0 0 0 2px var(--patina-dim); }
+.switch input:checked + .track { background: var(--patina); box-shadow: inset 0 0 0 2px var(--patina-strong); }
+.switch input:checked + .track::after { left: 18px; background: var(--text-bright); box-shadow: 0 0 0 1px var(--patina-deep); }
 .switch input:focus-visible + .track { outline: 2px solid var(--patina); outline-offset: 2px; }
 .switch .n { color: var(--text-dimmer); font-weight: 500; }
 #heroes-grid:not(.show-pre) .hgcard.pre { display: none; }
@@ -1943,14 +1948,27 @@ table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 6
 table.dyn thead tr.cats th { overflow: hidden; text-overflow: clip; }
 table.stats .col-gone { display: none; }
 /* heat by rank: cells and an item's stat chips (scripts.js heatmap) */
-table.stats td.hm-g1, table.stats .sc.hm-g1 { background-color: var(--heat-g1); }
-table.stats td.hm-g2, table.stats .sc.hm-g2 { background-color: var(--heat-g2); }
-table.stats td.hm-g3, table.stats .sc.hm-g3 { background-color: var(--heat-g3); }
-table.stats td.hm-g4, table.stats .sc.hm-g4 { background-color: var(--heat-g4); }
-table.stats td.hm-b1, table.stats .sc.hm-b1 { background-color: var(--heat-b1); }
-table.stats td.hm-b2, table.stats .sc.hm-b2 { background-color: var(--heat-b2); }
-table.stats td.hm-b3, table.stats .sc.hm-b3 { background-color: var(--heat-b3); }
-table.stats td.hm-b4, table.stats .sc.hm-b4 { background-color: var(--heat-b4); }
+table.stats td.hm-g1 { background-color: var(--heat-g1); }
+table.stats td.hm-g2 { background-color: var(--heat-g2); }
+table.stats td.hm-g3 { background-color: var(--heat-g3); }
+table.stats td.hm-g4 { background-color: var(--heat-g4); }
+table.stats td.hm-b1 { background-color: var(--heat-b1); }
+table.stats td.hm-b2 { background-color: var(--heat-b2); }
+table.stats td.hm-b3 { background-color: var(--heat-b3); }
+table.stats td.hm-b4 { background-color: var(--heat-b4); }
+/* a chip keeps the one fill every chip has; its rank is a bar along its foot in the same four steps (a maroon fill
+   under a green Vitality number read as the category's colour, not the rank; review 2026-10-17) */
+table.stats .sc.hm-g1 { --heat-c: color-mix(in srgb, var(--tag-buff) 35%, transparent); }
+table.stats .sc.hm-g2 { --heat-c: color-mix(in srgb, var(--tag-buff) 55%, transparent); }
+table.stats .sc.hm-g3 { --heat-c: color-mix(in srgb, var(--tag-buff) 75%, transparent); }
+table.stats .sc.hm-g4 { --heat-c: var(--tag-buff); }
+table.stats .sc.hm-b1 { --heat-c: color-mix(in srgb, var(--tag-nerf) 35%, transparent); }
+table.stats .sc.hm-b2 { --heat-c: color-mix(in srgb, var(--tag-nerf) 55%, transparent); }
+table.stats .sc.hm-b3 { --heat-c: color-mix(in srgb, var(--tag-nerf) 75%, transparent); }
+table.stats .sc.hm-b4 { --heat-c: var(--tag-nerf); }
+table.stats .sc.hm-g1::before, table.stats .sc.hm-g2::before, table.stats .sc.hm-g3::before, table.stats .sc.hm-g4::before,
+table.stats .sc.hm-b1::before, table.stats .sc.hm-b2::before, table.stats .sc.hm-b3::before, table.stats .sc.hm-b4::before {
+  content: ""; position: absolute; left: 1px; right: 1px; bottom: 1px; height: 2px; background: var(--heat-c); pointer-events: none; }
 table.stats td.sorted-col { background-image: linear-gradient(var(--sorted-col), var(--sorted-col)); }
 /* band rows (a category) and tier dividers stand aside while the table is sorted by a column */
 table.stats.is-sorted tr.sec { display: none; }
@@ -2002,6 +2020,7 @@ table.per-soul th.cat.sumc::after, table.per-soul th.cat.stc::after { content: "
 .sc b, .fx b { font-weight: 700; font-size: 12px; color: var(--text-bright); font-variant-numeric: tabular-nums; }
 .sc i, .fx i { font-style: normal; }
 .sc .pi, .fx .pi { width: 13px; height: 13px; margin: 0; }
+.sc > b:first-child, .fx > b:first-child { margin-left: 3px; }   /* no icon: no empty slot (tables_pages._chip) */
 .sc { cursor: pointer; }
 .sc:hover { box-shadow: inset 0 0 0 1px var(--patina); }
 .sc.gone { display: none; }
