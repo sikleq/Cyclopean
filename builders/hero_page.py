@@ -474,10 +474,33 @@ def history_folds(hid: str, cards: dict, table_row: dict | None, ents_by_id: dic
     return out
 
 
+@lru_cache(maxsize=1)
+def every_history_fold() -> dict[str, str]:
+    """`history_folds` of every hero: ability id -> the id whose rows it repeats on its hero's page."""
+    cards = load_json('abilities.json')['abilities']
+    trow = {t['id']: t for t in load_json('tables/heroes.json')['heroes']}
+    ents = load_json('entities.json')['entities']
+    abil_by_id = {e['id']: e for e in ents if e['file'] == 'abilities.vdata'}
+    out: dict[str, str] = {}
+    for h in ents:
+        if h['file'] == 'heroes.vdata' and not h.get('template'):
+            out.update(history_folds(h['id'], cards, trow.get(h['id']), abil_by_id))
+    return out
+
+
 def repeats_dropped(changes: list[dict], of: list[dict]) -> list[dict]:
     """`changes` without the rows `of` already says (same label and values): what fold_alt / drop_parent_rows keep."""
     said = {_sig(c) for c in of}
     return [c for c in changes if _sig(c) not in said]
+
+
+def removed_parts(hid: str, mine: list[dict], ents_by_id: dict) -> set[str]:
+    """The hero's abilities its kit no longer has: gone from the files, or bound in a slot once and not today
+    (Calico's Nekomata Ward). One no slot ever bound that is still in the files is a part of today's kit — a recast
+    or a piece's move (Solomon's "Move King", "Move Piece" sat under "Removed", review 2026-10-17)."""
+    now = {c['id'] for c in mine}
+    return {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
+            and e['id'] not in now and (not e.get('alive') or e.get('ability_slot') in SLOT_ORDER)}
 
 
 def current_cards(cards: dict, hid: str) -> list[dict]:
@@ -543,8 +566,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}
     areas |= {f'abilities.vdata:{e["id"]}': part_of(e) for e in ents_by_id.values() if e.get('owner') == hid}
-    gone = {f'abilities.vdata:{e["id"]}' for e in ents_by_id.values() if e.get('owner') == hid
-            and e['id'] not in {c['id'] for c in mine}}
+    gone = removed_parts(hid, mine, ents_by_id)
     chip_of = {f'abilities.vdata:{c}': f'abilities.vdata:{p}' for c, p in parents.items()}
     told: dict = {}
     hist = history_table(keys, [name], hist_ents, by_subject, rel, areas=areas, gone=gone,

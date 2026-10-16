@@ -18,7 +18,7 @@ import json
 import re
 
 from . import cache, labels, loc, tracker
-from .classify import ability_kind, hero_bound_abilities, shared_abilities
+from .classify import ability_kind, hero_bound_abilities, is_template_entry, shared_abilities
 from .flatten import _id_case, _list_key
 from .semantics import SCALE_STAT_WORDS, describe, humanize, scale_stat, scaling_suffix
 
@@ -398,7 +398,7 @@ def build() -> dict:
             slots.setdefault(aid, slot)
     out = {}
     for aid, a in abilities.items():
-        if not isinstance(a, dict) or a.get('_not_pickable'):
+        if not isinstance(a, dict) or is_template_entry(aid, a, slots):      # a template gets no card
             continue
         kind = ability_kind(aid, a, owners, shared)
         # 'shared': every hero's jump / dash / parry… — a card without an owner

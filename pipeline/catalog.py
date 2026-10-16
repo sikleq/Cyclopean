@@ -15,8 +15,8 @@ import re
 import time
 
 from . import cache, loc, tracker
-from .classify import (ability_kind, hero_bound_abilities, shared_abilities, unit_bound_abilities, unit_is_helper,
-                       unit_kind)
+from .classify import (ability_kind, hero_bound_abilities, is_template_entry, shared_abilities, unit_bound_abilities,
+                       unit_is_helper, unit_kind)
 
 OUT = tracker.ROOT / 'data' / 'entities.json'
 FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata', 'misc.vdata', 'modifiers.vdata', 'generic_data.vdata')
@@ -97,8 +97,11 @@ def build() -> dict:
                     by_units.pop(eid, None)
                 if eid in ability_slots:
                     e['ability_slot'] = ability_slots[eid]     # Signature_4 = ultimate
-                if val.get('_not_pickable'):
+                # (the entry's last state decides)
+                if is_template_entry(eid, val, ability_slots):
                     e['template'] = True
+                else:
+                    e.pop('template', None)
                 if val.get('m_sLocUnitName'):
                     e['loc_key'] = str(val['m_sLocUnitName']).lstrip('#').lower()
                 if f == 'heroes.vdata':

@@ -389,6 +389,10 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         same = next((g for g in groups if g['rows'] == rows and (merge or meta[g['keys'][0]][0] == nm)), None)
         if same:
             same['keys'].append(key)
+            if merge:
+                # its rows are counted with the group's: an edit they share once, an entity each that came or went
+                # (render.same_change: four new sketch pickups are four changes)
+                same['changes'] = same['changes'] + changes
             continue
         groups.append({'keys': [key], 'rows': rows, 'changes': changes, 'lines': lines})
     return groups
@@ -580,7 +584,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     from . import archive
     from .cards import ability_plate, disambiguate, every_key, every_links, is_hidden, player_facing, sub_head
     from .evidence import band_evidence, patch_builds
-    from .render import not_in_notes, tag_of
+    from .render import not_in_notes, same_change, tag_of
     from .weights import net_of
     hdr = slot['row']
     from .game_systems import SECTION
@@ -619,8 +623,9 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
         # list it), as in the change matrix and on the home icon (one edit over 15 breakables read 138 / 52 / 50)
         fresh = counted
         if merge:
-            fresh = [c for c in counted if (c.get('label'), c.get('old_s'), c.get('new_s')) not in band_seen]
-            band_seen.update((c.get('label'), c.get('old_s'), c.get('new_s')) for c in counted)
+            counted = list({same_change(c): c for c in counted}.values())   # a merged group's members, once
+            fresh = [c for c in counted if same_change(c) not in band_seen]
+            band_seen.update(same_change(c) for c in counted)
         counted_all += fresh
         facts['tags'] |= {tag_of(c)[0] for c in rows}
         facts['hidden'] += sum(1 for c in fresh if not_in_notes(c))

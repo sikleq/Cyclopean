@@ -122,6 +122,7 @@ def _placed_rows(p: dict, pages: frozenset[str] | set[str] | None = None):
     home icons a PAGE row sits (one edit over several heroes or units: on each of theirs, once in the count)."""
     from .cards import gameplay_entities, player_facing
     from .game_systems import place_all_row
+    from .render import same_change
     from .shared_rows import spread
     if pages is None:
         pages = page_set()
@@ -144,7 +145,7 @@ def _placed_rows(p: dict, pages: frozenset[str] | set[str] | None = None):
                 # one edit over a unit family's members or a Game system's entries counts once, as their pages, the
                 # change matrices and the home icons count it (Walker's four ids, twelve breakable props)
                 g = f'game:{place_all_row(e["file"], c)[0]}' if group == ALL_ROWS else group
-                sig = (g, c.get('label'), c.get('old_s'), c.get('new_s'))
+                sig = (g, *same_change(c))
                 if sig in once:
                     continue
                 once.add(sig)
@@ -164,6 +165,7 @@ def _by_system(e: dict, once: set[tuple], group: str):
     when none of its entries but a template has a system (they were dropped then; review 2026-10-06)."""
     from .cards import player_facing
     from .game_systems import is_template, place_entity
+    from .render import same_change
     from .shared_rows import catalog, spread
     cat = catalog()
     first = None
@@ -178,7 +180,7 @@ def _by_system(e: dict, once: set[tuple], group: str):
     for g, x, rows in placed or [(group, e, player_facing(e['changes']))]:
         first = first or g
         for c in rows:
-            sig = (g, c.get('label'), c.get('old_s'), c.get('new_s'))
+            sig = (g, *same_change(c))
             if sig not in once:
                 once.add(sig)
                 yield (e if g == first else x), c, GAME, 0

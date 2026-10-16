@@ -180,12 +180,31 @@ def _game_entry_names() -> dict[str, str]:
     """lower-case id of a map object, effect or loot table -> the Game section's name (game_systems.name_of): a
     crate's loot read "Pickup spirit_permanent_pickup → small_gold_pickup" on Game › Breakables (79 rows of ids on
     the Game pages, review 2026-10-05)."""
-    from .game_systems import name_of
+    from .game_systems import _config, name_of
     out: dict[str, str] = {}
     for e in load_json('entities.json')['entities']:
         if e['file'] in ('misc.vdata', 'modifiers.vdata', 'loot_tables.vdata') and not e.get('template'):
             out.setdefault(e['id'].lower(), name_of(f"{e['file']}:{e['id']}", e))
+    # an ability the Game section names by hand ("Drop Soul Urn", "Zip Line")
+    for key, name in _config().get('names', {}).items():
+        file, _, eid = key.partition(':')
+        if file == 'abilities.vdata':
+            out.setdefault(eid.lower(), name)
     return out
+
+
+# the second part of an ability (pipeline.classify._SUB_SUFFIX): its trigger, cancel, teleport or recast
+_SUB_PART = re.compile(r'_(cancel_trigger|cancel|trigger|teleport|recast)$')
+
+
+def sub_part_name(eid: str, names: dict[str, str] | None = None) -> str | None:
+    """A nameless part of a named ability reads as that ability's: 'ability_artist_bamboogrove_trigger' is "Abstract
+    Landscape · trigger" (the patch page said "Violet · Bamboogrove trigger", review 2026-10-17); None otherwise."""
+    m = _SUB_PART.search(eid)
+    if not m:
+        return None
+    parent = (names if names is not None else names_by_id()).get(eid[:m.start()].lower())
+    return f'{parent} · {m.group(1).replace("_", " ")}' if parent else None
 
 
 # ids_to_names memo, tied to the catalogs it read (a test that swaps names_by_id gets a fresh one): every value
@@ -210,9 +229,10 @@ def ids_to_names(s: str) -> str:
 
 def _ids_to_names(s: str, names: dict[str, str], known: dict[str, str | None], game: dict[str, str]) -> str:
     # an unnamed ability reads as its group header does, its owner's code dropped ("Boho bouncyprojectile" in a value
-    # beside the header "Bouncyprojectile"; review 2026-10-05)
-    s = _ID_IN_TEXT.sub(lambda m: names.get(m.group(0).lower()) or pretty_id(m.group(0), known.get(m.group(0).lower())),
-                        s)
+    # beside the header "Bouncyprojectile"; review 2026-10-05); the Game section's hand name first: the movement
+    # ability whose only text is a status message ("Kit: Zip Line Knocked off Zipline → Zip line", review 2026-10-17)
+    s = _ID_IN_TEXT.sub(lambda m: game.get(m.group(0).lower()) or names.get(m.group(0).lower())
+                        or sub_part_name(m.group(0), names) or pretty_id(m.group(0), known.get(m.group(0).lower())), s)
 
     def other(m: re.Match) -> str:
         w = m.group(0)
@@ -237,7 +257,8 @@ def display_name(e: dict) -> str:
     name = e.get('name')
     if name and name != e['id']:
         return name
-    return pretty_id(e['id'], e.get('owner'), title=e.get('file') in ('abilities.vdata', 'npc_units.vdata'))
+    part = sub_part_name(e['id']) if e.get('file') == 'abilities.vdata' else None
+    return part or pretty_id(e['id'], e.get('owner'), title=e.get('file') in ('abilities.vdata', 'npc_units.vdata'))
 
 
 def pretty_id(eid: str, owner: str | None = None, title: bool = False) -> str:

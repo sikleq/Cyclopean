@@ -262,7 +262,10 @@ _NOT_A_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Time|Duration|De
                            # Speed 0.127m/s", "Hover Speed Decay 0.02286m/s", "Initial Offset Lerp Bias 0.0127m") —
                            # as words: "KilLERPlane" and "ReTURN" are none (the soul orbs' Killer Plane speeds and the
                            # hook's Return Speed stayed engine units, #13)
-                           r'Recoil|(?-i:Turn)|Spin|Accel|Rotat|Punch|Kick|Decay|Bias|(?-i:Lerp)|Penalty)',
+                           r'Recoil|(?-i:Turn)|Spin|Accel|Rotat|Punch|Kick|Decay|Bias|(?-i:Lerp)|Penalty|'
+                           # an exponent: Scrap Grenade's "Bounce Target Distance Power 1.5" read 0.0381m (review
+                           # 2026-10-17)
+                           r'(?-i:Power)$|Exponent)',
                            re.I)
 # a field that ENDS in a length word is a length whatever it measures from ("Nearby Enemy Resist Range
 # 2000" stayed engine units: "Resist" said not a length)
@@ -320,7 +323,7 @@ def speed_prop(prop: str) -> bool:
 # ("Lift Height 120 → 200", "Follow Distance 120 → 60", Stomp "Activation Distance 600"): 1 m = 39.37
 _PROP_LENGTH = re.compile(r'(Range|Radius|Distance|Dist|Height|Width|Length|Offset)', re.I)
 _PROP_NOT_LENGTH = re.compile(r'(Percent|Pct|Scale|Mult|Ratio|Frac|Factor|Time|Duration|Delay|Count|Speed|Chance|'
-                              r'Angle|Degree|Pitch|Yaw|Damage|Bonus$)', re.I)
+                              r'Angle|Degree|Pitch|Yaw|Damage|Bonus$|Power$|Exponent)', re.I)
 ENGINE_LENGTH_MIN = 20          # 20 engine units = 0.5 m: below it a bare number is more likely metres
 
 

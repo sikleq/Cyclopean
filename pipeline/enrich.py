@@ -20,7 +20,7 @@ from .diff import VALUELESS_CATS
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 38       # 38: a notification's attributes sideless; 37: a target set compared bit by bit; 36: a trooper's resist vs one foe in %; 35: capped / modifier / killer-plane / sub-field speeds m/s, a growing value in its field's unit; 34: Spawn On Ground / a buff's value type technical; 33: looks / sounds / engine tuning out of gameplay, boss-tier and "Pct" labels, helpers UP / DOWN; 32: corrupted bonuses: tooltip token, m/s speeds, enemy-slow sign; 31: qualifier-only loc text is no label, a hero's signed base stat % with its sign; 30: modifier states a mechanic, flag rows (pipeline.flags), polarity rules, container words; 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
+ENRICH_VERSION = 39       # 39: Street Brawl ability values balance + their base, a light melee's attack and an exponent ("Power") no visual / length; 38: a notification's attributes sideless; 37: a target set compared bit by bit; 36: a trooper's resist vs one foe in %; 35: capped / modifier / killer-plane / sub-field speeds m/s, a growing value in its field's unit; 34: Spawn On Ground / a buff's value type technical; 33: looks / sounds / engine tuning out of gameplay, boss-tier and "Pct" labels, helpers UP / DOWN; 32: corrupted bonuses: tooltip token, m/s speeds, enemy-slow sign; 31: qualifier-only loc text is no label, a hero's signed base stat % with its sign; 30: modifier states a mechanic, flag rows (pipeline.flags), polarity rules, container words; 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):
@@ -59,6 +59,19 @@ def negative_props(data: dict | None) -> set[str]:
         if v is not None and v < 0:
             out.add(p)
     return out
+
+
+_SB_VALUE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.m_strStreetBrawlValue$')
+
+
+def street_brawl_base(data: dict | None, path: str) -> float | None:
+    """An ability property's Street Brawl value replaces its value in that mode: the value it replaces, from the
+    same build (Threadsap's Debuff Duration 22 for the mode's 14: "lasts 35% less")."""
+    m = _SB_VALUE.match(path)
+    if not m:
+        return None
+    prop = ((data or {}).get('m_mapAbilityProperties') or {}).get(m.group(1))
+    return _num(prop.get('m_strValue')) if isinstance(prop, dict) else None
 
 
 def enrich_record(rec: dict) -> dict:
@@ -118,6 +131,10 @@ def enrich_record(rec: dict) -> dict:
             token = tokens.get(semantics.property_name(c['path'])) if tokens else None
             if token:
                 c['loc_token'] = token          # the tooltip's own name for the property
+            base = street_brawl_base(data, c['path']) if f == 'abilities.vdata' and eid != '@shared' else None
+            c.pop('base', None)
+            if base is not None:
+                c['base'] = base                # the value the mode's number replaces (match: "lasts 35% less")
             d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'), token)
             # this build's own words; pipeline.labels picks one label / unit / sign per field from them
             for k in ('label_src', 'unit', 'sign'):

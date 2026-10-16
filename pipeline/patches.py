@@ -11,7 +11,9 @@ are later re-assigned by pipeline.match to whichever patch's notes describe
 them better (see `ambiguous_builds`).
 
 Announcement posts without a change list (hero reveals, events) never open a
-window.
+window — except a hero's release: the build that ships a hero as released, with its
+own announcement near, is a window of its own (`release_windows`) that interrupts
+the notes window around it for its release day only.
 """
 from __future__ import annotations
 
@@ -31,6 +33,9 @@ UNANNOUNCED_GAP = timedelta(days=3)   # ... when no changelog lies within this d
 HUGE_BUILD_FIELDS = 1000              # a build this big is an update of its own even beside a follow-up
 BUILDS_DIR = tracker.ROOT / 'data' / 'builds'
 ANNOUNCEMENT_GAP = timedelta(days=2)  # an announcement names a notes-less big build this close
+# a hero's release build is a window of its own, with the hotfixes of its release day (Baba's 6757 at 21:03, its fix
+# 6759 at 00:03; Rat King's 6736 and three builds within 4 h); a later build goes back to the notes window around it
+RELEASE_TAIL = timedelta(hours=6)
 
 
 @dataclass
@@ -41,6 +46,7 @@ class Patch:
     notes: Notes | None
     builds: list[dict] = field(default_factory=list)   # build index rows
     link: str | None = None                            # announcement URL for notes-less updates
+    release: list[str] = field(default_factory=list)   # heroes this window releases (`release_windows`)
 
     @property
     def has_notes(self) -> bool:
@@ -157,6 +163,9 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
     notes = merge_same_day(drop_near_duplicates([n for n in all_ if is_patch_notes(n)]))
     builds = builds if builds is not None else build_index()
     patches = [Patch(n.date, _titled(n, anns), n.date, n) for n in sorted(notes, key=lambda n: n.date)]
+    releases = release_windows(builds, notes, anns + named_only)
+    patches += releases
+    released = {r.builds[0]['date'] for r in releases}
 
     # big builds far from any changelog get their own patch, named after a
     # nearby announcement when there is one ("City Never Sleeps")
@@ -165,7 +174,7 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
     # 1,029 changes called hidden; hero reveal days in hotfix windows, ~500; audit 2026-10-01)
     main = [p for p in patches if p.notes and ' · follow-up ' not in p.notes.title]
     for b in builds:
-        if gameplay_fields(b) < UNANNOUNCED_MIN_FIELDS:
+        if gameplay_fields(b) < UNANNOUNCED_MIN_FIELDS or b['date'] in released:
             continue
         t = _dt(b['date'])
         near = [a for a in anns if abs(t - _dt(a.date)) <= ANNOUNCEMENT_GAP]
@@ -184,10 +193,38 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
     patches.sort(key=lambda p: p.start)
 
     pre = Patch('pre-notes', 'Before public patch notes', builds[0]['date'][:10] if builds else '', None)
+    windows = [p for p in patches if not p.release]
+    for r in releases:
+        r.builds = []
     for b in builds:
-        owner = locate(patches, _dt(b['date']))
+        t = _dt(b['date'])
+        # a release takes its build and that day's hotfixes; the notes window around it goes on after them
+        owner = next((r for r in releases if r.start <= t < r.start + RELEASE_TAIL), None) or locate(windows, t)
         (owner if owner is not None else pre).builds.append(b)
+    # in the order their builds shipped: Danny's release (10-13 21:02) before the 10-14 window it interrupts
+    patches.sort(key=lambda p: _dt(p.builds[0]['date']) if p.builds else p.start)
     return ([pre] if pre.builds else []) + patches
+
+
+def release_windows(builds: list[dict], changelogs: list[Notes], posts: list[Notes]) -> list[Patch]:
+    """A build that releases a hero (`history.released_heroes`, the index row's 'released') and has the hero's own
+    announcement within `ANNOUNCEMENT_GAP` is a window of its own, named after that post ("Mind the Birds!") — unless
+    a changelog is dated the build's own day (then those notes are the release's: 01-17-2025's four heroes). Any build
+    within 3 days of a changelog had stayed in that changelog's window: Baba (6757) in 10-05's, Deadman Danny (6779)
+    and Violet (6790) in 10-14's, where his release and the balance build after it merged ("Max Health 780 → 730"
+    for the notes' 680 → 730, nine of his lines unmatched) and their kits read as hidden (data review 2026-10-17)."""
+    out = []
+    days = {n.date[:10] for n in changelogs}
+    for b in builds:
+        if not b.get('released') or b['date'][:10] in days:
+            continue
+        t = _dt(b['date'])
+        near = [a for a in posts if abs(t - _dt(a.date)) <= ANNOUNCEMENT_GAP]
+        if not near:
+            continue
+        a = min(near, key=lambda a: abs(t - _dt(a.date)))
+        out.append(Patch(f'build-{b["build"]}', a.title, b['date'], None, [b], link=a.url, release=list(b['released'])))
+    return out
 
 
 def locate(patches: list[Patch], t: datetime) -> Patch | None:
@@ -201,8 +238,10 @@ def locate(patches: list[Patch], t: datetime) -> Patch | None:
 
 
 def ambiguous_builds(patches: list[Patch]) -> list[tuple[dict, Patch, Patch]]:
-    """(build row, earlier patch, later patch) for builds near a window boundary."""
+    """(build row, earlier patch, later patch) for builds near a window boundary (a hero's release window keeps its
+    builds: the windows around it are each other's neighbours)."""
     out = []
+    patches = [p for p in patches if not p.release]
     for prev, cur in zip(patches, patches[1:]):
         lo, hi = cur.start - FUZZ_BEFORE, cur.start + FUZZ_AFTER
         for p in (prev, cur):

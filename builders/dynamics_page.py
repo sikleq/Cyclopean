@@ -19,7 +19,7 @@ from functools import lru_cache
 
 from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
-from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, tag_badge, tag_of
+from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, same_change, tag_badge, tag_of
 from .weights import NET_WORDS, net_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
@@ -168,8 +168,7 @@ def _collect() -> dict:
                     # system's entries — the Breakables tile read 138 for 2026-09-29 where its band read 52 and
                     # the home icon 50 (review 2026-10-05; the same signature as home_page.update_feed)
                     if key.startswith(('unit:', 'game:')):
-                        sig = (key, r['id'], abil if key.startswith('unit:') else '', c.get('label'), c.get('old_s'),
-                               c.get('new_s'))
+                        sig = (key, r['id'], abil if key.startswith('unit:') else '', *same_change(c))
                         if sig in once:
                             continue
                         once.add(sig)

@@ -16,22 +16,24 @@ SUMMARY_TAGS = (('buff', 'Buffs'), ('nerf', 'Nerfs'), ('new', 'New'), ('del', 'R
                 ('other', 'Other'))
 
 
-def _summary(p: dict, gameplay: list[dict], rel: str, link_base: str = '') -> str:
+def _summary(p: dict, rel: str, link_base: str = '') -> str:
     """The patch's first screen: how big and which way (tag counters + bar), who was hit
     (hero portraits with up/down counts), then one thin line of the notes check."""
-    from .cards import player_facing
     from .common import hero_icon
+    from .patch_counts import counted_rows
     from .render import tag_of
     counts = {k: 0 for k, _ in SUMMARY_TAGS}
     per_hero: dict[str, dict[str, int]] = {}
-    for e in gameplay:
-        owner = e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
-        for c in player_facing(e['changes']):        # the same rule as every other counter
-            cls = tag_of(c)[0]
-            counts[cls if cls in counts else 'other'] += 1
-            if owner and owner != 'hero_base':
-                tags = per_hero.setdefault(owner, {})
-                tags[cls] = tags.get(cls, 0) + 1
+    # the rows "All changes" counts (patch_counts, THE count): the tiles summed to 65 over "All changes 61" on
+    # 2026-10-14 — a unit family's or a Game system's one edit was a tile per member (review 2026-10-17)
+    for e, c, _ in counted_rows(p):
+        e = e or {}
+        owner = e['id'] if e.get('file') == 'heroes.vdata' and e.get('id') != '@shared' else e.get('owner')
+        cls = tag_of(c)[0]
+        counts[cls if cls in counts else 'other'] += 1
+        if owner and owner != 'hero_base':
+            tags = per_hero.setdefault(owner, {})
+            tags[cls] = tags.get(cls, 0) + 1
     total = sum(counts.values()) or 1
     tiles = ''.join(f'<div class="sum-tile t-{k}"><span class="n">{counts[k]}</span><span class="l">{esc(lbl)}</span></div>'
                     for k, lbl in SUMMARY_TAGS if counts[k])
@@ -70,6 +72,11 @@ def _audit_line(p: dict) -> str:
                  ('unmatched', lc.get('unmatched', 0), 'lines not found in the files')]
         if c.get('unreleased'):
             audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))
+    elif p.get('release'):
+        # a hero's release: its post announces the hero, whose kit is the release itself (match.release_pass); the
+        # rest of the build came without notes ("1 announced in earlier notes" read the release row, review 2026-10-17)
+        audit = [('described', c.get('documented', 0) + c.get('described', 0), 'released with the hero'),
+                 ('hidden', c.get('unannounced', 0), 'other changes, no official notes')]
     else:
         audit = [('hidden', c.get('unannounced', 0), 'changes, no official notes')]
         if c.get('documented'):
@@ -144,8 +151,12 @@ def _display_name(e: dict) -> str:
         # "Idol cashin"; coverage audit 2026-10-05, finding 4)
         from .game_systems import name_of
         return name_of(f"{e['file']}:{e['id']}", e)
-    # a hero in development has no name in any build: the catalog keeps its id ('hero_airheart')
-    return known if known and known != e['id'] else pretty_id(e['id'], e.get('owner'))
+    # a hero in development has no name in any build: the catalog keeps its id ('hero_airheart'); a nameless part of
+    # a named ability reads as that ability's ("Abstract Landscape · trigger")
+    if known and known != e['id']:
+        return known
+    from .common import sub_part_name
+    return (sub_part_name(e['id']) if e['file'] == 'abilities.vdata' else None) or pretty_id(e['id'], e.get('owner'))
 
 
 def _counted(e: dict) -> list[dict]:
@@ -338,7 +349,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     # the one count of patch_counts, as on the patch list and the home page
     pc = for_id(p['id'])
     n_changes = pc['changes']
-    parts.append(_summary(p, gameplay, rel))
+    parts.append(_summary(p, rel))
     tabs = []
     if p['sections']:
         from .notes_view import interface_table, split_sections

@@ -116,13 +116,20 @@ def loc_base(tok: dict[str, str], eid: str, owner: str | None = None) -> str:
     name, not their own id: Abrams' `citadel_weapon_bull_set` is `citadel_weapon_atlas_set`."""
     if tok.get(eid.lower()) or tok.get(eid.lower() + ':n'):
         return eid.lower()
-    # alt fire (`_alt`, `_set2`, `_set_2`) must not borrow the primary gun's name
-    if owner and owner.startswith('hero_') and eid.startswith('citadel_weapon_') \
-            and not eid.endswith(('_alt', '_set2', '_set_2')):
+    # alt fire (`_alt`, `_set2`, `_set_2`) must not borrow the primary gun's name; a gun filed as an ability
+    # (Deadman Danny's ability_deadpack_primary_weapon_charge is "Chimera Peace Bringer", review 2026-10-17) does
+    if owner and owner.startswith('hero_') and _GUN_ID.search(eid) and not _ALT_GUN.search(eid):
         key = f'citadel_weapon_{owner[5:]}_set'.lower()
         if tok.get(key):
             return key
+    # a pickup is named without its prefix: pickup_artist_drawing_mystic is "Mystic Sketch" (artist_drawing_mystic)
+    if eid.lower().startswith('pickup_') and tok.get(eid.lower()[len('pickup_'):]):
+        return eid.lower()[len('pickup_'):]
     return eid.lower()
+
+
+_GUN_ID = re.compile(r'^citadel_weapon_|_primary_weapon(?:_|$)')
+_ALT_GUN = re.compile(r'(?:_alt|_set_?2)$|(?:^|_)alt_weapon(?:_|$)')
 
 
 @lru_cache(maxsize=1)
