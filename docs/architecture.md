@@ -760,6 +760,22 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   `chip_card`) is the size of the % and then the tag order. A NEW / REWORK / DEL row without a % counts
   as 100%, so a release card shows what was added and not two small base-stat NERFs. The change
   matrices keep their own order (`dynamics_page._collect`); that is the owner's call.
+  A card is at least 360px wide (`min(360px, calc(100vw - 16px))`), at most 420px; the net chip is tied to the last
+  count (`countsHtml` wraps both in `.dt-tail`). Touch (`(hover: none)`): the first tap shows the card and stops the
+  link, a second tap on the same tile follows it, a tap elsewhere hides it (its mouseover). Whether the card was up is
+  read at `pointerdown` / `touchstart`, before the tap's own mouseover draws it (iOS drops the click of a tap whose
+  mouseover showed something; Android sends it). The compatibility `focusout` a tap fires is ignored on touch.
+  `patch-anchor` and `tabs` skip a click whose default was prevented. The shop (`gshop`) does the same for a `.gcard`:
+  first tap lights it and shows its tooltip, second opens the item, a tap outside the board lets go (board
+  `mouseleave` is ignored on touch).
+- Touch screens (`@media (pointer: coarse)`, styles.css section 10) give links drawn under 24px a finger's hit area
+  without changing their look: padding taken back by a negative margin (`.pnotes`, `.ac-hist`, `.ac-last`, `.lu-more`,
+  footer links, `.nav-brand`, `.sc-row .v.has-hist`), a transparent border with `background-clip: padding-box` for
+  trail squares (`.trail` gets `vertical-align: -6px` so its line keeps its height; the current square's ring becomes
+  an outline at -6px), an `::after` box for a matrix date. On `(hover: none)` the back-to-top button is 32px at 6px
+  from the corner, 0.72 opaque, and scripts.js `hist-filter` shows it only while the page goes up (≥ 6px moves). The
+  tooltip module rewrites "click to open" to "tap again to open" on a touch screen (an eye link's first tap shows the
+  words).
 - Links inside a page (scripts.js `patch-anchor`): a strip tile, a trail square (`trail_html(local=True)`:
   `#p-<patch>` with `data-ab`; mixed buff+nerf patches are striped, not REWORK purple) and an ability
   card's "last change" (`trail.last_counts`, its tag counts) open the band on this page. This works even
@@ -776,8 +792,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   writes as "20m" reads m/s (`speed_m` → `M_SPEED`, display only: the matcher's transforms are
   unchanged). Long values wrap;
   an entity event row ("Added to the game
-  files", path `@add`) has no value cell. The newest update on the home page names its icons; stats
-  tables explain their notch. A "changed in the newest update" notch on index cards was tried and
+  files", path `@add`) has no value cell. The home feed's icons look alike in every update (no names under them; the hover card,
+  which a touch screen opens on the first tap, names the icon — the newest update's names made it four icons a row on
+  a phone against six, review 2026-10-17); stats tables explain their notch. A "changed in the newest update" notch on index cards was tried and
   dropped (owner, 2026-10-03): the newest update marked 1 hero, two weeks would mark 102 items — it
   told nothing apart; the home feed and the search answer "what changed lately".
 - Namesakes (`cards.disambiguate`, `history_hints`): two fields under one label each get the words of
@@ -836,6 +853,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   owner's call), the name plate in the hero's colour from the game (`m_colorUI` as `--hero` in the
   card's style — the one approved exception to ":root tokens only") and a PRE-RELEASE ribbon; no role,
   complexity or last-patch line (owner's call, 2026-10-01).
+- Index cards on a phone (below 600px): Heroes three a row (`.hgrid-cards`, portrait crop 206/224, name 14px); Units
+  and Game two a row (`.grid.units`, 56px icon).
 - Unit families (`builders/unit_families.py`, owner 2026-10-03: "many identical units, only the tier
   changes"): units sharing a name once the tier numeral is dropped (Slum Shroom I-III, the five Gutter
   Ghouls of each tier, the four Walkers, the Base Guardians) are ONE card on the Units index (tiers and
@@ -911,10 +930,21 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   buff / nerf edge, the eye when something was hidden) linking to that page at that update
   (`home_page.update_feed`: a hero's abilities count on the hero; '@shared', templates, helpers and
   unreleased work are left out).
+  An update's sections (Heroes, Items, Units, Game) sit side by side, each its label over its icons (`.lu-groups`
+  flex-wrap; a group is as wide as its icons, a long one takes the whole width and wraps). On a phone every section
+  shows 18 icons (`PHONE_ICONS`) and a "+N more" link to the patch page, the newest update too. `home_page._top(total,
+  hidden)` writes the logo, search and the two counters; below 600px the counters span the tiles' box width; the tiles
+  are two a row down to 640px (each tile shows as many whole icons as fit: `.ht-art` wraps the rest out of sight).
+  Units with no game art (`entity_icon` None) are not drawn as the unit glyph: `home_page.fold_bare` splits them off
+  and `_fold_tile` draws one `a.lu.lu-fold` "+N" tile after the drawn icons (tooltip lists their names, link to the
+  patch page's changes, no hover card / data-k). The phone's "+N more" link counts the units the fold tile stands for.
 - Shared abilities (`builders/shared_page.py`): the abilities every hero has (kind 'shared'): heroes/shared.html (the hero history
   view), the hero matrix's "All heroes · movement & shared" row, search rows.
-- Hero Stats: group labels left-aligned (visible at each group's start), a right-edge fade while more
-  columns are off-screen (`.table-fade`, removed when scrolled to the end).
+- Group names are centred, in a `span.cl` that is sticky inside its header (`left: --name-w + 8px`,
+  `right: 48px`; scripts.js `table-sort` pins `--name-w` and `--cat-row-h`, again when the fonts are in): a group
+  running off either edge keeps its name in sight. While a box is not scrolled to its end, `.table-fade::after` draws
+  a shadow with a copper rule and `::before` an arrow (`--mask-more`, the sort triangle turned right); scripts.js
+  `table-fade` keeps them off the box's scrollbars (`--fade-r`, `--fade-b`). Stats cells have 4px side padding.
 - Every stats table (2026-10-03): a click on a group header folds the group to its first column
   (scripts.js `col-groups`); zeros are quieter (`td.zero`); a cell's history drops steps its rounding
   cannot show (`tables_pages._same_shown`: Max DPS 122.925 → 122.9251); `data-hist` is single-quoted
@@ -926,10 +956,13 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   the table, its title and tabs above it at the left): the title and the tabs no longer jump between tabs. Home tiles: a
   tile's number is what its index shows at first; the Heroes tile counts released heroes and says "+N pre-release" apart
   (`home_page.hero_tile`: Hero Stats' 'release' / 'prerelease' and the catalog's EHeroDevState_* alike, any other state
-  on neither; `_tiles(extra=)`). Units 22 = the Units index's 22 cards. Change matrices (scripts.js `dyn-scroll` `fitH`):
-  on a desktop (≥ 760px wide) the box ends at the bottom of the first screen (never shorter than 360px), so its sideways
-  scrollbar is in sight without scrolling the page; it refits at `load`, when the fonts are in and on a height-only
-  resize; a phone keeps the CSS height. Stats tables: every sortable header shows a quiet two-way arrow, the sorted one
+  on neither; `_tiles(extra=)`). Units 22 = the Units index's 22 cards. Every table box (`.table-fade > .table-scroll`: stats tables and change matrices) is fitted by scripts.js
+  `table-fit` (dyn-scroll keeps only the width fit and the scroll to the newest end): at most the room under the
+  site bar and a stuck toolbar (`main > .toolbar` when its computed position is sticky) minus 16px; the page's last
+  table (what follows it < a third of the screen) also leaves room for what follows (main's padding, the footer),
+  so at the page's end its header row sits right under the bars; on a desktop (≥ 760px) the page's first table
+  also ends on the first screen. Never shorter than 300px. Refit at `load`, when the fonts are in, on a new width,
+  and on a height-only resize on a desktop only (a phone's URL bar comes and goes). Stats tables: every sortable header shows a quiet two-way arrow, the sorted one
   the way it sorts (`th[aria-sort]::after`, `pixel_icons.SORT_ART` → `--mask-sort`, `--mask-sort-down`, `--mask-sort-up`);
   the font ▼ / ▲ (`data-arrow`) is no longer drawn. Strip tile cards: a rule for all's group carries its own number
   ("All heroes 38 changes", the ref's fifth element in `strip_data` 'g'), and "+N more" counts its rows (they are not
@@ -937,6 +970,11 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   `archive.clear()` calls it (it forgot the archive only: trail, patch_counts, stat_eyes and evidence kept answering
   from the old data). The patch strip keeps the entity's latest 40 patches of its own (empty tiles for the patches
   between were tried and dropped: Haze showed ~27 of hers; `tests/test_page_polish.py` keeps 40 and no gap tile).
+- Page shell: `.page.wide` is `max-width: var(--content-w)` like the site bar, so the title, toolbar and table start at
+  the brand's x (at 1920: 134px); the footer's side padding is `--gutter`.
+- Palette: `--text-dimmer` #85918b (4.5:1 on every panel up to `--bg-panel-3`; was #6b7772, 3.2:1).
+- Switches (`.switch`, a `data-toggle-class` checkbox): off = a dark slot (`--bg-page`) with a `--line-bright` frame and
+  a `--text-dim` knob on the left; on = a `--patina` fill with a `--text-bright` knob on the right.
 - Item Stats (`tables_pages.items_table`; data `pipeline/item_table.py`, rebuilt 2026-10-04 after owner
   complaint 6 "too plain": 14 hand-picked properties left 67-84% of the cells empty). The data is every
   number the item's tooltip card shows (`m_vecTooltipSectionInfo` + header values, `item_table.shown_props`),
@@ -983,9 +1021,13 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   converts every `[data-spp]` value (chips and stat cells) to cost / value; the heat then ranks it
   lower-is-better through `data-hpol` while `data-pol` keeps the stat's own direction for the history
   tooltip. Cost carries `data-hpol="0"` (it only repeats the tier).
+  A chip whose property has no icon has no icon slot (`tables_pages._chip`; CSS `.sc > b:first-child`). The heat on a
+  chip is a 2px bar along its foot (`--heat-c`, `.sc.hm-*::before`); the chip's fill stays the one every chip has. On a
+  phone (≤ 760px) the chips run in one line from the column's left edge and the Tier column is hidden (`col-groups`
+  recounts the spans on a turn across 760px).
 - Heatmap (all stats tables, scripts.js `heatmap`): graded by rank — each column's distinct values (by
   size) ranked 0..1, the middle fifth plain, then 4 steps of green / red (`--heat-g1..4`, `--heat-b1..4`);
-  an item's stat chip ranks with its column. On by default on Item Stats (`_toolbar(heat_on=True)`), a
+  an item's stat chip ranks with its column and shows it as a bar. On by default on Item Stats (`_toolbar(heat_on=True)`), a
   switch elsewhere. The sorted column has a gold header and a faint gold wash (`td.sorted-col`). Values rank with their sign (a drawback is the worst, not the biggest); a table with
   `data-heat-by="tier"` (Item Stats) ranks within each row's tier, except with "Souls per point" on.
 - One recount for everything that hides columns (scripts.js `col-groups`, `table.__recount`): a folded
@@ -993,8 +1035,11 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   visible columns, a folded group keeps the first column the filter left visible, band rows re-span. `col-groups` refolds every group on each recount (a group just unfolded drops its
   `grp-off`; only folded groups were refolded before, so an unfolded group stayed hidden); a column's cells
   change only when its header's state does (the `statcols` event re-applies to new cells).
-- Table and matrix toolbars are not sticky (`.toolbar.tbl-bar`, `.toolbar.dyn-bar`): stuck, they covered
-  the table's own sticky header. The legend chip wraps and is shortened on phones (`.lg-tail`).
+- Table and matrix toolbars stick under the site bar on a desktop and are static at ≤ 760px wide or ≤ 560px tall
+  (stuck on a phone they covered the table's own sticky header); the box fits under them (`table-fit`). Every
+  `.toolbar` sticks flush at `top: var(--nav-h)` (it was +2px). On a phone an index's toolbar (`main.page.wide >
+  .toolbar`) is static and `.toolbar .sep` is hidden. The legend's verb is `.lg-hover` / `.lg-tap`, swapped by
+  `@media (hover: none)`. The legend chip wraps and is shortened on phones (`.lg-tail`).
 - Change matrices (scripts.js `dyn-scroll`): the box is as wide as the name column + a whole number of
   patch columns, so the newest end opens with the first column at the sticky names; month labels are
   clipped (a one-patch month's label overflowed and made the box scroll 25px too far); only "Older
@@ -1030,6 +1075,13 @@ size; a sign flip, another unit or words "changed". `pipeline.match.sentence` is
 All changes: a shared edit's card carries an anchor (`<span class="anc" id="c-<id>">`) for each target without a
 card of its own, a hero's ability by its hero (`patches_pages.shared_anchor_ids`); `change_anchors` /
 `archive.change_anchors(pid)` list every `c-` place.
+
+A patch page and a build page are one centred column like an entity page (`common.page(cls='column')`, `.page.column`
+= `--entity-w` + gutters); their cards (`.ecards`) stand one under another (two CSS columns of cards of any height left
+black holes, review 2026-10-17). Below 760px the sticky tab bar (`.tabs.toolbar`) is one row that scrolls sideways
+(scripts.js `tabs` scrolls the open tab into sight). The patch list (`patches_pages._index_row`, `.ix`): above 1100px
+five columns; 761–1100px date | title | faces over counts | notes (`grid-area`); ≤760px faces, counts and notes stack
+under the title.
 
 ## Patch notes tab (`builders/notes_view.py`)
 
@@ -1083,7 +1135,7 @@ chip.
 | map pickups (powerups, rejuvenator) | `m_strPingIcon` / nested `m_strHudIcon` of `misc.vdata` (`misc:<id>`) |
 | Game entries with no art of their own (Soul Urn pickup / carrier / return, Unstable Rift, soul pickups and orbs, souls powerup, crates, neutral camps by tier, Rejuvenator buff, ziplines, Parry, Mantle, Teleporting, Stunned) | the art the game shows for the same thing elsewhere (minimap marker, ping-wheel or HUD icon), rules on `<file>:<id>` in `data/overrides/game_icons.json` → manifest keys `misc:` / `modifier:` / `ability:` (`common.entity_icon` reads `modifier:<id>`), files under `icons/game/` |
 | Game tiles | `game_systems.json` `icon`: Breakables = the minimap crate marker, Hero progression = the HUD level-up icon, Modes = Street Brawl's HUD icon, Urn = the Soul Urn's minimap marker (the old art, ability_golden_idol's, is Wraith's Telekinesis the files borrow); their files are game_icons.json's `systems` |
-| groups and rules ("All heroes (24)", game rules, console variables, "Other rules & objects", loot tables) and units with no fitting art | site category glyphs (`common.GLYPHS`, pixel SVG, never presented as game art) |
+| groups and rules ("All heroes (24)", game rules, console variables, loot tables) and units with no fitting art | site category glyphs (`common.GLYPHS`, pixel SVG, never presented as game art) |
 
 `tools/extract_icons.py`: rule images go through `rule_art` (stored once, PNG → WebP, SVG copied); a marker whose
 art fills under 35% of its canvas (`TRIM_BELOW`: minimap markers, 20×24 px of 64×64) is cut to its art and squared
@@ -1091,6 +1143,10 @@ art fills under 35% of its canvas (`TRIM_BELOW`: minimap markers, 20×24 px of 6
 exit 1 unless allow-listed). PREFIXES gained a few single-file prefixes (hud/brawl/icon_brawl, hud/levelup_,
 hud/zipline_icon, hud/ledge_climb, hud/teleport_icon). Run from a worktree without `vendor/`:
 `CYCLOPEAN_VRF=…/Source2Viewer-CLI.exe CYCLOPEAN_TRACKER=…/GameTracking-Deadlock CYCLOPEAN_PRE_TRACKER=…/Deadlocked`.
+
+`data/overrides/unit_icons.json` has a `_why_more` note for the units that take another unit's art: chess pieces →
+minimap marks, ink wall → Living Ink, skeleton → heroes/necro_shambler, cat → nano_catform, field sentry → engineer
+turret; Mid-Boss → getting_started/map_rejuv, read by the new extractor prefix `panorama/images/getting_started/map_`.
 
 ## Value printing and display (`builders/render.py`)
 
@@ -1153,6 +1209,12 @@ and follow an "Active" tag (`.fx-tag`, `.fx.fx-act`).
 A search link to a Game entry is made only when its history shows a row (`game_pages._shows_rows`);
 `#ab-<id>` sets no filter when no chip, group or band has the id.
 
+System icons: Shop & item rules takes the game's shopping-cart icon and Other rules & objects its rule-book icon
+(`icon_cart.svg` and `icon_book.svg` under `panorama/images/icons/`, listed under 'systems' in
+`data/overrides/game_icons.json`; the site keeps them as `icons/game/`); no system uses a site glyph any more. `.card
+img` sits on the glyph tile (`--bg-panel-3`, 5px inset); flat SVG marks on Game cards get a 13px inset
+(`.game-card img[src$=".svg"]`).
+
 ## Labels and units (`pipeline/semantics.py`, enrich 33)
 
 `semantics.boss_field`: a trooper's flat fields against a boss in the m_VS words ("Damage Resist at most vs
@@ -1192,6 +1254,12 @@ game's single bits (CITADEL_UNIT_TARGET_TYPE from DumpSource2), the bits that mo
 fill: Life Drain's "all enemies → allied heroes + the nine enemy kinds" is "+allied heroes".
 
 A Notification modifier's attributes (Proc / Interrupt Notification › Attributes) have no side (`flags._NOTIFICATION`).
+
+A Walker weak point (`m_vecWeakPoints{key}`) is named by `semantics.WEAK_POINT_NAMES` (head, canister, rear / front
+left / right leg; another key reads as its words without "joint"): "Rear left leg weak point › Max Health"
+(`m_nMaxHealth`; `m_nHealth` is "Health"). The committed records were written with "Weak point (joint_rear_left):
+health" / "Weak Points joint rear left › …": `common.load_json` rewrites the labels of `patches/` and `builds/` records on
+load (`readable_labels` → `semantics.readable_label`, idempotent) until the data is regenerated.
 
 ## Hero / unit stats
 
@@ -1366,7 +1434,7 @@ name and tag, then label and old → new — instead of a table 235px wider than
 
 A banner (`.banner`, `.banner .bc`) wraps its chips under the title when there are many: Astro's band of 21 changes,
 its net chip, the eye and three "+N for all …" chips ran 67px past a 1440px window (2026-10-06). A patch page's note
-cards (`.ecards`, CSS columns) load their icons at `load` like the matrices' row icons (scripts.js `dyn-icons`): each
+cards (`.ecards`, one column since 2026-10-17) load their icons at `load` like the matrices' row icons (scripts.js `dyn-icons`): each
 icon arriving mid-scroll re-balanced the columns of up to ~2,000 elements — patches/2024-10-10.html spent 1.4 s in 14
 layouts while scrolling (p95 83 ms), now 0 layouts (p95 16.8 ms). In `data/overrides/game_systems.json` the combat
 rules name every zipline modifier (`modifier_zipline_\w*`): the bare prefix before `#` matched only an id that ended
@@ -1379,6 +1447,44 @@ Removed items show their last values.
 Troopers' alt / super / new-model copies are on the Medic / Melee / Trooper pages.
 
 Buff vs nerf in the change matrices weighs how big each change was.
+
+Visual pass 2026-10-17 (entity track). The "now" panels fill the width: `.stat-flow` is a grid
+`repeat(auto-fit, minmax(min(300px, 100%), 1fr))`, a row's panels as tall as its tallest; a lone panel lays its rows in
+CSS columns like the console variables (`:only-child`, a structural pseudo — no `:has()`); the console variables panel
+spans the row (`.now-cv { grid-column: 1 / -1 }`). An item's section cards are a grid
+`repeat(auto-fit, minmax(min(320px, 100%), 1fr))`, start-aligned; inside a card the `table.kvt` rows flow in columns
+(`tbody` a grid of `minmax(min(260px, 100%), 1fr)`, each `tr` a flex row) so a lone card fills the panel with each label
+near its value. `entities_pages.header_host(sections)` picks the card that carries the header values the sections do
+not list (`header_only`): the Active section, else the Passive, else the first non-Innate, else the first — its
+`.ac-hdr` chips row; an item without sections keeps the left-aligned `.chips.item-hdr` row.
+
+Hero head: the portrait, `.hh-id` (name, chips, "First seen") and `.keystats` are the `.hero-head` grid's own items;
+under 980px the stats span both columns below and the portrait (110px, 88px under 420px) keeps the name beside it.
+`.keystats` is a flex row (seven a row from 900px), a short last row stretches. Ability cards: the grid is
+`align-items: start` (no `.tiers { margin-top: auto }`); `.ac-hdr .chip` is 15px. Weapon block: one column — `.wb-id` is
+the header row (kicker, name, last change, History, trail), `.wb-cells` a flex row whose builder-set `--wb-per`
+(`hero_page.wb_per_row`: rows balanced, at most `WB_ROW_MAX` = 8 a row; 4 under 1100px, 3 under 600px) fixes the tiles
+a row, a short last row stretching.
+
+Trail (`trail.trail_html`): on the entity's own page (`local=True`) a trail with fewer than `TRAIL_MIN_LOCAL` (2)
+changes in its span is not drawn; an empty slot (`span.sq`) is a 2px dot; a hidden square is a 3px eye-coloured top
+edge. Tiles (strip `.ps-tile`, matrix `.dsq`): hidden = `border-top: 4px solid var(--eye)` (the stripes keep their
+proportions below it; no `::before/::after` plate), the count `.dn` on a `--shadow` plate, 9px under 760px.
+
+History bands: `.hblocks .banner .bc > .chip / .net-chip / .pnotes` share one spec (600 11px UI font, 20px, 0 7px
+padding, outline and ink from `--c`), "patch ↗" is a chip too; under 700px `.bc` takes its own line, left. The %
+follows the new value (`.pct` no longer pushed right; the hover ruler and `.pct-pad` slot are gone on entity pages). A
+year banner gets `every-only` / `dev-only` / `ed-only` when all its bands wait behind "For all …" / "Before release"
+(`history_view.band_kind`, `year_class`); styles.css hides it while the switch is off.
+
+Phones (≤600px, `.hblocks`): `.hgroup.has-ic` is a 38px + 1fr grid with `.hg-b { display: contents }` — the icon sits in
+the sub-head's row, the rows span the width; an `.erow` is a flex-wrap row with the eye and the tag absolutely placed at
+its left (label from 26px + `--tag-w` + 8px), the label and a short value on one line, a long value under the label.
+`common.wbr_ids` puts `<wbr>` after each `_` of an underscored name of 14+ characters (`WBR_MIN`) in a change row's label
+(`cards.change_row`) and a console variable in the "now" panel (`game_now`). Folds (`details.txt`, `details.fam`) show
+their +/− before the words (`::before`). scripts.js `rework-lines`: a REWORK row whose two-line clamp cut its list gets
+`.clamped` (measured after load, a band's toggle and a resize; reads, then writes) and a "more ▾" / "less ▴" line; a tap
+on the values toggles it.
 
 ## Key functions
 
@@ -1441,6 +1547,14 @@ the column lines' repeating gradient is ~65% of that raster time — removing it
   square and its "last change" link, and a home feed icon. Each card shows the patch (named ones in gold), counts by
   tag, "N not in patch notes", and the biggest changes (tag, eye, field, old → new). A card's value column wraps
   between words (`overflow-wrap: break-word`): a long REWORK list wraps inside the card, a number never splits.
+  A card is at least 360px wide (`min(360px, calc(100vw - 16px))`), at most 420px; the net chip is tied to the last
+  count (`countsHtml` wraps both in `.dt-tail`). Touch (`(hover: none)`): the first tap shows the card and stops the
+  link, a second tap on the same tile follows it, a tap elsewhere hides it (its mouseover). Whether the card was up is
+  read at `pointerdown` / `touchstart`, before the tap's own mouseover draws it (iOS drops the click of a tap whose
+  mouseover showed something; Android sends it). The compatibility `focusout` a tap fires is ignored on touch.
+  `patch-anchor` and `tabs` skip a click whose default was prevented. The shop (`gshop`) does the same for a `.gcard`:
+  first tap lights it and shows its tooltip, second opens the item, a tap outside the board lets go (board
+  `mouseleave` is ignored on touch).
 - **Category glyphs** (`common.visual` without art): an empty `<span class="px glyph g-<name>">`; it has no size of
   its own, so every place that shows one sizes it with its `img` (`.card img, .card .glyph` 72px, `.ecard-h .ei`, etc.).
 

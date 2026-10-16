@@ -70,13 +70,30 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 - vdata `panorama:"file://{images}/<p>.psd"` → VPK `panorama/images/<p>_psd.vtex_c`; `.svg` → `.vsvg_c`.
 - `-f` is a case-sensitive prefix; `heroes/` root is passed as a file list (the folder also has 1.7 GB of backgrounds).
 - **Never** pass `--vpk_cache`: it writes a manifest into the game folder.
+- Source2Viewer-CLI 19.2 and 20.0 stop on every texture of Valve's newer compiler (an unknown KV3 value type 26 in
+  the RED2 edit-info block; first seen with the heroes released 2026-10-14). `extract_icons._vrf` therefore also
+  copies the filtered files as packed into `.cache/vpk_compiled/`, and `decode_unread` decodes every texture the CLI
+  left without a PNG (or with one from an earlier run) with `tools/vtex.py` — our own minimal reader of the DATA block
+  and mips (BGRA/RGBA; DXT1, DXT5, BC4, BC5 and BC7 through Pillow, BC4 as one channel and BC5 as three (Pillow's
+  modes L and RGB); embedded PNG/JPEG/WebP; YCoCg DXT5 when the edit info names it; LZ4 mips when the `lz4` module is
+  there (it is in `requirements.txt`), a mip whose packed size equals its full size is read as stored). Any decoding
+  error (lz4's LZ4BlockError, Pillow's decompression-bomb guard, a MemoryError) is raised as ValueError. It matched the
+  CLI's PNG for all 789 readable textures of the icon folders (±3 per channel). The CLI's `exceptions.txt` is written
+  into `.cache/` (cwd), not the repo root.
 - Missing icons must be allow-listed with a reason in `data/overrides/missing_icons.json`, otherwise the tool exits 1.
 - The shop's look and sounds (page art, paper cards, tab shapes, `ui_shop_*` mp3) come the same way from
   `tools/extract_shop_assets.py` → `icons/shop/`, `sounds/shop/` (see `docs/shop.md`).
 - The tool is run by hand (CI has no VPK): after a hero's release re-run it — the final art replaces the
   pre-release stand-in (Rat King kept his placeholder crop for two days, 2026-10-03). `validate_data.py`
   warns when a released hero still has its card art allow-listed as missing. Re-encoding gives new bytes
-  for unchanged pictures: commit only the files whose pixels changed.
+  for unchanged pictures: commit only the files whose pixels changed. Lossy re-encodes differ by ±1–14 per
+  channel; compare decoded pixels and keep only files where more than 0.2 % of pixels moved by more than 40.
+- A hero picture that is only the hero's name in plain letters on an empty canvas (heroes in development: DRUID,
+  SWAN…) is no art: `name_placeholder` (under 0.5 % of its opaque pixels coloured, opaque pixels under 25 % of the
+  canvas) drops it from the manifest, and it must be allow-listed in `missing_icons.json`. `tests/test_vis_art.py`
+  fails when an allow-listed key is in the manifest (a stale entry), when a released hero (heroes table
+  `state == 'release'`) has neither a portrait in the manifest nor an allow-listed reason for it, or when a released
+  hero's Signature ability has no icon.
 - Removed entities: the image path from the last build they existed in is used if the file is still packed
   (`historical_icons`). Placeholders are skipped: an ability borrowing art that belongs to another entity today
   (heroes in development used Nano's icons) or generic art (`weapon_damage`); art in `hud/abilities/<hero>/`
