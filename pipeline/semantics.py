@@ -478,7 +478,13 @@ _GAME_WORDS = ((re.compile(r'\bBullet Armor Damage (Resist|Reduction)\b'), 'Bull
                (re.compile(r'\bDist\b'), 'Distance'),
                (re.compile(r'\bNpc(s?)\b'), r'NPC\1'),
                (re.compile(r'\bAo E\b'), 'AoE'),
-               (re.compile(r'\bFrictio Npercentage\b'), 'Friction Percentage'))
+               (re.compile(r'\bFrictio Npercentage\b'), 'Friction Percentage'),
+               # the game's currency is souls; "gold" is only the engine's word ("Tier1 Gold Kill", "Gold Amount",
+               # "Bonus Buffs Per Gold": review 2026-10-17, round 4) — console variable names keep it (AGENTS.md)
+               (re.compile(r'\bGold Orb(s?)\b'), r'Soul Orb\1'),
+               (re.compile(r'\bGold Kill\b'), 'Kill Souls'),
+               (re.compile(r'\bPer Gold\b'), 'per Soul'),
+               (re.compile(r'\bGold\b'), 'Souls'))
 
 
 def game_words(text: str) -> str:
@@ -643,11 +649,13 @@ _CORRUPTED_RE = re.compile(r'^m_CorruptedItemInfo\.m_Upgrade\.m_vecPropertyUpgra
 
 
 def describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', scaled_by: str | None = None,
-             token: str | None = None) -> dict:
+             token: str | None = None, scale_parts: list[str] | tuple[str, ...] | None = None) -> dict:
     """{label, meters, group[, unit]} for a field path of an entity. `scaled_by`: the stat the property's
     coefficient multiplies (scale_stat), so a coefficient reads "(boon scaling)", not "(spirit scaling)".
-    `token`: the property's m_strLocTokenOverride — the tooltip's own label and unit."""
-    d = _describe(path, tok, entity, kind, token)
+    `token`: the property's m_strLocTokenOverride — the tooltip's own label and unit. `scale_parts`: a T1-T3 bonus
+    keyed by its property alone whose upgrade type makes it a scaling bonus ([m_eUpgradeType, m_eScaleStatFilter],
+    enrich.tier_scaling) — the path does not say it."""
+    d = _describe(path, tok, entity, kind, token, scale_parts)
     word = SCALE_STAT_WORDS.get(scaled_by or '')
     if word and '(spirit scaling' in d['label']:
         d = {**d, 'label': d['label'].replace('(spirit scaling', f'({word} scaling')}
@@ -706,15 +714,17 @@ def _prop_label(tok: dict[str, str], prop: str, entity: str = '', token: str | N
     return (label, 'loc') if label else (humanize(prop), 'fallback')
 
 
-def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None) -> dict:
+def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None,
+              scale_parts=None) -> dict:
     """See describe(); 'src' says where the label came from: 'loc' (the game's text of that build),
     'curated' (our words for a field the game never labels) or 'fallback' (the field's name)."""
-    d = _describe_raw(path, tok, entity, kind, token)
+    d = _describe_raw(path, tok, entity, kind, token, scale_parts)
     d.setdefault('src', 'curated')
     return d
 
 
-def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None) -> dict:
+def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None,
+                  scale_parts=None) -> dict:
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]
@@ -747,6 +757,11 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
     if m:
         tier, key, field = int(m.group(1)) + 1, m.group(2), m.group(3)
         parts = key.split('|')
+        if len(parts) == 1 and scale_parts:
+            # Strix Salvo's T3 "+0.35 Damage" is a spirit scaling bonus: its key is the property alone (no namesake
+            # in the tier), the type a sibling field — "T3: Damage 0.225 → 0.35" read as flat damage (review
+            # 2026-10-17, round 4)
+            parts = parts + [p for p in scale_parts if p]
         prop = parts[0]
         label, src = _prop_label(tok, prop, entity, token)
         scaling = 'EAddToScale' in parts or 'EMultiplyScale' in parts
@@ -966,7 +981,15 @@ def plain_label(path: str) -> dict | None:
         return {'label': 'Powerup: buff duration', 'meters': False, 'group': 'powerup'}
     if _SCATTER_RE.search(path):
         return {'label': 'Pellet pattern', 'meters': False, 'group': 'weapon'}
+    if path in PLAIN_FIELDS:
+        return {'label': PLAIN_FIELDS[path], 'meters': False, 'group': 'other'}
     return None
+
+
+# an ability's own fields the game never labels, in a player's words (review 2026-10-17, round 4: Deadman Danny's
+# silent "Rocket Jump Force Up Bias 23 → 18" was the only explanation the page gave)
+PLAIN_FIELDS = {'m_flRocketJumpForceUpBias': 'Rocket Jump Upward Push',
+                'm_flRocketJumpForceWallMultiplier': 'Rocket Jump Push off Walls ×'}
 
 
 _ENUM_PREFIX_RE = re.compile(r'^(EItemSlotType_|MODIFIER_VALUE_|ESlot_|EModTier_|E(?=[A-Z][a-z]))')
@@ -1091,8 +1114,15 @@ def context_label(path: str, depth: int = 3, tok: dict[str, str] | None = None) 
         s = _context_segment(p, tok, container=i < len(tail) - 1)
         if s and (not shown or shown[-1] != s):
             shown.append(s)
+    if parts and parts[-1].lower() == ATTRIBUTES_LEAF and shown and shown[-1] == 'Attributes':
+        # a modifier's attributes are what kind of effect it is ("+can't be purged", "+stacks"): the effect's name
+        # says it — "Auto Cast Delay effect", not "Auto Cast Delay › Attributes" (review 2026-10-17, round 4)
+        shown = shown[:-2] + [re.sub(r' Modifier$', '', shown[-2]) + ' effect'] if len(shown) > 1 else ['Effect']
     # every segment a dropped container (an aura's effect alone): its own name, not nothing
     return ' › '.join(shown) or humanize(re.sub(r'[\[{].*$', '', parts[-1]) if parts else path)
+
+
+ATTRIBUTES_LEAF = 'm_nattributes'
 
 
 _RAW_NUM = re.compile(r'^\s*([-+]?(?:\d+\.?\d*|\.\d+))\s*(m|s|%|u)?\s*$')

@@ -98,9 +98,10 @@ def _mc(file, eid, path, old, new, label, op='change', cat='balance', kind='abil
     return MChange(file, eid, path, op, old, new, cat, kind, owner, label, False, **kw)
 
 
-def test_a_release_windows_kit_is_announced_and_the_rest_unannounced():
+def test_a_release_windows_kit_is_announced_and_the_rest_hidden():
     """Violet's release (6790): her state turning Release is documented by the post, her kit, summons and sketch pickups
-    are described; another hero's tuning and a shared edit in the same build stay unannounced (the eye)."""
+    are described; another hero's tuning and a shared edit in the same build are what the post left out: hidden, the
+    eye (round 4: they were "unannounced", which no page marked)."""
     cat = {'heroes.vdata:hero_artist': {'file': 'heroes.vdata', 'id': 'hero_artist'},
            'abilities.vdata:ability_artist_tether': {'file': 'abilities.vdata', 'id': 'ability_artist_tether',
                                                      'owner': 'hero_artist'},
@@ -133,8 +134,7 @@ def test_a_release_windows_kit_is_announced_and_the_rest_unannounced():
     events = [{'file': 'abilities.vdata', 'id': 'ability_artist_tether', 'change': {'status': 'unannounced'}},
               {'file': 'misc.vdata', 'id': 'pickup_artist_drawing_mystic', 'change': {'status': 'unannounced'}}]
     release_pass(['hero_artist'], changes, events, cat)
-    assert (state.status, hp.status, every.status, item.status) == ('documented', 'described', 'unannounced',
-                                                                    'unannounced')
+    assert (state.status, hp.status, every.status, item.status) == ('documented', 'described', 'hidden', 'hidden')
     assert [e['change']['status'] for e in events] == ['described', 'described']
 
 

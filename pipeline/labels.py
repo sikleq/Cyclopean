@@ -50,6 +50,7 @@ def collect(records) -> dict[str, dict]:
                     s['kind'] = e.get('kind') or ''
                     s['token'] = c.get('loc_token')
                     s['scaled_by'] = c.get('scaled_by')
+                    s['scale_parts'] = c.get('scale_parts')
                     if c.get('label_src') != 'fallback':
                         s['loc_label'] = c['label']
                         # the unit this build's text printed, where it had the field: (build, unit) at
@@ -123,7 +124,7 @@ def build(records, tok: dict[str, str], kinds: dict[str, str] | None = None) -> 
     for key, s in collect(records).items():
         file, eid, path = key.split(':', 2)
         kind = (kinds or {}).get(f'{file}:{eid}') or s.get('kind', '')
-        head = semantics.describe(path, tok, eid, kind, s.get('scaled_by'), s.get('token'))
+        head = semantics.describe(path, tok, eid, kind, s.get('scaled_by'), s.get('token'), s.get('scale_parts'))
         out[key] = resolve(path, head, s)
     return out
 

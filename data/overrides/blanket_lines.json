@@ -27,6 +27,30 @@
       ]
     },
     {
+      "patch": "2025-05-08",
+      "line": "Shields have been reworked and are now called Barriers",
+      "why": "The old bullet and spirit shields left every item and ability that granted them (Lucky Shot's 150 bullet shield, Headhunter's, Magic Tempo's spirit shield…): their removal is what the line announces (audit verdict COVERED: Lucky Shot, Project Mind). Only removals: the new Barrier values (Diviner's Kevlar 1000, Rocket Booster 300) are numbers the notes do not give and stay hidden (review 2026-10-17, round 4: the shop rework page read 1023 of 1306 rows hidden).",
+      "match": [
+        {"file": "abilities.vdata", "path": "(Bullet|Tech)Shield|ShieldDuration|WhenShielded|With(Magic)?Shield", "ops": ["remove"]}
+      ]
+    },
+    {
+      "patch": "2025-05-08",
+      "line": "Neutral bounties increased by 6%",
+      "why": "Every neutral camp's soul bounty went up 4.7-5.6% (90 -> 95, 172 -> 180, 270 -> 284): the line's rounded 6% did not pair with each (audit verdicts COVERED: neutral_base, neutral_trooper_strong, the hero-test copy). Only neutrals' bounties.",
+      "match": [
+        {"file": "npc_units.vdata", "path": "^m_flGoldReward$", "kinds": ["neutral"], "ops": ["change"]}
+      ]
+    },
+    {
+      "patch": "2025-05-08",
+      "line": "Adjusted the boon reward schedule and added some more levels",
+      "why": "The souls each level needs were re-spread (level 33: 39000 -> 43000) and levels added; the line gives two numbers, the rest of the schedule moved with them (audit verdict COVERED: level 33). Only the level table of all heroes.",
+      "match": [
+        {"file": "heroes.vdata", "path": "^m_mapLevelInfo\\."}
+      ]
+    },
+    {
       "patch": "2026-01-22",
       "line": "an Enhanced or Legendary item might make an appearance",
       "why": "Old Gods, New Blood gave the shop items an Enhanced version (the upgrade entry m_vecAbilityUpgrades[0]); bonuses that appear with it are what the line announces. Later tweaks of Enhanced bonuses (2026-03-21: 77 rows) are not covered.",
