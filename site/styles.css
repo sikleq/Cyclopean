@@ -1931,6 +1931,9 @@ table.dyn thead th.name { z-index: 4; background: var(--bg-panel-2); }
 table.dyn td.name a { display: flex; align-items: center; gap: 8px; min-height: 26px; color: var(--name); font: 600 13px/1 var(--font-ui);
   white-space: nowrap; overflow: hidden; }
 table.dyn td.name img { flex: none; width: 26px; height: 26px; object-fit: cover; background: var(--bg-panel-4); }
+/* a Game system's icon whole, as on its card, the home page and its own page: cropped to the square, the tall Souls
+   coil (35x67) read as a swirl, another icon than everywhere else (review 2026-10-17) */
+table.dyn[data-what] td.name img { object-fit: contain; padding: 2px; }
 /* a run of empty cells is one cell (dynamics_page._gap): the column lines are its background */
 table.dyn tr.cols th.dd { padding-left: 0; padding-right: 0; overflow: hidden; }
 table.dyn tbody td:not(.name) { padding: 3px 0; background-color: var(--bg-panel);
@@ -2034,7 +2037,8 @@ table.dyn th.name { text-align: center; }
   background: var(--bg-panel-3); pointer-events: none; font-size: 13px; }
 .dyn-tip.on { display: block; }
 .dt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.dt-head img { width: 28px; height: 28px; object-fit: cover; background: var(--bg-panel-4); }
+/* whole, never cropped: a Game system's tall mark is the same icon here as on its row (review 2026-10-17) */
+.dt-head img { width: 28px; height: 28px; object-fit: contain; background: var(--bg-panel-4); }
 .dt-name { font: 600 14px/1.1 var(--font-ui); color: var(--name); }
 .dt-patch { margin-left: auto; font: 500 12px/1 var(--font-ui); color: var(--label); }
 .dt-patch.named { color: var(--gold); }
