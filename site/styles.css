@@ -2279,8 +2279,11 @@ table.dyn thead tr.cats th { overflow: clip; text-overflow: clip; }
    insets are dyn-months' EDGE / FADE. A state is a colour or a visibility: no layout while the box scrolls (moving
    the labels from a script re-laid the matrix out every frame of a sideways scroll) */
 table.dyn thead tr.cats th.dm { --ml-c: var(--text-bright); padding-left: 2px; padding-right: 2px; }
-table.dyn thead tr.cats th.dm > .ml { display: inline-block; position: sticky; left: calc(var(--dyn-name) + 4px); right: 22px;
-  color: var(--ml-c); }
+/* never wider than its month: a long label wider than a 2-column month (a wide fallback face: CI's Linux, or before the
+   fonts load) put the short one at its right end inside the next month (2026-10-17); the long text overflows instead,
+   and dyn-months never shows it there (it reads the text's own width) */
+table.dyn thead tr.cats th.dm > .ml { display: inline-block; max-width: 100%; position: sticky;
+  left: calc(var(--dyn-name) + 4px); right: 22px; color: var(--ml-c); }
 table.dyn thead tr.cats th.dm > .ml::before, table.dyn thead tr.cats th.dm > .ml::after { content: attr(data-s);
   position: absolute; top: 0; visibility: hidden; color: var(--ml-c); }
 table.dyn thead tr.cats th.dm > .ml::before { left: 0; }

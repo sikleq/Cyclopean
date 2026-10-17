@@ -869,11 +869,9 @@
       });
       var name = t.querySelector('thead tr.cats th.name');
       if (!sc || !name || !labs.length) return;
-      var pen = document.createElement('canvas').getContext('2d');
       var g = null, lastSl = null;
       function measure() {
         var cs = getComputedStyle(labs[0].el.parentNode);
-        pen.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
         var tr = t.getBoundingClientRect(), x0 = t.offsetLeft;
         g = { name: name.getBoundingClientRect().width, cw: sc.clientWidth, sw: sc.scrollWidth,
               padL: parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), padR: parseFloat(cs.paddingRight) };
@@ -882,8 +880,13 @@
           x.on = r.width > 0;
           x.l = r.left - tr.left + x0 + g.padL;   // the header's content box
           x.r = r.right - tr.left + x0 - g.padR;
-          x.full = pen.measureText(x.el.textContent).width;
-          x.short = pen.measureText(x.el.getAttribute('data-s') || '').width;
+          // the labels' widths as drawn: a canvas measure took another font than the page drew with a fallback face
+          // (before the fonts load; CI's Linux), and labels overran their months. A one-patch month's label IS its
+          // short form (the span's own text at size 0); else the short form is the absolutely placed ::before
+          // (the span is at most its month's width, styles.css: its text's own width is the scroll width)
+          var w = Math.max(x.el.getBoundingClientRect().width, x.el.scrollWidth);
+          x.full = w;
+          x.short = x.one ? w : parseFloat(getComputedStyle(x.el, '::before').width) || 0;
         });
         lastSl = null;
         update();

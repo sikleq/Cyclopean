@@ -124,20 +124,46 @@ def test_no_month_label_is_ever_cut_at_any_scroll_position(browser, tmp_path, ct
         ctx.close()
 
 
+@pytest.mark.parametrize('show_old', [False, True])
+def test_no_month_label_is_cut_with_a_wide_fallback_face(browser, tmp_path, show_old):
+    """A face wider than the site's (CI's Linux DejaVu; any visitor before the fonts load) drew "2025-01" wider than
+    its 2-column month: the short label sat at that overflow's end, inside the next month (2026-10-17). Verdana stands
+    in for it here (on Linux it falls back to DejaVu: the same wide case)."""
+    from builders.common import page
+    ctx, pg, errors = _open_html(browser, tmp_path, page('X', _matrix(), '../', 'heroes', wide=True), DESK)
+    try:
+        pg.add_style_tag(content=':root { --font-ui: Verdana, "DejaVu Sans", sans-serif; }')
+        pg.evaluate("document.fonts.ready")
+        pg.evaluate("window.dispatchEvent(new Event('resize'))")
+        if show_old:
+            pg.evaluate("document.getElementById('dyn-hero').classList.add('show-old')")
+        else:   # the face changed after the first measure: measure again, as the fonts' arrival does
+            pg.evaluate("document.getElementById('dyn-hero').classList.add('show-old')")
+            pg.evaluate("document.getElementById('dyn-hero').classList.remove('show-old')")
+        got = pg.evaluate(_SWEEP, 9)
+        assert not got['cut'], got['cut'][:5]
+        assert not errors
+    finally:
+        ctx.close()
+
+
 def test_a_label_shortens_only_when_its_month_has_no_room(browser, tmp_path):
-    """Whole wherever it fits: at the newest end every month in sight with two columns or more reads "2026-03"."""
+    """Whole wherever it fits: at the newest end every month in sight whose header holds its whole label reads
+    "2026-03" (the room is measured, not assumed: CI's Linux fonts draw "2025-09" wider than a 2-column month)."""
     ctx, pg, errors = _open(browser, tmp_path, _matrix(), DESK)
     try:
         pg.wait_for_timeout(100)
         got = pg.evaluate("""() => {
           const sc = document.querySelector('.table-scroll'), L = document.querySelector('thead tr.cats th.name')
             .getBoundingClientRect().right, R = sc.getBoundingClientRect().right;
-          return [...document.querySelectorAll('thead tr.cats th.dm')].filter(th => {
-            const t = th.getBoundingClientRect();
-            return getComputedStyle(th).display !== 'none' && t.left >= L && t.right <= R && t.width >= 59;
+          return [...document.querySelectorAll('thead tr.cats th.dm:not(.one)')].filter(th => {
+            const t = th.getBoundingClientRect(), cs = getComputedStyle(th);
+            const room = th.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+            return cs.display !== 'none' && t.left >= L && t.right <= R - 22
+              && room >= th.querySelector('.ml').getBoundingClientRect().width + 1;
           }).map(th => [th.textContent, th.querySelector('.ml').className]);
         }""")
-        assert len(got) >= 8 and all(cls == 'ml' for _, cls in got), got
+        assert len(got) >= 4 and all(cls == 'ml' for _, cls in got), got
         assert not errors
     finally:
         ctx.close()
@@ -151,8 +177,8 @@ def test_month_label_carries_its_short_form():
     # from a script re-laid the matrix out every frame of a sideways scroll. A vertical scroll returns at once
     block = JS[JS.index("safe('dyn-months'"):JS.index("safe('table-fit'")]
     assert 'sl === lastSl) return;' in block and '.style.' not in block and 'var EDGE = 4, FADE = 22;' in block
-    assert ('th.dm > .ml { display: inline-block; position: sticky; left: calc(var(--dyn-name) + 4px); right: 22px;'
-            in CSS)
+    assert ('th.dm > .ml { display: inline-block; max-width: 100%; position: sticky;\n'
+            '  left: calc(var(--dyn-name) + 4px); right: 22px;' in CSS)
     from builders.dynamics_page import _head
     head = _head([{'id': d, 'date': d, 'title': ''} for d in ('2026-01-05', '2026-02-03', '2026-02-09')], '', 'Hero')
     assert '<th class="dm one" colspan="1"><span class="ml" data-s="Jan">2026-01</span></th>' in head
