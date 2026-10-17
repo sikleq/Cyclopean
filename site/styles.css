@@ -1908,7 +1908,7 @@ table.dyn.bvn .dsq.net-mix { background: var(--tag-changed) !important; }
 /* old columns: month headers by class; the cells by column number (scripts.js dyn-old) */
 table.dyn:not(.show-old) .old { display: none; }
 /* a month the cutoff splits (dynamics_page._months): with the old columns in sight its newer part reads on */
-table.dyn.show-old thead th.dm.cont { color: transparent; border-left-color: transparent; }
+table.dyn.show-old thead th.dm.cont { --ml-c: transparent; color: transparent; border-left-color: transparent; }
 table.dyn:not(.show-extra) tr.extra { display: none; }
 table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
 .dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
@@ -2118,7 +2118,25 @@ table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 6
 @media (hover: none) { .legend-hist .lg-hover { display: none; } .legend-hist .lg-tap { display: inline; } }
 /* a one-patch month's label ("2026-10" over 30px) spilled past the table and made the box scroll 25px
    further than the last column, so the first column opened half under the sticky names */
-table.dyn thead tr.cats th { overflow: hidden; text-overflow: clip; }
+table.dyn thead tr.cats th { overflow: clip; text-overflow: clip; }
+/* a month's label, centred over its month, read "025-12" half under the sticky names (review 2026-10-17). Sticky in its
+   header, it stays past the names (and short of the right edge's arrow) while its month runs off either side; where the
+   long label has no room scripts.js dyn-months shows the short one ("Dec", `data-s`) at the end in sight (`sr` right,
+   `sl` left, over the transparent long one) or hides it (`none`); a one-patch month always reads short (`.one`). The
+   insets are dyn-months' EDGE / FADE. A state is a colour or a visibility: no layout while the box scrolls (moving
+   the labels from a script re-laid the matrix out every frame of a sideways scroll) */
+table.dyn thead tr.cats th.dm { --ml-c: var(--text-bright); padding-left: 2px; padding-right: 2px; }
+table.dyn thead tr.cats th.dm > .ml { display: inline-block; position: sticky; left: calc(var(--dyn-name) + 4px); right: 22px;
+  color: var(--ml-c); }
+table.dyn thead tr.cats th.dm > .ml::before, table.dyn thead tr.cats th.dm > .ml::after { content: attr(data-s);
+  position: absolute; top: 0; visibility: hidden; color: var(--ml-c); }
+table.dyn thead tr.cats th.dm > .ml::before { left: 0; }
+table.dyn thead tr.cats th.dm > .ml::after { right: 0; }
+table.dyn thead tr.cats th.dm > .ml.sl, table.dyn thead tr.cats th.dm > .ml.sr { color: transparent; }
+table.dyn thead tr.cats th.dm > .ml.sl::before, table.dyn thead tr.cats th.dm > .ml.sr::after { visibility: visible; }
+table.dyn thead tr.cats th.dm.one > .ml { font-size: 0; }
+table.dyn thead tr.cats th.dm.one > .ml::before { position: static; visibility: inherit; font-size: 12px; }
+table.dyn thead tr.cats th.dm > .ml.none { visibility: hidden; }
 table.stats .col-gone { display: none; }
 /* heat by rank: cells and an item's stat chips (scripts.js heatmap) */
 table.stats td.hm-g1 { background-color: var(--heat-g1); }
