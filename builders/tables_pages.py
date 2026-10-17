@@ -248,6 +248,16 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
             f'<tbody>{"".join(body)}</tbody></table></div></div>')
 
 
+def filters_fold(inner: str) -> str:
+    """A table's or a matrix's bar after its search box: on a phone (≤ 600px) all of it folds behind one "Filters"
+    disclosure that counts what differs from the page's start ("Filters (2 active)", scripts.js tb-fold); a desktop
+    sees the controls as before (`.tb-opts` is `display: contents`). Hero changes' bar took ~440px of an 844px screen,
+    Item Stats' ~400px, before the first row (review 2026-10-17). A <details> outside the controls: it opens without
+    scripts, with the keyboard, and a fold keeps every switch's state (the controls only hide)."""
+    return ('<details class="tb-fold"><summary class="px-btn">Filters <span class="tb-n"></span></summary></details>'
+            f'<div class="tb-opts">{inner}</div>')
+
+
 def _toolbar(placeholder: str, details: bool = False, extra: str = '', heat_on: bool = False) -> str:
     more = ('<button class="px-btn" data-toggle-class="show-details" data-target=".table-scroll">Details</button>'
             if details else '')
@@ -261,8 +271,9 @@ def _toolbar(placeholder: str, details: bool = False, extra: str = '', heat_on: 
     # not sticky: stuck, it covered the table's own sticky header (a third of a phone screen)
     return ('<div class="toolbar tbl-bar">'
             f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr:not(.sec)">'
-            f'<span class="sep"></span><label class="switch"><input type="checkbox" data-heatmap{checked}>'
-            f'<span class="track"></span>Heatmap</label>{more}{extra}<span class="sep"></span>{legend}</div>')
+            + filters_fold(f'<span class="sep"></span><label class="switch"><input type="checkbox" data-heatmap{checked}>'
+                           f'<span class="track"></span>Heatmap</label>{more}{extra}<span class="sep"></span>{legend}')
+            + '</div>')
 
 
 MAX_BOONS = 35            # levels 2-36 each give a boon (heroes.vdata m_mapLevelInfo)

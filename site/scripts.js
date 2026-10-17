@@ -691,8 +691,12 @@
         if (!btn) return;
         var f = btn.getAttribute('data-rowf'), v = btn.getAttribute('data-v');
         chosen[f] = chosen[f] === v ? null : v;
+        // a px-btn shows it is pressed by `.on` (as the part buttons and Item Stats' chips do): with aria-pressed alone
+        // a chosen Weapon / Tier 2 looked like the rest while the rows were filtered (2026-10-17)
         box.querySelectorAll('button[data-rowf="' + f + '"]').forEach(function (b) {
-          b.setAttribute('aria-pressed', chosen[f] === b.getAttribute('data-v') ? 'true' : 'false');
+          var on = chosen[f] === b.getAttribute('data-v');
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          b.classList.toggle('on', on);
         });
         table.querySelectorAll('tbody tr').forEach(function (tr) {
           var out = false;
@@ -1011,6 +1015,33 @@
         window.addEventListener('resize', sized);
       }
       sized();
+    });
+  });
+
+  /* ---------- a phone's folded table bar says how many of its options differ from the page's start ---------- */
+  /* (tables_pages.filters_fold; styles.css shows the fold at ≤ 600px only): "Filters (2 active)" — a switch turned on,
+     a button pressed that was not, a number changed. Counted after the other modules' handlers ran (a timeout), and
+     on "back", when the browser restores the boxes */
+  safe('tb-fold', function () {
+    document.querySelectorAll('.toolbar > .tb-fold').forEach(function (fold) {
+      var bar = fold.parentNode, opts = bar.querySelector('.tb-opts'), n = fold.querySelector('.tb-n');
+      if (!opts || !n) return;
+      var pressed = Array.prototype.filter.call(opts.querySelectorAll('[aria-pressed]'), function (b) {
+        return b.getAttribute('aria-pressed') !== 'true';            // only what starts unpressed can count
+      });
+      function count() {
+        var k = 0;
+        opts.querySelectorAll('input').forEach(function (inp) {
+          if (inp.type === 'checkbox' ? inp.checked && !inp.defaultChecked : inp.value !== inp.defaultValue) k++;
+        });
+        pressed.forEach(function (b) { if (b.getAttribute('aria-pressed') === 'true') k++; });
+        var txt = k ? '(' + k + ' active)' : '';
+        if (n.textContent !== txt) n.textContent = txt;
+      }
+      function later() { setTimeout(count, 0); }
+      ['click', 'change', 'input'].forEach(function (ev) { opts.addEventListener(ev, later); });
+      window.addEventListener('pageshow', later);
+      count();
     });
   });
 

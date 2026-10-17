@@ -20,6 +20,7 @@ from functools import lru_cache
 from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, tag_badge, tag_of
+from .tables_pages import filters_fold
 from .weights import NET_WORDS, net_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
@@ -391,12 +392,13 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
             f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
             for p, lbl in (('all', 'All'),) + PARTS) + '</span>' + parts_filter)
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
-            f'<span class="sep"></span>'
-            f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
-            f'<span class="track"></span>Older patches</label>'
-            f'<label class="switch"><input type="checkbox" data-toggle-class="bvn" data-target="{target}">'
-            f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{parts_filter}'
-            f'<span class="sep"></span><span class="dyn-tags">{tags}</span></div>')
+            + filters_fold(f'<span class="sep"></span>'
+                           f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
+                           f'<span class="track"></span>Older patches</label>'
+                           f'<label class="switch"><input type="checkbox" data-toggle-class="bvn" data-target="{target}">'
+                           f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{parts_filter}'
+                           f'<span class="sep"></span><span class="dyn-tags">{tags}</span>')
+            + '</div>')
 
 
 def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list[tuple]:

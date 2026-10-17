@@ -1939,7 +1939,6 @@ table.per-soul th.cat[data-group="Stats"]::after { content: " · souls per point
 @media (max-width: 760px) {
   .tbl-bar .it-filter { flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
   .tbl-bar .it-filter > * { flex: none; }
-  .tbl-bar > .sep { display: none; }
 }
 .lu-more { display: none; align-self: center; font: 600 13px/1 var(--font-ui); color: var(--patina); }
 @media (max-width: 600px) {
@@ -2113,6 +2112,24 @@ table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 6
    so its header row lands right under the bar instead of scrolling away under the site bar (review 2026-10-17). On a
    phone or a short window the bar scrolls away: stuck, it covered the table's own sticky header (a third of a phone) */
 @media (max-width: 760px), (max-height: 560px) { .toolbar.tbl-bar, .toolbar.dyn-bar { position: static; } }
+/* a phone: all but the search box folds into "Filters (n active)" (tables_pages.filters_fold, scripts.js tb-fold): the
+   bars took 400-440px of an 844px screen before the first row (review 2026-10-17). A wider screen has no fold: the
+   options are the bar's own items, as before */
+.tb-fold { display: none; }
+.tb-opts { display: contents; }
+@media (max-width: 600px) {
+  .toolbar > .tb-fold { display: block; flex: none; }
+  .toolbar > .tb-fold ~ .tb-opts { display: none; }
+  .toolbar > .tb-fold[open] ~ .tb-opts { display: flex; flex: 1 1 100%; flex-wrap: wrap; align-items: center; gap: 6px 10px;
+    min-width: 0; }
+  .tbl-bar > input[type=search], .dyn-bar > input[type=search] { flex: 1 1 0; min-width: 0; }
+  .tb-fold > summary { list-style: none; margin: 2px; white-space: nowrap; }
+  .tb-fold > summary::-webkit-details-marker { display: none; }
+  .tb-fold > summary::before { content: "+ "; color: var(--patina); }
+  .tb-fold[open] > summary::before { content: "- "; }
+  .tb-fold .tb-n { margin-left: 2px; font-weight: 500; color: var(--text-dim); }
+  .tb-fold .tb-n:empty { display: none; }
+}
 .chip.legend-hist { white-space: normal; max-width: 100%; }
 .legend-hist .lg-tap { display: none; }            /* "hover a value", on a touch screen "tap a value" */
 @media (hover: none) { .legend-hist .lg-hover { display: none; } .legend-hist .lg-tap { display: inline; } }
