@@ -596,6 +596,13 @@ def tier_starts(rows: list[dict]) -> set[str]:
     return out
 
 
+def tier_label(tier) -> str:
+    """An item tier as the site writes it everywhere: "Tier 1" (the game's own words: its shop art reads "TIER 1",
+    lane stats "Tier 1", an item's info "T1"). It read "TIER 4" on a chip, "Tier I" here, "I" on Item changes
+    (review 2026-10-17). Item tiers only: a neutral camp's tiers are another scale (unit_families)."""
+    return f'Tier {tier}'
+
+
 def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
     """Item Stats' toolbar: category / tier / kind chips, the "Stat columns" and "Souls per point" switches
     (scripts.js item-filter)."""
@@ -603,8 +610,8 @@ def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
             + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}" aria-pressed="false">{cat_icon(ik)}{esc(slot)}</button>'
                       for slot, css, ik in ITEM_SECTIONS)
             + '</span><span class="sep"></span><span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}" aria-pressed="false">Tier {r}</button>'
-                      for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
+            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}" aria-pressed="false">{esc(tier_label(n))}</button>'
+                      for n in (1, 2, 3, 4))
             + '</span><span class="sep"></span><span class="it-filter">'
             + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}" aria-pressed="false">{lbl}</button>'
                       for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))

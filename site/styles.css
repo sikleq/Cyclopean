@@ -2215,8 +2215,9 @@ table.stats th .u { color: var(--text-dimmer); font-weight: 500; }
 /* Stats (always on) folded into chips, or one column per stat ("Stat columns") */
 table.stats:not(.cols-open) .stc { display: none; }
 table.stats.cols-open .sumc { display: none; }
+/* a plain "Always on": "Always on ▸ columns" read oddly (review 2026-10-17); the "Stat columns" switch says it, and a
+   click on the header or a chip still opens them (scripts.js item-filter) */
 table.stats th.sumc { cursor: pointer; }
-table.stats thead tr.cols th.sumc::after { content: "  \25B8  columns"; color: var(--patina); font-weight: 500; }
 table.per-soul th.cat.sumc::after, table.per-soul th.cat.stc::after { content: " \B7  souls per point"; color: var(--patina); }
 #items-table td.sumc, #items-table td.fxc { white-space: normal; padding: 3px 8px; }
 /* Item Stats' chip cells only: the bare `.chips` also centred every entity head's role / tier chips in the

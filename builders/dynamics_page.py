@@ -20,7 +20,7 @@ from functools import lru_cache
 from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, tag_badge, tag_of
-from .tables_pages import filters_fold
+from .tables_pages import filters_fold, tier_label
 from .weights import NET_WORDS, net_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
@@ -377,12 +377,13 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
     parts_filter = ''
     if kind == 'item':
         # the shop's slots and tiers as filters (Item Stats has them; the matrix had none): one choice per group,
-        # pressed again to clear (scripts.js dyn-rows); Tier V too — 23 of the matrix's rows are tier 5
+        # pressed again to clear (scripts.js dyn-rows); Tier 5 too — 23 of the matrix's rows are tier 5 (tables_pages.
+        # tier_label: it read "I"-"V" here, "Tier I" on Item Stats; review 2026-10-17)
         parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
             f'<button class="px-btn" data-rowf="cat" data-v="{c}" aria-pressed="false">{esc(lbl)}</button>'
             for _, c, lbl in ITEM_SLOTS) + '<span class="sep"></span>' + ''.join(
-            f'<button class="px-btn" data-rowf="tier" data-v="{t}" aria-pressed="false">{"I II III IV V".split()[i]}</button>'
-            for i, t in enumerate(ITEM_TIERS)) + '</span>')
+            f'<button class="px-btn" data-rowf="tier" data-v="{t}" aria-pressed="false">{esc(tier_label(t))}</button>'
+            for t in ITEM_TIERS) + '</span>')
     elif kind == 'hero' and roles:
         parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
             f'<button class="px-btn" data-rowf="role" data-v="{esc(r.lower())}" aria-pressed="false">{esc(r)}</button>'
@@ -442,7 +443,9 @@ def game_entries(rel: str) -> list[tuple]:
             for s in shown()]
 
 
-ITEM_SLOTS = (('WeaponMod', 'w', 'Weapon'), ('Armor', 'v', 'Vitality'), ('Tech', 's', 'Spirit'))
+# the game's shop order: Weapon, Spirit, Vitality (panorama citadel_hud_hero_shop.xml: WeaponNav, TechNav, ArmorNav),
+# as the Items page and Item Stats have it (this matrix read Weapon, Vitality, Spirit; review 2026-10-17)
+ITEM_SLOTS = (('WeaponMod', 'w', 'Weapon'), ('Tech', 's', 'Spirit'), ('Armor', 'v', 'Vitality'))
 ITEM_TIERS = ('1', '2', '3', '4', '5')
 
 
@@ -456,7 +459,7 @@ def _item_slot_tier(it: dict) -> tuple[str, str]:
 
 
 def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:
-    """A row per item in the shop's order — Weapon, Vitality, Spirit, then tier and name (it was alphabetical over 238
+    """A row per item in the shop's order — Weapon, Spirit, Vitality, then tier and name (it was alphabetical over 238
     rows; review 2026-10-05) — each carrying its slot and tier for the toolbar's filters (`data-cat`, `data-tier`)."""
     from .common import slug
     order = {c: i for i, (_, c, _) in enumerate(ITEM_SLOTS)}
