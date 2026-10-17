@@ -705,6 +705,21 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 }
 .hblocks .pblock { margin-bottom: 6px; }
 .hblocks .pblock > .banner { margin: 0; }
+/* an entity band's banner: ONE template — the date first, in one font and place, then the update's name in gold or
+   "Update" (common.band_title_html); one bar, gold for a named update, on a stronger ground than the year's banner
+   (visual pass 2026-10-17, round 2: a named band led with pixel caps and an unnamed one with its date, so dates
+   jumped from band to band, both faint beside Sloppy's) */
+.hblocks .pblock > .banner { background: linear-gradient(90deg, color-mix(in srgb, var(--patina) 30%, var(--bg-panel-2)),
+  color-mix(in srgb, var(--patina) 12%, var(--bg-panel-2)) 45%, var(--bg-panel-2)); }
+.hblocks .pblock > .banner.named { background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 26%, var(--bg-panel-2)),
+  color-mix(in srgb, var(--gold) 9%, var(--bg-panel-2)) 45%, var(--bg-panel-2));
+  box-shadow: inset 4px 0 0 var(--gold), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
+.hblocks .pblock > .banner .bt { text-transform: none; letter-spacing: 0; }
+.hblocks .pblock > .banner .bt .pdate { margin: 0 12px 0 0; font: 700 18px/1 var(--font-ui); color: var(--text-bright);
+  font-variant-numeric: tabular-nums; }
+.hblocks .pblock > .banner .bt .pname { font: 22px/1 var(--font-px); color: var(--gold); text-transform: uppercase; letter-spacing: .08em; }
+.hblocks .pblock > .banner .bt .pkind { margin: 0; font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase;
+  letter-spacing: .08em; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
 /* "patch ↗": the band's patch in the archive, on purpose (the title opens the band in place) */
 .banner .pnotes { font: 500 12px/1 var(--font-ui); color: var(--text-dimmer); letter-spacing: 0; text-transform: none; margin-left: 4px; }
@@ -2031,6 +2046,9 @@ table.dt-rows tr.dt-grp .dt-every { margin-left: 8px; font-weight: 500; color: v
 .dt-ic.ult::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 7px; height: 7px; background: var(--gold);
   clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 table.dt-rows td.dt-tg { width: 1%; padding-left: 0; }
+/* the field gets a fair share of the card: "Min Sleep Time" wrapped in a cramped column while the values had ~200px to
+   spare, a rework's long list taking the width (visual pass 2026-10-17, round 2) */
+table.dt-rows td.dt-tg + td.dt-field { min-width: 10em; }
 table.dt-rows .tag { min-width: 58px; padding: 3px 5px 2px 7px; font-size: 10px; }
 table.dt-rows td.dt-field { text-align: left; }
 table.dt-rows tr.dt-hid td { background: var(--eye-06); }

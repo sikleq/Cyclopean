@@ -551,3 +551,13 @@ def patch_title_html(row: dict) -> str:
     if name:
         return f'<span class="pname">{esc(name)}</span><span class="pdate">{esc(date)}</span>{fu}'
     return f'<span class="pdate solo">{esc(date)}</span><span class="pkind">update</span>{fu}'
+
+
+def band_title_html(row: dict) -> str:
+    """An entity history band's title: ONE template — the date first, always in the same font and place, then the
+    update's name (gold) or "Update". A named band led with its name in pixel caps and an unnamed one with its date, so
+    the dates jumped from band to band (visual pass 2026-10-17, round 2)."""
+    name, date, follow = patch_parts(row)
+    fu = '<span class="pfu">follow-up</span>' if follow else ''
+    what = f'<span class="pname">{esc(name)}</span>' if name else '<span class="pkind">Update</span>'
+    return f'<span class="pdate">{esc(date)}</span>{what}{fu}'

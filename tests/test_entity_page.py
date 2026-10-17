@@ -102,7 +102,8 @@ def test_band_title_stays_on_the_page_and_groups_have_a_plate(monkeypatch):
     html = history_table(keys, ['Abrams'], by_ent, {}, '../', areas=areas,
                          ults=frozenset({'abilities.vdata:ab_ult'}))
     band = html.split('id="p-p3"')[1].split('</summary>')[0]
-    assert '<span class="bt"><span class="pdate solo">' in band       # plain text: a click opens the band
+    # plain text: a click opens the band; the date leads (common.band_title_html, visual pass 2026-10-17 round 2)
+    assert '<span class="bt"><span class="pdate">2026-03-01</span><span class="pkind">Update</span>' in band
     assert 'class="pnotes" href="../patches/p3.html#c-hero_atlas"' in band   # the archive on purpose, at Abrams
     assert '<span class="ec-n">3 not in notes</span>' in band          # the eye count scripts.js recounts
     assert html.count('class="hgroup has-ic') >= 3 and '<div class="hg-b">' in html

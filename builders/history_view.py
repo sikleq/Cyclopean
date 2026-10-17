@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import re
 
-from .common import EYE_MARK, esc, glyph_for, mark, patch_name, patch_title_html, patch_title_text, visual
+from .common import EYE_MARK, band_title_html, esc, glyph_for, mark, patch_name, patch_title_text, visual
 from .notes_view import _highlight, text_tag
 from .text_rows import TEXT_PREFIX, text_rows
 
@@ -591,7 +591,7 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     cls = ' named' if patch_name(hdr['title']) else ''
     # what the patch did to this entity on balance, weighed as the change matrices weigh it (weights.net_of): one
     # small chip after the counters, none when no row takes a side
-    summary = (f'<summary class="banner{cls}"><span class="bt">{patch_title_html(hdr)}</span>'
+    summary = (f'<summary class="banner{cls}"><span class="bt">{band_title_html(hdr)}</span>'
                f'<span class="bc">{tag_summary(counted_all)}{net_chip(net)}{chips}'
                f'<a class="pnotes" href="{href or patch_href(pid, rel, entity_id, also)}">patch ↗</a></span></summary>')
     return summary, hidden_cls
