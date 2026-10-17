@@ -4,14 +4,14 @@ say where it came from"; the hover read "found only in the game files" with noth
 A change of a patch carries the builds of the window that moved it (`builds`, at most 3 in the data). The eye on its
 row names them — "in the files of build 6340 (2026-04-11)", dated by the game build's own date (the record's
 `version_date`, not the tracker's UTC commit time: 6785 is "Oct 14 2026", committed 2026-10-15 03:14 UTC) — or
-"shipped silently …" for one that came in a build newer than the notes' own build that carries nothing the notes
-announced (`notes_window`; with nothing announced: a build dated after the notes). It opens that build's page in the
-archive at the row itself (`builds/<n>.html#r-<hash>`: `row_anchor`), else at the entity (`#c-<id>`); the build
-page's row holds the source — the file, entity and field path, the raw old → new, the tracker commit's diff of that
-file and what the update's notes say of it (`row_source`). A band's banner chip does the same for the band's rows
-(review 2026-10-17, "the eye's evidence": 15 of Deadman Danny's 10-14 rows said "shipped silently 2026-10-15, build
-6785" — the build that carried the notes' own changes; the rule was "any build but the window's first", 4,727 such
-claims, 1,435 now)."""
+"came in build N (…), after the patch" for one that came in a build newer than the notes' own build that carries
+nothing the notes announced (`notes_window`; with nothing announced: a build dated after the notes). It opens that
+build's page in the archive at the row itself (`builds/<n>.html#r-<hash>`: `row_anchor`), else at the entity
+(`#c-<id>`); the build page's row holds the source — the file, entity and field path, the raw old → new, the tracker
+commit's diff of that file and what the update's notes say of it (`row_source`). A band's banner chip does the same
+for the band's rows (review 2026-10-17, "the eye's evidence": 15 of Deadman Danny's 10-14 rows said they shipped
+silently on 2026-10-15 in build 6785 — the build that carried the notes' own changes; the rule was "any build but the
+window's first", 4,727 such claims, about 1,400 now)."""
 from __future__ import annotations
 
 import hashlib
@@ -30,8 +30,10 @@ from .common import build_pages, esc
 FIRST_MAIN_BUILD = 5044
 MAIN_TRACKER = 'https://github.com/SteamTracking/GameTracking-Deadlock'
 PRE_TRACKER = 'https://github.com/Lifeismana/Deadlocked'
-HIDDEN_WORDS = 'Not in the patch notes'
-LATE_WORDS = 'shipped silently'
+# the site's one term (review 2026-10-17): "not in patch notes" for what the notes left out, "no patch notes" for an
+# update without any; a change that came in a later build than the notes' own says "after the patch"
+HIDDEN_WORDS = 'Not in patch notes'
+NO_NOTES_WORDS = 'No patch notes for this update'
 VERSION_DATE = '%b %d %Y %H:%M:%S'       # a record's `version_date`: "Oct 14 2026 20:01:37" (steam.inf)
 
 
@@ -51,9 +53,12 @@ def row_key(file: str, eid: str, path: str) -> str:
     return f'{file}:{eid}:{path}'
 
 
+ANCHOR_HEX = 12          # 48 bits: no two keys of the archive share an anchor
+
+
 def row_anchor(key: str) -> str:
-    """The build page's id of one row ('r-' + 8 hex): the same key on an entity page and on the build page."""
-    return 'r-' + hashlib.sha1(key.encode('utf-8')).hexdigest()[:8]
+    """The build page's id of one row ('r-' + 12 hex): the same key on an entity page and on the build page."""
+    return 'r-' + hashlib.sha1(key.encode('utf-8')).hexdigest()[:ANCHOR_HEX]
 
 
 def game_day(version_date) -> str:
@@ -71,10 +76,12 @@ _PATCH: ContextVar[dict | None] = ContextVar('patch_builds', default=None)
 
 @lru_cache(maxsize=None)
 def notes_window(pid: str) -> tuple[int | None, frozenset[int], str]:
-    """(the notes' own build — the one that carries the most changes they announced, the earliest of a tie —, every
-    build that carries one, the notes' date) of a patch: what a silent hotfix is newer than; (None, ∅, '') for a patch
-    the archive does not hold. Not the FIRST such build: 2026-01-30's 6198 carried 2 of its 140 announced changes a
-    day early, and its 112 hidden ones in 6211 — the notes' own build — read "shipped silently"."""
+    """(the notes' own build — the one an announced change came in most often, the earliest of a tie —, every build
+    that carries an announced change, the notes' date) of a patch: what a change "after the patch" is newer than;
+    (None, ∅, '') for a patch the archive does not hold. Not the FIRST such build: 2026-01-30's 6198 carried 2 of its
+    140 announced changes a day early, and its 112 hidden ones in 6211 — the notes' own build — read as a later
+    build's. Every build of an announced change counts as carrying one, not only its first (2024-09-12: a change in
+    5136 and 5138 left 5138 out, and its hidden rows read as after the patch)."""
     from collections import Counter
 
     from . import archive
@@ -83,10 +90,11 @@ def notes_window(pid: str) -> tuple[int | None, frozenset[int], str]:
         p = archive.patch(pid)
     except (OSError, KeyError):
         return None, frozenset(), ''
-    firsts = Counter(min(bs) for e in p.get('entities') or () for c in e.get('changes') or () if c.get('status') in NOTED
-                     for bs in [[b for b in c.get('builds') or () if isinstance(b, int)]] if bs)
+    announced = [bs for e in p.get('entities') or () for c in e.get('changes') or () if c.get('status') in NOTED
+                 for bs in [[b for b in c.get('builds') or () if isinstance(b, int)]] if bs]
+    firsts = Counter(min(bs) for bs in announced)
     main = min(firsts, key=lambda b: (-firsts[b], b)) if firsts else None
-    return main, frozenset(firsts), str(p.get('date') or '')[:10]
+    return main, frozenset(b for bs in announced for b in bs), str(p.get('date') or '')[:10]
 
 
 @contextmanager
@@ -111,8 +119,9 @@ def patch_builds(builds: list[dict], rel: str = '../', pid: str | None = None):
 @lru_cache(maxsize=None)
 def _facts(file: str) -> tuple[frozenset[str], frozenset[str], str]:
     """(the ids a build page has a `c-<id>` card for, its row anchors, the game build's date) — read once per build
-    record; empty when the record is missing (a test's data)."""
-    from .builds_pages import ENTITY_LIMIT, page_entities, shown_keys
+    record; empty when the record is missing (a test's data). A key the page writes twice (two '@shared' blocks with
+    one path, other values: 41 rows in 15 builds) has no anchor: an eye there opens the card or the page."""
+    from .builds_pages import ENTITY_LIMIT, page_entities, unique_keys
     from .common import load_json
     from .patches_pages import own_anchors
     try:
@@ -120,7 +129,7 @@ def _facts(file: str) -> tuple[frozenset[str], frozenset[str], str]:
     except (OSError, ValueError):
         return frozenset(), frozenset(), ''
     ents = page_entities(rec)[:ENTITY_LIMIT]
-    return (frozenset(own_anchors(ents)), frozenset(row_anchor(k) for k in shown_keys(ents)),
+    return (frozenset(own_anchors(ents)), frozenset(map(row_anchor, unique_keys(ents)[0])),
             game_day(rec.get('version_date')))
 
 
@@ -130,7 +139,7 @@ def build_anchors(file: str) -> frozenset[str]:
 
 
 def build_rows(file: str) -> frozenset[str]:
-    """The row anchors a build page has (`row_anchor` of each row it writes with its source: builds_pages.shown_keys)."""
+    """The row anchors a build page has (`row_anchor` of each key it writes once: builds_pages.unique_keys)."""
     return _facts(file)[1]
 
 
@@ -197,7 +206,7 @@ def _words(builds: list[int], dates: dict[int, str]) -> str:
 
 def _lead(rows: list[dict]) -> str:
     """An update without notes says so (its eye chip reads "no patch notes"); else the eye's own words."""
-    return ('Update shipped without patch notes' if rows and all(c.get('status') == 'unannounced' for c in rows)
+    return (NO_NOTES_WORDS if rows and all(c.get('status') == 'unannounced' for c in rows)
             else HIDDEN_WORDS)
 
 
@@ -206,7 +215,7 @@ def _row_builds(c: dict, ctx: dict) -> list[int]:
 
 
 def _late(build: int, ctx: dict) -> bool:
-    """A silent hotfix: a build newer than the notes' own (`notes_window`) that carries nothing they announced; in a
+    """After the patch: a build newer than the notes' own (`notes_window`) that carries nothing they announced; in a
     window where the notes matched nothing, a game build dated after the notes."""
     if ctx['notes_build'] is not None:
         return build > ctx['notes_build'] and build not in ctx['noted']
@@ -214,7 +223,7 @@ def _late(build: int, ctx: dict) -> bool:
 
 
 def row_evidence(c: dict, link: bool = True) -> tuple[str | None, str | None, bool]:
-    """(the eye's words, the build page it opens, shipped later than the patch?) for one row not in the notes; all
+    """(the eye's words, the build page it opens, came after the patch?) for one row not in the notes; all
     None outside a patch (`patch_builds`) or for a row in the notes. `link=False`: the words only (an eye inside a
     <summary> that folds rows with linked eyes of their own: a click there should fold, not leave the page)."""
     from .render import not_in_notes
@@ -228,7 +237,7 @@ def row_evidence(c: dict, link: bool = True) -> tuple[str | None, str | None, bo
     open_ = OPEN_WORDS if href else ''
     if c.get('status') == 'hidden' and _late(builds[0], ctx):
         b = builds[0]
-        return f'{HIDDEN_WORDS} — {LATE_WORDS} {ctx["dates"][b]}, build {b}{open_}', href, True
+        return f'{HIDDEN_WORDS} — came in build {b} ({ctx["dates"][b]}), after the patch{open_}', href, True
     return f'{_lead([c])} — in the game files of {_words(builds, ctx["dates"])}{open_}', href, False
 
 
@@ -250,16 +259,19 @@ def band_evidence(rows: list[dict], anchor: str | None = None) -> tuple[str | No
 
 # ---- the build page's rows: each one's source ------------------------------------------------------------------
 
-# while a build page's rows are written: {diff: the files the head links a diff of, words: row key -> what the
-# notes say, used: the anchors written}
+# while a build page's rows are written: {diff: the files the head links a diff of, dupes: the keys the page writes
+# more than once (no anchor)}
 _BUILD: ContextVar[dict | None] = ContextVar('build_rows', default=None)
 RAW_MAX = 160            # a raw value longer than this (a list of flags) is cut: the file diff has all of it
+# what this update's notes say of a build page's row, by its status (builds_pages.page_entities: only these two)
+SOURCE_SAYS = {'hidden': "This update's notes: no line mentions this", 'unannounced': NO_NOTES_WORDS}
 
 
 @contextmanager
-def build_rows_scope(diff, words: dict[str, str]):
-    """While a build page's rows are written: every row gets its anchor and its source (`row_source`)."""
-    tok = _BUILD.set({'diff': diff, 'words': words, 'used': set()})
+def build_rows_scope(diff, dupes: frozenset[str] | set[str] = frozenset()):
+    """While a build page's rows are written: every row gets its source and, its key written once, its anchor
+    (`row_source`)."""
+    tok = _BUILD.set({'diff': diff, 'dupes': dupes})
     try:
         yield
     finally:
@@ -291,7 +303,8 @@ def _raw(v) -> str:
 
 def row_source(c: dict) -> tuple[str | None, str]:
     """(the row's anchor, its source block) on a build page (`build_rows_scope`); (None, '') elsewhere or for a
-    folded row. The block: file › entity › field path as the file writes them (the proof: internal ids on purpose),
+    folded row; no anchor for a key the page writes twice (two '@shared' blocks with one path: an eye could not tell
+    them apart). The block: file › entity › field path as the file writes them (the proof: internal ids on purpose),
     the raw old → new, the tracker commit's diff of the file and what this update's notes say of it."""
     ctx = _BUILD.get()
     raw = source_of(c) if ctx is not None else None
@@ -299,14 +312,11 @@ def row_source(c: dict) -> tuple[str | None, str]:
         return None, ''
     file, eid, path, _, old, new = raw
     key = row_key(file, eid, path)
-    aid = row_anchor(key)
-    if aid in ctx['used']:              # one key twice on a page (two shared blocks): the first holds the anchor
-        return None, ''
-    ctx['used'].add(aid)
+    aid = None if key in ctx['dupes'] else row_anchor(key)
     # the file's diff: the head's link of that file (`df-<file>`, its URL written once a page — 6,000 rows repeated a
     # 190-character URL); scripts.js build-src gives the row's link that URL when its source opens
     link = f'<a class="src-d" href="#df-{esc(file)}">file diff ↗</a>' if file in ctx['diff'] else ''
-    words = ctx['words'].get(key)
+    words = SOURCE_SAYS.get(c.get('status', ''))
     said = f'<span class="src-w">{words}</span>' if words else ''
     return aid, (f'<div class="src-b"><code>{_text(key.replace(":", " › ", 2))}</code>'
                  f'<span>{_raw(old)} → {_raw(new)}</span>{link}{said}</div>')

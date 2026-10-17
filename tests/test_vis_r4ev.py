@@ -1,13 +1,13 @@
 """The eye's evidence (visual pass 2026-10-17, round 4: a skeptical player's journey from an eye to its proof).
 
-1. "Shipped silently" only for a build newer than the notes' own build that carries nothing they announced; a build is
-   dated by the game build's own date, not by the tracker's UTC commit (Deadman Danny's 10-14 rows said "shipped
-   silently 2026-10-15, build 6785" — the build of the notes' own changes, dated Oct 14 by the game).
+1. "After the patch" only for a build newer than the notes' own build that carries nothing they announced; a build is
+   dated by the game build's own date, not by the tracker's UTC commit (Deadman Danny's 10-14 rows said they shipped
+   silently on 2026-10-15 in build 6785 — the build of the notes' own changes, dated Oct 14 by the game).
 2. The build page the eye opens: each row its status (the eye), its anchor (the eye lands on the row, lit and open)
    and its source — file › entity › field path, the raw old → new, the file's diff in the tracker commit, "this
    update's notes: no line mentions this".
-3. One way to the proof: the band's whole "N not in notes" chip is the link, every row keeps a (dimmed) eye, one icon
-   for "not in notes", every eye link in the tab order."""
+3. One way to the proof: the band's whole "N not in patch notes" chip is the link, every row keeps a (dimmed) eye, one
+   icon for "not in patch notes", every eye link in the tab order."""
 from __future__ import annotations
 
 import hashlib
@@ -42,7 +42,7 @@ def test_dannys_10_14_rows_shipped_with_the_notes_own_build():
                if e['id'].startswith(('hero_deadpack', 'ability_deadpack')) and c.get('status') == 'hidden']
     assert len(got) == 14
     for tip, href, late in got:
-        assert not late and 'shipped silently' not in tip
+        assert not late and 'after the patch' not in tip
         assert 'in the game files of build 6785 (2026-10-14)' in tip and href.startswith('../builds/6785.html#')
 
 
@@ -68,7 +68,7 @@ def test_a_silent_hotfix_is_newer_than_the_notes_own_build(monkeypatch):
         tip = evidence.row_evidence(ch(builds=[101]))[0]
     # before the notes' build, the notes' build, a build after it, a later build that carries an announced change
     assert late == {99: False, 100: False, 101: True, 102: False}
-    assert 'shipped silently 2026-03-07, build 101' in tip
+    assert tip.startswith('Not in patch notes — came in build 101 (2026-03-07), after the patch')
 
 
 def test_without_an_announced_change_a_hotfix_is_dated_after_the_notes(monkeypatch):
@@ -83,7 +83,48 @@ def test_without_an_announced_change_a_hotfix_is_dated_after_the_notes(monkeypat
         assert not evidence.row_evidence(ch(builds=[4291]))[2]
 
 
+def test_every_build_of_an_announced_change_carries_one(monkeypatch):
+    """A change in builds A and B is announced in both: B's hidden rows did not come after the patch (2024-09-12: a
+    change in 5136 and 5138 left 5138 out — 35 such claims, review of round 4)."""
+    from builders import archive, evidence
+    monkeypatch.setattr(evidence, 'notes_window', evidence.notes_window.__wrapped__)
+    rows = [ch(status='documented', builds=[100])] * 2 + [ch(status='documented', builds=[100, 102])]
+    monkeypatch.setattr(archive, 'patch', lambda pid: {'date': '2026-03-06', 'entities': [{'changes': rows}]})
+    assert evidence.notes_window('p1') == (100, frozenset({100, 102}), '2026-03-06')
+    builds = [{'build': b, 'date': f'2026-03-0{d}T00:00:00Z'} for b, d in ((100, 6), (101, 7), (102, 8))]
+    with evidence.patch_builds(builds, '../', 'p1'):
+        assert [evidence.row_evidence(ch(builds=[b]))[2] for b in (100, 101, 102)] == [False, True, False]
+
+
 # ---- 2. the build page --------------------------------------------------------------------------------------------
+
+
+@real_data
+def test_shared_blocks_with_one_path_each_show_their_source_and_their_targets_status():
+    """Build 5136 holds 18 '@shared' blocks of one path ("Cooldown" 10 → 10.5, 20 → 21, 120 → 127 …): each shows its
+    own source, none has an anchor an eye could confuse with another, and each takes its targets' status — the
+    described ones stay quiet (the shared key's "hidden" from another block gave them the eye)."""
+    from builders import archive, builds_pages, evidence
+    file, html = _build_page(5136)
+    rec = builds_pages.load_json(f'builds/{file}')
+    ents = builds_pages.page_entities(rec, builds_pages.notes_of('2024-09-12', 5136))[:builds_pages.ENTITY_LIMIT]
+    _, twice = builds_pages.unique_keys(ents)
+    assert twice and html.count('<details class="src"') == len(list(builds_pages.shown_keys(ents)))
+    assert not {evidence.row_anchor(k) for k in twice} & evidence.build_rows(file)
+    got = {}
+    for chunk in html.split('<details class="src"')[1:]:
+        m = re.search(r'<code>abilities\.vdata › @shared › m_mapAbilityProperties\.AbilityCooldown\.m_strValue</code>'
+                      r'<span><code>"?(\d+)"?</code> → <code>"?([\d.]+)"?</code>', chunk)
+        if m and m.group(1) in ('10', '20', '120'):
+            got[m.groups()] = ('mark hidden' in chunk.split('</summary>')[0], chunk.startswith(' id='))
+    # (the eye, an anchor): the described blocks are quiet, the hidden one has its eye; none of them an anchor
+    assert got == {('10', '10.5'): (False, False), ('20', '21'): (False, False), ('120', '127'): (True, False)}
+    # a hero page's eye on such a block opens the card or the page, never another block's row
+    dupes = {evidence.row_anchor(k) for k in twice}
+    with evidence.patch_builds(archive.builds_of('2024-09-12'), '../', '2024-09-12'):
+        hrefs = [evidence.row_evidence({**c, 'shared_n': 2})[1] or '' for e in archive.patch('2024-09-12')['entities']
+                 if e['id'] == '@shared' for c in e['changes'] if c.get('status') == 'hidden']
+    assert hrefs and not any(h.partition('#')[2] in dupes for h in hrefs)
 
 
 def _build_page(n: int) -> tuple[str, str]:
@@ -125,7 +166,7 @@ def test_the_anchors_the_eye_trusts_are_the_ones_the_page_writes(n):
     """evidence.build_rows (what an entity page's eye may link) == the ids the build page writes."""
     from builders import evidence
     file, html = _build_page(n)
-    ids = re.findall(r'<details class="src" id="(r-[0-9a-f]{8})">', html)
+    ids = re.findall(r'<details class="src" id="(r-[0-9a-f]{12})">', html)
     assert len(ids) == len(set(ids)) and set(ids) == evidence.build_rows(file)
 
 
@@ -146,7 +187,7 @@ def test_a_folded_row_has_no_source_and_a_new_entitys_fields_only_their_key_rows
              'new_s': '5'}]}]}
     ents = page_entities(rec, {'heroes.vdata:hero_new:@add': 'hidden'})
     assert {c['status'] for c in ents[1]['changes']} == {'hidden'}          # a new entity's fields: its one row's
-    with build_rows_scope({}, {}):
+    with build_rows_scope({}):
         html = ''.join(change_rows(e['changes'], added=e['status'] == 'added') for e in ents)
     # "Hit Speed 80 → 78" is folded from two fields: no source; "Range" has one; a new hero's key row has one, the
     # rest of its fields (under "All fields") none
@@ -209,15 +250,15 @@ def test_one_icon_for_not_in_notes():
 def test_an_all_hidden_bands_rows_keep_a_dimmed_eye_that_links():
     from builders.cards import row
     css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { opacity: .45; }' in css
+    assert '.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { opacity: .7; }' in css
     assert 'visibility: hidden' not in re.search(r'\.pblock\.all-hidden \.erow[^{]*\{[^}]*\}', css).group(0)
-    html = row('hidden', '', 'x', tip='Not in the patch notes — build 6440', href='../builds/6440.html#r-1', late=False)
+    html = row('hidden', '', 'x', tip='Not in patch notes — build 6440', href='../builds/6440.html#r-1', late=False)
     assert '<a class="mark hidden" href="../builds/6440.html#r-1" data-tooltip' in html
 
 
-CHIP = ('<p style="height:200px">x</p><a class="chip eye-chip" href="#b6444" data-tooltip="Not in the patch notes — '
-        'in the game files of build 6444 · click to open that build" aria-label="2 not in notes — words">'
-        '<span class="mark hidden" aria-hidden="true"></span><span class="ec-n">2 not in notes</span></a>')
+CHIP = ('<p style="height:200px">x</p><a class="chip eye-chip" href="#b6444" data-tooltip="Not in patch notes — '
+        'in the game files of build 6444 · click to open that build" aria-label="2 not in patch notes — words">'
+        '<span class="mark hidden" aria-hidden="true"></span><span class="ec-n">2 not in patch notes</span></a>')
 
 
 def _chip_page(browser, touch: bool):
@@ -251,8 +292,76 @@ def test_on_a_phone_the_chip_shows_its_words_then_opens_the_build(browser):
 
 def test_a_bands_chip_is_one_link(monkeypatch):
     from builders.history_view import _eye_chip
-    html = _eye_chip('all 2 not in notes', 'Not in the patch notes — build 6440 · click to open that build',
+    html = _eye_chip('all 2 not in patch notes', 'Not in patch notes — build 6440 · click to open that build',
                      '../builds/6440.html#r-1')
-    assert html.startswith('<a class="chip eye-chip" href="../builds/6440.html#r-1" data-tooltip="Not in the patch')
-    assert html.count('<a ') == 1 and 'aria-label="all 2 not in notes — Not in the patch notes' in html
-    assert _eye_chip('1 not in notes', 'w', None).startswith('<span class="chip eye-chip"><span class="mark hidden"')
+    assert html.startswith('<a class="chip eye-chip" href="../builds/6440.html#r-1" data-tooltip="Not in patch notes')
+    assert html.count('<a ') == 1 and 'aria-label="all 2 not in patch notes — Not in patch notes' in html
+    assert _eye_chip('1 not in patch notes', 'w', None).startswith('<span class="chip eye-chip"><span class="mark hidden"')
+
+
+def _token(css: str, name: str) -> tuple[float, ...]:
+    """A :root colour token as (r, g, b, a): '#rrggbb' or 'rgba(r, g, b, a)'."""
+    v = re.search(rf'--{name}: ([^;]+);', css).group(1).strip()
+    if v.startswith('#'):
+        return tuple(int(v[i:i + 2], 16) for i in (1, 3, 5)) + (1.0,)
+    r, g, b, a = (float(x) for x in re.search(r'rgba?\(([^)]+)\)', v).group(1).split(','))
+    return r, g, b, a
+
+
+def _over(fg: tuple, bg: tuple, alpha: float) -> tuple:
+    return tuple(alpha * f + (1 - alpha) * b for f, b in zip(fg[:3], bg[:3]))
+
+
+def _luminance(rgb: tuple) -> float:
+    lin = [(c / 255 / 12.92) if c / 255 <= 0.03928 else ((c / 255 + 0.055) / 1.055) ** 2.4 for c in rgb]
+    return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2]
+
+
+def test_a_dimmed_eye_link_keeps_three_to_one_on_its_row():
+    """An all-hidden band's row eye is a link: dimmed, it keeps 3:1 on the row's tint (.45 read 2.6:1)."""
+    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    opacity = float(re.search(r'\.pblock\.all-hidden \.erow:not\(\.late\) \.st \.mark \{ opacity: ([.\d]+); \}', css)
+                    .group(1))
+    eye, tint, panel = _token(css, 'eye'), _token(css, 'eye-06'), _token(css, 'bg-panel')
+    row = _over(tint, panel, tint[3])                                  # .erow.is-hidden on the band's panel
+    lum = sorted((_luminance(_over(eye, row, opacity)), _luminance(row)))
+    assert (lum[1] + 0.05) / (lum[0] + 0.05) >= 3
+
+
+def test_a_filter_renames_the_bands_chip_with_its_count(browser, tmp_path, monkeypatch):
+    """The chip's name is "count — words"; a filter that recounts the band renames it (scripts.js hist-filter)."""
+    import shutil
+    from builders import archive, evidence
+    from builders.common import page
+    from builders.history_view import history_table
+    monkeypatch.setattr(archive, 'builds_of', lambda pid: [{'build': 6440, 'date': '2026-04-10T20:00:00Z',
+                                                            'file': '6440_x.json.gz'}])
+    monkeypatch.setattr(evidence, 'build_pages', lambda: {'6440_x.json.gz': '6440'})
+    r1 = {'id': 'p1', 'date': '2026-04-10', 'title': '04-10-2026 Update'}
+    key = 'heroes.vdata:hero_haze'
+    rows = [ch(builds=[6440]), ch(builds=[6440], label='Range', dir='buff', pct=-5, key=f'{key}:y', path='y')]
+    html = page('X', history_table([(key, 'Haze', None)], ['Haze'], {key: [(r1, rows)]}, {}, '../'), '../')
+    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
+    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
+    (tmp_path / 'x').mkdir()
+    (tmp_path / 'x' / 'page.html').write_text(html, encoding='utf-8')
+    ctx = browser.new_context(viewport={'width': 1440, 'height': 900})
+    pg = ctx.new_page()
+    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
+    try:
+        pg.goto((tmp_path / 'x' / 'page.html').as_uri())
+        name = "() => document.querySelector('a.chip.eye-chip').getAttribute('aria-label')"
+        assert pg.evaluate(name).startswith('all 2 not in patch notes — Not in patch notes — in the game files')
+        pg.click('button.tag.buff[data-f-tag]')
+        pg.wait_for_function("document.querySelector('.ec-n').textContent === '1 not in patch notes'")
+        assert pg.evaluate(name).startswith('1 not in patch notes — Not in patch notes — in the game files')
+        pg.click('button.tag.buff[data-f-tag]')
+        pg.wait_for_function("document.querySelector('.ec-n').textContent === 'all 2 not in patch notes'")
+        assert pg.evaluate(name).startswith('all 2 not in patch notes — ')
+    finally:
+        ctx.close()
+
+
+def test_a_row_anchor_is_twelve_hex():
+    from builders.evidence import row_anchor
+    assert re.fullmatch(r'r-[0-9a-f]{12}', row_anchor('heroes.vdata:hero_haze:x'))

@@ -37,15 +37,15 @@ def test_the_eye_names_the_build_and_opens_it(monkeypatch):
     assert evidence.row_evidence(ch()) == (None, None, False)          # outside a patch: the eye's own words
     with evidence.patch_builds(BUILDS, '../', 'p1'):
         tip, href, late = evidence.row_evidence(ch())
-        assert tip.startswith('Not in the patch notes — in the game files of build 6440 (2026-04-10)')
+        assert tip.startswith('Not in patch notes — in the game files of build 6440 (2026-04-10)')
         assert href == '../builds/6440.html' and not late             # the build page has no card of hers: no anchor
         # a silent hotfix: a later build than the notes' own, at the hero's card of that build; dated by the game
         # build (6444: "Apr 10 2026 20:42:38"), not by the tracker's commit (2026-04-11 04:07 UTC)
         tip, href, late = evidence.row_evidence(ch(builds=[6444]))
-        assert 'shipped silently 2026-04-10, build 6444' in tip and href == '../builds/6444.html#c-hero_haze' and late
+        assert 'Not in patch notes — came in build 6444 (2026-04-10), after the patch' in tip and href == '../builds/6444.html#c-hero_haze' and late
         # several builds; an update without notes says so
         tip, _, _ = evidence.row_evidence(ch(builds=[6444, 6440], status='unannounced'))
-        assert tip.startswith('Update shipped without patch notes — in the game files of builds 6440 (2026-04-10) '
+        assert tip.startswith('No patch notes for this update — in the game files of builds 6440 (2026-04-10) '
                               'and 6444 (2026-04-10)')
         assert evidence.row_evidence(ch(status='documented')) == (None, None, False)
         # a shared edit is one block in the build, no card per target: the page itself
@@ -74,14 +74,14 @@ def test_an_ability_row_lands_on_its_heros_card_and_a_folded_row_keeps_its_build
 def test_the_eye_is_a_link_in_the_tab_order_and_a_silent_hotfix_is_marked_late():
     from builders.cards import row
     from builders.common import mark
-    words = 'Not in the patch notes — in the game files of build 6440'
+    words = 'Not in patch notes — in the game files of build 6440'
     # the words once, as the link's name (the tooltip reads them there); a row's eye is in the tab order (review
     # 2026-10-17: it was tabindex -1, the keyboard reached no row's proof)
     assert mark('hidden', words, '../builds/6440.html') == (f'<a class="mark hidden" href="../builds/6440.html" '
                                                             f'data-tooltip aria-label="{words}"></a>')
     assert 'tabindex' not in row('hidden', '', 'x', tip=words, href='../builds/6440.html', late=False)
     assert ' late' not in row('hidden', '', 'x', tip='… build 6440', href='../builds/6440.html', late=False)
-    assert 'is-hidden late' in row('hidden', '', 'x', tip='… shipped silently', href='../builds/6444.html', late=True)
+    assert 'is-hidden late' in row('hidden', '', 'x', tip='… after the patch', href='../builds/6444.html', late=True)
     css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
     assert 'a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }' in css
 
@@ -132,8 +132,8 @@ def test_on_a_phone_the_first_tap_shows_the_eyes_words_and_the_second_opens_the_
     errors: list[str] = []
     page.on('pageerror', lambda e: errors.append(str(e)))
     page.set_content(f'<!doctype html><html><head><style>{css}</style></head><body><p style="height:200px">x</p>'
-                     '<a class="mark hidden" href="#b6444" data-tooltip="Not in the patch notes — build 6444" '
-                     f'aria-label="Not in the patch notes — build 6444"></a><script>{js}</script></body></html>')
+                     '<a class="mark hidden" href="#b6444" data-tooltip="Not in patch notes — build 6444" '
+                     f'aria-label="Not in patch notes — build 6444"></a><script>{js}</script></body></html>')
     assert page.evaluate("() => matchMedia('(hover: none)').matches")
     page.tap('a.mark')
     assert page.evaluate('() => location.hash') == '' and 'on' in page.locator('.tip').get_attribute('class')
@@ -156,8 +156,8 @@ def test_on_an_iphone_the_eye_opens_its_build_on_the_second_tap(browser):
     ctx = browser.new_context(viewport={'width': 390, 'height': 800}, is_mobile=True, has_touch=True)
     page = ctx.new_page()
     page.set_content(f'<!doctype html><html><head><style>{css}</style></head><body><p style="height:200px">x</p>'
-                     '<a class="mark hidden" href="#b6444" data-tooltip="Not in the patch notes — build 6444" '
-                     f'aria-label="Not in the patch notes — build 6444"></a><script>{js}</script></body></html>')
+                     '<a class="mark hidden" href="#b6444" data-tooltip="Not in patch notes — build 6444" '
+                     f'aria-label="Not in patch notes — build 6444"></a><script>{js}</script></body></html>')
     page.evaluate("""() => { const a = document.querySelector('a.mark');
       a.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true, pointerType: 'touch'}));
       a.dispatchEvent(new MouseEvent('mouseover', {bubbles: true})); }""")     # the first tap, as iOS sends it

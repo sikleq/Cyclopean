@@ -897,9 +897,10 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
 /* a patch the notes never mentioned: its banner's chip says so, and each row keeps a dimmed eye — the link to that
-   row's own proof (review 2026-10-17: the rows had none, the band's chip was the only way to a build). A row that
-   shipped silently in a later build than its patch (.late, evidence.row_evidence) keeps its full eye */
-.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { opacity: .45; }
+   row's own proof (review 2026-10-17: the rows had none, the band's chip was the only way to a build). Dimmed to .7,
+   not less: a link icon keeps 3:1 on the row (.45 read 2.6:1). A row that came after the patch in a later build
+   (.late, evidence.row_evidence) keeps its full eye */
+.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { opacity: .7; }
 .hblocks .pblock.all-hidden .erow .st a.mark:hover, .hblocks .pblock.all-hidden .erow .st a.mark:focus-visible { opacity: 1; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }

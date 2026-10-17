@@ -84,11 +84,11 @@ STATUS_MARK = {
     'nodata': ('na', 'No game files survive for this date — nothing to compare with'),
     'repeated': ('tilde', 'The post was edited later: this line belongs to a later update'),
     'fix': ('wrench', 'Bug fix in the patch notes'),
-    'hidden': ('eye', 'Not in the patch notes — found only in the game files'),
-    'unreleased': ('flask', 'Hero still in development at this build — not in the patch notes'),
+    'hidden': ('eye', 'Not in patch notes — found only in the game files'),
+    'unreleased': ('flask', 'Hero still in development at this build — not in patch notes'),
     # ONE icon for "not in patch notes" (render.NOT_IN_NOTES): an update without notes has the eye too — its rows wore
     # a document glyph next to the eyes of every other update (review 2026-10-17); the words say which it is
-    'unannounced': ('eye', 'Update shipped without patch notes — found only in the game files'),
+    'unannounced': ('eye', 'No patch notes for this update — found only in the game files'),
     'documented': ('check', 'Patch notes list these exact numbers'),
     'rounded': ('check', 'Patch notes list rounded numbers; exact values from the files are shown'),
     'described': ('tilde', 'Covered by a patch-note line without exact numbers'),
@@ -131,7 +131,7 @@ def json_attr(name: str, value) -> str:
 
 def mark(status: str, tip: str | None = None, href: str | None = None) -> str:
     """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it (`tip`: a
-    row's own words — the build it came in, when it shipped silently after the patch). `href`: the mark is a link
+    row's own words — the build it came in, whether that was after the patch). `href`: the mark is a link
     to its proof (the eye opens the build page: evidence.row_evidence), in the tab order (review 2026-10-17: a row's
     eye was `tabindex="-1"`, the keyboard could not reach a row's proof); its words are written once, as its
     `aria-label` (the tooltip reads them there: an empty `data-tooltip`)."""

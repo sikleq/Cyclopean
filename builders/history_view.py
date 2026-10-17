@@ -623,7 +623,7 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
     # the banner says how many rows the notes left out — "all N" only when N is more than one; in a band the notes
     # never mentioned the rows' eyes are dimmed (styles.css .all-hidden), each still a link to its row's proof
-    # (review 2026-10-17), except a row that shipped silently in a later build (its eye's words are the proof)
+    # (review 2026-10-17), except a row that came after the patch in a later build (its eye's words are the proof)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
     # an update that had no patch notes at all (Rat King's build 6736) says so: nothing was left out of notes
     no_notes = all_hidden and all(c.get('status') == 'unannounced' for c in counted_all)

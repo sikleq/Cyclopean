@@ -68,11 +68,11 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
         tip: str | None = None, href: str | None = None, late: bool | None = None) -> str:
     """One change row. `tip` / `href`: the eye's own words and the build page it opens (evidence.row_evidence);
-    `late`: it shipped silently after the patch (None: when it has words of its own). A linked eye is in the tab
+    `late`: it came in a later build, after the patch (None: when it has words of its own). A linked eye is in the tab
     order: the keyboard reaches each row's proof (review 2026-10-17; only the bands a reader opened hold rows)."""
     m = mark(status, tip, href) if status in ROW_MARKS else ''
-    # a row that shipped silently in a later build ("shipped silently …") keeps the eye where a band's rows show
-    # none (styles.css .all-hidden): the words are the proof
+    # a row that came after the patch, in a later build, keeps its full eye where a band's rows dim theirs (styles.css
+    # .all-hidden): its words are the proof
     late = bool(tip) if late is None else late
     hid = (' is-hidden' if status in NOT_IN_NOTES else '') + (' late' if late and m else '')
     return (f'<div class="erow st-{esc(status)}{hid}{(" " + extra) if extra else ""}"{attrs}><span class="st">{m}</span>'
@@ -527,9 +527,12 @@ def change_row(c: dict, source: bool = True) -> str:
     # a long console variable's name breaks after its underscores, not mid-word (common.wbr_ids)
     html = row(c.get('status', 'hidden'), tag_html(c), wbr_ids(esc(c.get('label'))) + shared_chip(c), vals_html(c),
                extra, tip=tip, href=href, late=late)
-    # a build page's row: its anchor (the eye on an entity page lands here) and its source a click away
+    # a build page's row: its source a click away and its anchor (the eye on an entity page lands here)
     aid, src = row_source(c) if source else (None, '')
-    return f'<details class="src" id="{aid}"><summary>{html}</summary>{src}</details>' if aid else html
+    if not src:
+        return html
+    ident = f' id="{aid}"' if aid else ''
+    return f'<details class="src"{ident}><summary>{html}</summary>{src}</details>'
 
 
 def shared_chip(c: dict) -> str:
@@ -828,42 +831,42 @@ def behind_attr(changes: list[dict], listed: list[dict]) -> str:
 
 
 def change_rows(changes: list[dict], added: bool = False) -> str:
-    rows = sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
+    rows, first, second = _layout(changes, added)
     if added:
-        keep, rest = _added_split(rows)
         head = row('hidden' if is_hidden(rows) else rows[0].get('status', 'hidden') if rows else 'hidden',
                    tag_badge('new', 'NEW'),
                    f'Added to the game files · {len(rows)} fields')
-        html = head + ''.join(change_row(c) for c in keep)
-        if rest:
+        html = head + ''.join(change_row(c) for c in first)
+        if second:
             # a new entity's every field (a new hero: ~200): no source per row — the build page grew 2.0 -> 4.2 MB;
             # its key rows have theirs, the head links the file's diff (review 2026-10-17)
-            inner = ''.join(change_row(c, source=False) for c in rest)
-            html += f'<details class="tech"><summary>All fields ({len(rest)})</summary>{inner}</details>'
+            inner = ''.join(change_row(c, source=False) for c in second)
+            html += f'<details class="tech"><summary>All fields ({len(second)})</summary>{inner}</details>'
         return html
-    main, tech = _main_tech(rows)
-    html = family_rows(main)
-    if tech:
-        inner = ''.join(change_row(c) for c in tech)
-        hid = ' has-hidden' if is_hidden(tech) else ''
-        html += f'<details class="tech{hid}"><summary>Technical ({len(tech)})</summary>{inner}</details>'
+    html = family_rows(first)
+    if second:
+        inner = ''.join(change_row(c) for c in second)
+        hid = ' has-hidden' if is_hidden(second) else ''
+        html += f'<details class="tech{hid}"><summary>Technical ({len(second)})</summary>{inner}</details>'
     return html
 
 
-def _main_tech(rows: list[dict]) -> tuple[list[dict], list[dict]]:
-    """(player rows, engine plumbing) of an entity's rows, no-ops dropped: `change_rows`' two lists."""
+def _layout(changes: list[dict], added: bool) -> tuple[list[dict], list[dict], list[dict]]:
+    """How `change_rows` lays an entity's rows out — (its rows, the first list, the second): a new entity's key rows
+    and its other fields ("All fields", no source); else the player rows, whole levels as one row (`combine_levels`:
+    `family_rows` finds nothing more to combine), and the engine plumbing ("Technical"). No-ops are dropped."""
+    rows = sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
+    if added:
+        return (rows, *_added_split(rows))
     main, tech = [], []
     for c in rows:                                # one is_engine call a row (it ran twice)
         if not is_noop(c):
             (tech if is_engine(c) else main).append(c)
-    return main, tech
+    return rows, combine_levels(main), tech
 
 
 def listed_rows(changes: list[dict], added: bool = False) -> list[dict]:
-    """Every row `change_rows` writes with `change_row` and its source — the rows a build page gives an anchor
-    (builds_pages.shown_keys; tests/test_vis_r4ev.py holds it to the written page)."""
-    rows = sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
-    if added:
-        return _added_split(rows)[0]
-    main, tech = _main_tech(rows)
-    return combine_levels(main) + tech
+    """Every row `change_rows` writes with `change_row` and its source (`_layout`, the one plan of both) — the rows a
+    build page gives a source and an anchor (builds_pages.shown_keys)."""
+    _, first, second = _layout(changes, added)
+    return first if added else first + second

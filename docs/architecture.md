@@ -132,7 +132,10 @@ is memoised on the identity of the change dicts; it ran 96k times on ~23k inputs
 **One count of "not in patch notes".** "Not in patch notes" — the eye — is ONE status set everywhere
 (`render.NOT_IN_NOTES` = hidden and unannounced; `not_in_notes(c)`): what Valve did not write down, including every
 change of an update that had no notes at all (Rat King's build 6736 lost its eye and dropped out of the eye filter
-when only hidden counted). Such a band's eye chip reads "no patch notes". Work on a hero still in development
+when only hidden counted). Such a band's eye chip reads "no patch notes". ONE icon too: `unannounced` draws the eye
+(`STATUS_MARK['unannounced'] = ('eye', 'No patch notes for this update — …')`, `.mark.unannounced { --mk:
+var(--mask-eye) }` in the eye's colour; its document glyph sat beside the eyes of every other update, 2026-10-17).
+Work on a hero still in development
 (unreleased, "Before release") is not it. A patch's numbers come from ONE function (`builders/patch_counts.py`,
 `for_id(pid)`): `not_in_notes` (the eye's number everywhere), the per-status counts, and `hidden_on_pages` — those of
 them a hero, item or unit page shows by THE pages' keys (`patch_counts.page_set` = `entities_pages.page_entities` /
@@ -738,7 +741,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   to match and recount, so a filtered band reads like its built counters (Old Gods: NEW 71 with or
   without the NEW filter).
 - Round 2 (advisor, 2026-10-03): a band where every row is hidden carries ONE eye, on its banner
-  (`pblock.all-hidden`; the eye sat on 46% of hero rows); engine vocabulary — flag sets "A | B",
+  (`pblock.all-hidden`; the eye sat on 46% of hero rows) — since 2026-10-17 its rows keep a dimmed eye (opacity .7),
+  each a link to its own proof (see "Entity page head and history updates", `builders/evidence.py`); engine vocabulary — flag sets "A | B",
   `PBF_*`, `k_e*`, bone names, pellet `m_vecScatterOffsets` — is plumbing (`cards.is_engine`) unless a
   note line covered the change; ability chips merge namesakes (`data-f-ab="id1 id2"`), removed ones
   fold behind "Removed (N)", a chip without art shows its name; a lazy band carries `data-tags /
@@ -1413,33 +1417,68 @@ kit, so it is not listed as removed (Move King, Move Piece). `hero_page.every_hi
 hero; the home feed uses it, so a hero's icon counts what its history band counts.
 
 `builders/evidence.py`: the eye on a history row names the build(s) whose game files carry the change and opens that
-build's page in the archive at the entity (`builds/<n>.html#c-<id>`: a hero's ability lands on its hero's card; a
-shared edit, one block in the build record, on the page itself). `patch_builds(builds, rel)` (a ContextVar, set by
-`history_view._patch_block` around a band) gives `row_evidence(c)` → (words, href, late): "Not in the patch notes —
-in the game files of build 6444 (2026-04-11) · click to open that build"; a change that came in a later build of the
-window than the patch's own reads "… shipped silently 2026-04-11, build 6444" and is `late` (the `.late` row keeps its
-eye in an all-hidden band); an update without notes: "Update shipped without patch notes — …"; several builds by name
-(at most 3 in the data), more as "6 builds, A (…) to B (…)". A build number the tracker committed twice keeps its last
-commit (the first of such pairs holds no gameplay rows). `band_evidence(rows, anchor)` does the same for the band's
-banner eye (an all-hidden band's only eye).
+build's page at the row itself (`builds/<n>.html#r-<hash>`: `row_anchor(key)` = 'r-' + the first 12 hex of the sha1 of
+'file:id:path'; a shared edit's block in the build record is 'file:@shared:path'), else at the entity's card (`#c-<id>`:
+a hero's ability lands on its hero's card; a folded row — REWORK, a re-keyed field, a family head — or a row the
+build page writes without an anchor), else on the page itself (a shared edit with no row of its own there).
+`patch_builds(builds, rel, pid)` (a ContextVar, set by `history_view._patch_block` around a band) gives
+`row_evidence(c)` → (words, href, late): "Not in patch notes — in the game files of build 6444 (2026-04-10) · click to
+open that build"; an update without notes: "No patch notes for this update — …"; several builds by name (at most 3 in
+the data), more as "6 builds, A (…) to B (…)". A build is dated by the game build's own date (`game_date(file)`: the
+record's `version_date`, "Oct 14 2026 20:01:37" → 2026-10-14), not by the tracker's UTC commit time. A change came
+after the patch (`late`: "Not in patch notes — came in build 6444 (2026-04-10), after the patch") only when its build
+is newer than the notes' own build and carries nothing the notes announced: `notes_window(pid)` → (the build an
+announced change came in most often, the earliest of a tie; every build of an announced change — all its builds, not
+only its first; the notes' date); in a window where the notes matched nothing, a game build dated after the notes.
+Until 2026-10-17 it was "any build but the window's first" — 4,727 claims, about 1,400 now: Deadman Danny's 10-14
+rows sat in 6785, the notes' own build, while the window's first, 6782, carried nothing. Not the FIRST announced build
+either: 2026-01-30's 6198 carried 2 of its 140 announced changes a day early. The `.late` row keeps its full eye in an
+all-hidden band. A build number the tracker committed twice keeps its last commit (the first of such pairs holds no
+gameplay rows). `band_evidence(rows, anchor)` gives the band's chip its words and build.
 
-`common.mark(status, tip, href, focusable)`: with `href` the mark is `<a class="mark hidden">`, its words written once
-as its `aria-label` (an empty `data-tooltip`; scripts.js `tooltip` reads the label); a row's eye is `tabindex="-1"`
-(a hero page has up to ~800), the band's banner eye is the keyboard's way to the proof. A family head's eye sits in a
+`common.mark(status, tip, href)`: with `href` the mark is `<a class="mark hidden">` in the tab order (until 2026-10-17
+a row's eye was `tabindex="-1"` and the keyboard reached no row's proof), its words written once as its `aria-label`
+(an empty `data-tooltip`; scripts.js `tooltip` reads the label). The band's "N not in patch notes" chip is ONE link
+(`history_view._eye_chip`: `<a class="chip eye-chip">`, the words as its `data-tooltip`, "N not in patch notes —
+words" as its name, renamed when a filter recounts it: scripts.js hist-filter `named`); without a build to open it is
+a span with the plain eye. In a band the notes never mentioned (`.all-hidden`) every row keeps a dimmed eye (opacity
+.7: a link icon keeps 3:1 on the row; .45 read 2.6:1), full on hover / focus. A family head's eye sits in a
 `<summary>`: words only, no link (`row_evidence(..., link=False)`), its rows' eyes link. Touch (`(hover: none)`): the
-first tap shows the words, the second follows; a hidden tip disarms. On a touch screen (`hover: none`) the tooltip
-ignores mouseout / focusout — a tap's compatibility events hid the words and disarmed the link between its two taps on
-CI's Linux Chromium (2026-10-06); a tap elsewhere hides them. styles.css lights a linked eye on hover.
+first tap shows the words ("tap again to open"), the second follows, for `a.mark[href]` and `a.eye-chip[href]`; a
+hidden tip disarms. On a touch screen the tooltip ignores mouseout / focusout — a tap's compatibility events hid the
+words and disarmed the link between its two taps on CI's Linux Chromium (2026-10-06); a tap elsewhere hides them.
+styles.css lights a linked eye on hover.
 
-A fragment is written only when the build page has that card (`build_anchors(file)` =
-`patches_pages.own_anchors(builds_pages.page_entities(rec)[:ENTITY_LIMIT])`, read once per build file, 0.5-0.7 s
-for all 622): 8,763 eye links on hero / item / unit / Game pages, 6,891 with a fragment, 0 to a missing id. Folded rows
-carry their sources' builds and entity (`render.folded_source`: a REWORK tier swap, a Corrupted / Enhanced version,
-`cards.merge_renames`, a family head).
+A fragment is written only when the build page has that place. `evidence._facts(file)` reads each build record once
+→ (`build_anchors`: the cards, `patches_pages.own_anchors(builds_pages.page_entities(rec)[:ENTITY_LIMIT])`;
+`build_rows`: the row anchors, `builds_pages.unique_keys` — a key the page writes twice, two '@shared' blocks with one
+path and other values (41 rows in 15 builds), has none, so an eye cannot open the wrong block; `game_date`). Folded
+rows carry their sources' builds and entity (`render.folded_source`: a REWORK tier swap, a Corrupted / Enhanced
+version, `cards.merge_renames`, a family head). On 2026-10-17: about 8,700 eye links and chips on hero / item / unit /
+Game pages, ~6,200 of the ~6,900 row eyes on their row, 0 to a missing id.
 
-Build pages: `builds_pages.page_entities(rec)` is what the page lists (copies, status 'raw'); the head links the
-tracker's commit (`evidence.commit_url`: builds before 5044 come from Lifeismana/Deadlocked, the rest from
-SteamTracking/GameTracking-Deadlock — checked against both clones for all 622 builds).
+Build pages (`builds_pages.build_page`): `notes_of(pid, build)` → {row key: its status in the build's update} for the
+rows the build carries (a shared block under its block key and each target's; a key two rows give two statuses is
+left out). `page_entities(rec, statuses)` gives every row its status when the notes left it out (`_status`, NOT_IN_NOTES:
+the eye; a shared block by its targets' statuses — one for all, else quiet —, then its own key; a new entity's field by
+the entity's one `@add` row), else 'raw' (quiet, as on an entity page: a mark on every row grew 5554's page 0.5 MB),
+and a `src` = (file, id, path, op, old, new). While the cards are written (`evidence.build_rows_scope(diff, dupes)`),
+`cards.change_row` asks `evidence.row_source(c)`: a row whose `src` still is its own (`source_of`: its path, op and
+the very old / new objects — a row folded from several has none) becomes `<details class="src" id="r-…"><summary>
+{row}</summary><div class="src-b">…</div></details>` (no id for a key the page writes twice): file › entity › path
+(internal ids on purpose: the proof), the raw old → new (JSON, cut at 160 characters), "file diff ↗"
+(`href="#df-<file>"`; scripts.js `build-src` gives it the head's URL when it opens) and, by the row's status, "This
+update's notes: no line mentions this" / "No patch notes for this update". The head links the tracker's commit
+(`evidence.commit_url`: builds before 5044 come from Lifeismana/Deadlocked, the rest from
+SteamTracking/GameTracking-Deadlock — checked against both clones for all 622 builds) and each data file's diff once
+(`evidence.diff_url`: the commit URL + '#diff-' + the sha256 of 'game/citadel/pak01_dir/scripts/<file>'; GitHub may
+not render every file of a commit with thousands of asset changes, the link then opens the commit). A new entity's
+rows under "All fields" get no source (`change_row(c, source=False)`: 5554's page would be 4.2 MB, it is 2.8).
+`cards._layout` is the one plan of `change_rows` and `listed_rows` (the rows written with a source: what
+`builds_pages.shown_keys` counts); tests/test_vis_r4ev.py holds the written ids to `build_rows` for four builds.
+scripts.js `build-src`: `#r-…` in the address (load or hashchange) opens that row's source and every fold around it
+and scrolls it under the site bar and the sticky search (`details.src { scroll-margin-top }`); `:target` lights it
+(`--eye-14`). A REWORK row's "more ▾" inside such a summary opens the list, not the source (rework-lines).
 
 Described rows keep Valve's line as the quiet "Patch notes" note under the group (`valve_notes`); documented rows
 need none. The patch archive's All changes rows keep the plain eye (2,598 hidden rows on City Never Sleeps' page).
@@ -1706,6 +1745,10 @@ the column lines' repeating gradient is ~65% of that raster time — removing it
   direction (`data-odir`), from the game field the column reads. Computed columns have no field: scripts.js judges by
   the column's polarity, with the sign. A table's values are one tab stop (roving tabindex): Tab enters at the value
   visited last (else the first shown one), ←/→ move in reading order, ↑/↓ to the same column in the nearest shown row.
+- **Eye links** (`common.mark` with `href`, `history_view._eye_chip`): every eye that opens a build is a link in the
+  tab order, a band's "N not in patch notes" chip is one link named "count — words" (renamed when a filter recounts);
+  touch: the first tap shows the words ("tap again to open"), the second opens the build. A build page's row is a
+  `<summary>`: Enter / Space open its source (`details.src`).
 - **Sortable headers**: tab order, `aria-sort` (descending / ascending / none), Enter or Space sorts. Foldable group
   headers: `aria-expanded`, Enter / Space fold.
 - **Hover cards** (scripts.js `dyn-tip`): a change-matrix cell, an entity page's strip tile, an ability card's trail

@@ -58,13 +58,19 @@ EVENT_PATH = {'added': '@add', 'returned': '@return', 'removed': '@remove'}
 
 
 def _status(statuses: dict[str, str], e: dict, c: dict) -> str:
-    """A build row's status in its patch (`notes_of`): by its own key, a shared block's by any of its targets', a new
-    entity's field by the entity's one row; 'raw' (no mark) for a change the patch does not hold (moved and moved back
-    inside its window)."""
+    """A build row's status in its patch (`notes_of`) when the notes left it out (render.NOT_IN_NOTES: the eye), else
+    'raw' (quiet, as on an entity page: a mark on every row grew 5554's page 0.5 MB). A shared block's row by its
+    targets' statuses — ONE for all of them, else quiet (build 5136: its blocks' targets were described, their
+    'file:@shared:path' key hidden in another block) —, then by its own key; a new entity's field by the entity's one
+    row; a change the patch does not hold (moved and moved back inside its window) is quiet."""
+    from .render import NOT_IN_NOTES
     path, ev = c.get('path'), EVENT_PATH.get(e.get('status'))
-    keys = [row_key(e['file'], e['id'], path)] + [row_key(e['file'], t, path) for t in c.get('targets') or ()]
-    keys += [row_key(e['file'], e['id'], ev)] if ev else []
-    return next((statuses[k] for k in keys if k in statuses), c.get('status', 'raw'))
+    got = {statuses[k] for t in c.get('targets') or () for k in [row_key(e['file'], t, path)] if k in statuses}
+    if not got:
+        own = [row_key(e['file'], e['id'], path)] + ([row_key(e['file'], e['id'], ev)] if ev else [])
+        got = next(({statuses[k]} for k in own if k in statuses), set())
+    status = next(iter(got)) if len(got) == 1 else 'raw'
+    return status if status in NOT_IN_NOTES else 'raw'
 
 
 def page_entities(rec: dict, statuses: dict[str, str] | None = None) -> list[dict]:
@@ -93,7 +99,7 @@ def page_entities(rec: dict, statuses: dict[str, str] | None = None) -> list[dic
 
 def shown_keys(ents: list[dict]):
     """The keys of the rows a build page writes with their source (cards.listed_rows: a row folded from several has
-    none) — what an entity page's eye may land on (evidence.build_rows)."""
+    none), one per row: two '@shared' blocks with one path give one key twice."""
     from .cards import listed_rows
     for e in ents:
         for c in listed_rows(e['changes'], added=e.get('status') == 'added'):
@@ -102,34 +108,34 @@ def shown_keys(ents: list[dict]):
                 yield row_key(raw[0], raw[1], raw[2])
 
 
-NOTES_SAY = {'hidden': "This update's notes: no line mentions this",
-             'unannounced': 'This update shipped without patch notes'}
+def unique_keys(ents: list[dict]) -> tuple[set[str], set[str]]:
+    """(the keys a build page writes once — its row anchors, what an entity page's eye may land on: evidence.build_rows
+    —, the keys it writes more than once — rows with a source and no anchor)."""
+    from collections import Counter
+    n = Counter(shown_keys(ents))
+    return {k for k, v in n.items() if v == 1}, {k for k, v in n.items() if v > 1}
 
 
-def notes_of(pid: str, build: int) -> tuple[dict[str, str], dict[str, str]]:
-    """({row key: its status}, {row key: what this update's notes say of it}) for the rows of `pid` that `build`
-    carries and the notes left out (render.NOT_IN_NOTES: the eye, and "no line mentions this"); a row the notes cover
-    stays quiet, as on an entity page (a status mark a row: 5554's page grew 0.5 MB). A shared edit's row is under its
-    block's key and each target's."""
+def notes_of(pid: str, build: int) -> dict[str, str]:
+    """{row key: its status in `pid`} for the rows `build` carries (`_status` keeps the ones not in the notes). A shared
+    edit's row is under its block's key and each target's; a key two rows give two statuses (two '@shared' blocks with
+    one path) is left out."""
     from . import archive
     try:
         p = archive.patch(pid)
     except (OSError, KeyError):
-        return {}, {}
-    statuses: dict[str, str] = {}
-    said: dict[str, str] = {}
+        return {}
+    seen: dict[str, set[str]] = {}
     for e in p.get('entities') or ():
         for c in e.get('changes') or ():
-            if (build not in (c.get('builds') or ()) or not c.get('path') or not c.get('key')
-                    or c.get('status') not in NOTES_SAY):
+            if build not in (c.get('builds') or ()) or not c.get('path') or not c.get('key'):
                 continue
             keys = [c['key']]
             if e['id'] == '@shared':
                 keys += [row_key(e['file'], '@shared', c['path'])] + [f'{k}:{c["path"]}' for k in e.get('target_keys') or ()]
             for k in keys:
-                statuses.setdefault(k, c['status'])
-                said.setdefault(k, NOTES_SAY[c['status']])
-    return statuses, said
+                seen.setdefault(k, set()).add(c.get('status', ''))
+    return {k: next(iter(s)) for k, s in seen.items() if len(s) == 1}
 
 
 def data_files(rec: dict) -> list[str]:
@@ -140,7 +146,7 @@ def data_files(rec: dict) -> list[str]:
 def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     rel = '../'
     # each row with its status in the update it belongs to (the eye on what the notes left out) and its source
-    statuses, said = (notes_of(patch['id'], rec['build']) if patch and rec.get('build') is not None else ({}, {}))
+    statuses = notes_of(patch['id'], rec['build']) if patch and rec.get('build') is not None else {}
     ents = page_entities(rec, statuses)
     diff = ({f: diff_url(rec.get('build'), rec['commit'], f) for f in data_files(rec)} if rec.get('commit') else {})
     cosmetic: dict[str, int] = {}
@@ -174,7 +180,8 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     body.append('<div id="build-body">')
     if ents:
         body.append('<section class="section"><h2>Gameplay data</h2>')
-        with build_rows_scope(diff, said):          # every row: its anchor and its source (evidence.row_source)
+        # every row: its source and, its key written once, its anchor (evidence.row_source)
+        with build_rows_scope(diff, unique_keys(ents[:ENTITY_LIMIT])[1]):
             body.append(_changes_table(ents[:ENTITY_LIMIT], rel))
         if len(ents) > ENTITY_LIMIT:
             body.append(f'<p class="muted">{len(ents) - ENTITY_LIMIT} more entities not shown.</p>')

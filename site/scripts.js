@@ -1812,7 +1812,7 @@
         [pips, gpips].forEach(function (ps) {
           ps.forEach(function (p) { if (p.__n !== undefined) p.lastChild.nodeValue = p.__n; p.classList.remove('n0'); });
         });
-        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); }
+        if (eye) { eye.textContent = eye.__t; eye.parentNode.classList.remove('n0'); named(eye); }
         shr.forEach(function (c) { c.classList.remove('n0'); });
         return;
       }
@@ -1836,8 +1836,15 @@
         var none = eye.__t === 'no patch notes';
         var words = none ? eye.__t : (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
           hidden + ' not in patch notes';
-        if (eye.textContent !== words) eye.textContent = words;
+        if (eye.textContent !== words) { eye.textContent = words; named(eye); }
         eye.parentNode.classList.toggle('n0', !hidden);
+      }
+    }
+    // the chip that links its proof (history_view._eye_chip) is named "count — words": its name follows the count
+    function named(eye) {
+      var a = eye.parentNode;
+      if (a.tagName === 'A' && a.hasAttribute('data-tooltip')) {
+        a.setAttribute('aria-label', eye.textContent + ' — ' + a.getAttribute('data-tooltip'));
       }
     }
     function apply() {
