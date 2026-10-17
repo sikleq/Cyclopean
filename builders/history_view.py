@@ -417,7 +417,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         if not rows:
             continue
         cv = next((g for g in groups if g['keys'][0].endswith(CONVARS_KEY)), None) if key.endswith(CONVARS_KEY) else None
-        if merge and cv is not None:
+        if merge and cv is not None and not (lines or cv['lines'] or texts.get(key) or texts.get(cv['keys'][0])):
             # a Game system's console variables are one group per band, whichever part each belongs to: the Souls page
             # read "Console variables" twice in one update (review 2026-10-17, round 4); the group keeps every part's
             # filter (its keys' areas)

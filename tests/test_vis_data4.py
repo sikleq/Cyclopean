@@ -133,8 +133,18 @@ def test_a_parts_template_defaults_are_plumbing():
     item_base = _mc('abilities.vdata', 'upgrade_infuser', '_multibase', 'tech_upgrade_t1', 'armor_upgrade_t4',
                     'Multibase', cat='meta')
     item_add = _mc('abilities.vdata', 'upgrade_infuser', 'm_iItemTier', None, 'EModTier_4', 'Tier', op='add')
-    mark_inherited_defaults([base, act, moved, item_base, item_add])
+    # a part named on its own is an ability of its own (Solomon's knightbuff trigger is "Move King")
+    named_base = _mc('abilities.vdata', 'ability_chessmaster_knightbuff_trigger', '_multibase', None, 'x', 'Multibase',
+                     op='add', cat='meta')
+    named_add = _mc('abilities.vdata', 'ability_chessmaster_knightbuff_trigger', 'm_flRange', None, 500, 'Range',
+                    op='add')
+    cat = {'abilities.vdata:ability_ice_dome': {'name': 'Frozen Shelter'},
+           'abilities.vdata:ability_ice_dome_trigger': {'name': 'Frozen Shelter'},
+           'abilities.vdata:ability_chessmaster_knightbuff': {'name': 'Kingside Knight'},
+           'abilities.vdata:ability_chessmaster_knightbuff_trigger': {'name': 'Move King'}}
+    mark_inherited_defaults([base, act, moved, item_base, item_add, named_base, named_add], cat)
     assert act.cat == 'technical' and moved.cat == 'balance' and item_add.cat == 'balance'
+    assert named_add.cat == 'balance'
 
 
 def test_ping_markers_shop_filters_and_a_boss_weapon_key_are_no_gameplay():
@@ -177,6 +187,8 @@ def test_a_scaling_tier_bonus_keyed_by_its_property_says_so():
     parts = enrich.tier_scaling(data, path)
     assert parts == ['EAddToScale', 'ETechPower']
     assert enrich.tier_scaling(data, 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{MarksTotal}.m_strBonus') is None
+    # the bonus's sibling fields (its upgrade type, its property name) are plumbing, not a scaling bonus
+    assert enrich.tier_scaling(data, 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{Damage}.m_eUpgradeType') is None
     assert semantics.describe(path, {}, 'a', 'ability', None, None, parts)['label'] == 'T3: Damage (spirit scaling)'
     assert semantics.describe(path, {}, 'a', 'ability')['label'] == 'T3: Damage'
     # two bonuses to one property: flatten keys the scaling one apart, the bare key is the flat one (Explosive Barrel's
@@ -188,11 +200,29 @@ def test_a_scaling_tier_bonus_keyed_by_its_property_says_so():
     assert enrich.tier_scaling(twin, 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{ImpactDamage}.m_strBonus') is None
 
 
+def test_the_scaling_word_is_its_windows_own(monkeypatch):
+    """One field can be a flat bonus in one build and a scaling one later (Warden's T3 Barrier +150): the canonical
+    label stays plain, a window whose record says scaling adds the word."""
+    from pipeline import labels, match
+    path = 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{Barrier}.m_strBonus'
+    monkeypatch.setattr(labels, 'canonical', lambda key, d, fmap=None: {'label': 'T3: Barrier', 'unit': '', 'sign': ''})
+    ce = {'kind': 'ability'}
+    flat = match._window_change('abilities.vdata', 'a', {'path': path, 'op': 'add', 'new': 150, 'cat': 'balance'}, ce,
+                                [1], False, {}, {})
+    scaled = match._window_change('abilities.vdata', 'a', {'path': path, 'op': 'change', 'old': 1, 'new': 2,
+                                                           'cat': 'balance',
+                                                           'scale_parts': ['EAddToScale', 'ETechPower']}, ce,
+                                  [2], False, {}, {})
+    assert flat.shown == 'T3: Barrier' and scaled.shown == 'T3: Barrier (spirit scaling)'
+
+
 def test_a_modifiers_attributes_read_as_its_effect():
     from pipeline.semantics import context_label
     assert context_label('m_AutoCastDelayModifier.m_nAttributes') == 'Auto Cast Delay effect'
     assert context_label('m_TargetModifier.m_nAttributes') == 'On target effect'
     assert context_label('m_Phase1Modifier.m_nAttributes') == 'Phase 1 effect'
+    assert context_label('m_ProcEffectModifier.m_nAttributes') == 'Proc effect'       # not "Proc Effect effect"
+    assert context_label('m_sModifier.m_nAttributes') == 'Effect'
     assert context_label('m_nAttributes') == 'Effect'
 
 
@@ -210,7 +240,7 @@ def test_the_currency_is_souls_in_labels_the_game_never_wrote():
     from pipeline.semantics import describe, humanize
     assert humanize('m_flGoldPerMinuteAmount') == 'Souls Per Minute Amount'
     assert humanize('m_nTier1GoldKill') == 'Tier1 Kill Souls' and humanize('m_nTier1GoldOrbs') == 'Tier1 Soul Orbs'
-    assert humanize('BonusBuffsPerGold') == 'Bonus Buffs per Soul'
+    assert humanize('BonusBuffsPerGold') == 'Bonus Buffs Per Soul' and humanize('m_flPerGoldBonus') == 'Per Soul Bonus'
     assert humanize('m_flGoldenRatio') == 'Golden Ratio'
     assert describe('m_flRocketJumpForceUpBias', {}, 'x', 'ability')['label'] == 'Rocket Jump Upward Push'
 
@@ -272,6 +302,10 @@ def test_a_parts_repeat_of_its_parent_counts_once_on_the_patch_page(monkeypatch)
     pages = frozenset({'heroes.vdata:hero_0', 'abilities.vdata:ab', 'abilities.vdata:ab_trigger'})
     rows = patch_counts.counted_rows({'entities': [parent, part]}, pages)
     assert [c['label'] for _, c, _ in rows] == ['Added to the game files', 'Radius']
+    # the patch page's cards read the same entities: a part that only repeated its parent has no card
+    only = {**part, 'changes': part['changes'][:1]}
+    assert [e['id'] for e in patch_counts.fold_repeats([parent, only])] == ['ab']
+    assert part['changes'][0]['label'] == 'Added to the game files'          # the record is not written into
 
 
 def test_paint_the_town_counts_one_way_in_the_data():

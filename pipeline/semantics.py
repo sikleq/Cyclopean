@@ -483,7 +483,7 @@ _GAME_WORDS = ((re.compile(r'\bBullet Armor Damage (Resist|Reduction)\b'), 'Bull
                # "Bonus Buffs Per Gold": review 2026-10-17, round 4) — console variable names keep it (AGENTS.md)
                (re.compile(r'\bGold Orb(s?)\b'), r'Soul Orb\1'),
                (re.compile(r'\bGold Kill\b'), 'Kill Souls'),
-               (re.compile(r'\bPer Gold\b'), 'per Soul'),
+               (re.compile(r'\bPer Gold\b'), 'Per Soul'),
                (re.compile(r'\bGold\b'), 'Souls'))
 
 
@@ -1117,7 +1117,10 @@ def context_label(path: str, depth: int = 3, tok: dict[str, str] | None = None) 
     if parts and parts[-1].lower() == ATTRIBUTES_LEAF and shown and shown[-1] == 'Attributes':
         # a modifier's attributes are what kind of effect it is ("+can't be purged", "+stacks"): the effect's name
         # says it — "Auto Cast Delay effect", not "Auto Cast Delay › Attributes" (review 2026-10-17, round 4)
-        shown = shown[:-2] + [re.sub(r' Modifier$', '', shown[-2]) + ' effect'] if len(shown) > 1 else ['Effect']
+        # (a name that ends in "Modifier" or "Effect" already — "Proc Effect", "Phase 1 Modifier" — says it once)
+        base = re.sub(r' (?:Modifier|Effect)$', '', shown[-2]) if len(shown) > 1 else ''
+        shown = shown[:-2] + [f'{base} effect' if base and base != 'Effect' else 'Effect'] if len(shown) > 1 \
+            else ['Effect']
     # every segment a dropped container (an aura's effect alone): its own name, not nothing
     return ' › '.join(shown) or humanize(re.sub(r'[\[{].*$', '', parts[-1]) if parts else path)
 

@@ -75,7 +75,8 @@ def street_brawl_base(data: dict | None, path: str) -> float | None:
     return _num(prop.get('m_strValue')) if isinstance(prop, dict) else None
 
 
-_TIER_KEY = re.compile(r'^m_vecAbilityUpgrades\[(\d+)\]\.m_vecPropertyUpgrades\{([^}|]+)\}\.')
+# the bonus itself — not its sibling fields (the upgrade type, the property name: plumbing rows)
+_TIER_KEY = re.compile(r'^m_vecAbilityUpgrades\[(\d+)\]\.m_vecPropertyUpgrades\{([^}|]+)\}\.m_strBonus$')
 SCALE_TYPES = ('EAddToScale', 'EMultiplyScale')
 
 
@@ -161,6 +162,11 @@ def enrich_record(rec: dict) -> dict:
                 c['base'] = base                # the value the mode's number replaces (match: "lasts 35% less")
             c.pop('scale_parts', None)
             parts = tier_scaling(data, c['path']) if f == 'abilities.vdata' and eid != '@shared' else None
+            if parts is None and c.get('op') == 'remove' and f == 'abilities.vdata' and _TIER_KEY.match(c['path']):
+                # a bonus that went is read where it still was: the build before
+                if prev_abilities is None:
+                    prev_abilities = cache.vdata(rec['prev_commit'], tracker.SCRIPTS + 'abilities.vdata')
+                parts = tier_scaling(prev_abilities.get(eid), c['path'])
             if parts:
                 c['scale_parts'] = parts        # a scaling T1-T3 bonus its path does not name (labels, match)
             d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'), token, c.get('scale_parts'))

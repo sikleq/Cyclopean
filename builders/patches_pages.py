@@ -351,12 +351,13 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
     parts.append(f'<div class="meta muted">builds: {builds or "—"}{src}</div>')
 
     from .cards import gameplay_entities
-    from .patch_counts import drop_inherited, for_id
+    from .patch_counts import drop_inherited, fold_repeats, for_id
     names = {e['id']: e.get('name') for e in p['entities'] if e['file'] == 'heroes.vdata'}
     # gameplay_entities copies each entity, so the owner's name is not written into the shared record; a template's
-    # edits its heirs carry are on the heirs' cards only, as counted (patch_counts.drop_inherited)
+    # edits its heirs carry are on the heirs' cards only, as counted (patch_counts.drop_inherited); a nameless part's
+    # repeat of its parent is said once, as counted (patch_counts.fold_repeats: the cards listed 38 under "36")
     gameplay = [{**e, 'owner_name': names.get(e['owner'])} if e.get('owner') else e
-                for e in drop_inherited(gameplay_entities(p['entities']))]
+                for e in fold_repeats(drop_inherited(gameplay_entities(p['entities'])))]
     # the tab counts what the tiles count (cards.player_facing), not raw rows: City Never Sleeps
     # read 1524 in the tab against 1000 in the tiles (71 of 104 pages differed, audit 2026-10-01) —
     # the one count of patch_counts, as on the patch list and the home page

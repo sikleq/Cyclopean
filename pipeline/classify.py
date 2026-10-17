@@ -274,9 +274,11 @@ _BARE_PREFIX = re.compile(r'^([a-z0-9]+)_')
 _SUB_SUFFIX = re.compile(r'_(?:cancel_trigger|cancel|trigger|teleport|recast)$')
 
 
-def is_sub_part(aid: str) -> bool:
-    """A nameless second part of an ability by its id ('ability_ice_dome_trigger')."""
-    return bool(_SUB_SUFFIX.search(aid or ''))
+def sub_part_parent(aid: str) -> str | None:
+    """The id a second part's id extends ('ability_ice_dome_trigger' -> 'ability_ice_dome'), or None: by the id alone
+    (`sub_ability_parent` checks an owner too)."""
+    m = _SUB_SUFFIX.search(aid or '')
+    return aid[:m.start()] if m else None
 
 
 def sub_ability_parent(aid: str, owner: dict[str, str]) -> str | None:
