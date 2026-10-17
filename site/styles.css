@@ -1076,9 +1076,10 @@ table.kvt.tier-grid td.v { text-align: center; }
 
 
 /* ---------- 09. Tables ---------- */
-/* a table's frame hugs it and sits centred, the fade on its own edge (review 2026-10-05: Unit Stats' 570px tables in
-   full-width frames, half empty) */
-.table-fade { position: relative; width: fit-content; max-width: 100%; margin-inline: auto; }
+/* a table's frame hugs it, the fade on its own edge (review 2026-10-05: Unit Stats' 570px tables in full-width frames,
+   half empty), and starts at the page's left edge under its title, bar and band: centred, Unit Stats' four tables of
+   four widths had four left edges under full-width bands, a matrix sat 23px right of its bar (review 2026-10-17) */
+.table-fade { position: relative; width: fit-content; max-width: 100%; }
 /* "more columns this way" until the box is scrolled to its end: a shadow over the content's right edge with a copper
    rule and an arrow at the top (a fade into --bg-page was the table's own colour: nobody saw it, review 2026-10-17).
    scripts.js table-fade keeps it off the box's scrollbars (--fade-r / --fade-b) */
@@ -1460,9 +1461,10 @@ a.au.au-hidden:hover b { text-decoration: underline; }
 .game-card img[src$=".svg"] { padding: 13px; }
 .dyn td.name .mx-g { display: inline-block; width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; color: var(--label); }
 /* Game rules: one table, a band row per system; centred cells and translucent lines both ways, names left */
-/* the page is one centred column: heading, tabs, search and the table share its width; the table scrolls with the
-   page, its head sticks under the site bar (no box of its own: a double scroll over 200 rows) */
-.rules-col { width: fit-content; max-width: 100%; margin-inline: auto; }
+/* the search and the table share one column at the page's left edge, under the title and tabs (centred, a 776px table
+   and its bar sat apart from them; review 2026-10-17); the table scrolls with the page, its head sticks under the site
+   bar (no box of its own: a double scroll over 200 rows) */
+.rules-col { width: fit-content; max-width: 100%; }
 .rules-col > .toolbar { position: static; margin-bottom: 10px; }
 table.game-rules { border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums;
   min-width: 560px; border-left: 1px solid var(--grid); border-top: 1px solid var(--grid); }
@@ -2114,8 +2116,6 @@ table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 6
 .chip.legend-hist { white-space: normal; max-width: 100%; }
 .legend-hist .lg-tap { display: none; }            /* "hover a value", on a touch screen "tap a value" */
 @media (hover: none) { .legend-hist .lg-hover { display: none; } .legend-hist .lg-tap { display: inline; } }
-/* a table narrower than the page sits in the middle (Item Stats, the change matrices) */
-.table-fade.center { width: fit-content; max-width: 100%; margin-inline: auto; }
 /* a one-patch month's label ("2026-10" over 30px) spilled past the table and made the box scroll 25px
    further than the last column, so the first column opened half under the sticky names */
 table.dyn thead tr.cats th { overflow: hidden; text-overflow: clip; }

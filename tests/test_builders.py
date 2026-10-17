@@ -1280,10 +1280,10 @@ def test_item_table_bands_tiers_and_lazy_columns():
                         cells_by_key={'stats': lambda r, c, cut: '<td class="sumc"></td>',
                                       'effect': lambda r, c, cut: '<td class="fxc"></td>',
                                       'builds': lambda r, c, cut: '<td class="xcol"></td>'},
-                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'}, center=True)
-    # one band row per category, spanning the table; the box centred on the page
+                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'})
+    # one band row per category, spanning the table; the box at the page's left edge like every table's (2026-10-17)
     assert html.count('<tr class="sec"') == 2 and '<tr class="sec" data-cat="s">' in html
-    assert 'class="sec-fill"' in html and 'class="table-fade center"' in html
+    assert 'class="sec-fill"' in html and 'class="table-fade"' in html
     # a lazy column: its header says how to build its cells, the rows have none
     assert re.search(r'data-col="health_max"[^>]*data-cell-cls="grp-start( g-odd)? stc"', html)
     assert 'data-col="health_max" data-sort' not in html

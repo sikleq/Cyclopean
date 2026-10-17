@@ -812,7 +812,6 @@
       var sc = t.closest('.table-scroll');
       var box = sc && sc.parentNode;
       if (!sc || !box) return;
-      box.classList.add('center');
       function fit() {
         box.style.maxWidth = '';
         var name = t.querySelector('thead tr.cols th.name');

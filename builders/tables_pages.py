@@ -160,13 +160,12 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                  cell_attrs: Callable[[dict, dict], str] | None = None,
                  row_attrs: Callable[[dict], str] | None = None,
                  cells_by_key: dict[str, Callable[[dict, dict, str], str]] | None = None,
-                 group_cls: dict[str, str] | None = None, rel: str = '../', center: bool = False,
-                 table_attrs: str = '') -> str:
+                 group_cls: dict[str, str] | None = None, rel: str = '../', table_attrs: str = '') -> str:
     """`cells_by_key`: a column whose cell is not one number (items: the stats as chips, the effects,
     what an item builds from and into) — builder(row, column, cutoff) -> '<td…>'. A column's own `cls`
     goes on its header and cells, a group's (`group_cls`) on its group header; a `lazy` column has no
     cells (scripts.js builds them). `section_of` -> a band row before each new section: its label, or
-    (label, row attributes). `center`: the box sits in the middle of the page when narrower.
+    (label, row attributes). The box hugs the table at the page's left edge (styles.css `.table-fade`).
     `table_attrs`: extra attributes of the <table> (Item Stats' data-heat-by)."""
     cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
@@ -245,8 +244,7 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
         body.append(f'<tr{rc}{ra} data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
     # the fade on the right edge says "more columns this way" until the table is scrolled to its end
     tid = f' id="{esc(table_id)}"' if table_id else ''
-    fade = 'table-fade center' if center else 'table-fade'
-    return (f'<div class="{fade}"><div class="table-scroll"><table class="stats"{tid}{table_attrs}><thead>{cat_row}{col_row}</thead>'
+    return (f'<div class="table-fade"><div class="table-scroll"><table class="stats"{tid}{table_attrs}><thead>{cat_row}{col_row}</thead>'
             f'<tbody>{"".join(body)}</tbody></table></div></div>')
 
 
@@ -701,7 +699,7 @@ def items_table() -> str:
                          cell_attrs=cell_attrs,
                          cells_by_key={'stats': lambda r, c, cut: stats_cell(r, stat_cols, cut, rel),
                                        'effect': lambda r, c, cut: effects_cell(r, cut, rel), 'builds': builds},
-                         group_cls=group_cls, rel=rel, center=True,
+                         group_cls=group_cls, rel=rel,
                          # the heat compares items of one tier (one price): ranked over all tiers every
                          # tier-I number read red and every tier-IV one green; "Souls per point" evens
                          # the price out, so it ranks over all (scripts.js heatmap)
