@@ -9,7 +9,10 @@
       "Hero, Item, Unit and Game changes have a \"Not in patch notes\" switch that redraws every cell from the changes the notes left out; the home page's \"not in patch notes\" counter opens them with it on, and every matrix filter is kept in the page address.",
       "One wording across the site: \"not in patch notes\" for what the notes left out, \"no patch notes\" for an update without any, \"notes we couldn't match\"; counts of one are singular.",
       "Links to a section no longer land under the sticky bars, and a hero's patch strip shows the month and year under its tiles with one line explaining the orange top.",
-      "An eye's words read the same everywhere (Not in patch notes, came in build N after the patch / No patch notes for this update), and a change shared by many abilities opens its own block on the build page."
+      "An eye's words read the same everywhere (Not in patch notes, came in build N after the patch / No patch notes for this update), and a change shared by many abilities opens its own block on the build page.",
+      "A hero's release update marks what its announcement left out: other heroes' silent changes in the same build (Solomon's Move Piece rework and Danny's tuning in Paint the Town) carry the eye on the home page, in the patch list and on the patch page; its check line adds up (23 released with the hero + 12 other + 1 in development = 36).",
+      "Fewer technical rows among the changes not in patch notes (City Never Sleeps: 348 to 333), removed abilities name their hero, and silent changes read in a player's words: Strix Salvo T3: Damage (spirit scaling), Rocket Jump Upward Push, Souls instead of Gold; one Console variables group per update.",
+      "The 2025-05-08 shop rework: the notes' lines on shields becoming barriers, the 6% neutral bounty raise and the new boon schedule now cover those changes (952 of 1303 not in patch notes, was 1023)."
     ]
   },
   {

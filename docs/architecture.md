@@ -77,11 +77,11 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 |---|---|
 | documented | a note line has the same old → new numbers as the files |
 | described | a note line talks about it without exact numbers (e.g. "All slows reduced by ~20%") |
-| hidden | nothing in the notes covers it — the eye marker |
+| hidden | nothing in the notes covers it — the eye marker; in a hero's release window: what its announcement left out |
 | mismatch (line) | the line names a property of the entity but the files say other numbers |
 | fix (line) | a bug-fix line ("Fixed …") — usually no data change |
 | rounded (line) | the notes round a value (0.54 → "0.5"); exact values shown |
-| unannounced | a window with no changelog (e.g. City Never Sleeps): nothing can be "hidden"; the page shows
+| unannounced | a window with no changelog and no hero release (build-6169, "Rem Enters The City That Never Sleeps"): nothing can be "hidden"; the page shows
   the biggest changes and patch notes written from the files |
 | unreleased | a change to a hero still in development at that build — flask mark, violet rows; kept in "Only hidden" |
 | heading (line) | a bare entity name ("Sinclair") heading the lines below it: those lines get it as their subject |
@@ -131,8 +131,10 @@ is memoised on the identity of the change dicts; it ran 96k times on ~23k inputs
 
 **One count of "not in patch notes".** "Not in patch notes" — the eye — is ONE status set everywhere
 (`render.NOT_IN_NOTES` = hidden and unannounced; `not_in_notes(c)`): what Valve did not write down, including every
-change of an update that had no notes at all (Rat King's build 6736 lost its eye and dropped out of the eye filter
-when only hidden counted). Such a band's eye chip reads "no patch notes". ONE icon too: `unannounced` draws the eye
+change of an update with no changelog and no hero release (before this rule, Rat King's build 6736 lost its eye and
+dropped out of the eye filter when only hidden counted). Such a band's eye chip reads "no patch notes"; a hero's
+release is checked against its post (`common.checks_notes`), so its band reads "N not in patch notes". ONE icon too:
+`unannounced` draws the eye
 (`STATUS_MARK['unannounced'] = ('eye', 'No patch notes for this update — …')`, `.mark.unannounced { --mk:
 var(--mask-eye) }` in the eye's colour; its document glyph sat beside the eyes of every other update, 2026-10-17).
 Work on a hero still in development
@@ -804,7 +806,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   already names it. A square scrolls to its ability's group and lights it briefly. On the patch archive
   the squares still link to `patches/<id>.html` with a text tooltip.
 - Round 4 (advisor, a player's eye): one wording — "not in patch notes" for the eye (toolbar, banners,
-  home), "no patch notes" for an update without any, "notes we couldn't match" for a note line no change was found for,
+  home), "no patch notes" for an update with no changelog and no hero release, "notes we couldn't match" for a note line no change was found for,
   "Before release" for work on a hero before it shipped, "First seen <date>" (`common.first_seen`)
   instead of a build number; a count of one is singular ("1 change", "1 bug fix"). Labels split from field names
   use the game's words
@@ -984,11 +986,11 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   `au-arch`) each sit in a `span.au-more` after a `span.au-dot` " · ", in 13px UI type. At most 700px they go one a
   line, without the dot, starting at the left (`.update > .banner .bc` flex-basis 100%). A group whose icons are all
   out of the notes gets `span.chip.lu-all` "all not in patch notes" beside its label (its margin box no taller than
-  the label's line); an update without notes gets none (its banner says "no patch notes"). At most 640px the four
+  the label's line); an update with no changelog and no hero release gets none (its banner says "no patch notes"). At most 640px the four
   tiles stay two a row, the title and the number share a line when they fit, and the 32px icons sit at the bottom.
   The home counter's second number is `div.hs.hidden`: `a.hs-go` opens `heroes/changes.html#hidden`
   (`home_page.HIDDEN_VIEW`: the Hero changes with "Not in patch notes" on), and `.hs-in` names the four sections,
-  each linking to its own `<sec>/changes.html#hidden`. An update without notes keeps its banner chip, an eye link to
+  each linking to its own `<sec>/changes.html#hidden`. An update with no changelog and no hero release keeps its banner chip, an eye link to
   its `#hidden`, which reads "N changes · no patch notes" (singular for 1).
 - Shared abilities (`builders/shared_page.py`): the abilities every hero has (kind 'shared'): heroes/shared.html (the hero history
   view), the hero matrix's "All heroes · movement & shared" row, search rows.
@@ -1138,16 +1140,16 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 An update with notes and changes they left out has the tab "Not in patch notes N" (eye on the tab,
 `patches_pages.HIDDEN_TAB`, `data-hidden-tab`): its biggest changes and readable lines of those rows only
 (`_key_changes(only_hidden=)`, `_generated_notes(only_hidden=)`); "#hidden" opens it (scripts.js
-hidden-hash), while the All changes eye keeps "#changes". An update without notes says "no patch notes"
+hidden-hash), while the All changes eye keeps "#changes". An update with no changelog and no hero release says "no patch notes"
 (home banner too: "N changes · no patch notes"; the patch list counts such an update by all its changes).
 "N of them in game rules" opens game/changes.html. The band chips read "N not in patch notes", "all N not in patch
 notes" or "no patch notes" (`history_view`); scripts.js `hist-filter` keeps "no patch notes" under a filter. The
 notes check under the tiles (`patches_pages._audit_line`) reads "N not in patch notes", "N changes · no patch notes"
-(a release's other changes: "other changes · no patch notes"), "notes we couldn't match", "N on heroes in development"
+(a hero's release: "N released with the hero" and "M other changes not in patch notes"), "notes we couldn't match", "N on heroes in development"
 (a count of changes), and singular "bug fix" / "note disagrees with the files".
 
 `patches_pages` names the tabs "Not in patch notes" (an update with notes; its heading "What the patch notes left
-out") and "Notes from the files" (an update with none; its heading "Patch notes written from the files").
+out") and "Notes from the files" (an update with no changelog, a hero's release included; its heading "Patch notes written from the files").
 `builders/written_notes.py` writes their lines (`notes_html`). Their lines are exactly the rows the patch's counters
 count (`patch_counts.counted_rows`, which `count` now sums: console variables included, one edit over a family or a
 Game system once), so a tab's number is what it lists. Valve's sections: Heroes, Items, Units, Game rules & map
@@ -1374,6 +1376,18 @@ load (`readable_labels` → `semantics.readable_label`, idempotent) until the da
 - `semantics._NOT_A_LENGTH` / `_PROP_NOT_LENGTH`: `Power$` and `Exponent` are no lengths (enrich 39).
 - `classify.is_template_entry`: `_not_pickable` is a template unless a hero binds the entry in a slot. The catalog keeps
   the newest state of an entry (it does not stick); `abilities.build` gives such an ability its card.
+- `classify`: `PingTarget*` ui; `m_eDisableShopFilters`, `m_BossWeaponName` technical. Enrich 40.
+- `semantics.context_label`: a modifier's `m_nAttributes` reads "<modifier> effect" (a name ending in Modifier /
+  Effect says it once; top level: "Effect").
+- `semantics._GAME_WORDS`: Gold → Souls (Gold Orb → Soul Orb, Gold Kill → Kill Souls, Per Gold → Per Soul) in labels
+  the game never wrote; `PLAIN_FIELDS` for an ability's unlabelled own fields (Danny's rocket jump).
+- `enrich.tier_scaling` → `scale_parts` (a removed bonus: read in the build before) → `semantics.describe(
+  scale_parts=…)` and `match._window_change`: a T1-T3 bonus (`.m_strBonus`) keyed by its property alone (no namesake in
+  its tier, `flatten._list_key`) whose `m_eUpgradeType` is a scaling reads "(spirit scaling)" like the card. The suffix is decided per window
+  (`_window_change` appends it to the canonical label of `pipeline.labels` when that label lacks it), so one field can be
+  flat in one build and a scaling later (Warden's T3 Barrier).
+- `item_table.track` iterates its keys sorted and `values` keep column order: two data runs gave 11 items different
+  histories (a set's order picked a renamed predecessor).
 
 ## Hero / unit stats
 
@@ -1423,7 +1437,7 @@ a hero's ability lands on its hero's card; a folded row — REWORK, a re-keyed f
 build page writes without an anchor), else on the page itself (a shared edit with no row of its own there).
 `patch_builds(builds, rel, pid)` (a ContextVar, set by `history_view._patch_block` around a band) gives
 `row_evidence(c)` → (words, href, late): "Not in patch notes — in the game files of build 6444 (2026-04-10) · click to
-open that build"; an update without notes: "No patch notes for this update — …"; several builds by name (at most 3 in
+open that build"; a window with no changelog and no hero release (its rows are `unannounced`): "No patch notes for this update — …"; several builds by name (at most 3 in
 the data), more as "6 builds, A (…) to B (…)". A build is dated by the game build's own date (`game_date(file)`: the
 record's `version_date`, "Oct 14 2026 20:01:37" → 2026-10-14), not by the tracker's UTC commit time. A change came
 after the patch (`late`: "Not in patch notes — came in build 6444 (2026-04-10), after the patch") only when its build
@@ -1545,7 +1559,7 @@ files): one beside a namesake in the shop is "(old)"; several "(old, added <date
 "(old, #n)" — "Toughness (old, added 2025-05-08)" / "(old, added 2024-06-06)", "Extra Large Magazine (old, #1)".
 
 Home: a section whose icons are all out of the notes carries the chip `span.chip.lu-all` (see Home above); an
-update without notes shows no chip. The Items tile shows six shop items.
+update with no changelog and no hero release shows no chip. The Items tile shows six shop items.
 
 Game rules (`game_rules.rules_page`): one column at the page's left edge (`.rules-col`, under the title and tabs), a
 variable search, the table scrolls with the page under a sticky head, "NEW" for a variable added with no move yet. A
@@ -1683,6 +1697,10 @@ A history band's title is `common.band_title_html(row)`: `.pdate` first (700 18p
 Hover cards: `table.dt-rows td.dt-tg + td.dt-field` has `min-width: 10em` (strip, trail and home cards), so
 "Min Sleep Time" keeps one line; the change matrix's card has no tag column and is unchanged.
 
+`history_view._groups` (merge mode = Game system pages): every `…:convars` key of a band with no lines or texts of its
+own joins ONE group (its areas are all its keys' parts). `written_notes.with_owner`: a removed ability's line takes the
+catalog's owner for its subject (the record and the pages' routing are unchanged).
+
 ## Key functions
 
 | # | Function | What it does |
@@ -1714,6 +1732,11 @@ plus the entity key for an entity that came or went. One edit over a unit family
 while four new sketch pickups are four changes. A merged group (a family or a Game system) carries every member's rows
 (`history_view._groups`). The patch page's tiles count `patch_counts.counted_rows`, so they add up to its "All changes"
 count.
+
+`patch_counts.fold_repeats` drops a nameless part's / alt fire's rows that repeat its parent's / gun's in the patch
+(`hero_page.every_history_fold` + `repeats_dropped`), as `home_page.update_feed`, the hero bands and the change matrix
+already did; `_placed_rows` and the patch page's All changes cards read it: the patch page's tiles, hero chips, tabs,
+cards and written notes count what the home icon counts.
 
 ## Performance
 
@@ -1882,11 +1905,16 @@ hidden changes stay hidden (2026-10-01: coverage 76%, real hidden kept 90%).
 | "Repeat light melees while airborne…" | `topic_words`: in a "… Attack Light › X" label the attack's kind (melee / light / heavy / attack) names no field |
 | "Street Brawl: …" | `classify.STREET_BRAWL_VALUE` rows (an ability's m_strStreetBrawlValue / Bonus / StatScale) only answer lines or sections that say Street Brawl; `MChange.base` (enrich `street_brawl_base`) is the value the mode's number replaces, one more step for pairs and percents |
 | a default gun block (damage 0) that came or went on a non-gun ability | `match.mark_dud_guns`: its added / removed rows are technical |
+| a nameless part (`match.nameless_part`: id = parent + `_trigger` / `_cancel` / `_recast`…, named like its parent or not at all — not Solomon's "Move King") gets `_multibase` / `_base` in the window | `match.mark_inherited_defaults`: its added rows are the template's defaults — technical |
+| "Shields have been reworked and are now called Barriers" (2025-05-08) | blanket (`data/overrides/blanket_lines.json`): removals of `(Bullet\|Tech)Shield…` properties of items and abilities; the new Barrier numbers stay hidden |
+| "Neutral bounties increased by 6%" / "Adjusted the boon reward schedule…" (2025-05-08) | blankets: neutrals' `m_flGoldReward` changes; the all-heroes `m_mapLevelInfo` table |
 
 Result of the rules above (`tools/audit_score.py`, before → after, 2026-10-17): coverage 85% → 85%, real hidden kept
 93% → 93%, non-gameplay filtered 68% → 79%, eye precision 33% → 33% (88 of 270). Over all patches, 30 unmatched lines now
 read documented, described or rounded, and 9 described lines became documented. 27 lines lost a wrong link (another
-ability's fields: "Pain Battery now starts charged" had linked Aura of Suffering), and 4 became "code".
+ability's fields: "Pain Battery now starts charged" had linked Aura of Suffering), and 4 became "code". After round 4
+(template defaults technical, shop-rework blankets, enrich 40): coverage 86%, real hidden kept 93%, non-gameplay
+filtered 79%, eye precision 33% (88 of 263).
 
 ## Patch windows
 
@@ -1907,11 +1935,17 @@ so a notes window "resumes" after a release that interrupts it (10-14's window =
 6790 are their own). `group()` returns the windows in the order their first builds shipped; `ambiguous_builds` and
 `absorb_late_windows` skip release windows.
 
-Statuses in a release window: everything is `unannounced` first, then `match.release_pass` sets the hero's state row to
+Statuses in a release window: the rows start as `unannounced`, then `match.release_pass` sets the hero's state row to
 `documented` and its kit to `described`. The kit (`match.release_kit`) is the hero, what it owns, the entries whose id
 carries its code (`citadel_artist_strokeblocker`, `pickup_artist_drawing_*`) and the units named like one of its
-abilities. Edits shared by many entities and other heroes' tuning stay `unannounced` (the eye). The patch page's audit
-line reads "N released with the hero" and "M other changes · no patch notes". `match.mark_unreleased` runs in every window,
+abilities. Everything else — other heroes' tuning, edits shared by many entities, its console variables — is `hidden`:
+the announcement is the window's notes and those rows are what it left out. Only a window with no changelog and no hero
+release keeps `unannounced`. Builders ask `common.checks_notes(row)` (index row: `has_notes` or `release`): the home
+feed's icons / banner, the patch list's audit + bar and the patch page's check line treat a release like an update with
+notes; the patch page's "From the files" list of a release leads every line with its mark
+(`written_notes.notes_html(marks=…)`, `patches_pages.RELEASE_MARKS`: the kit's tilde says "Released with the hero"). Its
+check line reads "N released with the hero" and "M other changes not in patch notes", and adds `unreleased`
+("on heroes in development") so the buckets sum to the changes. `match.mark_unreleased` runs in every window,
 also one without notes. `RELEASED_STATES` is Release only: a PreRelease hero is `unreleased` (`LISTED_STATES` keeps both
 for `mark_availability_moves`). The in-development flag that flips together with a release is marked `moved` and folded
 into the state row. A window that a release interrupts has a gap (`patches.gap_builds`): its before and after states

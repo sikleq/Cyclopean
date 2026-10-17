@@ -147,7 +147,8 @@ def test_the_eye_lands_on_its_row_and_the_row_holds_its_source():
     assert href == f'../builds/6785.html#{aid}' and aid == evidence.row_anchor(c['key'])
     block = re.search(rf'<details class="src" id="{aid}"><summary>(.*?)</summary>(.*?)</details>', html)
     row, src = block.groups()
-    assert '<span class="mark hidden"' in row and 'Rocket Jump Force Wall Multiplier' in row      # its status: the eye
+    # its status: the eye (the label reads plainly since round 4's data pass: semantics.PLAIN_FIELDS)
+    assert '<span class="mark hidden"' in row and 'Rocket Jump Push off Walls' in row
     assert ('<code>abilities.vdata › ability_deadpack_primary_weapon_charge › m_flRocketJumpForceWallMultiplier</code>'
             '<span><code>0.5</code> → <code>0.65</code></span>') in src
     assert '<a class="src-d" href="#df-abilities.vdata">file diff ↗</a>' in src

@@ -577,7 +577,7 @@ def checks_notes(row: dict) -> bool:
     "released with the hero", the rest of the build is hidden: pipeline.match.release_pass). Its rows not in the post
     carry the eye everywhere — the home icons, the patch list's bar, the patch page; only an update with no post at all
     says so once, "no patch notes" (review 2026-10-17, round 4: Violet's release showed Solomon's silent rework with
-    no eye and 0% "not in notes"). `row`: a patch index row (data/patches/index.json)."""
+    no eye and 0% "not in patch notes"). `row`: a patch index row (data/patches/index.json)."""
     return bool(row.get('has_notes', True) or row.get('release'))
 
 

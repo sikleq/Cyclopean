@@ -312,9 +312,13 @@ def _generated_notes(p: dict, only_hidden: bool = False, pages: frozenset[str] |
     # post at all has one status, said once by the page)
     marks = RELEASE_MARKS if p.get('release') and not only_hidden else None
     body, _ = notes_html(rows, _display_name, hero_names(), marks)
+    # a release has a post (it announces the hero) but no balance notes: "published no patch notes" read as if Valve
+    # had said nothing (review 2026-10-17)
     intro = ("Valve's patch notes do not mention these changes; every line below is read from the game files."
-             if only_hidden else 'Valve published no patch notes for this update; every line below is read from '
-                                 'the game files.')
+             if only_hidden else
+             "Valve's post announced the hero but listed no changes; every line below is read from the game files."
+             if p.get('release') else
+             'Valve published no patch notes for this update; every line below is read from the game files.')
     title = 'What the patch notes left out' if only_hidden else 'Patch notes written from the files'
     return f'<h2>{title}</h2><p class="muted">{intro}</p>{body}'
 
