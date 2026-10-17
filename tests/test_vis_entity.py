@@ -193,8 +193,9 @@ def test_ability_cards_end_at_their_last_tier(browser, tmp_path, monkeypatch):
         assert not errors
     finally:
         ctx.close()
-    # the chips' size (the fonts are offline here, so their line is checked on the built site's screenshots)
-    assert re.search(r'\.ability-card \.ac-hdr \.chip(, [^{]+)? \{[^}]*font-size: 15px', CSS)
+    # the chips' size: the label font's smallest step, 16px (the fonts are offline here, so their line is checked on the
+    # built site's screenshots)
+    assert re.search(r'\.ability-card \.ac-hdr \.chip(, [^{]+)? \{[^}]*font-size: var\(--fs-md\)', CSS)
     assert '.tiers { margin-top: auto; }' not in CSS
 
 
