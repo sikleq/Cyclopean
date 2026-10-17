@@ -418,10 +418,11 @@ details.collapsible > summary .chip { margin-left: 8px; }
   --c: var(--tag-changed);
   display: inline-flex; align-items: center; justify-content: center; gap: 4px;
   min-width: var(--tag-w);
-  padding: 4px 6px 3px 8px;
+  /* CHANGED, the longest word, fits the width: at 8px / 6px and .03em it came to 82.6px and stood out of its column */
+  padding: 4px 5px 3px 7px;
   font: 600 var(--fs-xs)/1 var(--font-ui);
   text-transform: uppercase;
-  letter-spacing: .03em;
+  letter-spacing: .02em;
   color: color-mix(in srgb, var(--c) 85%, var(--text-main));
   background:
     linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat,
@@ -1717,7 +1718,7 @@ ul.gen-notes li .tag { flex: none; }
 ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 /* phones: a notes row puts its values under the text; an ability header wraps (both widened the page) */
 @media (max-width: 600px) {
-  .erow { grid-template-columns: 22px 80px minmax(0, 1fr); }
+  .erow { grid-template-columns: 22px var(--tag-w) minmax(0, 1fr); }
   .erow .vv { grid-column: 2 / -1; text-align: left; max-width: none; white-space: normal; }
   /* a patch or build page's card row: no gutter, its tag (and a status mark, if any) runs in before the text, which
      wraps under it at the full width — the tag and the 22px gutter took ~45% of the row and each line wrapped 3-4

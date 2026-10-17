@@ -120,10 +120,14 @@ def test_each_family_keeps_to_its_own_steps():
 
 
 def test_the_tag_badge_is_the_ui_font_at_11px():
-    """AGENTS.md: every tag badge in the UI font at 11px."""
+    """AGENTS.md: every tag badge in the UI font at 11px, one width. CHANGED, the longest word, came to 82.6px in IBM
+    Plex at 8px / 6px padding and .03em: it stood 3px out of the 80px column (measured on the built site with the
+    fonts; this test runs offline, so it keeps the measured spec)."""
     tag = re.search(r'\n\.tag \{([^}]*)\}', CSS).group(1)
     assert 'font: 600 var(--fs-xs)/1 var(--font-ui);' in tag and 'min-width: var(--tag-w);' in tag
-    assert SCALE['xs'] == 11
+    assert 'padding: 4px 5px 3px 7px;' in tag and 'letter-spacing: .02em;' in tag
+    assert SCALE['xs'] == 11 and '--tag-w: 80px;' in CSS
+    assert 'grid-template-columns: 22px 80px' not in CSS          # every tag column is the badge's width
     # the hover card's badges too (they were 10px)
     card_tag = re.search(r'table\.dt-rows \.tag \{([^}]*)\}', CSS).group(1)
     assert 'font' not in card_tag
