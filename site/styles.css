@@ -319,7 +319,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 /* active = bone text on a copper underline, not a filled block */
 .nav-tab.active { color: var(--text-bright); box-shadow: inset 0 -3px 0 var(--patina); }
 .nav-build { justify-self: end; font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em;
-  padding: 4px 10px 3px; box-shadow: inset 0 0 0 1px var(--frame-line); }
+  padding: 4px 10px 3px; box-shadow: inset 0 0 0 1px var(--frame-line); white-space: nowrap; }
+/* the newest game build in the data, on every page: it opens that build's page (common.build_badge) */
+a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-shadow: inset 0 0 0 1px var(--patina); }
 
 /* ---------- 05. Page shell ---------- */
 .page { max-width: var(--content-w); margin: 0 auto; padding: 18px var(--gutter) 60px; }
@@ -331,6 +333,10 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
    build page's cards are the same one column (`column`, common.page) */
 .page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
 .page.column { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
+/* the site changelog: one centred column of prose, lines of ~80 characters (they ran ~1370px, ~200 characters at
+   1440: review 2026-10-17) */
+.page.changelog { max-width: calc(80ch + 2 * var(--gutter) + 40px); }
+.page.changelog .section-title .dimmer { white-space: nowrap; }      /* a date is one word */
 .page-head { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
 .page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
 .page-head .meta { color: var(--text-dim); font-size: 14px; }
@@ -922,13 +928,15 @@ table.kvt.tier-grid td.v { text-align: center; }
   .hblocks .erow.shr-all .shr-go, .hblocks .erow.shr-all .vv .tsum { margin-left: 0; }
 }
 
-.ptitle { display: flex; align-items: center; gap: 16px; }
+.ptitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .ptitle h1 { margin: 0 0 6px; }
-.steps { display: flex; gap: 6px; margin-left: auto; }
-.step { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 34px;
-  font: 20px/1 var(--font-label); color: var(--text-main); background: var(--bg-panel-3);
-  box-shadow: 0 0 0 2px var(--frame-line); }
-.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
+.steps { display: flex; gap: 8px; margin-left: auto; }
+/* both steps always, named ("◀ Older", "Newer ▶"); the one past the end dimmed (review 2026-10-17: a lone ◀) */
+.step { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 1px 10px 0;
+  font: 18px/1 var(--font-label); color: var(--text-main); background: var(--bg-panel-3); text-transform: uppercase;
+  letter-spacing: .06em; white-space: nowrap; box-shadow: 0 0 0 2px var(--frame-line); }
+a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
+.step.off { color: var(--text-dimmer); background: none; box-shadow: 0 0 0 2px var(--line-soft); }
 
 /* patch summary: tag counters + bar, heroes hit, one line of the notes check */
 .summary { padding: 14px 16px 12px; margin: 14px 2px 18px; }
@@ -995,6 +1003,10 @@ table.kvt.tier-grid td.v { text-align: center; }
 /* every card's art sits on the glyph's tile, at one inset: cut-out renders, a render with its own backdrop (Base
    Defense Sentry), white HUD marks and the site glyph read as one set (review 2026-10-17) */
 .card img { padding: 5px; background: var(--bg-panel-3); }
+/* a flat HUD mark (icons/units/_mark/: an ability icon, a minimap or map-legend marker) sits inside its tile as a
+   Game card's mark and the site glyph do; a painted portrait fills it (review 2026-10-17: the yellow Mid-Boss filled
+   its tile edge to edge beside the paintings) */
+.card img[src*="/_mark/"] { padding: 13px; }
 .card .nm { font: 600 14px/1.15 var(--font-ui); }
 .card .sub { font: 17px/1 var(--font-label); color: var(--text-dimmer); text-transform: uppercase; }
 .card .sub:empty { display: none; }
@@ -1013,6 +1025,7 @@ table.kvt.tier-grid td.v { text-align: center; }
   .grid.units { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .grid.units .card { padding: 10px 4px 8px; }
   .grid.units .card img, .grid.units .card .glyph { width: 56px; height: 56px; }
+  .grid.units .card img[src*="/_mark/"] { padding: 10px; }
   .grid.units .card .nm { overflow-wrap: break-word; }
 }
 .card.gone { opacity: .55; }
@@ -1394,6 +1407,11 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 
 /* patch page tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+/* one height for every tab, the words on one line: the 20px eye of "Not in patch notes" made its tab taller and its
+   words ~4px lower (review 2026-10-17); the eye is centred like a chip's */
+.tabs .px-btn { display: inline-flex; align-items: baseline; }
+.tabs .px-btn .mark { align-self: center; width: 14px; height: 14px; margin-right: 5px; }
+.tabs .px-btn .mark::before { width: 14px; height: 14px; }
 /* a phone: the tabs are ONE row that scrolls sideways, like the history bar's ability chips — wrapped, the sticky bar
    was three rows (138px; 194 of an 844px screen with the site bar, review 2026-10-17); scripts.js `tabs` scrolls the
    open one into sight */
@@ -1486,8 +1504,12 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 /* what each of the latest updates changed: a strip of icons per section, each opens that page at that update */
 .update { margin: 0 3px 16px; padding: 0 0 12px; }
 .update > .banner { margin: 0 0 6px; }
-.update .bc .au { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-dim); }
-.update .bc .au b { color: var(--eye); }
+/* the banner's count is the entity pages' eye chip (a.chip.eye-link); the clauses explaining it follow in the date's
+   quiet type, each after a " · " that wraps with it (review 2026-10-17: pixel caps, the clauses run together) */
+.update .bc .au-more { display: inline-flex; align-items: center; gap: 8px; }
+.update .bc .au-dot { font: 500 13px/1 var(--font-ui); color: var(--text-dimmer); }
+.update .bc .au { display: inline-flex; align-items: center; gap: 4px; font: 500 13px/1.2 var(--font-ui);
+  letter-spacing: 0; text-transform: none; color: var(--text-dim); }
 /* the sections side by side, each its label over its icons; a section as wide as its icons, a long one takes the
    whole width and wraps (review 2026-10-17: stacked under a 110px label column, five heroes and two items filled
    360px of a 1640px card) */
@@ -1495,10 +1517,10 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .lu-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
 .lu-h { font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
 .lu-h b { color: var(--text-bright); font-weight: 400; }
-/* a group whose icons all hold only changes the notes left out: one eye here, none on the icons */
-.lu-h .lu-all { margin-left: 10px; color: var(--eye); font: 600 11px/1.2 var(--font-ui); text-transform: none;
-  letter-spacing: 0; white-space: nowrap; }
-.lu-h .lu-all .mark { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
+/* a group whose icons all hold only changes the notes left out: one eye here, none on the icons — the entity pages'
+   eye chip (a.chip.eye-link), not amber sans with the eye glued to it (review 2026-10-17) */
+.lu-h .lu-all { margin: -3px 0 -2px 10px; color: var(--eye); }    /* its margin box no taller than the label's line */
+.lu-h .lu-all .mark, .lu-h .lu-all .mark::before { width: 14px; height: 14px; }
 .lu-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .lu { position: relative; display: block; width: 44px; height: 44px; background: var(--bg-panel-4);
   box-shadow: 0 0 0 2px var(--frame-line), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
@@ -1523,8 +1545,26 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 }
 /* a tablet keeps two tiles a row (one a row, each card showed its 6 icons in a 720px box); a phone one. Its two counters
    share the width the tiles take: they ended 24px short of them, 6px off their left edge (review 2026-10-17) */
+/* a phone keeps them two a row, smaller: one a row, the four took ~1000px and "Latest changes" began ~900px down
+   (review 2026-10-17). The title and its number share a line when they fit, the icons sit at the bottom */
 @media (max-width: 640px) {
-  .home-tiles { grid-template-columns: minmax(0, 1fr); }
+  .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .htile { display: flex; flex-wrap: wrap; align-items: baseline; align-content: space-between; gap: 4px 8px;
+    min-height: 0; padding: 12px 12px 14px; }
+  .htile .ht-t { font-size: 26px; }
+  .htile .ht-n { font-size: 18px; }
+  .htile .ht-x { margin-left: 6px; }
+  .htile .ht-art { flex: 1 1 100%; height: 32px; gap: 5px; margin-top: 6px; }
+  .htile .ht-art img { width: 32px; height: 32px; }
+  .htile.game .ht-art img { padding: 4px; }
+}
+/* an update's banner: its counts start under the title at the left, wrapped or not (the first card's sat right, the
+   next one's left, review 2026-10-17) */
+@media (max-width: 700px) {
+  .update > .banner .bc { flex-basis: 100%; justify-content: flex-start; }
+  /* the clauses under the chip, one a line: a " · " would start a wrapped line */
+  .update .bc .au-more { flex-basis: 100%; }
+  .update .bc .au-dot { display: none; }
 }
 @media (max-width: 600px) {
   .home-stats { flex: 1 1 100%; flex-wrap: nowrap; margin: 0 calc(3px + var(--px)); }     /* the tiles' box edges */
@@ -1587,6 +1627,13 @@ ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .erow { grid-template-columns: 22px 80px minmax(0, 1fr); }
   .erow .vv { grid-column: 2 / -1; text-align: left; max-width: none; white-space: normal; }
+  /* a patch or build page's card row: no gutter, its tag (and a status mark, if any) runs in before the text, which
+     wraps under it at the full width — the tag and the 22px gutter took ~45% of the row and each line wrapped 3-4
+     times in ~195px (review 2026-10-17) */
+  .ecard .erow { display: flow-root; }
+  .ecard .erow .st, .ecard .erow .tg { float: left; margin: 0 6px -6px 0; }    /* no taller than the first line */
+  .ecard .erow .st:empty, .ecard .erow .tg:empty { display: none; }
+  .ecard .erow .vv { display: block; margin-top: 2px; }
   .ability-card .ac-head { flex-wrap: wrap; }
   .ability-card, .ability-card .ac-head > * { min-width: 0; }
   .erow .tx, .ability-card .ac-head { overflow-wrap: anywhere; }
@@ -1890,6 +1937,9 @@ table.dyn thead th.name { z-index: 4; background: var(--bg-panel-2); }
 table.dyn td.name a { display: flex; align-items: center; gap: 8px; min-height: 26px; color: var(--name); font: 600 13px/1 var(--font-ui);
   white-space: nowrap; overflow: hidden; }
 table.dyn td.name img { flex: none; width: 26px; height: 26px; object-fit: cover; background: var(--bg-panel-4); }
+/* a Game system's icon whole, as on its card, the home page and its own page: cropped to the square, the tall Souls
+   coil (35x67) read as a swirl, another icon than everywhere else (review 2026-10-17) */
+table.dyn[data-what] td.name img { object-fit: contain; padding: 2px; }
 /* a run of empty cells is one cell (dynamics_page._gap): the column lines are its background */
 table.dyn tr.cols th.dd { padding-left: 0; padding-right: 0; overflow: hidden; }
 table.dyn tbody td:not(.name) { padding: 3px 0; background-color: var(--bg-panel);
@@ -1993,7 +2043,8 @@ table.dyn th.name { text-align: center; }
   background: var(--bg-panel-3); pointer-events: none; font-size: 13px; }
 .dyn-tip.on { display: block; }
 .dt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.dt-head img { width: 28px; height: 28px; object-fit: cover; background: var(--bg-panel-4); }
+/* whole, never cropped: a Game system's tall mark is the same icon here as on its row (review 2026-10-17) */
+.dt-head img { width: 28px; height: 28px; object-fit: contain; background: var(--bg-panel-4); }
 .dt-name { font: 600 14px/1.1 var(--font-ui); color: var(--name); }
 .dt-patch { margin-left: auto; font: 500 12px/1 var(--font-ui); color: var(--label); }
 .dt-patch.named { color: var(--gold); }

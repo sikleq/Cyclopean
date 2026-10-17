@@ -413,9 +413,29 @@ def asset_version() -> str:
     return h.hexdigest()[:10]
 
 
+@lru_cache(maxsize=1)
+def latest_build() -> dict | None:
+    """The newest game build in the data (data/builds/index.json, the last one with a number): the build every page's
+    site bar names."""
+    rows = [r for r in load_json('builds/index.json') if r.get('build') is not None]
+    return rows[-1] if rows else None
+
+
+def build_badge(rel: str) -> str:
+    """The site bar's build: ONE number from one source on every page, saying what it is and opening its build page —
+    only the home page and the three stats tables showed one, and they differed (6793 against 6790: a table passed the
+    build its data last changed in; review 2026-10-17)."""
+    b = latest_build()
+    if not b:
+        return ''
+    return f'<a class="nav-build" href="{esc(build_href(b["file"], rel))}">game build {b["build"]}</a>'
+
+
 def page(title: str, body: str, rel: str = '', active: str = '', build: int | None = None,
          description: str = '', wide: bool = False, fonts: tuple[str, ...] = (), cls: str = '') -> str:
-    """`fonts`: more Google Fonts families for this page only (the shop's stand-ins), in the same request.
+    """`build`: no longer shown — every page's bar names the newest build in the data (`build_badge`); the stats tables
+    still pass the build their data last changed in.
+    `fonts`: more Google Fonts families for this page only (the shop's stand-ins), in the same request.
     `cls`: one more class on <main> — 'entity' gives a hero / item / unit page its one centred column (owner
     2026-10-04: the history sat pinned left under a full-width head).
 
@@ -428,7 +448,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
         f'<a class="nav-tab{" active" if key == active else ""}" href="{rel}{href}">{label}</a>'
         for key, label, href in NAV)
     ver = asset_version()
-    build_s = f'<span class="nav-build">build {build}</span>' if build else ''
+    build_s = build_badge(rel)
     desc = f'<meta name="description" content="{esc(description)}">' if description else ''
     font_css = esc(fonts_url(fonts))
     return f'''<!DOCTYPE html>

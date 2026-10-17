@@ -315,12 +315,12 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
         name = _display_name(e)
         for c in e['changes']:
             change_by_key[c['key']] = {**c, 'ent_name': name}
-    # patch switcher next to the title (players step through patches)
-    step = ''
-    if prev:
-        step += f'<a class="step" href="{esc(prev["id"])}.html" data-tooltip="{esc(patch_title_text(prev))}">◀</a>'
-    if nxt:
-        step += f'<a class="step" href="{esc(nxt["id"])}.html" data-tooltip="{esc(patch_title_text(nxt))}">▶</a>'
+    # patch switcher next to the title (players step through patches): both steps always, named; the one past the end
+    # dimmed (the newest patch showed a lone unlabelled ◀, review 2026-10-17)
+    step = ''.join(
+        f'<a class="step" href="{esc(r["id"])}.html" data-tooltip="{esc(patch_title_text(r))}">{label}</a>' if r else
+        f'<span class="step off" aria-disabled="true">{label}</span>'
+        for r, label in ((prev, '◀ Older'), (nxt, 'Newer ▶')))
     named = ' named' if patch_name(p['title']) else ''
     parts = ['<div class="crumbs"><a href="index.html">Patches</a></div>',
              f'<div class="ptitle{named}"><h1>{patch_title_html(p)}</h1><span class="steps">{step}</span></div>']

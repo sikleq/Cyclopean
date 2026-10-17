@@ -69,6 +69,10 @@ PREFIXES = (
     'panorama/images/hud/teleport_icon',
     # the getting-started map's legend: the Mid-Boss mark at full size (data/overrides/unit_icons.json)
     'panorama/images/getting_started/map_',
+    # role marks on unit types that share one portrait (unit_icons.json 'rules', third column): the build browser's
+    # role tags (healing, melee, weapon) and the numerals the HUD draws over a Guardian (I) and a Base Guardian (IV)
+    'panorama/images/builds/citadel_build_tag_',
+    'panorama/images/hud/world_space/hero_info_panel_ultready_boss_',
 )
 # heroes/ root files are passed as an explicit list: the folder also holds
 # heroes/backgrounds/ (~1.7 GB) and -f has no exclude.
@@ -413,7 +417,7 @@ def rule_art(rel: str, sub: str) -> str | None:
     src = RAW / 'panorama' / 'images' / rel
     if not src.exists():
         return None
-    stem = Path(rel).stem.removesuffix('_psd').removesuffix('_png')
+    stem = _stem(rel)
     if src.suffix == '.svg':
         dst = ICONS / sub / f'{stem}.svg'
         dst.parent.mkdir(parents=True, exist_ok=True)
@@ -425,9 +429,90 @@ def rule_art(rel: str, sub: str) -> str | None:
     return RULE_ART[rel]
 
 
+def _stem(rel: str) -> str:
+    return Path(rel).stem.removesuffix('_psd').removesuffix('_png')
+
+
+# a unit's art that is a flat HUD mark (an ability icon, a minimap or map-legend marker, an item's mask), not a painted
+# portrait: stored under icons/units/_mark/, so a unit card insets it on its tile as the Game cards do their marks
+# (styles.css `.card img[src*="/_mark/"]`; review 2026-10-17: the yellow Mid-Boss filled its tile edge to edge)
+FLAT_SOURCES = ('hud/', 'minimap/', 'getting_started/', 'upgrades/')
+MARK_BOX = 0.42         # a role mark's square, of the portrait's side (top-right corner)
+MARK_OUTLINE = 0.025    # its dark rim, of the portrait's side: the mark reads on the art and on the tile
+MARK_SIDE = 96          # a raster mark stored at most this big inside the composite
+
+
+def unit_art_dir(rel: str) -> str:
+    """The folder a unit rule's image goes to: flat HUD marks apart from painted portraits."""
+    return 'units/_mark' if rel.startswith(FLAT_SOURCES) else 'units/_class'
+
+
+def _data_uri(path: Path, max_side: int | None = None) -> str | None:
+    """A file as a data: URI — SVG as it is, a raster as WebP (cut to its art, at most `max_side`)."""
+    import base64
+    import io
+    if path.suffix == '.svg':
+        return 'data:image/svg+xml;base64,' + base64.b64encode(path.read_bytes()).decode('ascii')
+    from PIL import Image
+    with Image.open(path) as im:
+        im = im.convert('RGBA')
+        if max_side:
+            box = im.getchannel('A').getbbox()
+            if not box:
+                return None
+            im = im.crop(box)
+            if max(im.size) > max_side:
+                im.thumbnail((max_side, max_side), Image.LANCZOS)
+        buf = io.BytesIO()
+        im.save(buf, 'WEBP', quality=92, method=4)
+    return 'data:image/webp;base64,' + base64.b64encode(buf.getvalue()).decode('ascii')
+
+
+def marked_svg(portrait: str, mark: str, side: int) -> str:
+    """One unit type's picture: the class portrait the game shares between several types (data: URI) with a role mark
+    from the game files in its top-right corner (data: URI), ringed by its own alpha grown a little (feMorphology on
+    SourceAlpha: black, no colour of our own)."""
+    box = round(side * MARK_BOX)
+    rim = max(1, round(side * MARK_OUTLINE))
+    x, y = side - box - rim, rim
+    return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" viewBox="0 0 {side} {side}">'
+            f'<defs><filter id="rim" x="-25%" y="-25%" width="150%" height="150%">'
+            f'<feMorphology in="SourceAlpha" operator="dilate" radius="{rim}"/>'
+            f'<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
+            f'<image href="{portrait}" width="{side}" height="{side}"/>'
+            f'<image href="{mark}" x="{x}" y="{y}" width="{box}" height="{box}" preserveAspectRatio="xMaxYMin meet" '
+            f'filter="url(#rim)"/></svg>')
+
+
+def marked_art(rel: str, mark_rel: str) -> str | None:
+    """A unit type that shares its class portrait with others (Medic, Melee and plain Troopers; Guardian and Base
+    Guardian) gets that portrait with its role mark from the game files: one SVG under icons/units/_class/ named
+    after both. None when the extracted VPK files lack either image."""
+    key = f'{rel}+{mark_rel}'
+    if key in RULE_ART:
+        return RULE_ART[key]
+    base = rule_art(rel, unit_art_dir(rel))
+    src = RAW / 'panorama' / 'images' / mark_rel
+    if not base or not src.exists():
+        return None
+    from PIL import Image
+    with Image.open(ICONS / base) as im:
+        side = max(im.size)
+    portrait = _data_uri(ICONS / base)
+    mark = _data_uri(src, MARK_SIDE)
+    if not portrait or not mark:
+        return None
+    dst = ICONS / 'units' / '_class' / f'{_stem(rel)}-{_stem(mark_rel)}.svg'
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(marked_svg(portrait, mark, side), encoding='utf-8', newline='\n')
+    RULE_ART[key] = dst.relative_to(ICONS).as_posix()
+    return RULE_ART[key]
+
+
 def unit_class_icons(manifest: dict) -> None:
     """Units without their own icon, every id the site has seen (removed ones too):
-    1. the class portrait the game's ping wheel uses, or a summon's ability art (data/overrides/unit_icons.json);
+    1. the class portrait the game's ping wheel uses, or a summon's ability art (data/overrides/unit_icons.json); a
+       type sharing that portrait with others carries its role mark in a corner (`marked_art`);
     2. a neutral camp borrows its family's art: same id stem ('neutral_lantern_weak' ->
        'neutral_lantern_normal') or same name without the tier ('Gutter Ghoul I' -> II)."""
     rules = json.loads(UNIT_RULES.read_text(encoding='utf-8'))['rules']
@@ -437,9 +522,10 @@ def unit_class_icons(manifest: dict) -> None:
         key = f'unit:{e["id"]}'
         if key in manifest:
             continue
-        for pattern, rel in rules:
+        for pattern, rel, *mark in rules:
             if re.search(pattern, e['id']):
-                art = rule_art(rel, 'units/_class')
+                # a third column: the type's role mark on the portrait it shares with other types (marked_art)
+                art = marked_art(rel, mark[0]) if mark else rule_art(rel, unit_art_dir(rel))
                 if art:
                     manifest[key] = art
                 break

@@ -117,7 +117,7 @@ def test_game_and_unit_art_comes_from_the_extracted_game_files():
         re.compile(pattern)
     man = icon_manifest()
     for key, path in man.items():
-        if path.startswith(('game/', 'units/_class/')):
+        if path.startswith(('game/', 'units/_class/', 'units/_mark/')):
             assert (root / 'icons' / path).exists(), key
     assert man['unit:destroyable_building'] == 'units/_class/shield_generator.webp'         # 'Push Shrine' ping
     assert man['misc:citadel_item_pickup_idol'] == 'game/soul_jar_marker.webp'              # the Urn on the minimap
