@@ -1491,8 +1491,12 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 /* what each of the latest updates changed: a strip of icons per section, each opens that page at that update */
 .update { margin: 0 3px 16px; padding: 0 0 12px; }
 .update > .banner { margin: 0 0 6px; }
-.update .bc .au { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-dim); }
-.update .bc .au b { color: var(--eye); }
+/* the banner's count is the entity pages' eye chip (a.chip.eye-link); the clauses explaining it follow in the date's
+   quiet type, each after a " · " that wraps with it (review 2026-10-17: pixel caps, the clauses run together) */
+.update .bc .au-more { display: inline-flex; align-items: center; gap: 8px; }
+.update .bc .au-dot { font: 500 13px/1 var(--font-ui); color: var(--text-dimmer); }
+.update .bc .au { display: inline-flex; align-items: center; gap: 4px; font: 500 13px/1.2 var(--font-ui);
+  letter-spacing: 0; text-transform: none; color: var(--text-dim); }
 /* the sections side by side, each its label over its icons; a section as wide as its icons, a long one takes the
    whole width and wraps (review 2026-10-17: stacked under a 110px label column, five heroes and two items filled
    360px of a 1640px card) */
@@ -1500,10 +1504,10 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 .lu-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
 .lu-h { font: 18px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
 .lu-h b { color: var(--text-bright); font-weight: 400; }
-/* a group whose icons all hold only changes the notes left out: one eye here, none on the icons */
-.lu-h .lu-all { margin-left: 10px; color: var(--eye); font: 600 11px/1.2 var(--font-ui); text-transform: none;
-  letter-spacing: 0; white-space: nowrap; }
-.lu-h .lu-all .mark { width: 12px; height: 12px; margin-right: 4px; vertical-align: -1px; }
+/* a group whose icons all hold only changes the notes left out: one eye here, none on the icons — the entity pages'
+   eye chip (a.chip.eye-link), not amber sans with the eye glued to it (review 2026-10-17) */
+.lu-h .lu-all { margin: -3px 0 -2px 10px; color: var(--eye); }    /* its margin box no taller than the label's line */
+.lu-h .lu-all .mark, .lu-h .lu-all .mark::before { width: 14px; height: 14px; }
 .lu-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .lu { position: relative; display: block; width: 44px; height: 44px; background: var(--bg-panel-4);
   box-shadow: 0 0 0 2px var(--frame-line), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
@@ -1528,8 +1532,26 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 }
 /* a tablet keeps two tiles a row (one a row, each card showed its 6 icons in a 720px box); a phone one. Its two counters
    share the width the tiles take: they ended 24px short of them, 6px off their left edge (review 2026-10-17) */
+/* a phone keeps them two a row, smaller: one a row, the four took ~1000px and "Latest changes" began ~900px down
+   (review 2026-10-17). The title and its number share a line when they fit, the icons sit at the bottom */
 @media (max-width: 640px) {
-  .home-tiles { grid-template-columns: minmax(0, 1fr); }
+  .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .htile { display: flex; flex-wrap: wrap; align-items: baseline; align-content: space-between; gap: 4px 8px;
+    min-height: 0; padding: 12px 12px 14px; }
+  .htile .ht-t { font-size: 26px; }
+  .htile .ht-n { font-size: 18px; }
+  .htile .ht-x { margin-left: 6px; }
+  .htile .ht-art { flex: 1 1 100%; height: 32px; gap: 5px; margin-top: 6px; }
+  .htile .ht-art img { width: 32px; height: 32px; }
+  .htile.game .ht-art img { padding: 4px; }
+}
+/* an update's banner: its counts start under the title at the left, wrapped or not (the first card's sat right, the
+   next one's left, review 2026-10-17) */
+@media (max-width: 700px) {
+  .update > .banner .bc { flex-basis: 100%; justify-content: flex-start; }
+  /* the clauses under the chip, one a line: a " · " would start a wrapped line */
+  .update .bc .au-more { flex-basis: 100%; }
+  .update .bc .au-dot { display: none; }
 }
 @media (max-width: 600px) {
   .home-stats { flex: 1 1 100%; flex-wrap: nowrap; margin: 0 calc(3px + var(--px)); }     /* the tiles' box edges */

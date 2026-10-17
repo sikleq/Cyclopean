@@ -419,7 +419,8 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
     assert re.search(r'au-hidden">.*?<b>3</b>', row)
     feed = home_page._feed([{'id': 'p1', 'title': p['title'], 'date': p['date']}], {}, frozenset(), {})
     # review 2026-10-05: the count is a way in — the patch page with its eye filter pressed
-    assert re.search(r'<a class="au au-hidden" href="patches/p1.html#hidden">.*?<b>3</b> not in patch notes', feed)
+    # (the entity pages' eye chip, review 2026-10-17)
+    assert re.search(r'<a class="chip eye-link" href="patches/p1.html#hidden">.*?</span>3 not in patch notes</a>', feed)
     assert '<a class="au au-hidden" href="#hidden">' in audit
     # review 2026-10-05: a group whose icons hold only changes the notes left out has ONE eye, on its label (the
     # pickup's Game group here); an update with no notes has none below its banner, which says "no patch notes"
@@ -607,4 +608,4 @@ def test_city_never_sleeps_says_one_number_everywhere():
     row = next(r for r in load_json('patches/index.json') if r['id'] == pid)
     assert re.search(rf'au-hidden">.*?<b>{n}</b>', patches_pages._index_row(row, {}, '../', False))
     feed = home_page._feed([row], {}, frozenset(), {})
-    assert re.search(rf'<b>{n}</b> not in patch notes', feed)
+    assert re.search(rf'</span>{n} not in patch notes</a>', feed)          # the entity pages' eye chip (2026-10-17)

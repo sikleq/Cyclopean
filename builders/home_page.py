@@ -250,7 +250,9 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                     cards.append([len(updates) - 1, *chip_card(s), net])
                 if bare:
                     chips.append(_fold_tile(bare, row['id'], names, eye=notes and not all_out))
-                whole = f'<span class="lu-all">{EYE_MARK}all not in notes</span>' if all_out else ''
+                # the entity pages' eye chip (history_view.hidden_link), not a fourth style of its own (review 2026-10-17:
+                # amber lowercase sans, the eye glued to the words)
+                whole = f'<span class="chip lu-all">{EYE_MARK}all not in patch notes</span>' if all_out else ''
                 # a phone shows three rows of icons (styles.css); the rest is the patch page's (City Never Sleeps'
                 # 102 items were 17 rows, ~900px). The fold tile stands for all its units.
                 past = sum(([1] * len(drawn) + ([len(bare)] if bare else []))[PHONE_ICONS:])
@@ -267,21 +269,27 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             # an update Valve posted no notes for says so, as its bands do (Rat King's build 6736: nothing was "left
             # out" of notes that do not exist)
             what = 'not in patch notes' if row.get('has_notes', True) else '· no patch notes'
-            eye = (f'<a class="au au-hidden" href="patches/{esc(row["id"])}.html#hidden">{mark("hidden")}'
-                   f'<b>{pc["not_in_notes"]}</b> {what}</a>')
+            # the entity pages' eye chip (history_view.hidden_link: "2 NOT IN PATCH NOTES"); the clauses that explain
+            # the number follow it in the date's quiet type, each after " · " (review 2026-10-17: 13px pixel caps, two
+            # clauses run together, "46 NOT IN PATCH NOTES 2 OF THEM IN GAME RULES…")
+            eye = (f'<a class="chip eye-link" href="patches/{esc(row["id"])}.html#hidden">{mark("hidden")}'
+                   f'{pc["not_in_notes"]} {what}</a>')
+            more = []
             if off_pages(pc):
                 # they have pages now: the Game section's — its change matrix shows this update's column per system
                 # (the Game index said nothing about the update)
-                eye += (f'<a class="au au-off" href="game/changes.html"><b>{off_pages(pc)}</b> of them in game rules '
-                        f'&amp; map objects</a>')
+                more.append(f'<a class="au au-off" href="game/changes.html"><b>{off_pages(pc)}</b> of them in game '
+                            f'rules &amp; map objects</a>')
             # what makes the icons below add up to another number, said once (review 2026-10-06, #16): an edit shared
             # by several heroes or units counts once here and on each of their icons; a designers' test object only
             # the patch archive lists is on no icon
             if pc.get('hidden_shared'):
-                eye += f'<span class="au au-shr"><b>{pc["hidden_shared"]}</b> of them on several icons</span>'
+                more.append(f'<span class="au au-shr"><b>{pc["hidden_shared"]}</b> of them on several icons</span>')
             if pc.get('hidden_archive'):
-                eye += (f'<a class="au au-arch" href="patches/{esc(row["id"])}.html#changes"><b>{pc["hidden_archive"]}</b>'
-                        f' only in the patch archive</a>')
+                more.append(f'<a class="au au-arch" href="patches/{esc(row["id"])}.html#changes">'
+                            f'<b>{pc["hidden_archive"]}</b> only in the patch archive</a>')
+            eye += ''.join(f'<span class="au-more"><span class="au-dot" aria-hidden="true">·</span>{m}</span>'
+                           for m in more)
         # the groups side by side, each its label over its icons, wrapping as the width runs out (review 2026-10-17: one
         # under another at 1920 they filled 360 of a 1640px card)
         blocks.append(f'<section class="update px-frame"><div class="banner{" named" if patch_name(row["title"]) else ""}">'
