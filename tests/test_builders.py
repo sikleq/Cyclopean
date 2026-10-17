@@ -1104,8 +1104,8 @@ def test_a_bands_patch_link_lands_on_the_entity(monkeypatch):
 def test_valves_words_sit_under_the_rows_they_cover(monkeypatch):
     """Review 2026-10-05: a described row looked like any other — Valve's line is a quiet note under the ability's
     rows; a line about many entities ("Spirit Power scaling globally reduced by -7%") is said once per band;
-    a documented row gets none (its line repeats "label old → new"). A change that shipped in a later build of
-    the window says so on its eye."""
+    a documented row gets none (its line repeats "label old → new"). A change that came in a later build than the
+    notes' own says so on its eye."""
     from builders import archive
     from builders.history_view import history_table
     idx = {'abilities.vdata:a:x': (0, 1), 'abilities.vdata:a:y': (2,), 'abilities.vdata:a:z': (3,)}
@@ -1128,7 +1128,7 @@ def test_valves_words_sit_under_the_rows_they_cover(monkeypatch):
     notes = re.findall(r'class="vnote"><span class="vn-l">Patch notes</span>([^<]*)', html)
     assert notes == ['Spirit Power scaling globally reduced by -7%', 'Wake Up delay no longer increases with spirit scaling']
     assert html.index('class="vnotes"') < html.index('class="hgroup')          # the band's line first
-    assert 'shipped silently 2026-03-09, build 104' in html
+    assert 'came in build 104 (2026-03-09), after the patch' in html
 
 
 def test_an_update_with_notes_lists_what_they_left_out():
@@ -1190,10 +1190,10 @@ def test_one_hidden_change_is_never_all_of_one():
     assert '>1 not in patch notes<' in html and 'all 1 not in' not in html
     from pathlib import Path
     css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.pblock.all-hidden .erow:not(.late) .st .mark { opacity: .45; }' in css
-    # a row that shipped silently in a later build keeps its eye there: its words are the proof (review 2026-10-05)
+    assert '.pblock.all-hidden .erow:not(.late) .st .mark { opacity: .7; }' in css
+    # a row that came after the patch in a later build keeps its full eye there: its words are the proof (review 2026-10-05)
     from builders.cards import row
-    assert 'class="erow st-hidden is-hidden late"' in row('hidden', '', 'x', tip='shipped silently 2026-03-09')
+    assert 'class="erow st-hidden is-hidden late"' in row('hidden', '', 'x', tip='came in build 104 (2026-03-09), after the patch')
     assert ' late' not in row('hidden', '', 'x')
 
 
