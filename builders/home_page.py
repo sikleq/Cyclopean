@@ -280,7 +280,10 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             # a way in: the patch page with its "Not in patch notes" filter pressed (scripts.js hidden-hash)
             # an update Valve posted no notes for says so, as its bands do (Rat King's build 6736: nothing was "left
             # out" of notes that do not exist)
-            what = 'not in patch notes' if row.get('has_notes', True) else '· no patch notes'
+            # one term a site (review 2026-10-17): "N not in patch notes", or for an update without any "N changes · no
+            # patch notes" ("12 · NO PATCH NOTES" said 12 of what?)
+            what = ('not in patch notes' if row.get('has_notes', True)
+                    else f'{"change" if pc["not_in_notes"] == 1 else "changes"} · no patch notes')
             # the entity pages' eye chip (history_view.hidden_link: "2 NOT IN PATCH NOTES"); the clauses that explain
             # the number follow it in the date's quiet type, each after " · " (review 2026-10-17: 13px pixel caps, two
             # clauses run together, "46 NOT IN PATCH NOTES 2 OF THEM IN GAME RULES…")

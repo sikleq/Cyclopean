@@ -61,24 +61,30 @@ def _audit_line(p: dict) -> str:
     from .patch_counts import for_id, off_pages
     c = for_id(p['id'])
     lc = p.get('line_counts', {})
+    # one term a site (review 2026-10-17): "not in patch notes" for what the notes left out, "no patch notes" for an
+    # update without any ("no official notes", "lines not found in the files" and "1 changes" are gone)
+    n_mis, n_fix = lc.get('mismatch', 0), lc.get('fix', 0)
     if p.get('sections'):
         audit = [('documented', c.get('documented', 0), 'exact in the notes'),
                  ('described', c.get('described', 0), 'covered by a general line'),
                  ('hidden', c.get('not_in_notes', 0), 'not in patch notes'),
-                 ('mismatch', lc.get('mismatch', 0), 'notes disagree with the files'),
+                 ('mismatch', n_mis, 'note disagrees with the files' if n_mis == 1 else 'notes disagree with the files'),
                  ('code', lc.get('code', 0), "in the game's code"),
-                 ('fix', lc.get('fix', 0), 'bug fixes'),
+                 ('fix', n_fix, 'bug fix' if n_fix == 1 else 'bug fixes'),
                  # lines no change was found for: said, not hidden (review 2026-10-05)
-                 ('unmatched', lc.get('unmatched', 0), 'lines not found in the files')]
+                 ('unmatched', lc.get('unmatched', 0), "notes we couldn't match")]
         if c.get('unreleased'):
-            audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))
+            # changes, not heroes: "220 heroes in development" read 220 heroes
+            audit.insert(3, ('unreleased', c['unreleased'], 'on heroes in development'))
     elif p.get('release'):
         # a hero's release: its post announces the hero, whose kit is the release itself (match.release_pass); the
         # rest of the build came without notes ("1 announced in earlier notes" read the release row, review 2026-10-17)
+        n = c.get('unannounced', 0)
         audit = [('described', c.get('documented', 0) + c.get('described', 0), 'released with the hero'),
-                 ('hidden', c.get('unannounced', 0), 'other changes, no official notes')]
+                 ('hidden', n, f'other {"change" if n == 1 else "changes"} · no patch notes')]
     else:
-        audit = [('hidden', c.get('unannounced', 0), 'changes, no official notes')]
+        n = c.get('unannounced', 0)
+        audit = [('hidden', n, f'{"change" if n == 1 else "changes"} · no patch notes')]
         if c.get('documented'):
             audit.append(('documented', c['documented'], 'announced in earlier notes'))
     off = off_pages(c)
@@ -296,7 +302,7 @@ def _generated_notes(p: dict, only_hidden: bool = False, pages: frozenset[str] |
     intro = ("Valve's patch notes do not mention these changes; every line below is read from the game files."
              if only_hidden else 'Valve published no patch notes for this update; every line below is read from '
                                  'the game files.')
-    title = 'What the notes left out' if only_hidden else 'Patch notes written from the files'
+    title = 'What the patch notes left out' if only_hidden else 'Patch notes written from the files'
     return f'<h2>{title}</h2><p class="muted">{intro}</p>{body}'
 
 
@@ -367,7 +373,9 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
             if body:
                 tabs.append(('generated', HIDDEN_TAB, pc['not_in_notes'], body))
     else:
-        tabs.append(('notes', 'From the files', n_changes,
+        # notes, read from the files (beside "Game files", the packed files' counts, "From the files" read as one more
+        # list of files; review 2026-10-17)
+        tabs.append(('notes', 'Notes from the files', n_changes,
                      _key_changes(p, rel) + _generated_notes(p)))
     # the eye filter keeps exactly the rows its number counts (patch_counts; it kept 1024 rows under 776)
     eye_btn = (f'<button class="px-btn hf-hidden" data-toggle-class="only-hidden" data-target="#changes" '
@@ -571,8 +579,10 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
             audit += f'<span class="au au-mismatch">{mark("mismatch")}<b>{lc["mismatch"]}</b></span>'
     else:
         # no notes to hide from: a plain count, not the "hidden" eye (the eye summed to 8767 here
-        # against 8041 hidden on the home page)
-        audit = f'<span class="au"><b>{c.get("unannounced", 0)}</b> changes · no notes</span>'
+        # against 8041 hidden on the home page) — the update's changes, as its page's "All changes" tab counts them
+        # (the count of those without notes read "0 changes · no notes" beside a hero release's 16; review 2026-10-17)
+        n = c.get('changes', 0)
+        audit = f'<span class="au"><b>{n}</b> {"change" if n == 1 else "changes"} · no patch notes</span>'
     # the date is the row's first column: the title cell shows only the name (or 'update')
     name = patch_name(p['title'])
     title = ('<span class="pfu">follow-up</span>' if follow

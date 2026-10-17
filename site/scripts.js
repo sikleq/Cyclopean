@@ -1826,11 +1826,15 @@
       });
       if (eye) {
         if (eye.__t === undefined) eye.__t = eye.textContent;
-        // the built wording (history_view._banner): "all N" when every shown row is out of the notes and N > 1
+        // the built wording (history_view._banner): "all N" when every shown row is out of the notes and N > 1; an
+        // update with no patch notes at all keeps saying so (a filter turned it into "all 2 not in notes", review
+        // 2026-10-17)
         var shown = 0;
         for (var t in counts) shown += counts[t];
-        eye.textContent = (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
-          hidden + ' not in notes';
+        var none = eye.__t === 'no patch notes';
+        var words = none ? eye.__t : (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
+          hidden + ' not in patch notes';
+        if (eye.textContent !== words) eye.textContent = words;
         eye.parentNode.classList.toggle('n0', !hidden);
       }
     }
