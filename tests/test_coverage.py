@@ -430,7 +430,7 @@ def test_the_patch_page_list_and_home_say_the_same_number(monkeypatch):
                             frozenset(), {})
     assert 'lu-all' not in quiet and 'lu-eye' not in quiet and 'no patch notes' in quiet
     # a line nothing matched is counted on the patch page's check line
-    assert 'lines not found in the files' in patches_pages._audit_line({**p, 'line_counts': {'unmatched': 2}})
+    assert "notes we couldn&#x27;t match" in patches_pages._audit_line({**p, 'line_counts': {'unmatched': 2}})
 
 
 def test_a_long_home_section_says_how_many_more_a_phone_hides(monkeypatch):

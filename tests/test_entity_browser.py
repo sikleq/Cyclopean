@@ -184,7 +184,7 @@ def test_a_rule_for_all_heroes_is_counted_apart_by_the_filters(browser, tmp_path
         pg.wait_for_function("document.getElementById('history').classList.contains('filtering')")
         assert pg.evaluate(shown) == 1                                    # Max Health only, the link row out
         assert pg.locator('#p-p1 .erow.shr-all').evaluate('r => r.classList.contains("f-out")')
-        assert pg.evaluate("document.querySelector('#p-p1 summary .ec-n').textContent") == '1 not in notes'
+        assert pg.evaluate("document.querySelector('#p-p1 summary .ec-n').textContent") == '1 not in patch notes'
         assert pg.locator('#p-p1 summary .shr-chip').evaluate('c => c.classList.contains("n0")')
         pg.click('.hist-bar .hf-hidden')
         pg.click('.hist-bar [data-f-tag="nerf"]')                         # the hero's own NERF, and p0's rule

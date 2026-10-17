@@ -280,7 +280,10 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             # a way in: the patch page with its "Not in patch notes" filter pressed (scripts.js hidden-hash)
             # an update Valve posted no notes for says so, as its bands do (Rat King's build 6736: nothing was "left
             # out" of notes that do not exist)
-            what = 'not in patch notes' if row.get('has_notes', True) else '· no patch notes'
+            # one term a site (review 2026-10-17): "N not in patch notes", or for an update without any "N changes · no
+            # patch notes" ("12 · NO PATCH NOTES" said 12 of what?)
+            what = ('not in patch notes' if row.get('has_notes', True)
+                    else f'{"change" if pc["not_in_notes"] == 1 else "changes"} · no patch notes')
             # the entity pages' eye chip (history_view.hidden_link: "2 NOT IN PATCH NOTES"); the clauses that explain
             # the number follow it in the date's quiet type, each after " · " (review 2026-10-17: 13px pixel caps, two
             # clauses run together, "46 NOT IN PATCH NOTES 2 OF THEM IN GAME RULES…")
@@ -338,14 +341,22 @@ def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: li
         for sec, title in SECTIONS) + '</div>'
 
 
+HIDDEN_VIEW = 'changes.html#hidden'    # a section's change matrix with its "Not in patch notes" filter on (dyn-url)
+
+
 def _top(total: int, hidden: int) -> str:
-    """The logo, the search and the two counters (all changes, those not in the patch notes)."""
+    """The logo, the search and the two counters (all changes, those not in the patch notes). The second opens the
+    change matrices with their "Not in patch notes" filter on — the Hero changes, or any section by its name (review
+    2026-10-17: it opened the plain patch archive; the site is about the entities, the patches are its archive)."""
+    ways = ' · '.join(f'<a href="{sec}/{HIDDEN_VIEW}">{title.lower()}</a>' for sec, title in SECTIONS)
+    count = (f'<a class="hs-go" href="heroes/{HIDDEN_VIEW}"><span class="n">{hidden}</span>'
+             f'<span class="l">not in patch notes</span></a>')
     return f'''<div class="home-top">
   <div class="home-brand">{EYE_MARK}<h1>Cyclopean</h1></div>
   {search_box()}
   <div class="home-stats">
     <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
-    <a class="hs hidden" href="patches/index.html"><span class="n">{hidden}</span><span class="l">not in patch notes</span></a>
+    <div class="hs hidden">{count}<span class="hs-in">{ways}</span></div>
   </div>
 </div>'''
 

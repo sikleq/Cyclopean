@@ -186,7 +186,7 @@ def index_page(entries: dict, hist: dict) -> str:
         n, last, hidden = _stats(hist, [k for got in parts.values() for k, _, _ in got])
         # the date in the body font (dates are never in the pixel fonts); the eye with how many of the changes the
         # notes left out (#44: the cards had none, the system pages say "N not in patch notes")
-        eye = f'<span class="gc-hid">{EYE_MARK}{hidden} not in notes</span>' if hidden else ''
+        eye = f'<span class="gc-hid">{EYE_MARK}{hidden} not in patch notes</span>' if hidden else ''
         when = f'<span class="last"><span class="d">last {esc(last)}</span>{eye}</span>' if last or eye else ''
         cards.append(f'<a class="card px-frame game-card" href="{esc(s.href)}" data-search="{esc(s.name.lower())}">'
                      f'{icon_html(s, rel)}<span class="nm">{esc(s.name)}</span>'

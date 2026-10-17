@@ -376,6 +376,7 @@ a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-sh
   background: var(--bg-panel);
   border-bottom: var(--px) solid var(--line);
   margin: 0 0 18px;
+  scroll-margin-top: var(--nav-h);      /* a bar scrolled to (#hidden) stops at its stuck place, under the site bar */
 }
 .toolbar .sep { width: 2px; height: 26px; background: var(--line); margin: 0 4px; }
 /* a phone: an index's toolbar scrolls away like a table's (stuck, it took 96px for a search box), and the separators
@@ -561,7 +562,9 @@ a.mark.unannounced:hover, a.mark.unannounced:focus-visible { color: var(--text-b
 }
 .ecard.plain { background: var(--bg-panel); column-span: all; margin-bottom: 16px; }
 /* a card an entity page's "patch ↗" lands on (#n- / #c-): its head clears the site bar and the sticky tabs */
-.ecard[id], .ecard > .anc { scroll-margin-top: calc(var(--nav-h) + 72px); }
+/* … and the toolbar stuck under it, however tall it wraps (scripts.js sticky-h measures --stick-h): the home page's
+   chip landed a card's head under a patch page's two-row filter bar on a phone (review 2026-10-17) */
+.ecard[id], .ecard > .anc, .tab-panel[id] { scroll-margin-top: calc(var(--nav-h) + var(--stick-h, 64px) + 8px); }
 /* a shared edit's card stands for each target without a card of its own (patches_pages.shared_anchor_ids) */
 .ecard > .anc { display: block; height: 0; }
 /* one header height for every card (design review: 70px and 44px headers side by side looked
@@ -856,7 +859,12 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 /* the entity's patch strip (history_view.patch_strip): oldest → newest, the newest on the right like the
    matrices (owner 2026-10-05); ONE row with no scrollbar — 40 tiles shrink to fit the column, a phone
    keeps the newest 15; a tile lifts on hover and its card says what the patch did */
-.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px; overflow: hidden; }
+.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px 19px; overflow: hidden; }
+/* the month under its first tile ("Oct"), the year under a year's first ("2026"): history_view.month_cues, in the
+   strip's bottom padding (review 2026-10-17: a row of tiles with no date; the hover card has the whole date) */
+.ps-tile[data-m]::after { content: attr(data-m); position: absolute; left: 50%; top: 100%; margin-top: 4px;
+  transform: translateX(-50%); font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap;
+  pointer-events: none; }
 .ps-tile { position: relative; flex: 0 1 30px; min-width: 14px; display: block; height: 30px; transition: transform .08s;
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
 /* a tile's look, shared by the strip and the change matrices (.dsq): the count on a solid plate in the corner, not dark
@@ -873,9 +881,13 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
    "Patches" label (history_view.head_strip): the first screen shows what changed, as Sloppy's header band does —
    two or three tiles alone under the portrait read as leftovers (visual pass 2026-10-17, round 2). A phone gives it
    the head's whole width */
-.head-strip { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.head-strip .hs-l { flex: none; font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
-.head-strip .patch-strip { flex: 1 1 auto; min-width: 0; margin: 0; }
+.head-strip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; min-width: 0; }
+/* level with the tiles, not with the strip's box (its bottom padding holds the month labels) */
+.head-strip .hs-l { margin-bottom: 13px; font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.head-strip .patch-strip { grid-column: 2; min-width: 0; margin: 0; }
+/* the orange top in words, its own line under the tiles, from their left edge (dynamics_page.cap_key) */
+.hs-key { display: flex; margin: -2px 0 8px; }
+.head-strip > .hs-key { grid-column: 2; margin-bottom: 0; }
 .hero-head > .head-strip { grid-column: 2; margin-top: 6px; }
 /* at the name's edge: the icon, its frame's margins, the gap */
 .page-head > .head-strip { flex: 1 1 100%; margin-left: calc(96px + 2 * var(--px) + 18px); }
@@ -905,8 +917,8 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 .hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hist-bar .hf-tags .tag { min-width: 0; padding: 5px 4px 4px 6px; letter-spacing: 0; }
 .hist-bar .px-btn { padding: 5px 8px 6px; font-size: var(--fs-sm); }
-.hf-hidden .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
-.hf-hidden .mark::before { width: 14px; height: 14px; }
+.hf-hidden .mark, .dyn-hid .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
+.hf-hidden .mark::before, .dyn-hid .mark::before { width: 14px; height: 14px; }
 .hf-hidden .n { color: var(--eye); margin-left: 4px; }
 .hist-bar .hf-dev .mark { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
 .hist-bar .hf-dev .n { color: var(--dev); margin-left: 4px; }
@@ -1558,7 +1570,11 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .home-stats .hs.documented { box-shadow: inset 4px 0 0 var(--patina), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.documented .n { color: var(--patina); }
 .home-stats .hs.hidden { box-shadow: inset 4px 0 0 var(--eye), 0 0 0 2px var(--frame-line); }
-a.hs.hidden:hover, a.hs.hidden:focus-visible { background: var(--bg-hover); }
+/* the count opens the Hero changes with "Not in patch notes" on; the four sections' names under it, each its own
+   change matrix so filtered (home_page._top, scripts.js dyn-url) */
+.home-stats .hs-go { display: flex; flex-direction: column; gap: 4px; color: inherit; }
+.home-stats .hs-go:hover .l, .home-stats .hs-go:focus-visible .l { color: var(--text-bright); }
+.home-stats .hs-in { margin-top: 2px; font: 500 var(--fs-sm)/1.3 var(--font-ui); color: var(--text-dimmer); }
 /* "N not in patch notes" leads to what Valve did not say (scripts.js hidden-hash): a link, the same look */
 .sum-audit a.au-hidden { color: inherit; }
 a.au.au-hidden:hover, a.au.au-hidden:focus-visible { color: var(--text-bright); }
@@ -2067,6 +2083,9 @@ table.dyn:not(.show-old) .old { display: none; }
 table.dyn.show-old thead th.dm.cont { --ml-c: transparent; color: transparent; border-left-color: transparent; }
 table.dyn:not(.show-extra) tr.extra { display: none; }
 table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
+/* "Not in patch notes" (dynamics_page.toolbar .dyn-hid): a row the notes never left anything out of goes (`nh`, built),
+   one with nothing of it in the newer columns while the older ones hide (`nhn`) */
+table.dyn.only-hid tr.nh, table.dyn.only-hid:not(.show-old) tr.nhn { display: none; }
 .dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .dyn-bar { flex-wrap: wrap; row-gap: 8px; }
 .dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -2139,6 +2158,11 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 .dsq.s-mech { background: var(--tag-mech); }
 .dsq.s-changed { background: var(--tag-changed); }
 /* the count and the eye edge: the strip tile's (07a, `.ps-tile .dn, .dsq .dn`) */
+/* the orange top in words (dynamics_page.cap_key: a matrix's bar, an entity page's strip): a small tile with the top */
+.cap-key { display: inline-flex; align-items: center; gap: 6px; font: 500 var(--fs-xs)/1 var(--font-ui);
+  color: var(--text-dim); white-space: nowrap; }
+.cap-key .ck-tile { flex: none; width: 12px; height: 12px; background: var(--tag-changed); border-top: 3px solid var(--eye);
+  box-shadow: inset 0 0 0 1px var(--bg-page); }
 .dsq:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; transform: translateY(-1px); }
 table.dyn th, table.dyn td { border-bottom: 1px solid var(--grid); }
 table.dyn thead tr.cats th { text-align: center; border-left: 1px solid var(--grid-strong); }

@@ -742,7 +742,8 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
     assert '--n-all:2;--n-new:1' in html
     # a tile opens the row's own page at that patch, not the patch page (off the bar since 10-03)
-    assert 'href="hero_atlas.html#p-p2"' in html and 'tr class="extra"' in html
+    # (`nh nhn`: nothing of it left out of the notes, out of sight under "Not in patch notes")
+    assert 'href="hero_atlas.html#p-p2"' in html and 'tr class="extra nh nhn"' in html
     # the hover card's data: the cell's counts and its biggest changes, the number on the tile
     assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
     # one tile per cell (no split, owner 10-01); the part counts ride in the data for the filter
@@ -1059,7 +1060,7 @@ def test_player_terms_and_the_strip_puts_the_newest_on_the_right():
     html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../')
     strip = html.split('class="patch-strip"')[1].split('</div>')[0]
     assert strip.index('#p-p1') < strip.index('#p-p2')
-    assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in notes' in html
+    assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in patch notes' in html
 
 
 def test_an_entity_page_puts_its_strip_under_the_head():
@@ -1186,7 +1187,7 @@ def test_one_hidden_change_is_never_all_of_one():
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
     key = 'abilities.vdata:upgrade_x'
     html = history_table([(key, 'X', None)], ['X'], {key: [(r1, [ch(key='a')])]}, {}, '../')
-    assert '>1 not in notes<' in html and 'all 1 not in' not in html
+    assert '>1 not in patch notes<' in html and 'all 1 not in' not in html
     from pathlib import Path
     css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
     assert '.pblock.all-hidden .erow:not(.late) .st .mark { opacity: .45; }' in css

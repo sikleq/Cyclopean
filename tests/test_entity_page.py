@@ -105,7 +105,7 @@ def test_band_title_stays_on_the_page_and_groups_have_a_plate(monkeypatch):
     # plain text: a click opens the band; the date leads (common.band_title_html, visual pass 2026-10-17 round 2)
     assert '<span class="bt"><span class="pdate">2026-03-01</span><span class="pkind">Update</span>' in band
     assert 'class="pnotes" href="../patches/p3.html#c-hero_atlas"' in band   # the archive on purpose, at Abrams
-    assert '<span class="ec-n">3 not in notes</span>' in band          # the eye count scripts.js recounts
+    assert '<span class="ec-n">3 not in patch notes</span>' in band         # the eye count scripts.js recounts
     assert html.count('class="hgroup has-ic') >= 3 and '<div class="hg-b">' in html
     # the gold corner marks the ultimate; no tooltip beside its written name (AGENTS.md, review 2026-10-04)
     assert '<span class="ab-ic ult"><' in html and 'data-tooltip="Ultimate"' not in html

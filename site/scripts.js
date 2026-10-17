@@ -417,6 +417,17 @@
     });
   });
 
+  /* a change-matrix cell's rows not in the patch notes (builders/dynamics_page._hidden_tail): counts by tag, by part
+     (heroes) and samples. A cell with none hidden is empty; one with every row hidden reads its own counts, parts and
+     the samples that carry the eye (s[6]) — the build writes the three only when they differ. `withSamples`: the
+     hover card's; a redraw of ~1.5k tiles needs the counts only */
+  var NO_HIDDEN = { counts: {}, parts: null, samples: [] };
+  function dynHidden(c, withSamples) {
+    if (!c[4]) return NO_HIDDEN;
+    return { counts: c[6] || c[1], parts: c[7] || c[3],
+             samples: withSamples ? c[8] || c[2].filter(function (s) { return s[6]; }) : null };
+  }
+
   /* ---------- hover cards: what a patch did. ONE renderer for a change-matrix cell, an entity page's strip
      tile (the whole patch) and an ability card's trail square (that ability in the patch): head, counts by
      tag, "N not in patch notes", the biggest changes grouped by ability, a foot. Each page's JSON is parsed
@@ -498,10 +509,12 @@
       var k = a.getAttribute('data-k');
       if (!d || k === null) return null;
       var c = d.cells[+k], p = d.patches[c[0]], tr = a.closest('tr');
-      var counts = c[1], samples = c[2];
+      // "Not in patch notes": the card says what the tile shows — those rows only, their biggest changes
+      var only = table.classList.contains('only-hid'), h = only ? dynHidden(c, true) : null;
+      var counts = only ? h.counts : c[1], samples = only ? h.samples : c[2], parts = only ? h.parts : c[3];
       var part = table.getAttribute('data-part') || 'all';
       if (part !== 'all' && c[3]) {             // the filter: only this part's counts and changes
-        counts = c[3][part] || {};
+        counts = (parts || {})[part] || {};
         samples = samples.filter(function (s) { return s[5] === part; });
       }
       // chosen tags: the card says what the tile shows (the tile kept only BUFF's stripe, the card every tag)
@@ -526,10 +539,12 @@
           '<td class="dt-field">' + (s[6] ? '<span class="dt-e">' + d.eye + '</span>' : '') + txt(s[1]) +
           '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
       });
-      // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered
+      // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered;
+      // under "Not in patch notes" every count shown is one
       var whole = part === 'all' && !sel.length;
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
-                    counts: counts, net: whole ? c[5] : '', hidden: whole ? c[4] : 0, d: d, rows: rows,
+                    counts: counts, net: whole && !only ? c[5] : '', hidden: only ? total(counts) : whole ? c[4] : 0,
+                    d: d, rows: rows,
                     more: total(counts) - samples.length,
                     foot: 'click for its history at this patch' });
     }
@@ -749,23 +764,31 @@
       var sel = table.__sel || [];
       var hidden = sel.length ? order.filter(function (t) { return sel.indexOf(t) < 0; }) : [];
       var showOld = table.classList.contains('show-old'), showExtra = table.classList.contains('show-extra');
+      // "Not in patch notes" (the bar's eye button): each tile is drawn from its rows the notes left out only
+      var only = table.classList.contains('only-hid');
+      function pick(counts, parts) { return part === 'all' ? counts : ((parts || {})[part] || {}); }
+      function sum(counts) {
+        var n = 0;
+        order.forEach(function (t) { if (counts[t] && hidden.indexOf(t) < 0) n += counts[t]; });
+        return n;
+      }
       list.forEach(function (pair) {
         var a = pair[0], c = pair[1];
         if (onlyDirty && !pair[4]) return;
-        var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
         if ((pair[2] && !showOld) || (pair[3] && !showExtra)) { pair[4] = true; return; }
         pair[4] = false;
-        var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = 0;
-        tags.forEach(function (t) { total += counts[t]; });
+        var h = dynHidden(c), hc = pick(h.counts, h.parts);
+        var counts = only ? hc : pick(c[1], c[3]);
+        var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = sum(counts);
         var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
         var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
         // unfiltered, the cell's weighed net as the build marked it (builders/weights.net_of: c[5] = 'buff' / 'nerf' /
         // 'mix' / '' — the rule lives there only); a filter falls back to which side has more rows
-        var whole = part === 'all' && !sel.length, w = c[5];
+        var whole = part === 'all' && !sel.length && !only, w = c[5];
         var net = whole && w != null ? 'net-' + (w || 'mix')
           : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix';
-        var cls = 'dsq ' + (!total ? 'part-out' : net) +
-          (total && c[4] && whole ? ' hid' : '');      // the built eye, while unfiltered
+        // the orange top: the tile shows a row the notes left out (under any filter: the part's and tags' own)
+        var cls = 'dsq ' + (!total ? 'part-out' : net) + (total && sum(hc) ? ' hid' : '');
         // write only what changed: a text or class write re-lays the tile out
         if (a.className !== cls) a.className = cls;
         if (!total) return;
@@ -796,6 +819,19 @@
         if (i >= 0) sel.splice(i, 1); else sel.push(tag);
         // chosen = aria-pressed: the class "on" is the ON tag's colour (a chosen NERF turned green)
         btn.setAttribute('aria-pressed', i < 0 ? 'true' : 'false');
+        redraw(table);
+      });
+    });
+    // "Not in patch notes": the tiles of the rows the notes left out only (a row with none goes: `tr.nh`, built);
+    // pressed = `.on` too, as the part and row buttons
+    document.querySelectorAll('.dyn-bar .dyn-hid[data-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var table = document.querySelector(btn.getAttribute('data-target'));
+        if (!table) return;
+        var on = !table.classList.contains('only-hid');
+        table.classList.toggle('only-hid', on);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         redraw(table);
       });
     });
@@ -1792,11 +1828,15 @@
       });
       if (eye) {
         if (eye.__t === undefined) eye.__t = eye.textContent;
-        // the built wording (history_view._banner): "all N" when every shown row is out of the notes and N > 1
+        // the built wording (history_view._banner): "all N" when every shown row is out of the notes and N > 1; an
+        // update with no patch notes at all keeps saying so (a filter turned it into "all 2 not in notes", review
+        // 2026-10-17)
         var shown = 0;
         for (var t in counts) shown += counts[t];
-        eye.textContent = (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
-          hidden + ' not in notes';
+        var none = eye.__t === 'no patch notes';
+        var words = none ? eye.__t : (hidden > 1 && hidden === shown && b.classList.contains('all-hidden') ? 'all ' : '') +
+          hidden + ' not in patch notes';
+        if (eye.textContent !== words) eye.textContent = words;
         eye.parentNode.classList.toggle('n0', !hidden);
       }
     }
@@ -1961,6 +2001,30 @@
     });
   });
 
+  /* ---------- --stick-h: how tall the toolbar stuck under the site bar is, for the anchored targets' scroll-margin
+     (styles.css: a patch page's cards and tab panels). The home page's "12 not in patch notes" landed Deadman Danny's
+     card head under a patch page's filter bar, the rows without their hero (review 2026-10-17). Several bars stick at
+     one top (a patch page's tabs and its panel's own bar): the tallest one shown counts. `window.__stickH` re-measures
+     at once — the tabs module calls it when it opens a panel, before it scrolls to a card ---------- */
+  safe('sticky-h', function () {
+    var bars = document.querySelectorAll('.toolbar');
+    if (!bars.length) return;
+    var root = document.documentElement, last = null, pending = false;
+    function measure() {
+      pending = false;
+      var h = 0;
+      bars.forEach(function (b) {
+        if (b.getClientRects().length && getComputedStyle(b).position === 'sticky') h = Math.max(h, b.offsetHeight);
+      });
+      if (h !== last) { last = h; root.style.setProperty('--stick-h', h + 'px'); }
+    }
+    function later() { if (!pending) { pending = true; requestAnimationFrame(measure); } }
+    measure();
+    window.__stickH = measure;
+    window.addEventListener('resize', later, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+  });
+
   /* ---------- #p-<patch>: a history band named in the address — or clicked on this page (a strip tile,
      an ability card's trail square or its last change) — opens and comes into view, even when a filter
      or "Before release" hid it and even when the address already names it ---------- */
@@ -2073,6 +2137,7 @@
         if (on) reveal(b);
       });
       document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('on', p.id === id); });
+      if (window.__stickH) window.__stickH();      // the panel's own bar may be taller: before any scroll to a card
     }
     buttons.forEach(function (b) {
       b.addEventListener('click', function () {
@@ -2263,5 +2328,80 @@
     });
     window.addEventListener('hashchange', show);
     show();
+  });
+
+  /* ---------- a change matrix's filters in its address: "#hidden&old&bvn&extra&part=abil&tags=buff,nerf&role=brawler
+     &cat=w&tier=3&q=haze". A link opens the matrix so filtered — the home page's "N not in patch notes" opens
+     heroes/changes.html#hidden (review 2026-10-17: it opened the plain patch archive) — and every filter chosen here
+     is written back, so a reload, "back" from a tile's page and a shared link keep it. The state is set by pressing
+     the bar's own controls: their modules (toggles, dyn-parts, dyn-rows, search, tb-fold) do the rest ---------- */
+  safe('dyn-url', function () {
+    var bar = document.querySelector('.dyn-bar'), table = document.querySelector('table.dyn');
+    if (!bar || !table) return;
+    var SWITCHES = { old: 'show-old', bvn: 'bvn', extra: 'show-extra' };
+    var search = bar.querySelector('input[type=search]');
+    function parse() {
+      var s = {};
+      location.hash.replace(/^#/, '').split('&').forEach(function (kv) {
+        if (!kv) return;
+        var i = kv.indexOf('=');
+        try {
+          s[decodeURIComponent(i < 0 ? kv : kv.slice(0, i))] = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1));
+        } catch (e) { /* a broken escape: that key is left out */ }
+      });
+      return s;
+    }
+    function pressed(b) { return b.getAttribute('aria-pressed') === 'true'; }
+    function apply(s) {
+      var hid = bar.querySelector('.dyn-hid');
+      if (hid && ('hidden' in s) !== pressed(hid)) hid.click();
+      Object.keys(SWITCHES).forEach(function (k) {
+        var box = bar.querySelector('input[data-toggle-class="' + SWITCHES[k] + '"]');
+        if (box && box.checked !== (k in s)) box.click();
+      });
+      var part = bar.querySelector('.dyn-parts button[data-part="' + (s.part || 'all') + '"]');
+      if (part && !pressed(part)) part.click();
+      var tags = (s.tags || '').split(',');
+      bar.querySelectorAll('[data-dyn-tag]').forEach(function (b) {
+        if (pressed(b) !== (tags.indexOf(b.getAttribute('data-dyn-tag')) >= 0)) b.click();
+      });
+      // one choice per group (dyn-rows): a press clears the group's other button, so each is read again here
+      bar.querySelectorAll('.dyn-rows button[data-rowf]').forEach(function (b) {
+        if (pressed(b) !== (s[b.getAttribute('data-rowf')] === b.getAttribute('data-v'))) b.click();
+      });
+      if (search && search.value !== (s.q || '')) {
+        search.value = s.q || '';
+        search.dispatchEvent(new Event('input'));
+      }
+    }
+    function state() {
+      var out = [];
+      if (table.classList.contains('only-hid')) out.push('hidden');
+      Object.keys(SWITCHES).forEach(function (k) { if (table.classList.contains(SWITCHES[k])) out.push(k); });
+      var part = table.getAttribute('data-part');
+      if (part && part !== 'all') out.push('part=' + encodeURIComponent(part));
+      if ((table.__sel || []).length) out.push('tags=' + table.__sel.map(encodeURIComponent).join(','));
+      bar.querySelectorAll('.dyn-rows button[data-rowf][aria-pressed="true"]').forEach(function (b) {
+        out.push(encodeURIComponent(b.getAttribute('data-rowf')) + '=' + encodeURIComponent(b.getAttribute('data-v')));
+      });
+      var q = search ? search.value.trim() : '';
+      if (q) out.push('q=' + encodeURIComponent(q));
+      return out.join('&');
+    }
+    var writing = 0;
+    function write() {
+      clearTimeout(writing);
+      writing = setTimeout(function () {
+        var h = state();
+        if (location.hash.replace(/^#/, '') === h) return;
+        try { history.replaceState(null, '', location.pathname + location.search + (h ? '#' + h : '')); }
+        catch (e) { /* file:// in some browsers */ }
+      }, 0);
+    }
+    if (location.hash.length > 1) apply(parse());
+    bar.addEventListener('click', write);
+    bar.addEventListener('change', write);
+    if (search) search.addEventListener('searched', write);
+    window.addEventListener('hashchange', function () { apply(parse()); });
   });
 })();

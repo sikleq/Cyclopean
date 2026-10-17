@@ -250,4 +250,4 @@ def test_a_game_card_says_how_many_changes_the_notes_left_out(monkeypatch):
     assert game_pages._stats(hist, ['misc.vdata:x', 'misc.vdata:y']) == (3, '2026-01-01', 2)
     html = game_pages.index_page({'souls': {'p': [('misc.vdata:x', 'X', ''), ('misc.vdata:y', 'Y', '')]}}, hist)
     card = html.split('class="card px-frame game-card"')[1].split('</a>')[0]
-    assert '3 changes' in card and '<span class="gc-hid"><span class="mark hidden"></span>2 not in notes</span>' in card
+    assert '3 changes' in card and '<span class="gc-hid"><span class="mark hidden"></span>2 not in patch notes</span>' in card
