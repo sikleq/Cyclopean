@@ -112,10 +112,11 @@ def test_unit_families_tiers_and_variants():
     # the main member: not an alt copy, not the weak copy of a boss; the lowest tier
     assert fams['Walker'][0]['id'] == 'npc_boss_tier2' and fams['Barrel Mimic'][0]['id'] == 'neutral_barrel_01_weak'
     w = fams['Walker']
-    # words a reader reads as labels (review 2026-10-05: "weak · alt weak"); 'ag2' is the new model
-    assert [member_label(m, w) for m in w] == ['Walker', 'Weak', 'Alt', 'Alt Weak']
+    # words a reader reads as labels (review 2026-10-05: "weak · alt weak"); 'ag2' is the new model; the family's name
+    # leads (a Guardian group titled just "Alt", visual pass 2026-10-17 round 2)
+    assert [member_label(m, w) for m in w] == ['Walker', 'Walker (Weak)', 'Walker (Alt)', 'Walker (Alt Weak)']
     medics = [{'id': i, 'name': 'Medic Trooper', 'alive': True} for i in ('trooper_medic', 'trooper_medic_ag2')]
-    assert member_label(medics[1], medics) == 'New model'
+    assert member_label(medics[1], medics) == 'Medic Trooper (New model)'
     b = fams['Barrel Mimic']
     # a tiered family's variants differ in looks only: the tier names the group (round 3)
     assert member_label(b[0], b) == 'Tier I' and member_label(b[-1], b) == 'Tier III'

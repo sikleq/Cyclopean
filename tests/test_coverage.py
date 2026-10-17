@@ -4,7 +4,7 @@ game"), and one count of what the patch notes left out.
 - An edit the files copy into many entities ('@shared') keeps the KEYS of the entities it hit (pipeline/shared_groups.py)
   and is spread back over them on every hero / item / unit view (builders/shared_rows.py): 13,573 hero × row pairs and
   278 hero patch bands were on no hero page. A block on some of them is an ordinary row with a chip "shared ×N heroes";
-  a rule for (almost) all of them folds into "All heroes: N changes" and is counted apart.
+  a rule for (almost) all of them folds into "N changes for all heroes" and is counted apart.
 - "Not in patch notes" is one status and one count per patch (builders/patch_counts.py): City Never Sleeps read 1232
   on its page, 620 under "Only hidden" and 212 on the home page."""
 import re
@@ -160,8 +160,9 @@ def test_a_shared_row_carries_its_chip_and_a_rule_for_all_is_a_link_row():
     own = [ch(key='heroes.vdata:hero_0:regen', path='regen', label='Health Regen')]
     html = entity_rows(own + every, None, lambda sid: f'../game/{sid}.html#p-p9')
     assert html.index('Health Regen') < html.index('shr-all')
-    assert 'All heroes: 1 change' in html and 'chip shr' not in html and '<details' not in html
-    assert 'href="../game/progression.html#p-p9">Hero progression ›</a>' in html
+    # plain words (visual pass 2026-10-17 round 2: "All heroes: 1 change · Hero progression ›" read as a code)
+    assert '1 change for all heroes' in html and 'chip shr' not in html and '<details' not in html
+    assert 'href="../game/progression.html#p-p9">see Hero progression ›</a>' in html
     # a way to the Game page, not a change: no eye stripe, no status mark (the rows' marks are there)
     link = html[html.index('<div class="erow st-shared'):]
     assert 'is-hidden' not in link[:link.index('>')] and 'class="mark' not in link
@@ -186,7 +187,7 @@ def test_a_rule_for_all_is_counted_apart_on_the_band_and_the_strip():
     summary = band[:band.index('</summary>')]
     assert '+6 for all heroes' in summary
     assert 'class="pip nerf' in summary and 'class="pip buff' not in summary      # the own NERF only
-    assert 'All heroes: 6 changes' in band and 'href="../game/progression.html#p-p2"' in band
+    assert '6 changes for all heroes' in band and 'href="../game/progression.html#p-p2"' in band
     # the toolbar offers no tag only the rule for all has (a link row no tag filter keeps)
     bar = html[html.index('hist-bar'):html.index('id="history"')]
     assert 'data-f-tag="buff"' not in bar and 'data-f-tag="nerf"' in bar
@@ -213,7 +214,7 @@ def test_a_rule_for_all_is_one_link_row_per_band_whatever_it_touched():
               for i in range(3)}
     html = history_table(keys, ['Calico'], by_ent, {}, '../', areas={k: 'abil' for k, _, _ in keys})
     band = html[html.index('id="p-p1"'):]
-    assert band.count('All abilities &amp; items: 1 change') == 1 and band.count('All melee attacks: 1 change') == 1
+    assert band.count('1 change for all abilities &amp; items') == 1 and band.count('1 change for all melee attacks') == 1
     assert band.count('class="hgroup shr-band"') == 1
     summary = band[:band.index('</summary>')]
     assert '+1 for all abilities &amp; items' in summary and '+1 for all melee attacks' in summary
@@ -544,7 +545,7 @@ def test_victor_links_to_the_heavy_melee_of_2025_07_29(history):
     """A rule for every melee attack: a link row on Victor's band, its rows on Game › Movement & combat."""
     band = _band(history, [('heroes.vdata:hero_frank', 'Base stats', None),
                            ('abilities.vdata:ability_melee_frank', 'Melee', None)], '2025-07-29')
-    assert re.search(r'All melee attacks: \d+ changes\s+Movement &(?:amp;)? combat ›', band)
+    assert re.search(r'\d+ changes for all melee attacks\s+see Movement &(?:amp;)? combat ›', band)
     by_ent, _ = history
     rows = [c for row, ch in by_ent['game:all:abilities.vdata'] if row['id'] == '2025-07-29' for c in ch]
     # in seconds (review 2026-10-05: "Cooldown On Hit 0.9 → 1.03" had no unit)
@@ -564,7 +565,7 @@ def test_haze_reads_channel_move_speed_of_2025_08_18_as_a_rule_for_all(history):
     with a chip "shared ×491" on 268 pages; it is every ability's and item's, one link row."""
     band = _band(history, _hero_keys('hero_haze'), '2025-08-18')
     assert '97.4' not in band and not re.search(r'Channel Move Speed', band)
-    assert re.search(r'All [a-z &;]+: \d+ changes?\s+Movement &(?:amp;)? combat ›', band)
+    assert re.search(r'\d+ changes? for all [a-z &;]+\s+see Movement &(?:amp;)? combat ›', band)
 
 
 @needs_keys

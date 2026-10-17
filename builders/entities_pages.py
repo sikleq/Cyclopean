@@ -5,8 +5,9 @@ from collections import defaultdict
 
 from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
 from .cards import GAMEPLAY
-from .hero_page import _split_unit, _unit_html, hero_page, history_table, prop_icon, prop_rows, stat_tables
+from .hero_page import _split_unit, _unit_html, hero_page, history_table, prop_icon, prop_values, stat_tables
 from .history_view import head_strip, hidden_link, now_fold
+from .now_values import flow as now_flow, group as now_group
 from .render import KIND_LABEL, tag_badge
 
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
@@ -110,33 +111,32 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
             f'<span class="chip p-{esc(h.get("css") or "")}">{prop_icon(h.get("css"), rel)}{esc(h["label"])} '
             f'<b>{esc(h["value"])}</b></span>' for h in header)
         host = header_host(card.get('sections', [])) if header else None
-        blocks = []
+        groups = []
         for i, s in enumerate(card.get('sections', [])):
-            rows = prop_rows(s['props'], rel)
-            desc = f'<div class="ac-desc">{esc(s["desc"])}</div>' if s.get('desc') else ''
-            hdr_in = f'<div class="ac-hdr">{chips_html}</div>' if i == host else ''
-            blocks.append(f'<div class="ability-card px-frame"><div class="ac-head"><div class="ac-name">{esc(s["type"])}</div></div>'
-                          f'{hdr_in}{desc}<table class="kvt">{rows}</table></div>')
+            # the section's header values (header_host), then its text, then its rows
+            top = ((f'<div class="chips vg-hdr">{chips_html}</div>' if i == host else '')
+                   + (f'<div class="vg-desc">{esc(s["desc"])}</div>' if s.get('desc') else ''))
+            groups.append(now_group(str(s.get('type') or ''), prop_values(s['props'], rel), top))
         # an item without sections keeps its values as a row of chips over nothing else
         hdr = f'<div class="chips item-hdr">{chips_html}</div>' if header and host is None else ''
-        # the sections side by side as cards, not full-width tables (a label and its value sat 1300px apart)
-        grid = f'<div class="ability-grid item-secs">{"".join(blocks)}</div>' if blocks else ''
-        sections = (hdr + grid) if blocks or hdr else ''
+        # the sections are groups of the one "today" component (now_values), flowing in columns like a unit's stats:
+        # side-by-side cards left values mid-card and row lines stopping half-way (visual pass 2026-10-17, round 2)
+        sections = hdr + now_flow(groups)
     told: dict = {}
     history = history_table([(f'abilities.vdata:{it["id"]}', name, ic)], [name], by_ent, by_subject, rel,
                             enhanced=True, every_label='For all items', facts_out=told)
     chips.append(hidden_link(told.get('hidden', 0)))
+    # the patch strip is the head's last row, under the name and its chips (history_view.head_strip)
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(it["first"])}</div></div>')
+            f'{first_seen(it["first"])}</div>{head_strip(told)}</div>')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
     # 2026-10-04: nothing folded by default)
     # a removed item shows what it was in the last build that had it (pipeline.abilities.last_cards)
     last = (card or {}).get('last')
     title = f'Last values (build {last[0]}, {last[1]})' if last else 'Current values'
-    return page(name, head + head_strip(told) + now_fold(title, sections) + history, rel, 'items',
-                cls='entity')
+    return page(name, head + now_fold(title, sections) + history, rel, 'items', cls='entity')
 
 
 UNIT_AREAS = (('stats', 'Stats'), ('t1', 'Tier I'), ('t2', 'Tier II'), ('t3', 'Tier III'), ('abil', 'Abilities'))
@@ -201,9 +201,8 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
     head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
             f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
-            f'{first_seen(u["first"])}</div></div>')
-    return page(name, head + head_strip(told) + now_fold('Current stats', stats_html) + hist, rel, 'units',
-                cls='entity')
+            f'{first_seen(u["first"])}</div>{head_strip(told)}</div>')
+    return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
 
 
 def redirect_page(target: str, name: str) -> str:

@@ -102,7 +102,8 @@ def test_band_title_stays_on_the_page_and_groups_have_a_plate(monkeypatch):
     html = history_table(keys, ['Abrams'], by_ent, {}, '../', areas=areas,
                          ults=frozenset({'abilities.vdata:ab_ult'}))
     band = html.split('id="p-p3"')[1].split('</summary>')[0]
-    assert '<span class="bt"><span class="pdate solo">' in band       # plain text: a click opens the band
+    # plain text: a click opens the band; the date leads (common.band_title_html, visual pass 2026-10-17 round 2)
+    assert '<span class="bt"><span class="pdate">2026-03-01</span><span class="pkind">Update</span>' in band
     assert 'class="pnotes" href="../patches/p3.html#c-hero_atlas"' in band   # the archive on purpose, at Abrams
     assert '<span class="ec-n">3 not in notes</span>' in band          # the eye count scripts.js recounts
     assert html.count('class="hgroup has-ic') >= 3 and '<div class="hg-b">' in html
@@ -375,8 +376,9 @@ def test_an_item_page_lists_each_value_once_and_a_removed_item_its_last_ones():
             'last': [5554, '2025-05-08']}
     html = item_page(it, card, {}, {})
     assert 'Last values (build 5554, 2025-05-08)' in html and 'Current values' not in html
-    # the header values a section does not list sit in that card (visual pass 2026-10-17: entities_pages.header_host)
-    hdr = html.split('class="ac-hdr"')[1].split('</div>')[0]
+    # the header values a section does not list sit in that card (visual pass 2026-10-17: entities_pages.header_host),
+    # a group of the "today" component (round 2: builders/now_values.py)
+    hdr = html.split('class="chips vg-hdr"')[1].split('</div>')[0]
     assert 'Cast Time' in hdr and 'Cooldown' not in hdr
     html = item_page({**it, 'alive': True}, {k: v for k, v in card.items() if k != 'last'}, {}, {})
     assert 'Current values' in html
@@ -425,10 +427,10 @@ def test_phone_tier_table_matrices_and_item_cards_css():
     phone = [b for b in css.split('@media (max-width: 700px) {')[1:] if 'table.tier-grid' in b.split('\n}')[0]]
     assert phone and 'table.tier-grid { width: 100%; min-width: 0; }' in phone[0]
     assert '.page.wide .table-fade' not in css
-    # review 2026-10-05: a one-row card is not stretched; visual pass 2026-10-17: the cards share the width from the left
-    # (a lone card sat centred with ~300px of nothing each side), their rows in columns (tests/test_vis_entity.py)
-    assert ('.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); '
-            'align-items: start; }') in css
+    # review 2026-10-05: a one-row card is not stretched; visual pass 2026-10-17: the sections share the width from the
+    # left, their rows in columns — round 2: as groups of the one "today" component flowing in columns, no box each
+    # (tests/test_vis_e2.py)
+    assert '.stat-flow { columns: 330px auto;' in css and 'item-secs' not in css
     assert 'details.more' not in css and '.hist-bar .switch' not in css
     js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
     anchor = js.split("safe('patch-anchor'")[1].split("safe('tabs'")[0]

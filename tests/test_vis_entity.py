@@ -78,8 +78,9 @@ def test_an_items_header_values_sit_in_the_card_they_belong_to():
     """Silencer's "Duration 4s" floated centred over its cards, belonging to none: it is its Active's."""
     from builders.entities_pages import header_host
     html = _item(SILENCER)
-    active = html.split('<div class="ac-name">Active</div>')[1].split('<table')[0]
-    assert '<div class="ac-hdr">' in active and 'Duration <b>4s</b>' in active
+    # (round 2: a section is a group of the one "today" component, builders/now_values.py)
+    active = html.split('<h3>Active</h3>')[1].split('</section>')[0]
+    assert '<div class="chips vg-hdr">' in active and 'Duration <b>4s</b>' in active
     assert 'Cooldown <b>' not in active                                 # listed in the card already: not repeated
     assert 'item-hdr' not in html
     assert [header_host([{'type': t} for t in kinds]) for kinds in (
@@ -97,22 +98,23 @@ def test_a_lone_item_card_fills_the_panel_with_each_label_near_its_value(browser
     card = {'header': [], 'sections': [{'type': 'Active', 'desc': 'Teleport ahead.', 'props': [
         _prop('A', 'Teleport Range', '11m'), _prop('B', 'Bullet Resist', '+30%'), _prop('C', 'Buff Duration', '6s'),
         _prop('D', 'Cooldown', '16s')]}]}
+    # (round 2: the sections are groups of the "today" component flowing in columns, builders/now_values.py)
     ctx, pg, errors = _open(browser, tmp_path, _item(card), 1440)
     try:
-        grid, one = _box(pg, '.item-secs'), _box(pg, '.item-secs > .ability-card')
-        assert abs(one['l'] - grid['l']) < 4 and abs(one['r'] - grid['r']) < 4            # the frame's 2px margin
-        rows = _boxes(pg, '.item-secs tr')
-        assert len({round(r['l']) for r in rows}) >= 3                    # the rows flow in columns
-        for tr in pg.query_selector_all('.item-secs tr'):
-            lab, val = tr.query_selector('td').bounding_box(), tr.query_selector('td.v').bounding_box()
-            assert val['x'] + val['width'] - lab['x'] < 330                # a label stays near its value
+        grid, head = _box(pg, '.stat-flow'), _box(pg, '.stat-flow > .stat-panel > h3')
+        assert abs(head['l'] - grid['l']) < 4 and abs(head['r'] - grid['r']) < 4           # the heading spans the box
+        rows = _boxes(pg, '.stat-flow .sc-row')
+        assert len({round(r['l']) for r in rows}) >= 2                    # the rows flow in columns
+        for tr in pg.query_selector_all('.stat-flow .sc-row'):
+            lab, val = tr.query_selector('.k').bounding_box(), tr.query_selector('.v').bounding_box()
+            assert val['x'] + val['width'] - lab['x'] < 400                # a label stays near its value
         assert not errors
     finally:
         ctx.close()
     ctx, pg, errors = _open(browser, tmp_path, _item(SILENCER), 1440)
     try:
-        cards, grid = _boxes(pg, '.item-secs > .ability-card'), _box(pg, '.item-secs')
-        assert abs(cards[0]['l'] - grid['l']) < 4 and abs(cards[-1]['r'] - grid['r']) < 4
+        cards, grid = _boxes(pg, '.stat-flow > .stat-panel'), _box(pg, '.stat-flow')
+        assert abs(cards[0]['l'] - grid['l']) < 4 and cards[1]['l'] > cards[0]['r']      # side by side from the left
         assert cards[0]['h'] < cards[1]['h']                                # a one-row Innate is not stretched
     finally:
         ctx.close()
@@ -139,7 +141,8 @@ def test_stat_panels_share_the_width_left_to_right(browser, tmp_path):
     try:
         flow, panels = _box(pg, '.stat-flow'), _boxes(pg, '.stat-panel')
         assert abs(panels[0]['l'] - flow['l']) < 2 and abs(panels[-1]['r'] - flow['r']) < 2
-        assert len({round(p['h']) for p in panels}) == 1                    # one row, one height
+        # round 2: each group as tall as its own rows, in columns (equal-height boxes left one row in a box for six)
+        assert len({round(p['l']) for p in panels}) == 3 and panels[2]['h'] < panels[1]['h']
         assert not errors
     finally:
         ctx.close()
@@ -191,7 +194,7 @@ def test_ability_cards_end_at_their_last_tier(browser, tmp_path, monkeypatch):
     finally:
         ctx.close()
     # the chips' size (the fonts are offline here, so their line is checked on the built site's screenshots)
-    assert re.search(r'\.ability-card \.ac-hdr \.chip \{[^}]*font-size: 15px', CSS)
+    assert re.search(r'\.ability-card \.ac-hdr \.chip(, [^{]+)? \{[^}]*font-size: 15px', CSS)
     assert '.tiers { margin-top: auto; }' not in CSS
 
 
