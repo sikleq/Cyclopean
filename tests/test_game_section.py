@@ -219,7 +219,7 @@ def test_the_rules_table_has_todays_values_and_their_history(monkeypatch):
     assert 'data-search-target="table.game-rules tbody tr:not(.sec)"' in html and 'table-scroll' not in html
     added = rules_page(raw + [({'id': '2026-09-20', 'date': '2026-09-20'},
                                [cv('citadel_player_spawn_time_min', op='add', new='5', build=6700)])])
-    row = added.split('citadel_player_spawn_time_min</code>')[1].split('</tr>')[0]
+    row = added.split('data-search="citadel_player_spawn_time_min"')[1].split('</tr>')[0]
     assert 'class="tag new"' in row
 
 

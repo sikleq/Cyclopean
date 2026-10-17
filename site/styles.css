@@ -1479,10 +1479,16 @@ table.game-rules tr.sec td { text-align: left; background: var(--bg-panel-2); bo
   font: 18px/1 var(--font-label); text-transform: uppercase; letter-spacing: .05em; }
 table.game-rules tr.sec a { color: var(--label); display: inline-flex; align-items: center; gap: 8px; }
 table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; color: var(--label); }
+table.game-rules .lc-n { display: none; }
+/* a phone: a name breaks after its underscores only (game_rules._row's <wbr>; break-all cut "citadel_bounty_a / oe_deny_
+   radius"), and Changes rides under Last change: the two mostly-dash columns took 45% of the width (review 2026-10-17) */
 @media (max-width: 700px) {
   table.game-rules { min-width: 0; width: 100%; }
   table.game-rules th, table.game-rules td { padding: 5px 6px; }
-  table.game-rules td.nm code { word-break: break-all; }
+  table.game-rules td.nm code { word-break: normal; overflow-wrap: normal; }
+  table.game-rules .cn { display: none; }
+  table.game-rules td.lc { white-space: nowrap; }
+  table.game-rules .lc-n { display: block; margin-top: 2px; font-size: 12px; color: var(--text-dim); }
 }
 .home-h { margin: 6px 3px 12px; }
 /* what each of the latest updates changed: a strip of icons per section, each opens that page at that update */
