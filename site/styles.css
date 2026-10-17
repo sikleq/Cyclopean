@@ -922,13 +922,15 @@ table.kvt.tier-grid td.v { text-align: center; }
   .hblocks .erow.shr-all .shr-go, .hblocks .erow.shr-all .vv .tsum { margin-left: 0; }
 }
 
-.ptitle { display: flex; align-items: center; gap: 16px; }
+.ptitle { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
 .ptitle h1 { margin: 0 0 6px; }
-.steps { display: flex; gap: 6px; margin-left: auto; }
-.step { display: inline-flex; align-items: center; justify-content: center; width: 38px; height: 34px;
-  font: 20px/1 var(--font-label); color: var(--text-main); background: var(--bg-panel-3);
-  box-shadow: 0 0 0 2px var(--frame-line); }
-.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
+.steps { display: flex; gap: 8px; margin-left: auto; }
+/* both steps always, named ("◀ Older", "Newer ▶"); the one past the end dimmed (review 2026-10-17: a lone ◀) */
+.step { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 1px 10px 0;
+  font: 18px/1 var(--font-label); color: var(--text-main); background: var(--bg-panel-3); text-transform: uppercase;
+  letter-spacing: .06em; white-space: nowrap; box-shadow: 0 0 0 2px var(--frame-line); }
+a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
+.step.off { color: var(--text-dimmer); background: none; box-shadow: 0 0 0 2px var(--line-soft); }
 
 /* patch summary: tag counters + bar, heroes hit, one line of the notes check */
 .summary { padding: 14px 16px 12px; margin: 14px 2px 18px; }
@@ -1399,6 +1401,11 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 
 /* patch page tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+/* one height for every tab, the words on one line: the 20px eye of "Not in patch notes" made its tab taller and its
+   words ~4px lower (review 2026-10-17); the eye is centred like a chip's */
+.tabs .px-btn { display: inline-flex; align-items: baseline; }
+.tabs .px-btn .mark { align-self: center; width: 14px; height: 14px; margin-right: 5px; }
+.tabs .px-btn .mark::before { width: 14px; height: 14px; }
 /* a phone: the tabs are ONE row that scrolls sideways, like the history bar's ability chips — wrapped, the sticky bar
    was three rows (138px; 194 of an 844px screen with the site bar, review 2026-10-17); scripts.js `tabs` scrolls the
    open one into sight */
@@ -1614,6 +1621,13 @@ ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   .erow { grid-template-columns: 22px 80px minmax(0, 1fr); }
   .erow .vv { grid-column: 2 / -1; text-align: left; max-width: none; white-space: normal; }
+  /* a patch or build page's card row: no gutter, its tag (and a status mark, if any) runs in before the text, which
+     wraps under it at the full width — the tag and the 22px gutter took ~45% of the row and each line wrapped 3-4
+     times in ~195px (review 2026-10-17) */
+  .ecard .erow { display: flow-root; }
+  .ecard .erow .st, .ecard .erow .tg { float: left; margin: 0 6px -6px 0; }    /* no taller than the first line */
+  .ecard .erow .st:empty, .ecard .erow .tg:empty { display: none; }
+  .ecard .erow .vv { display: block; margin-top: 2px; }
   .ability-card .ac-head { flex-wrap: wrap; }
   .ability-card, .ability-card .ac-head > * { min-width: 0; }
   .erow .tx, .ability-card .ac-head { overflow-wrap: anywhere; }

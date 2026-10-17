@@ -16,9 +16,11 @@ from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold
                      shown_value, sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
 from .shared_rows import is_every
 
-# documented is the normal case: no mark (a quiet row); every other status is an exception
+# documented is the normal case: no mark (a quiet row); every other status is an exception. A notes line no change
+# was found for ('unmatched') says nothing either: its grey "?" on most "Additional update notes" rows read as a broken
+# icon, the key to it being in the summary only (review 2026-10-17) — the summary still counts those lines
 ROW_MARKS = ('rounded', 'described', 'mismatch', 'fix', 'untracked', 'nodata', 'repeated',
-             'hidden', 'unreleased', 'unannounced', 'unmatched')
+             'hidden', 'unreleased', 'unannounced')
 
 
 def is_hidden(changes: list[dict]) -> bool:

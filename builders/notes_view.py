@@ -8,7 +8,7 @@ import re
 from functools import lru_cache
 
 from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark
-from .render import shown_value, tag_badge, tag_html, tag_of
+from .render import shown_value, tag_badge, tag_html, tag_of, vals_text
 
 _FILE_ORDER = {'heroes.vdata': 0, 'abilities.vdata': 1, 'npc_units.vdata': 2}
 INLINE_VALUES = 2       # a general line backed by this few values prints them instead of a toggle
@@ -150,17 +150,42 @@ def _files_cell(ln: dict, changes: list[dict], subject_ent: dict | None) -> str:
     short = all(len(str(c.get('old_s') or '')) <= 16 and len(str(c.get('new_s') or '')) <= 16 for c in changes)
     if st == 'described' and 0 < len(changes) <= INLINE_VALUES and short:
         # values as every other list prints them: 'upgrade_grit' is Extra Regen (shown_value)
-        return '<br>'.join(f'<span class="proof">{esc(c["label"])} <span class="v">{esc(shown_value(c["old_s"]))}</span>'
-                           f'<span class="arrow">→</span><span class="v">{esc(shown_value(c["new_s"]))}</span></span>'
-                           for c in changes)
+        return '<br>'.join(f'<span class="proof">{esc(c["label"])} {_pair_html(c)}</span>' for c in changes)
     if st == 'described' and changes:
-        lis = ''.join(f'<li>{esc(c.get("ent_name", ""))} · {esc(c["label"])}: {esc(shown_value(c["old_s"]))} → '
-                      f'{esc(shown_value(c["new_s"]))}</li>'
+        lis = ''.join(f'<li>{esc(c.get("ent_name", ""))} · {esc(c["label"])}: {esc(_pair_text(c))}</li>'
                       for c in changes[:60])
         more = len(ln['changes']) - 60
         return (f'<details><summary>{plural(len(ln["changes"]), "exact value")}</summary><ul>{lis}</ul>'
                 f'{"<span class=muted>+" + str(more) + " more</span>" if more > 0 else ""}</details>')
     return ''
+
+
+def _pair(c: dict) -> tuple[str, str]:
+    """A change's (old, new) as every other list prints them (render.vals_text; a look or sound change, which the lists
+    print no value for, by its raw values); an absent side is '' — never the "—" a pair once showed: "Corrupt Item
+    Round — → 0" paired a dash with an arrow (review 2026-10-17)."""
+    old, new = vals_text(c)
+    if not old and not new:
+        old, new = (shown_value(c.get(k)) for k in ('old_s', 'new_s'))
+    return tuple('' if v in ('—', '-') else v for v in (old, new))
+
+
+def _pair_text(c: dict) -> str:
+    """A value that appeared is its new value alone, as a NEW row reads it; one that went away its old value and
+    "removed"."""
+    old, new = _pair(c)
+    if old and new:
+        return f'{old} → {new}'
+    return new or (f'{old} removed' if old else '')
+
+
+def _pair_html(c: dict) -> str:
+    old, new = _pair(c)
+    if old and new:
+        return f'<span class="v">{esc(old)}</span><span class="arrow">→</span><span class="v">{esc(new)}</span>'
+    if new:
+        return f'<span class="v">{esc(new)}</span>'
+    return f'<span class="v">{esc(old)}</span> removed' if old else ''
 
 
 def _line_ability(ln: dict, changes: list[dict], hero: dict | None) -> tuple[str, str, str] | None:
