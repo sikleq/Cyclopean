@@ -835,8 +835,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Site shell (add to the Fonts / shell bullets): the site bar is a 3-column grid: brand left,
   Heroes | Items | Units centred, build badge right. On phones it is eye + scrolling tabs. The site shell does not centre wide tables. Centring every
   `.table-fade` gave the change matrices a 20-25px sideways scroll at 1700-1920px, and the first column
-  slid under the sticky names. A stats table that should sit in the middle opts in with the item-stats
-  track's `.table-fade.center`. Tooltips and cards
+  slid under the sticky names. Tooltips and cards
   float above the sticky site bar (`--z-tooltip` 200 > `--z-nav` 100). The game's icons are scaled smooth
   (`img.px` is no longer pixelated), because they are 128px paintings
   shown at 20-96px. A switch (`data-toggle-class` checkbox) follows its box, also when the browser restores
@@ -958,6 +957,16 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   running off either edge keeps its name in sight. While a box is not scrolled to its end, `.table-fade::after` draws
   a shadow with a copper rule and `::before` an arrow (`--mask-more`, the sort triangle turned right); scripts.js
   `table-fade` keeps them off the box's scrollbars (`--fade-r`, `--fade-b`). Stats cells have 4px side padding.
+  A change matrix's month label (`dynamics_page.month_label`: `span.ml`, its short form in `data-s`, "Dec") is
+  sticky inside its header (`left: --dyn-name + 4px`, `right: 22px`; the header clips with `overflow: clip` —
+  `hidden` made each header its label's scroll box). scripts.js `dyn-months` reads the headers' places once per
+  layout change (at start-up, fonts, Older patches, the box's width via ResizeObserver) and, on a sideways scroll
+  only, picks a state where the long label has no room: `sr` / `sl` — the short label at the end in sight
+  (`::after` right, `::before` left) — or `none`; a one-patch month (`th.dm.one`, built) always shows the short
+  one. States are a colour / a visibility, written only when they change. Rejected: moving the labels from the
+  script (a transform each frame) — on items/changes any change in the box costs a frame its paint and
+  layerization (~5 ms; p50 27-38 ms per sideways frame on a 4x slower CPU), and none → transform re-laid the table
+  out; toggling a sticky inset per label costs a layout each time.
 - Every stats table (2026-10-03): a click on a group header folds the group to its first column
   (scripts.js `col-groups`); zeros are quieter (`td.zero`); a cell's history drops steps its rounding
   cannot show (`tables_pages._same_shown`: Max DPS 122.925 → 122.9251); `data-hist` is single-quoted
@@ -965,8 +974,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   waits for a pause in typing and takes comma-separated names ("haze, abrams").
 - Low items (`render.note_badge`): a neutral badge (`.tag.note-tag`, no icon) — TEXT on a name / description change (`text_rows`),
   NOTE on a patch-note line the files cannot back whose wording names no kind (`history_view._groups`); no tag filter
-  or counter takes it. Every section tab page is `wide` (the index pages too; Game rules keeps its centred column for
-  the table, its title and tabs above it at the left): the title and the tabs no longer jump between tabs. Home tiles: a
+  or counter takes it. Every section tab page is `wide` (the index pages too; Game rules' search and table share one column
+  at the left, under its title and tabs): the title and the tabs no longer jump between tabs. Home tiles: a
   tile's number is what its index shows at first; the Heroes tile counts released heroes and says "+N pre-release" apart
   (`home_page.hero_tile`: Hero Stats' 'release' / 'prerelease' and the catalog's EHeroDevState_* alike, any other state
   on neither; `_tiles(extra=)`). Units 22 = the Units index's 22 cards. Every table box (`.table-fade > .table-scroll`: stats tables and change matrices) is fitted by scripts.js
@@ -1031,7 +1040,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   column in `render_table`; a stat the item lost travels as an empty `.sc.gone` marker with its history).
   Category band rows (`tr.sec[data-cat]`) and a 2px divider at each new tier (`tier-start`) stand aside
   while the table is sorted (`table.is-sorted`); item icons 28px on a framed plate, a 3px category stripe,
-  units in the headers (`.u`), the table centred when narrower than the page (`.table-fade.center`).
+  units in the headers (`.u`), every table box hugs its table at the page's left edge (no auto margins;
+  `.table-fade.center` and `render_table(center=)` are gone), under its title, bar and band.
   Dashes in the default view: 26% of the cells (was 71-84%), no row without a number. "Souls per point"
   converts every `[data-spp]` value (chips and stat cells) to cost / value; the heat then ranks it
   lower-is-better through `data-hpol` while `data-pol` keeps the stat's own direction for the history
@@ -1054,12 +1064,22 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   (stuck on a phone they covered the table's own sticky header); the box fits under them (`table-fit`). Every
   `.toolbar` sticks flush at `top: var(--nav-h)` (it was +2px). On a phone an index's toolbar (`main.page.wide >
   .toolbar`) is static and `.toolbar .sep` is hidden. The legend's verb is `.lg-hover` / `.lg-tap`, swapped by
-  `@media (hover: none)`. The legend chip wraps and is shortened on phones (`.lg-tail`).
+  `@media (hover: none)`. The legend chip wraps and is shortened on phones (`.lg-tail`). A stats table's or a
+  change matrix's bar (`tables_pages._toolbar`, `dynamics_page.toolbar`) wraps everything after its search box in
+  `tables_pages.filters_fold`: a `<details class="tb-fold">` "Filters" disclosure and a sibling `.tb-opts`. At
+  ≤ 600px only the summary shows until opened (`.tb-fold[open] ~ .tb-opts`, no `:has()`); wider, `.tb-fold` is hidden
+  and `.tb-opts` is `display: contents`. scripts.js `tb-fold` counts what differs from the page's start: a box turned
+  on that was off (`defaultChecked`), a button pressed that started unpressed, a changed number (Boons) — "Filters (2
+  active)"; a default-on Heatmap turned off does not count.
 - Change matrices (scripts.js `dyn-scroll`): the box is as wide as the name column + a whole number of
   patch columns, so the newest end opens with the first column at the sticky names; month labels are
   clipped (a one-patch month's label overflowed and made the box scroll 25px too far); only "Older
   patches" re-scrolls to the end. On phones (≤600px) the name column is the icon only (44px). A resize keeps the place — height-only does nothing, a new width keeps the
-  distance from the newest end; only "Older patches" re-scrolls to the end.
+  distance from the newest end; only "Older patches" re-scrolls to the end. A chosen row filter (`.dyn-rows` slot /
+  tier / role) is `.on` as well as aria-pressed (it showed no pressed state). Item changes' rows and slot filters run
+  Weapon, Spirit, Vitality (`dynamics_page.ITEM_SLOTS`, the game's `citadel_hud_hero_shop.xml` nav order). Item tiers
+  are written by `tables_pages.tier_label` ("Tier 1"); Item Stats' stats column is headed "Always on"
+  (`tables_pages.STATS_COL`; the "▸ columns" suffix is gone).
 - Item Stats extras: closing "Stat columns" while one sorted the rows resets the sort (`table.__resetSort`);
   a "Souls per point" box restored on "back" converts the values at load.
 - Tests: `tests/test_browser_tables.py` runs site/scripts.js + styles.css on fixture pages in Chromium
@@ -1320,7 +1340,8 @@ lone group may break, and a lone group's heading and top span the columns (`:onl
 `:has()`). In a group every row has an icon slot (`.si`, empty where the game has no icon) or none does. A hero's other
 stats get the component's own ground (`.now-open > .stat-flow`). A Game system's console variables stay a panel after
 the groups (`.now-flow > .stat-panel.now-cv`), their rows in their own columns (`.cv-rows`, the same 24px gap). The
-tiered unit table (`table.kvt.tier-grid`) is unchanged. `.table-fade` hugs its table, centred.
+tiered unit table (`table.kvt.tier-grid`) is unchanged. Every table box hugs its table at the page's left edge
+(no auto margins; `.table-fade.center` and `render_table(center=)` are gone), under its title, bar and band.
 
 ## CI
 
@@ -1437,9 +1458,11 @@ files): one beside a namesake in the shop is "(old)"; several "(old, added <date
 Home: a section whose icons are all out of the notes carries the chip `span.chip.lu-all` (see Home above); an
 update without notes shows no chip. The Items tile shows six shop items.
 
-Game rules (`game_rules.rules_page`): one centred column (`.rules-col`), a variable search, the table scrolls
-with the page under a sticky head, "NEW" for a variable added with no move yet. `game_systems.is_dev`: the
-designers' test objects are on no Game page.
+Game rules (`game_rules.rules_page`): one column at the page's left edge (`.rules-col`, under the title and tabs), a
+variable search, the table scrolls with the page under a sticky head, "NEW" for a variable added with no move yet. A
+name breaks after its underscores only (`common.wbr_ids`, `overflow-wrap: normal` at ≤ 700px). At ≤ 700px the Changes
+column (`.cn`) hides and its count rides under the date (`td.lc .lc-n`: "3 changes" / NEW).
+`game_systems.is_dev`: the designers' test objects are on no Game page.
 
 Names (`pipeline.catalog.earlier_names`): an ability / item / unit (not a gun) its last build's text does not
 name takes the newest name an earlier build's text gave it ("[Deprecated]" stripped, "… Disabled" and

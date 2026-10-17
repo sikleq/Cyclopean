@@ -1,7 +1,7 @@
 [
   {
     "date": "2026-10-17",
-    "title": "Hero pages on one grid, the patch strip in the head, one look for current values and history titles, unit role marks",
+    "title": "Hero pages on one grid, the patch strip in the head, tables at the left edge, filters folded on phones",
     "items": [
       "Hero pages: the key stats and the weapon's numbers sit on a real grid (every column lines up, no stretched or missing tiles) with one label style, and the strip of patches moved into the page head with a \"Patches\" label.",
       "Item, unit and Game pages: \"Current values\" is one layout everywhere: groups flow down columns, each value at the right edge of its column.",
@@ -9,7 +9,10 @@
       "Units: Medic, Melee and plain Troopers and the zipline trooper carry their role mark from the game on the shared trooper portrait; the Guardian carries the game's \"I\" and the Base Guardian its \"IV\".",
       "Home page: \"Not in patch notes\" uses the same chip as the hero, item and unit pages; on a phone the four section tiles are two a row.",
       "Patch pages: on a phone a line's tag runs in before its text; the grey \"?\" in front of note lines is gone; the tabs are one height; the title switch always shows \"Older\" and \"Newer\".",
-      "Every page's top bar names the newest game build in the data and opens its build page; the Game change matrix shows each system's whole icon; the site changelog reads as one column."
+      "Every page's top bar names the newest game build in the data and opens its build page; the Game change matrix shows each system's whole icon; the site changelog reads as one column.",
+      "Change matrices: a month name is never cut off; it stays next to the names while you scroll sideways and reads short (Dec) where its month has little room. A chosen category, tier or role filter looks pressed.",
+      "Stats tables, Game rules and the change matrices start at the left edge of the page, under their title and filter bar; on a phone their filters fold into one Filters button that says how many are on.",
+      "Item tiers read Tier 1 to Tier 5 everywhere, Item changes lists categories in the shop order (Weapon, Spirit, Vitality), and on a phone Game rules names wrap only between words."
     ]
   },
   {
