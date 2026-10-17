@@ -111,6 +111,18 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
   always belongs to that hero's abilities.
 - A few removed-entity images no longer packed anywhere come from `data/overrides/external_icons.json`
   (copies of the game files extracted by deadlock-api; downloaded once with the user's approval).
+- Unit role marks (`data/overrides/unit_icons.json`): a unit type that shares its class portrait with other types
+  gets a role mark. A rule takes an optional third column, an image under `panorama/images/` (new extractor prefixes
+  `builds/citadel_build_tag_` and `hud/world_space/hero_info_panel_ultready_boss_`). `extract_icons.marked_art` writes
+  one SVG per type, `icons/units/_class/<portrait>-<mark>.svg`: the class portrait (the stored WebP) and the mark (an
+  SVG as it is, a raster cut to its art, at most 96px WebP) as data: URIs. The mark sits in the top-right corner
+  (`MARK_BOX`, 42% of the side, `preserveAspectRatio="xMaxYMin meet"`), ringed by its own alpha grown by `MARK_OUTLINE`
+  (feMorphology on SourceAlpha: black, no colour of ours). The Trooper, Medic Trooper and Melee Trooper take the build
+  browser's role tags `citadel_build_tag_weapon`, `_healing` and `_melee`; the zipline trooper `hud/zipline_icon`; the
+  Guardian `hero_info_panel_ultready_boss_tier1` (I) and the Base Guardian `hero_info_panel_ultready_boss_barracks`
+  (IV). Types with their own portrait get none. A rule image that is a flat HUD mark (source under `hud/`, `minimap/`,
+  `getting_started/` or `upgrades/`: `FLAT_SOURCES`) is stored under `icons/units/_mark/`; a painted portrait under
+  `icons/units/_class/` (`unit_art_dir`).
 
 ## 4. Reference
 

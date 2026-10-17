@@ -697,7 +697,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   stat tiles) → what it is today, OPEN (owner 2026-10-04: nothing folded by default). A hero gets a plain
   `section.now-open` with the weapon panel (all cells), the ability cards and the other stats as panels.
   An item's "Current values" and a unit's "Current stats" are `history_view.now_fold`, always `open`, and
-  can still be folded; an item's sections sit side by side as cards. Then History. One function for all
+  can still be folded; an item's sections are groups of the same component (see Hero / unit stats). Then History.
+  One function for all
   three (`history_view.history_table`): bands are managed as described in the History bands section above, over ONE panel.
   Each part (base stats, gun, each ability) is an `.hgroup.has-ic`: its icon on a framed plate in a
   column of its own (`cards.ability_plate`, scaled smooth, the ultimate marked with a gold corner diamond:
@@ -707,8 +708,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   at the right edge, and a dashed ruler to it on hover (the values' own `::after`, no markup). A DEL
   row's old value is struck through. One mark only: the eye on what the notes left out. A unit family's tier table (`table.tier-grid`) is at least 420px
   wide on a desktop and fills the panel below 700px (390px phone: no sideways scroll on any of the 455
-  hero, item and unit pages). An item's section cards fill the panel (`auto-fit`); a lone card stops at
-  580px, so a label and its value never sit a whole panel apart. The ultimate's plate has the gold corner
+  hero, item and unit pages). An item's sections are groups of the one "today" component, in columns (see Hero / unit
+  stats). The ultimate's plate has the gold corner
   and no tooltip, because its name is written next to it.
 - The history toolbar (`history_view.toolbar`, scripts.js `hist-filter`) is ONE compact row of
   badge-high controls (40px on Abrams, Calico, Viscous at 1440px). It holds the tags present
@@ -740,8 +741,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
   every patch).
 - Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as ONE
-  row of tiles over the toolbar, oldest → newest with the newest on the RIGHT, as in the change matrices
-  and the trail squares (owner 2026-10-05: "новые справа везде"). The row never scrolls: tiles are
+  row of tiles in the page head under the name on a hero, item, unit or Game page (`history_view.head_strip`),
+  oldest → newest with the newest on the RIGHT, as in the change matrices and the trail squares (owner 2026-10-05:
+  "новые справа везде"). The row never scrolls: tiles are
   `flex: 0 1 30px` (min 14px) and shrink to fit the column; below 760px only the newest 15 show
   (`nth-last-child`). Tiles are striped by tag (`dynamics_page.stripes`), show the count, and carry the site's eye (a
   CSS mask, `--mask-eye`) when the notes left something out. A tile opens `#p-<patch>`. Hovering it
@@ -839,6 +841,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   (`img.px` is no longer pixelated), because they are 128px paintings
   shown at 20-96px. A switch (`data-toggle-class` checkbox) follows its box, also when the browser restores
   a ticked box on "back". Toggle buttons report `aria-pressed`.
+- Site bar build (`common.build_badge`): every page's bar names the same newest game build, "game build N", taken from
+  `common.latest_build` (the last record with a build number in `data/builds/index.json`) and linking to that build's
+  page. `page(build=…)` is ignored; the three stats tables still pass their build (removable).
 - Patch titles (`common.patch_title_html` / `patch_title_text`): the date once. A named update (City
   Never Sleeps, Matchmaking Update) shows its name in gold (`--gold`, no icon: it shifted the text) +
   the date and a gold banner bar; a dated one ("09-16-2026 Update") shows only its date + "update".
@@ -847,7 +852,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   sits under "now".
 - % pills grade their colour strength by size (`render.pct_grade`, steps 5/15/30/60%; scripts.js
   `pctGrade` mirrors them); the history tooltip shows no pill for a first value or a 0.0% step.
-- Item page: current values in a sticky left column beside the history.
+- Item page: current values open above the history, in the one "today" component (`builders/now_values.py`).
 - Heroes index (`builders/heroes_grid.py`), like the game's hero grid: one grid of tall portraits in
   the order of the game's sort names (`m_strHeroSortName`: The Doorman under D; no "new players" row —
   owner's call), the name plate in the hero's colour from the game (`m_colorUI` as `--hero` in the
@@ -861,7 +866,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   "×N" under the name), ONE page (the main member's: not an `alt_` copy, lowest tier, not the boss's
   `weak` copy; the others are redirect stubs `body[data-redirect]` that keep the `#p-` anchor), ONE row
   in Unit changes (the same change on several members counts once) and on the home feed. On the page a
-  member is a group named by its tier and what tells it apart ("Tier II · dock creature", "alt weak");
+  member is a group named by its tier ("Tier II"); an untiered copy is named by its family and what tells it apart
+  ("Guardian (Alt)", "Walker (Alt Weak)", "<family> (New model)", `unit_families.member_label`);
   members whose rows in a patch are identical are one group ("Tier I", "All tiers", "All variants";
   `history_view` `merge`); the part buttons are the tiers. Unit Stats: the neutral camps are a TIER
   table (what every family shares per tier: health, damage, bounty) + a FAMILY table (a row per family,
@@ -938,6 +944,13 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   Units with no game art (`entity_icon` None) are not drawn as the unit glyph: `home_page.fold_bare` splits them off
   and `_fold_tile` draws one `a.lu.lu-fold` "+N" tile after the drawn icons (tooltip lists their names, link to the
   patch page's changes, no hover card / data-k). The phone's "+N more" link counts the units the fold tile stands for.
+  An update's banner: the count not in the notes is the entity pages' eye chip (`a.chip.eye-link`, as
+  `history_view.hidden_link`), linking to the patch page's `#hidden`. The clauses that explain it (`au-off`, `au-shr`,
+  `au-arch`) each sit in a `span.au-more` after a `span.au-dot` " · ", in 13px UI type. At most 700px they go one a
+  line, without the dot, starting at the left (`.update > .banner .bc` flex-basis 100%). A group whose icons are all
+  out of the notes gets `span.chip.lu-all` "all not in patch notes" beside its label (its margin box no taller than
+  the label's line); an update without notes gets none (its banner says "no patch notes"). At most 640px the four
+  tiles stay two a row, the title and the number share a line when they fit, and the 32px icons sit at the bottom.
 - Shared abilities (`builders/shared_page.py`): the abilities every hero has (kind 'shared'): heroes/shared.html (the hero history
   view), the hero matrix's "All heroes · movement & shared" row, search rows.
 - Group names are centred, in a `span.cl` that is sticky inside its header (`left: --name-w + 8px`,
@@ -972,6 +985,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   between were tried and dropped: Haze showed ~27 of hers; `tests/test_page_polish.py` keeps 40 and no gap tile).
 - Page shell: `.page.wide` is `max-width: var(--content-w)` like the site bar, so the title, toolbar and table start at
   the brand's x (at 1920: 134px); the footer's side padding is `--gutter`.
+- Site changelog (`changelog.html`, `home_page.changelog_page` from `data/changelog.json`): `page(cls='changelog')`
+  makes it one column of about 80 characters (`max-width: calc(80ch + 2 * var(--gutter) + 40px)`).
 - Palette: `--text-dimmer` #85918b (4.5:1 on every panel up to `--bg-panel-3`; was #6b7772, 3.2:1).
 - Switches (`.switch`, a `data-toggle-class` checkbox): off = a dark slot (`--bg-page`) with a `--line-bright` frame and
   a `--text-dim` knob on the left; on = a `--patina` fill with a `--text-bright` knob on the right.
@@ -1101,6 +1116,14 @@ matched (or names); each line gets the tag of the change it matched (counters wh
 kinds); "from A to B" / "by N" numbers are highlighted in the direction's colour; the right column keeps
 what the files say.
 
+A notes row (`cards.row`) for a line no change was found for (status `unmatched`) has no mark (`ROW_MARKS` leaves it
+out); the summary's audit line still counts it. `notes_view._pair` prints a described line's values as
+`render.vals_text` does: an added value alone, a removed one as "<value> removed". At ≤600px a card row
+(`.ecard .erow`) is a flow-root: the status mark and the tag float left, their negative bottom margin keeping them no
+taller than the first line, so the text takes the full width below them, and the values sit under the text. The patch
+switcher by the title always shows both steps, "◀ Older" and "Newer ▶" (`span.step.off` where there is none). The tabs
+(`.tabs .px-btn`) are inline-flex on the baseline, with the eye centred at 14px.
+
 ## Notes vs files (`builders/errata_page.py` → `patches/errata.html`)
 
 Every patch-note line still called "mismatch" after the 2026-10-02 review is Valve's own slip — a wrong
@@ -1122,14 +1145,14 @@ base bodies (`models/heroes*/<hero>/…basebody…`), per-hero cosmetic animatio
 (`hero_cosmetic.vnmgraph+<hero>`), cosmetic sound sets, cosmetic item classes
 (`CCitadel_Cosmetic{Item,Ability}_<Name>`; a rename Item → Ability in one build cancels out). Hero
 codes resolve by model folder / file (any `models/heroes*`), id word or game name ("calico", "mo_krill").
-Build pages list the build's events ("Cosmetics"); a hero with a base body gets the "skin base in files"
-chip.
+Build pages list the build's events ("Cosmetics"); a hero with a base body gets the head chip "skins in the works"
+(`hero_page.SKIN_CHIP`).
 
 ## Icons without per-entity art
 
 | Rows | Source |
 |---|---|
-| troopers (and the zipline trooper), Guardians, Walkers, Patron, Base Guardians, base turret, Mid Boss, Shrine, Sinner's Sacrifice | the portraits / markers the game's own ping wheel uses (`scripts/ping_wheel_messages.vdata`: "Push Shrine" → npcs/shield_generator, "Sinner's Here" → minimap/neutral_vault), rules in `data/overrides/unit_icons.json` |
+| troopers and Guardians share one portrait per class, each type with its role mark (`_why_marks` in `unit_icons.json`); Walkers, Patron, base turret, Mid Boss, Shrine, Sinner's Sacrifice | the portraits / markers the game's own ping wheel uses (`scripts/ping_wheel_messages.vdata`: "Push Shrine" → npcs/shield_generator, "Sinner's Here" → minimap/neutral_vault), rules in `data/overrides/unit_icons.json` |
 | a hero's summon or placed object (Mini Turret, Spectral Wall, Goo Ball, Bounce Pad, Familiar's helpers, Fire Scarabs, Rat King's rats and swarm), the shield escort, the removed rejuvenator / soul pickup units | the art of the ability that makes it, matched by model and class (Mini Turret: McGinnis' turret portrait heroes/engineer_turret); the escort: the minimap's escort marker; removed pickups: their misc.vdata namesakes' art — same file |
 | neutral camps without art | their family's art: same id stem (`neutral_lantern_weak` → `_normal`) or same name without the tier ("Gutter Ghoul I" → II) |
 | map pickups (powerups, rejuvenator) | `m_strPingIcon` / nested `m_strHudIcon` of `misc.vdata` (`misc:<id>`) |
@@ -1147,6 +1170,10 @@ hud/zipline_icon, hud/ledge_climb, hud/teleport_icon). Run from a worktree witho
 `data/overrides/unit_icons.json` has a `_why_more` note for the units that take another unit's art: chess pieces →
 minimap marks, ink wall → Living Ink, skeleton → heroes/necro_shambler, cat → nano_catform, field sentry → engineer
 turret; Mid-Boss → getting_started/map_rejuv, read by the new extractor prefix `panorama/images/getting_started/map_`.
+
+Flat marks (ability icons, minimap and map-legend markers) are stored under `icons/units/_mark/`, not beside the
+painted portraits. A unit card insets them 13px (10px on a phone) on its tile (`.card img[src*="/_mark/"]`), as the
+Game cards inset theirs.
 
 ## Value printing and display (`builders/render.py`)
 
@@ -1192,8 +1219,9 @@ Mid-Boss 15%, neutrals 50-60% / 45-55%; Sight Range = m_flSightRangePlayers (tro
 
 ## Item page details
 
-Current values: the header chips list only what no section lists (`entities_pages.header_only`);
-the section cards flow as flex (no stretched one-row card, a lone card centred, no phone overflow).
+Current values: the header chips list only what no section lists (`entities_pages.header_only`); the sections are
+groups of the one "today" component (see Hero / unit stats), and those header values sit on the section
+`header_host` picks (`.chips.vg-hdr`).
 
 Item Stats history is exact: a value Valve only renamed or newly showed no longer reads "added", and the older history before it is back.
 What an item's active does is marked "Active" (Spirit Sap's -30 Spirit Power is the target's debuff, not the item's stat). Drawbacks show red in the history.
@@ -1214,6 +1242,10 @@ System icons: Shop & item rules takes the game's shopping-cart icon and Other ru
 `data/overrides/game_icons.json`; the site keeps them as `icons/game/`); no system uses a site glyph any more. `.card
 img` sits on the glyph tile (`--bg-panel-3`, 5px inset); flat SVG marks on Game cards get a 13px inset
 (`.game-card img[src$=".svg"]`).
+
+The Game change matrix (`table.dyn[data-what]`, built for the Game kind by `dynamics_page`) draws each system icon
+whole: `object-fit: contain` on `td.name img` (the Souls icon, 35x67, was cropped to a swirl). The `.dt-head img` of
+a hover card is `contain` as well.
 
 ## Labels and units (`pipeline/semantics.py`, enrich 33)
 
@@ -1277,7 +1309,18 @@ real step (`_real_steps`). Units ride on the numbers everywhere (`_split_unit`).
 regen, dashes and melee per boon; `NOT_ON_HERO`: crouch speed. Hero Stats: reloads 2 decimals, intervals 3,
 the newest build (`unchanged_since` keeps the last build that changed a hero).
 
-`.stat-flow` is a centred flex row of 280px panels; `.table-fade` hugs its table, centred.
+The values of today are ONE component, `builders/now_values.py` (`Row`, `group`, `flow`): a unit's single-tier stats
+(`hero_page.stat_tables`), a hero's other stats (`hero_page.more_stats`), an item's sections (`entities_pages.item_page`
+→ `hero_page.prop_values`) and a Game system's entries (`game_now.now_block`). `flow` is `.stat-flow`, CSS columns
+(`columns: 330px auto`, 24px gap, a rule between). A `group` is `section.stat-panel`: an `h3` (none for an item's
+untitled section, class `untitled`), an optional `.vg-top` (an item section's header chips `.chips.vg-hdr` and its text
+`.vg-desc`), then `.sc-row`s (`.k` label, `.v` value at the column's right edge; `p-<css>` colours an item's value as
+the game does). A group stays whole (`break-inside: avoid`); a group of more than `LONG_GROUP` (8) rows (`.long`) and a
+lone group may break, and a lone group's heading and top span the columns (`:only-child`, a structural pseudo, no
+`:has()`). In a group every row has an icon slot (`.si`, empty where the game has no icon) or none does. A hero's other
+stats get the component's own ground (`.now-open > .stat-flow`). A Game system's console variables stay a panel after
+the groups (`.now-flow > .stat-panel.now-cv`), their rows in their own columns (`.cv-rows`, the same 24px gap). The
+tiered unit table (`table.kvt.tier-grid`) is unchanged. `.table-fade` hugs its table, centred.
 
 ## CI
 
@@ -1391,8 +1434,8 @@ hist-tip: the "Overall" percent uses the steps' rule (two negatives by size: `pc
 files): one beside a namesake in the shop is "(old)"; several "(old, added <date>)", else "(old, tier N)", else
 "(old, #n)" — "Toughness (old, added 2025-05-08)" / "(old, added 2024-06-06)", "Extra Large Magazine (old, #1)".
 
-Home: a section of an update whose icons are all out of the notes has ONE eye on its label (`.lu-all`); an
-update without notes shows none below its "no patch notes". The Items tile shows six shop items.
+Home: a section whose icons are all out of the notes carries the chip `span.chip.lu-all` (see Home above); an
+update without notes shows no chip. The Items tile shows six shop items.
 
 Game rules (`game_rules.rules_page`): one centred column (`.rules-col`), a variable search, the table scrolls
 with the page under a sticky head, "NEW" for a variable added with no move yet. `game_systems.is_dev`: the
@@ -1461,23 +1504,16 @@ Troopers' alt / super / new-model copies are on the Medic / Melee / Trooper page
 
 Buff vs nerf in the change matrices weighs how big each change was.
 
-Visual pass 2026-10-17 (entity track). The "now" panels fill the width: `.stat-flow` is a grid
-`repeat(auto-fit, minmax(min(300px, 100%), 1fr))`, a row's panels as tall as its tallest; a lone panel lays its rows in
-CSS columns like the console variables (`:only-child`, a structural pseudo — no `:has()`); the console variables panel
-spans the row (`.now-cv { grid-column: 1 / -1 }`). An item's section cards are a grid
-`repeat(auto-fit, minmax(min(320px, 100%), 1fr))`, start-aligned; inside a card the `table.kvt` rows flow in columns
-(`tbody` a grid of `minmax(min(260px, 100%), 1fr)`, each `tr` a flex row) so a lone card fills the panel with each label
-near its value. `entities_pages.header_host(sections)` picks the card that carries the header values the sections do
-not list (`header_only`): the Active section, else the Passive, else the first non-Innate, else the first — its
-`.ac-hdr` chips row; an item without sections keeps the left-aligned `.chips.item-hdr` row.
+Visual pass 2026-10-17 (entity track). The "today" panels are one component, `builders/now_values.py` (see Hero /
+unit stats). `entities_pages.header_host(sections)` picks the section that carries the header values no section lists
+(`header_only`): the Active section, else the Passive, else the first non-Innate, else the first. Its `.chips.vg-hdr`
+row sits above its text and rows; an item without sections keeps the left-aligned `.chips.item-hdr` row.
 
-Hero head: the portrait, `.hh-id` (name, chips, "First seen") and `.keystats` are the `.hero-head` grid's own items;
-under 980px the stats span both columns below and the portrait (110px, 88px under 420px) keeps the name beside it.
-`.keystats` is a flex row (seven a row from 900px), a short last row stretches. Ability cards: the grid is
-`align-items: start` (no `.tiers { margin-top: auto }`); `.ac-hdr .chip` is 15px. Weapon block: one column — `.wb-id` is
-the header row (kicker, name, last change, History, trail), `.wb-cells` a flex row whose builder-set `--wb-per`
-(`hero_page.wb_per_row`: rows balanced, at most `WB_ROW_MAX` = 8 a row; 4 under 1100px, 3 under 600px) fixes the tiles
-a row, a short last row stretching.
+Hero head: a `.hero-head` grid. The portrait is column 1 over three rows (110px under 980px, where it takes row 1 and
+the name stays beside it; 88px under 420px). `.hh-id` (name, chips, "First seen"), the patch strip (`.head-strip`) and
+`.keystats` are column 2; under 980px the strip and the key stats take the whole width below the name. Ability cards:
+the grid is `align-items: start`; `.ac-hdr .chip` is 15px. Weapon block: one column — `.wb-id` is the header row (kicker,
+name, last change, History, trail), and `.wb-cells` is a grid of the weapon numbers (see the key stats paragraph below).
 
 Trail (`trail.trail_html`): on the entity's own page (`local=True`) a trail with fewer than `TRAIL_MIN_LOCAL` (2)
 changes in its span is not drawn; an empty slot (`span.sq`) is a 2px dot; a hidden square is a 3px eye-coloured top
@@ -1498,6 +1534,33 @@ its left (label from 26px + `--tag-w` + 8px), the label and a short value on one
 their +/− before the words (`::before`). scripts.js `rework-lines`: a REWORK row whose two-line clamp cut its list gets
 `.clamped` (measured after load, a band's toggle and a resize; reads, then writes) and a "more ▾" / "less ▴" line; a tap
 on the values toggles it.
+
+Visual pass 2026-10-17, round 2 (entity track). Key stats: `.keystats` is a grid. `hero_page.keystats_vars(n)` writes
+`--ks-c` (the columns on a desktop: `wb_per_row(n, KS_ROW_MAX=8)`, so 13 tiles make 7 a row and 15 make 8) and `--ks-s`,
+the first tile's span there; under 980px (5 columns) it writes `--ks-s5`, on a phone (3 columns) `--ks-s3`.
+`lead_span(n, cols)` is `cols - n % cols + 1` (1 when it divides), so the rows come out whole and every column lines
+up: 13 tiles make Health span 2 of 7, 3 of 5, and the whole row on a phone. The weapon's other numbers (`.wb-cells`,
+`hero_page._more_weapon`) are the same kind of grid: `--wb-per` / `--wb-s` on a desktop, `--wb-t` / `--wb-st` under
+1100px (`fit_cols(n, WB_TABLET=(4, 5))`: the count that leaves the first tile the narrowest), `--wb-s3` on a phone.
+Every tile label is one style (`.keystat .l, .wcell .l`: the label font, 16px, uppercase, `--label`); a tile is
+top-aligned (value, then label), so a row's values share a line when a label wraps. Every weapon tile keeps the icon's
+corner slot: `_stat_icon` writes an empty `.si` where the game has no StatDesc icon (radius, spread, gravity, lifetime).
+
+The patch strip is in the head: `history_view.head_strip(told)` gives `.head-strip` = `.hs-l` "Patches" + the strip (and
+the hover cards' blob); with one patch (`told['strip_tiles']` is false, set by `history_table` with `facts_out`) only
+the blob comes. A hero's strip is a grid item of `.hero-head` (column 2, under `.hh-id`). An item's, a unit's and a
+Game system's is the last child of `.page-head`: `flex-wrap` puts it on a row of its own at the name's edge
+(`margin-left: 96px + 2 × --px + 18px`; on a phone at the icon's edge), and the name block keeps `flex: 1 1 0` beside
+the icon. Game system pages pass `facts_out` as well.
+
+A history band's title is `common.band_title_html(row)`: `.pdate` first (700 18px UI font, tabular figures), then
+`.pname` (gold, pixel caps) or `.pkind` "Update", then `.pfu` for a follow-up, so the dates line up from band to band.
+`.hblocks .pblock > .banner` is a `--patina` `color-mix` gradient, and a named update's banner takes `--gold`.
+`patch_title_html` (patch pages, home, indexes) is unchanged. The rule-for-all link row (`cards.every_links`) reads
+"N changes for all <what>" with "see <Game system> ›" and its tag counts.
+
+Hover cards: `table.dt-rows td.dt-tg + td.dt-field` has `min-width: 10em` (strip, trail and home cards), so
+"Min Sleep Time" keeps one line; the change matrix's card has no tag column and is unchanged.
 
 ## Key functions
 

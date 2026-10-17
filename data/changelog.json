@@ -1,6 +1,19 @@
 [
   {
     "date": "2026-10-17",
+    "title": "Hero pages on one grid, the patch strip in the head, one look for current values and history titles, unit role marks",
+    "items": [
+      "Hero pages: the key stats and the weapon's numbers sit on a real grid (every column lines up, no stretched or missing tiles) with one label style, and the strip of patches moved into the page head with a \"Patches\" label.",
+      "Item, unit and Game pages: \"Current values\" is one layout everywhere: groups flow down columns, each value at the right edge of its column.",
+      "History: every band's title starts with its date; a named update follows in gold, a plain one says \"Update\". The row for rules that apply to everyone reads \"15 changes for all heroes · see Hero progression\".",
+      "Units: Medic, Melee and plain Troopers and the zipline trooper carry their role mark from the game on the shared trooper portrait; the Guardian carries the game's \"I\" and the Base Guardian its \"IV\".",
+      "Home page: \"Not in patch notes\" uses the same chip as the hero, item and unit pages; on a phone the four section tiles are two a row.",
+      "Patch pages: on a phone a line's tag runs in before its text; the grey \"?\" in front of note lines is gone; the tabs are one height; the title switch always shows \"Older\" and \"Newer\".",
+      "Every page's top bar names the newest game build in the data and opens its build page; the Game change matrix shows each system's whole icon; the site changelog reads as one column."
+    ]
+  },
+  {
+    "date": "2026-10-17",
     "title": "Hero releases as their own updates, game art for the new heroes, tidier pages, cards on touch screens",
     "items": [
       "Violet, Deadman Danny, Baba and Solomon show their real ability icons, card portraits and minimap faces; Solomon's bishop and queen, Violet's ink wall, Graves' skeletons and Calico's cat have their game art, and \"Shop & item rules\" and \"Other rules & objects\" have icons from the game.",
