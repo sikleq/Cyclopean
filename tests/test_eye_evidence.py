@@ -32,23 +32,26 @@ def test_the_eye_names_the_build_and_opens_it(monkeypatch):
     monkeypatch.setattr(common, 'build_pages', lambda: {'6440_x.json.gz': '6440', '6444_ed400792.json.gz': '6444'})
     monkeypatch.setattr(evidence, 'build_pages', common.build_pages)
     monkeypatch.setattr(evidence, 'build_anchors', lambda f: frozenset({'hero_haze'}) if f.startswith('6444') else frozenset())
+    # the notes' own build is 6440 (the one that carries what they announced)
+    monkeypatch.setattr(evidence, 'notes_window', lambda pid: (6440, frozenset({6440}), '2026-04-10'))
     assert evidence.row_evidence(ch()) == (None, None, False)          # outside a patch: the eye's own words
-    with evidence.patch_builds(BUILDS, '../'):
+    with evidence.patch_builds(BUILDS, '../', 'p1'):
         tip, href, late = evidence.row_evidence(ch())
         assert tip.startswith('Not in the patch notes — in the game files of build 6440 (2026-04-10)')
         assert href == '../builds/6440.html' and not late             # the build page has no card of hers: no anchor
-        # a silent hotfix: a later build than the patch's own, at the hero's card of that build
+        # a silent hotfix: a later build than the notes' own, at the hero's card of that build; dated by the game
+        # build (6444: "Apr 10 2026 20:42:38"), not by the tracker's commit (2026-04-11 04:07 UTC)
         tip, href, late = evidence.row_evidence(ch(builds=[6444]))
-        assert 'shipped silently 2026-04-11, build 6444' in tip and href == '../builds/6444.html#c-hero_haze' and late
+        assert 'shipped silently 2026-04-10, build 6444' in tip and href == '../builds/6444.html#c-hero_haze' and late
         # several builds; an update without notes says so
         tip, _, _ = evidence.row_evidence(ch(builds=[6444, 6440], status='unannounced'))
         assert tip.startswith('Update shipped without patch notes — in the game files of builds 6440 (2026-04-10) '
-                              'and 6444 (2026-04-11)')
+                              'and 6444 (2026-04-10)')
         assert evidence.row_evidence(ch(status='documented')) == (None, None, False)
         # a shared edit is one block in the build, no card per target: the page itself
         assert evidence.row_evidence(ch(builds=[6444], shared_n=6))[1] == '../builds/6444.html'
         tip, href = evidence.band_evidence([ch(), ch(builds=[6444]), ch(status='documented', builds=[6444])], 'hero_haze')
-        assert 'builds 6440 (2026-04-10) and 6444 (2026-04-11)' in tip and href == '../builds/6440.html'
+        assert 'builds 6440 (2026-04-10) and 6444 (2026-04-10)' in tip and href == '../builds/6440.html'
 
 
 def test_an_ability_row_lands_on_its_heros_card_and_a_folded_row_keeps_its_builds(monkeypatch):
@@ -68,16 +71,15 @@ def test_an_ability_row_lands_on_its_heros_card_and_a_folded_row_keeps_its_build
         assert evidence.row_evidence(swap[0])[1] == '../builds/6444.html#c-hero_haze'
 
 
-def test_the_eye_is_a_link_and_only_a_silent_hotfix_keeps_it_in_an_all_hidden_band():
+def test_the_eye_is_a_link_in_the_tab_order_and_a_silent_hotfix_is_marked_late():
     from builders.cards import row
     from builders.common import mark
     words = 'Not in the patch notes — in the game files of build 6440'
-    # the words once, as the link's name (the tooltip reads them there); a row's eye is out of the tab order — the
-    # band's banner eye is the keyboard's way to the proof (review 2026-10-06: up to ~800 eyes on a hero page)
+    # the words once, as the link's name (the tooltip reads them there); a row's eye is in the tab order (review
+    # 2026-10-17: it was tabindex -1, the keyboard reached no row's proof)
     assert mark('hidden', words, '../builds/6440.html') == (f'<a class="mark hidden" href="../builds/6440.html" '
                                                             f'data-tooltip aria-label="{words}"></a>')
-    assert ' tabindex="-1" ' in mark('hidden', words, '../builds/6440.html', focusable=False)
-    assert ' tabindex="-1" ' in row('hidden', '', 'x', tip=words, href='../builds/6440.html', late=False)
+    assert 'tabindex' not in row('hidden', '', 'x', tip=words, href='../builds/6440.html', late=False)
     assert ' late' not in row('hidden', '', 'x', tip='… build 6440', href='../builds/6440.html', late=False)
     assert 'is-hidden late' in row('hidden', '', 'x', tip='… shipped silently', href='../builds/6444.html', late=True)
     css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
@@ -93,11 +95,12 @@ def test_a_bands_banner_eye_opens_the_build(monkeypatch):
     r1 = {'id': 'p1', 'date': '2026-04-10', 'title': '04-10-2026 Update'}
     key = 'heroes.vdata:hero_haze'
     html = history_table([(key, 'Haze', None)], ['Haze'], {key: [(r1, [ch(), ch(label='Range')])]}, {}, '../')
-    chip = html.split('class="chip eye-chip">')[1].split('</span></span>')[0]
-    assert chip.startswith('<a class="mark hidden" href="../builds/6440.html#c-hero_haze"')
-    assert 'in the game files of build 6440 (2026-04-10)' in chip
-    # the rows' eyes link too, and none of them is a hotfix: the all-hidden band keeps its one eye
-    assert html.count('<a class="mark hidden" href="../builds/6440.html#c-hero_haze"') == 3 and ' late"' not in html
+    # the whole chip is the link (review 2026-10-17: only its eye was), its words the tooltip
+    chip = re.search(r'<a class="chip eye-chip"[^>]*>.*?</a>', html).group(0)
+    assert chip.startswith('<a class="chip eye-chip" href="../builds/6440.html#c-hero_haze"')
+    assert 'in the game files of build 6440 (2026-04-10)' in chip and '>all 2 not in notes</span>' in chip
+    # the rows' eyes link too, and none of them is a hotfix
+    assert html.count('<a class="mark hidden" href="../builds/6440.html#c-hero_haze"') == 2 and ' late"' not in html
 
 
 def test_the_build_page_links_the_trackers_commit():

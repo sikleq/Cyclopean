@@ -564,6 +564,17 @@ def patch_href(pid: str, rel: str, entity_id: str | None = None, also: tuple[str
     return base
 
 
+def _eye_chip(text: str, words: str | None, href: str | None) -> str:
+    """The banner's "N not in notes" chip. With a build to open the whole chip is the link (review 2026-10-17: only
+    its 13px eye was, the words beside it folded the band); its words are the tooltip, the count and the words its
+    name for a screen reader."""
+    if not href:
+        return f'<span class="chip eye-chip">{mark("hidden", words)}<span class="ec-n">{text}</span></span>'
+    w = esc(words or '')
+    return (f'<a class="chip eye-chip" href="{esc(href)}" data-tooltip="{w}" aria-label="{esc(text)} — {w}">'
+            f'<span class="mark hidden" aria-hidden="true"></span><span class="ec-n">{text}</span></a>')
+
+
 def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[dict] = (),
             entity_id: str | None = None, texts: str | None = None, href: str | None = None,
             also: tuple[str, ...] | list[str] = (), net: str | None = None,
@@ -580,16 +591,15 @@ def _banner(pid: str, hdr: dict, counted_all: list[dict], rel: str, every: list[
     if net is None:
         net = net_of(counted_all)
     n_hidden = sum(1 for c in counted_all if not_in_notes(c))
-    # the banner says how many rows the notes left out — "all N" only when N is more than one; a band the notes never
-    # mentioned carries its one eye here and none on its rows (styles.css .all-hidden: advisor round 2, kept by the
-    # 2026-10-05 review), except a row that shipped silently in a later build (its eye's words are the proof)
+    # the banner says how many rows the notes left out — "all N" only when N is more than one; in a band the notes
+    # never mentioned the rows' eyes are dimmed (styles.css .all-hidden), each still a link to its row's proof
+    # (review 2026-10-17), except a row that shipped silently in a later build (its eye's words are the proof)
     all_hidden = bool(n_hidden) and n_hidden == len(counted_all)
     # an update that had no patch notes at all (Rat King's build 6736) says so: nothing was left out of notes
     no_notes = all_hidden and all(c.get('status') == 'unannounced' for c in counted_all)
     text = ('no patch notes' if no_notes else f'all {n_hidden} not in notes' if all_hidden and n_hidden > 1
             else f'{n_hidden} not in notes')
-    chips = (f'<span class="chip eye-chip">{mark("hidden", *eye)}<span class="ec-n">{text}</span></span>'
-             if n_hidden else '')
+    chips = _eye_chip(text, *eye) if n_hidden else ''
     # one short chip per kind: they wrap under the title on a phone (one long chip ran 145px off a 390px screen)
     chips += ''.join(f'<span class="chip shr-chip">+{len(rows)} for {esc(name.lower())}</span>'
                      for name, rows in every_groups(list(every)).items())
@@ -623,7 +633,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     every_href = lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}'      # noqa: E731
     own_slot, every_all = split_every(slot, in_dev)
     builds = archive.builds_of(pid)
-    with patch_builds(builds, rel):                      # each eye names the build it came in and opens it
+    with patch_builds(builds, rel, pid):                 # each eye names the build it came in and opens it
         groups = _groups(own_slot, order, meta, names, hints, merge)
     namesakes = {} if merge else _namesakes(groups, meta, gone)
     band_notes: dict[str, str] = {}
@@ -716,7 +726,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     # the entity's place in the patch, its family's members after it (patch_href)
     href = esc(every_href(every_key(every_all[0])[0])) if every_only and every_all else None
     also = [k.partition(':')[2] for g in groups for k in g['keys'] if k.partition(':')[0].endswith('.vdata')]
-    with patch_builds(builds, rel):
+    with patch_builds(builds, rel, pid):
         eye = band_evidence(counted_all, entity_id)     # the banner's eye: the band's builds (an all-hidden band's only eye)
     summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id,
                                   text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]),

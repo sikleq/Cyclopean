@@ -379,9 +379,10 @@
       document.addEventListener('pointerdown', touchStart, true);
       document.addEventListener('touchstart', touchStart, { capture: true, passive: true });
     }
+    // (a band's "N not in notes" chip is such a link too: history_view._eye_chip)
     document.addEventListener('click', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
-      if (el && noHover && el.matches('a.mark[href]') && upBefore !== el) {
+      if (el && noHover && el.matches('a.mark[href], a.eye-chip[href]') && upBefore !== el) {
         ev.preventDefault();
         show(el);
         return;
@@ -1374,6 +1375,7 @@
       var vv = ev.target.closest && ev.target.closest('.erow.rw .vv');
       var v = vv && vv.querySelector('.vals.wrap');
       if (!v) return;
+      if (vv.closest('details.src > summary')) ev.preventDefault();  // a build page's row: the list opens, not the source
       var open = v.classList.toggle('open');
       vv.parentNode.classList.toggle('open', open);
     });
@@ -2021,6 +2023,35 @@
       }
       go(a.getAttribute('data-ab'));
     });
+  });
+
+  /* ---------- a build page's rows (builders/evidence.py row_source): #r-<hash> — the eye on an entity page —
+     opens that row's source and brings it into view, out of a closed fold too; an opened source's "file diff ↗"
+     takes the URL of the head's link of that file (the page writes each URL once) ---------- */
+  safe('build-src', function () {
+    if (!document.querySelector('details.src')) return;      // not a build page: no listeners
+    function fill(d) {
+      var a = d.querySelector('a.src-d');
+      var h = a && a.getAttribute('href');
+      if (!h || h.charAt(0) !== '#') return;
+      var t = document.getElementById(h.slice(1));
+      if (t && t.href) { a.href = t.href; a.rel = 'noopener'; }
+    }
+    document.addEventListener('toggle', function (ev) {
+      var d = ev.target;
+      if (d.open && d.classList && d.classList.contains('src')) fill(d);
+    }, true);
+    function go() {
+      if (location.hash.indexOf('#r-') !== 0) return;
+      var el = document.getElementById(location.hash.slice(1));
+      if (!el || el.tagName !== 'DETAILS') return;
+      for (var p = el.parentElement; p; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+      el.open = true;
+      fill(el);
+      el.scrollIntoView({ block: 'start' });
+    }
+    go();
+    window.addEventListener('hashchange', go);
   });
 
   /* ---------- tabs: <button data-tab="id"> shows #id.tab-panel, hides its siblings ---------- */

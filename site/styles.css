@@ -72,6 +72,7 @@
   --patina-25: rgba(95, 196, 164, 0.25);
   --patina-30: rgba(95, 196, 164, 0.30);
   --eye-06: rgba(255, 154, 60, 0.06);
+  --eye-14: rgba(255, 154, 60, 0.14);
   --eye-53: rgba(255, 154, 60, 0.53);
   --bone-08: rgba(224, 216, 198, 0.08);
   --cell-odd: color-mix(in srgb, var(--patina) 6%, var(--bg-panel));   /* solid table tints (cheap to scroll) */
@@ -499,20 +500,21 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 .mark.fix { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z'/%3E%3C/svg%3E"); }
 .mark.hidden { --mk-on: ""; --mk: var(--mask-eye); }
 .mark.unreleased { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3zM12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z'/%3E%3C/svg%3E"); }
-.mark.unannounced { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9zM6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z'/%3E%3C/svg%3E"); }
+/* ONE icon for "not in patch notes": an update without notes has the eye too (review 2026-10-17) */
+.mark.unannounced { --mk-on: ""; --mk: var(--mask-eye); }
 .mark.documented, .mark.rounded { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M13 3h2v2h-2zM11 5h2v2h-2zM9 7h2v2H9zM7 9h2v2H7zM3 7h2v2H3zM5 9h2v2H5z'/%3E%3C/svg%3E"); }
 .mark.mismatch { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M7 2h2v8H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
 .mark.unmatched { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v2H5zM4 3h1v2H4zM10 4h2v2h-2zM8 6h3v2H8zM7 8h2v2H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
-.mark.hidden { color: var(--eye); filter: drop-shadow(0 0 4px var(--eye-glow)); }
+.mark.hidden, .mark.unannounced { color: var(--eye); filter: drop-shadow(0 0 4px var(--eye-glow)); }
 /* the eye that opens its proof (builders/evidence.py: the build page of the files it came in) lights up */
 a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }
+a.mark.unannounced:hover, a.mark.unannounced:focus-visible { color: var(--text-bright); }
 .mark.documented { color: var(--patina); }
 .mark.described { color: var(--text-dim); }
 .mark.mismatch { color: var(--tag-mismatch); }
 .mark.fix { color: var(--tag-rework); }
 .mark.rounded { color: var(--patina-dim); }
 .mark.unreleased { color: var(--dev); }
-.mark.unannounced { color: var(--text-dim); }
 .mark.code { color: var(--patina-dim); }   /* a real change, in the game's code rather than its data files */
 .chip.dev { color: var(--dev); background: var(--dev-10); }
 .chip .mark { width: 16px; height: 16px; margin-right: 3px; }
@@ -651,8 +653,26 @@ details.fam > summary { list-style: none; cursor: pointer; }
 details.fam > summary::-webkit-details-marker { display: none; }
 details.fam > summary .erow .tx::before { content: "+"; display: inline-block; width: 14px; color: var(--patina); }
 details.fam[open] > summary .erow .tx::before { content: "\2212"; }
-details.fam > .erow { padding-left: 24px; opacity: .85; }
+details.fam > .erow, details.fam > details.src > summary .erow { padding-left: 24px; opacity: .85; }
 .fam-n { color: var(--text-dimmer); }
+/* a build page's row and its source (builders/evidence.py row_source, review 2026-10-17): the row is a <summary>, a
+   click shows the file › entity › field path, the raw old → new and the file's diff; the row an entity page's eye
+   opened (#r-…) is lit and open, its head clear of the site bar and the sticky search (scripts.js build-src) */
+details.src { scroll-margin-top: calc(var(--nav-h) + 72px); }
+details.src > summary { list-style: none; cursor: pointer; }
+details.src > summary::-webkit-details-marker { display: none; }
+details.src > summary .erow .tx::after { content: "\00a0\25B8"; color: var(--text-dimmer); font-size: var(--fs-xs); }
+details.src[open] > summary .erow .tx::after { content: "\00a0\25BE"; }
+details.src > summary:focus-visible { outline: 1px solid var(--patina); outline-offset: -1px; }
+.src-b { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; padding: 6px 10px; font-size: var(--fs-sm);
+  margin: 0 12px 6px calc(12px + 26px + 10px + var(--tag-w) + 10px); color: var(--label);
+  background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid-strong); }
+.src-b > code:first-child { flex: 1 1 100%; color: var(--text-main); overflow-wrap: anywhere; }
+.src-b > span > code { color: var(--text-bright); overflow-wrap: anywhere; }
+.src-b > .src-w { flex: 1 1 100%; color: var(--eye); }
+details.src:target > summary .erow { background: var(--eye-14); box-shadow: inset 3px 0 0 var(--eye), inset 0 0 0 1px var(--eye-53); }
+details.src:target > .src-b { box-shadow: inset 0 0 0 1px var(--eye-53); }
+@media (max-width: 600px) { .src-b { margin-left: 12px; } }
 .vals.fam-span { color: var(--label); font: var(--fs-md)/1 var(--font-label); }
 .only-hidden details.fam:not(.has-hidden) { display: none; }
 /* one edit made in several entities at once (builders/shared_rows.py): a chip on the row; a rule for every one of
@@ -769,6 +789,9 @@ details.fam > .erow { padding-left: 24px; opacity: .85; }
 .hblocks .banner .bc > .pnotes:hover, .hblocks .banner .bc > .pnotes:focus-visible { color: var(--text-bright);
   box-shadow: inset 0 0 0 1px var(--patina); }
 .hblocks .banner .eye-chip .mark, .hblocks .banner .eye-chip .mark::before { width: 13px; height: 13px; margin: 0; }
+/* the whole "N not in notes" chip opens the build its rows came in (history_view._eye_chip) */
+.hblocks .banner .bc > a.eye-chip:hover, .hblocks .banner .bc > a.eye-chip:focus-visible { color: var(--text-bright);
+  box-shadow: inset 0 0 0 1px var(--eye); }
 /* a filter recounts the band's counters and each ability head's; a tag it left at zero goes (scripts.js hist-filter) */
 .hblocks .bc .n0, .hblocks .esub .n0 { display: none; }
 /* one full-width panel per patch: per part its icon on a plate in a column of its own, the name and the
@@ -861,10 +884,11 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
-/* a patch the notes never mentioned: one eye on its banner, none on its rows (advisor round 2, kept by the
-   2026-10-05 review); the stripe and the row tint still mark each row. A row that shipped silently in a later build
-   than its patch (.late, cards.hidden_tip) keeps its eye: its tooltip says when and in which build */
-.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { visibility: hidden; }
+/* a patch the notes never mentioned: its banner's chip says so, and each row keeps a dimmed eye — the link to that
+   row's own proof (review 2026-10-17: the rows had none, the band's chip was the only way to a build). A row that
+   shipped silently in a later build than its patch (.late, evidence.row_evidence) keeps its full eye */
+.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { opacity: .45; }
+.hblocks .pblock.all-hidden .erow .st a.mark:hover, .hblocks .pblock.all-hidden .erow .st a.mark:focus-visible { opacity: 1; }
 .hblocks:not(.show-dev) .erow.st-unreleased, .hblocks:not(.show-dev) .hgroup.dev-only,
 .hblocks:not(.show-dev) .pblock.dev-only { display: none; }
 .hblocks .f-out { display: none !important; }

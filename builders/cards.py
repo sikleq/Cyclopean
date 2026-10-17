@@ -11,7 +11,7 @@ from contextlib import contextmanager
 from pipeline import flags as flag_rules
 
 from .common import esc, mark, plural, visual, wbr_ids
-from .evidence import row_evidence
+from .evidence import row_evidence, row_source
 from .render import (HIDDEN_LIKE, NOT_IN_NOTES, _sentinel, fold_tier_swaps, fold_versions, folded_source, not_in_notes,
                      shown_value, sort_changes, tag_badge, tag_html, tag_of, tag_summary, vals_html)
 from .shared_rows import is_every
@@ -68,8 +68,9 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
         tip: str | None = None, href: str | None = None, late: bool | None = None) -> str:
     """One change row. `tip` / `href`: the eye's own words and the build page it opens (evidence.row_evidence);
-    `late`: it shipped silently after the patch (None: when it has words of its own)."""
-    m = mark(status, tip, href, focusable=False) if status in ROW_MARKS else ''
+    `late`: it shipped silently after the patch (None: when it has words of its own). A linked eye is in the tab
+    order: the keyboard reaches each row's proof (review 2026-10-17; only the bands a reader opened hold rows)."""
+    m = mark(status, tip, href) if status in ROW_MARKS else ''
     # a row that shipped silently in a later build ("shipped silently …") keeps the eye where a band's rows show
     # none (styles.css .all-hidden): the words are the proof
     late = bool(tip) if late is None else late
@@ -518,14 +519,17 @@ def is_noop(c: dict) -> bool:
     return False
 
 
-def change_row(c: dict) -> str:
+def change_row(c: dict, source: bool = True) -> str:
     # a replaced tier lists both bonus sets: they go on their own full-width line under the
     # label (two lines at most, click to expand) instead of a tall right-aligned column
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
     tip, href, late = row_evidence(c)        # the eye names the build it came in and opens it
     # a long console variable's name breaks after its underscores, not mid-word (common.wbr_ids)
-    return row(c.get('status', 'hidden'), tag_html(c), wbr_ids(esc(c.get('label'))) + shared_chip(c), vals_html(c), extra,
-               tip=tip, href=href, late=late)
+    html = row(c.get('status', 'hidden'), tag_html(c), wbr_ids(esc(c.get('label'))) + shared_chip(c), vals_html(c),
+               extra, tip=tip, href=href, late=late)
+    # a build page's row: its anchor (the eye on an entity page lands here) and its source a click away
+    aid, src = row_source(c) if source else (None, '')
+    return f'<details class="src" id="{aid}"><summary>{html}</summary>{src}</details>' if aid else html
 
 
 def shared_chip(c: dict) -> str:
@@ -832,16 +836,34 @@ def change_rows(changes: list[dict], added: bool = False) -> str:
                    f'Added to the game files · {len(rows)} fields')
         html = head + ''.join(change_row(c) for c in keep)
         if rest:
-            inner = ''.join(change_row(c) for c in rest)
+            # a new entity's every field (a new hero: ~200): no source per row — the build page grew 2.0 -> 4.2 MB;
+            # its key rows have theirs, the head links the file's diff (review 2026-10-17)
+            inner = ''.join(change_row(c, source=False) for c in rest)
             html += f'<details class="tech"><summary>All fields ({len(rest)})</summary>{inner}</details>'
         return html
-    main, tech = [], []
-    for c in rows:                                # one is_engine call a row (it ran twice)
-        if not is_noop(c):
-            (tech if is_engine(c) else main).append(c)
+    main, tech = _main_tech(rows)
     html = family_rows(main)
     if tech:
         inner = ''.join(change_row(c) for c in tech)
         hid = ' has-hidden' if is_hidden(tech) else ''
         html += f'<details class="tech{hid}"><summary>Technical ({len(tech)})</summary>{inner}</details>'
     return html
+
+
+def _main_tech(rows: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(player rows, engine plumbing) of an entity's rows, no-ops dropped: `change_rows`' two lists."""
+    main, tech = [], []
+    for c in rows:                                # one is_engine call a row (it ran twice)
+        if not is_noop(c):
+            (tech if is_engine(c) else main).append(c)
+    return main, tech
+
+
+def listed_rows(changes: list[dict], added: bool = False) -> list[dict]:
+    """Every row `change_rows` writes with `change_row` and its source — the rows a build page gives an anchor
+    (builds_pages.shown_keys; tests/test_vis_r4ev.py holds it to the written page)."""
+    rows = sort_changes(fold_tier_swaps(fold_versions(merge_renames(changes))))
+    if added:
+        return _added_split(rows)[0]
+    main, tech = _main_tech(rows)
+    return combine_levels(main) + tech

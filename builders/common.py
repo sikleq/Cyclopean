@@ -65,8 +65,6 @@ MARK_ART = {
     'wrench': 'M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z',
     'flask': 'M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3z'
              'M12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z',
-    'notes_off': 'M3 1h7v1H3zM3 2h1v12H3zM10 2h1v1h-1zM11 3h1v1h-1zM12 4h1v10h-1zM3 14h10v1H3zM6 6h1v1H6zM9 6h1v1H9z'
-                 'M6 10h4v1H6zM5 11h1v1H5zM10 11h1v1h-1z',
     'na': 'M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3z'
           'M12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7z'
           'M6 9h1v1H6zM5 10h1v1H5z',
@@ -88,7 +86,9 @@ STATUS_MARK = {
     'fix': ('wrench', 'Bug fix in the patch notes'),
     'hidden': ('eye', 'Not in the patch notes — found only in the game files'),
     'unreleased': ('flask', 'Hero still in development at this build — not in the patch notes'),
-    'unannounced': ('notes_off', 'Update shipped without patch notes — found only in the game files'),
+    # ONE icon for "not in patch notes" (render.NOT_IN_NOTES): an update without notes has the eye too — its rows wore
+    # a document glyph next to the eyes of every other update (review 2026-10-17); the words say which it is
+    'unannounced': ('eye', 'Update shipped without patch notes — found only in the game files'),
     'documented': ('check', 'Patch notes list these exact numbers'),
     'rounded': ('check', 'Patch notes list rounded numbers; exact values from the files are shown'),
     'described': ('tilde', 'Covered by a patch-note line without exact numbers'),
@@ -129,18 +129,17 @@ def json_attr(name: str, value) -> str:
     return f" {name}='{html.escape(raw, quote=False).replace(chr(39), '&#x27;')}'"
 
 
-def mark(status: str, tip: str | None = None, href: str | None = None, focusable: bool = True) -> str:
+def mark(status: str, tip: str | None = None, href: str | None = None) -> str:
     """A status mark: the class draws its shape (styles.css `.mark.<status>`), the tooltip says it (`tip`: a
     row's own words — the build it came in, when it shipped silently after the patch). `href`: the mark is a link
-    to its proof (the eye opens the build page: evidence.row_evidence); its words are written once, as its
-    `aria-label` (the tooltip reads them there: an empty `data-tooltip`). `focusable=False`: out of the tab order —
-    a row's eye (a hero page has up to ~800), the band's banner eye is the keyboard's way to the proof."""
+    to its proof (the eye opens the build page: evidence.row_evidence), in the tab order (review 2026-10-17: a row's
+    eye was `tabindex="-1"`, the keyboard could not reach a row's proof); its words are written once, as its
+    `aria-label` (the tooltip reads them there: an empty `data-tooltip`)."""
     if status not in STATUS_MARK:
-        return '<span class="mark"></span>'       # e.g. raw build-page changes: no notes to compare with
+        return '<span class="mark"></span>'       # e.g. a build page's change no patch covers: nothing to compare with
     words = esc(tip or STATUS_MARK[status][1])
     if href:
-        tab = '' if focusable else ' tabindex="-1"'
-        return f'<a class="mark {status}" href="{esc(href)}"{tab} data-tooltip aria-label="{words}"></a>'
+        return f'<a class="mark {status}" href="{esc(href)}" data-tooltip aria-label="{words}"></a>'
     return f'<span class="mark {status}" data-tooltip="{words}"></span>'
 
 
