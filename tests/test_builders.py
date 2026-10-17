@@ -1115,6 +1115,8 @@ def test_valves_words_sit_under_the_rows_they_cover(monkeypatch):
     monkeypatch.setattr(archive, 'note_lines', lambda pid: (idx, lines))
     monkeypatch.setattr(archive, 'builds_of', lambda pid: [{'build': 100, 'date': '2026-03-06T00:00:00Z'},
                                                            {'build': 104, 'date': '2026-03-09T00:00:00Z'}])
+    from builders import evidence          # the notes' own build is 100 (what a silent hotfix is newer than)
+    monkeypatch.setattr(evidence, 'notes_window', lambda pid: (100, frozenset({100}), '2026-03-06'))
     r1 = {'id': 'p1', 'date': '2026-03-06', 'title': '03-06-2026 Update'}
     rows = [ch(key='abilities.vdata:a:x', path='x', label='Wake Up Delay', status='described'),
             ch(key='abilities.vdata:a:y', path='y', label='Range', status='documented'),

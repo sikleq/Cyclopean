@@ -32,23 +32,26 @@ def test_the_eye_names_the_build_and_opens_it(monkeypatch):
     monkeypatch.setattr(common, 'build_pages', lambda: {'6440_x.json.gz': '6440', '6444_ed400792.json.gz': '6444'})
     monkeypatch.setattr(evidence, 'build_pages', common.build_pages)
     monkeypatch.setattr(evidence, 'build_anchors', lambda f: frozenset({'hero_haze'}) if f.startswith('6444') else frozenset())
+    # the notes' own build is 6440 (the one that carries what they announced)
+    monkeypatch.setattr(evidence, 'notes_window', lambda pid: (6440, frozenset({6440}), '2026-04-10'))
     assert evidence.row_evidence(ch()) == (None, None, False)          # outside a patch: the eye's own words
-    with evidence.patch_builds(BUILDS, '../'):
+    with evidence.patch_builds(BUILDS, '../', 'p1'):
         tip, href, late = evidence.row_evidence(ch())
         assert tip.startswith('Not in the patch notes — in the game files of build 6440 (2026-04-10)')
         assert href == '../builds/6440.html' and not late             # the build page has no card of hers: no anchor
-        # a silent hotfix: a later build than the patch's own, at the hero's card of that build
+        # a silent hotfix: a later build than the notes' own, at the hero's card of that build; dated by the game
+        # build (6444: "Apr 10 2026 20:42:38"), not by the tracker's commit (2026-04-11 04:07 UTC)
         tip, href, late = evidence.row_evidence(ch(builds=[6444]))
-        assert 'shipped silently 2026-04-11, build 6444' in tip and href == '../builds/6444.html#c-hero_haze' and late
+        assert 'shipped silently 2026-04-10, build 6444' in tip and href == '../builds/6444.html#c-hero_haze' and late
         # several builds; an update without notes says so
         tip, _, _ = evidence.row_evidence(ch(builds=[6444, 6440], status='unannounced'))
         assert tip.startswith('Update shipped without patch notes — in the game files of builds 6440 (2026-04-10) '
-                              'and 6444 (2026-04-11)')
+                              'and 6444 (2026-04-10)')
         assert evidence.row_evidence(ch(status='documented')) == (None, None, False)
         # a shared edit is one block in the build, no card per target: the page itself
         assert evidence.row_evidence(ch(builds=[6444], shared_n=6))[1] == '../builds/6444.html'
         tip, href = evidence.band_evidence([ch(), ch(builds=[6444]), ch(status='documented', builds=[6444])], 'hero_haze')
-        assert 'builds 6440 (2026-04-10) and 6444 (2026-04-11)' in tip and href == '../builds/6440.html'
+        assert 'builds 6440 (2026-04-10) and 6444 (2026-04-10)' in tip and href == '../builds/6440.html'
 
 
 def test_an_ability_row_lands_on_its_heros_card_and_a_folded_row_keeps_its_builds(monkeypatch):

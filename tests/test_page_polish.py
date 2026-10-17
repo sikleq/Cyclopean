@@ -132,7 +132,7 @@ def test_one_call_forgets_every_builders_cache():
     caches.clear_all()
     archive.index()
     evidence.build_anchors('nope.json.gz')
-    assert archive.index.cache_info().currsize == 1 and evidence.build_anchors.cache_info().currsize == 1
+    assert archive.index.cache_info().currsize == 1 and evidence._facts.cache_info().currsize == 1
     archive.clear()                                       # = caches.clear_all()
     cached = [(name, v) for name, mod in list(sys.modules.items()) if name.startswith('builders.') and mod
               for v in vars(mod).values() if hasattr(v, 'cache_info') and getattr(v, '__module__', None) == name]

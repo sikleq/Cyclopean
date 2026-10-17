@@ -623,7 +623,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     every_href = lambda sid: f'{rel}{SECTION}/{sid}.html#p-{pid}'      # noqa: E731
     own_slot, every_all = split_every(slot, in_dev)
     builds = archive.builds_of(pid)
-    with patch_builds(builds, rel):                      # each eye names the build it came in and opens it
+    with patch_builds(builds, rel, pid):                 # each eye names the build it came in and opens it
         groups = _groups(own_slot, order, meta, names, hints, merge)
     namesakes = {} if merge else _namesakes(groups, meta, gone)
     band_notes: dict[str, str] = {}
@@ -716,7 +716,7 @@ def _patch_block(pid: str, slot: dict, order: dict, meta: dict, names: list[str]
     # the entity's place in the patch, its family's members after it (patch_href)
     href = esc(every_href(every_key(every_all[0])[0])) if every_only and every_all else None
     also = [k.partition(':')[2] for g in groups for k in g['keys'] if k.partition(':')[0].endswith('.vdata')]
-    with patch_builds(builds, rel):
+    with patch_builds(builds, rel, pid):
         eye = band_evidence(counted_all, entity_id)     # the banner's eye: the band's builds (an all-hidden band's only eye)
     summary, hidden_cls = _banner(pid, hdr, counted_all, rel, every_all, entity_id,
                                   text_kind([t for ts in (slot.get('texts') or {}).values() for t in ts]),

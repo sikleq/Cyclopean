@@ -4,7 +4,7 @@ from __future__ import annotations
 from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
                      patch_title_text, pretty_id, slug, write)
 from .cards import GAMEPLAY, facing_scope
-from .evidence import commit_url
+from .evidence import build_rows_scope, commit_url, diff_url, row_key, source_of
 from .patches_pages import _changes_table, _loc_li, convar_li
 
 COSMETIC = ('visual', 'audio', 'ui', 'meta')
@@ -53,35 +53,108 @@ def cosmetics_section(build: int | None, rel: str) -> str:
             f'</summary><ul class="change-list">{rows}</ul></details>')
 
 
-def page_entities(rec: dict) -> list[dict]:
+# an entity that came, came back or went is ONE row of its patch, under this path (pipeline: 'Added to the game files')
+EVENT_PATH = {'added': '@add', 'returned': '@return', 'removed': '@remove'}
+
+
+def _status(statuses: dict[str, str], e: dict, c: dict) -> str:
+    """A build row's status in its patch (`notes_of`): by its own key, a shared block's by any of its targets', a new
+    entity's field by the entity's one row; 'raw' (no mark) for a change the patch does not hold (moved and moved back
+    inside its window)."""
+    path, ev = c.get('path'), EVENT_PATH.get(e.get('status'))
+    keys = [row_key(e['file'], e['id'], path)] + [row_key(e['file'], t, path) for t in c.get('targets') or ()]
+    keys += [row_key(e['file'], e['id'], ev)] if ev else []
+    return next((statuses[k] for k in keys if k in statuses), c.get('status', 'raw'))
+
+
+def page_entities(rec: dict, statuses: dict[str, str] | None = None) -> list[dict]:
     """The record's entities as the build page lists them (in the record's order, before ENTITY_LIMIT): their
     gameplay rows, an entity that came, went or came back as one event row. The eye on an entity page links into
-    this list (evidence.build_anchors), so both read it from here."""
+    this list (evidence.build_anchors / build_rows), so both read it from here. Each row carries `src`, the record's
+    own row (evidence.source_of: its anchor and source block), and its status in the patch (`statuses`: notes_of)."""
     ents = []
     for e in rec['entities']:
-        g = [{**c, 'status': c.get('status', 'raw')} for c in e['changes'] if c['cat'] in GAMEPLAY]
+        def st(c: dict) -> str:
+            return _status(statuses, e, c) if statuses else c.get('status', 'raw')
+        g = [{**c, 'status': st(c), 'src': (e['file'], e['id'], c['path'], c.get('op'), c.get('old'), c.get('new'))}
+             if c.get('path') else {**c, 'status': st(c)}
+             for c in e['changes'] if c['cat'] in GAMEPLAY]
         if g or e['status'] in ('added', 'removed', 'returned'):
             if e['status'] == 'added' and not g:
-                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Added to game data', 'new_s': '', 'status': 'raw'}]
+                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Added to game data', 'new_s': ''}]
             if e['status'] == 'returned':
-                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Back in game data', 'new_s': '', 'status': 'raw'}] + g
+                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Back in game data', 'new_s': ''}] + g
             if e['status'] == 'removed':
-                g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': '', 'status': 'raw'}]
+                g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': ''}]
+            g = [c if 'status' in c else {**c, 'status': st(c)} for c in g]
             ents.append({**e, 'changes': g})
     return ents
 
 
+def shown_keys(ents: list[dict]):
+    """The keys of the rows a build page writes with their source (cards.listed_rows: a row folded from several has
+    none) — what an entity page's eye may land on (evidence.build_rows)."""
+    from .cards import listed_rows
+    for e in ents:
+        for c in listed_rows(e['changes'], added=e.get('status') == 'added'):
+            raw = source_of(c)
+            if raw:
+                yield row_key(raw[0], raw[1], raw[2])
+
+
+NOTES_SAY = {'hidden': "This update's notes: no line mentions this",
+             'unannounced': 'This update shipped without patch notes'}
+
+
+def notes_of(pid: str, build: int) -> tuple[dict[str, str], dict[str, str]]:
+    """({row key: its status}, {row key: what this update's notes say of it}) for the rows of `pid` that `build`
+    carries and the notes left out (render.NOT_IN_NOTES: the eye, and "no line mentions this"); a row the notes cover
+    stays quiet, as on an entity page (a status mark a row: 5554's page grew 0.5 MB). A shared edit's row is under its
+    block's key and each target's."""
+    from . import archive
+    try:
+        p = archive.patch(pid)
+    except (OSError, KeyError):
+        return {}, {}
+    statuses: dict[str, str] = {}
+    said: dict[str, str] = {}
+    for e in p.get('entities') or ():
+        for c in e.get('changes') or ():
+            if (build not in (c.get('builds') or ()) or not c.get('path') or not c.get('key')
+                    or c.get('status') not in NOTES_SAY):
+                continue
+            keys = [c['key']]
+            if e['id'] == '@shared':
+                keys += [row_key(e['file'], '@shared', c['path'])] + [f'{k}:{c["path"]}' for k in e.get('target_keys') or ()]
+            for k in keys:
+                statuses.setdefault(k, c['status'])
+                said.setdefault(k, NOTES_SAY[c['status']])
+    return statuses, said
+
+
+def data_files(rec: dict) -> list[str]:
+    """The data files whose entries this build changed, in the record's order."""
+    return list(dict.fromkeys(e['file'] for e in rec.get('entities') or () if e.get('file')))
+
+
 def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     rel = '../'
-    ents = page_entities(rec)
+    # each row with its status in the update it belongs to (the eye on what the notes left out) and its source
+    statuses, said = (notes_of(patch['id'], rec['build']) if patch and rec.get('build') is not None else ({}, {}))
+    ents = page_entities(rec, statuses)
+    diff = ({f: diff_url(rec.get('build'), rec['commit'], f) for f in data_files(rec)} if rec.get('commit') else {})
     cosmetic: dict[str, int] = {}
     for e in rec['entities']:
         for c in e['changes']:
             if c['cat'] in COSMETIC:
                 cosmetic[c['cat']] = cosmetic.get(c['cat'], 0) + 1
-    # the proof of every row: the tracker's own commit of this build (evidence.commit_url)
+    # the proof of every row: the tracker's own commit of this build (evidence.commit_url) and its diff of each data
+    # file (a row's "file diff ↗" names one of these: `df-<file>`, scripts.js build-src)
     commit = (f' · <a href="{esc(commit_url(rec.get("build"), rec["commit"]))}" rel="noopener">tracker commit ↗</a>'
               if rec.get('commit') else '')
+    if diff:
+        commit += ' · file diffs: ' + ' '.join(f'<a id="df-{esc(f)}" href="{esc(u)}" rel="noopener">{esc(f)} ↗</a>'
+                                               for f, u in diff.items())
     head = [f'<div class="crumbs"><a href="index.html">Builds</a> / {esc(build_label(rec["build"]))}</div>',
             f'<h1>{esc(build_label(rec["build"]))}</h1>',
             f'<div class="page-head"><div class="meta">Tracked {esc(rec["date"][:16].replace("T", " "))} UTC'
@@ -101,7 +174,8 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     body.append('<div id="build-body">')
     if ents:
         body.append('<section class="section"><h2>Gameplay data</h2>')
-        body.append(_changes_table(ents[:ENTITY_LIMIT], rel))
+        with build_rows_scope(diff, said):          # every row: its anchor and its source (evidence.row_source)
+            body.append(_changes_table(ents[:ENTITY_LIMIT], rel))
         if len(ents) > ENTITY_LIMIT:
             body.append(f'<p class="muted">{len(ents) - ENTITY_LIMIT} more entities not shown.</p>')
         body.append('</section>')

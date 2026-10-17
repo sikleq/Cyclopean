@@ -72,6 +72,7 @@
   --patina-25: rgba(95, 196, 164, 0.25);
   --patina-30: rgba(95, 196, 164, 0.30);
   --eye-06: rgba(255, 154, 60, 0.06);
+  --eye-14: rgba(255, 154, 60, 0.14);
   --eye-53: rgba(255, 154, 60, 0.53);
   --bone-08: rgba(224, 216, 198, 0.08);
   --cell-odd: color-mix(in srgb, var(--patina) 6%, var(--bg-panel));   /* solid table tints (cheap to scroll) */
@@ -651,8 +652,26 @@ details.fam > summary { list-style: none; cursor: pointer; }
 details.fam > summary::-webkit-details-marker { display: none; }
 details.fam > summary .erow .tx::before { content: "+"; display: inline-block; width: 14px; color: var(--patina); }
 details.fam[open] > summary .erow .tx::before { content: "\2212"; }
-details.fam > .erow { padding-left: 24px; opacity: .85; }
+details.fam > .erow, details.fam > details.src > summary .erow { padding-left: 24px; opacity: .85; }
 .fam-n { color: var(--text-dimmer); }
+/* a build page's row and its source (builders/evidence.py row_source, review 2026-10-17): the row is a <summary>, a
+   click shows the file › entity › field path, the raw old → new and the file's diff; the row an entity page's eye
+   opened (#r-…) is lit and open, its head clear of the site bar and the sticky search (scripts.js build-src) */
+details.src { scroll-margin-top: calc(var(--nav-h) + 72px); }
+details.src > summary { list-style: none; cursor: pointer; }
+details.src > summary::-webkit-details-marker { display: none; }
+details.src > summary .erow .tx::after { content: "\00a0\25B8"; color: var(--text-dimmer); font-size: var(--fs-xs); }
+details.src[open] > summary .erow .tx::after { content: "\00a0\25BE"; }
+details.src > summary:focus-visible { outline: 1px solid var(--patina); outline-offset: -1px; }
+.src-b { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 14px; padding: 6px 10px; font-size: var(--fs-sm);
+  margin: 0 12px 6px calc(12px + 26px + 10px + var(--tag-w) + 10px); color: var(--label);
+  background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid-strong); }
+.src-b > code:first-child { flex: 1 1 100%; color: var(--text-main); overflow-wrap: anywhere; }
+.src-b > span > code { color: var(--text-bright); overflow-wrap: anywhere; }
+.src-b > .src-w { flex: 1 1 100%; color: var(--eye); }
+details.src:target > summary .erow { background: var(--eye-14); box-shadow: inset 3px 0 0 var(--eye), inset 0 0 0 1px var(--eye-53); }
+details.src:target > .src-b { box-shadow: inset 0 0 0 1px var(--eye-53); }
+@media (max-width: 600px) { .src-b { margin-left: 12px; } }
 .vals.fam-span { color: var(--label); font: var(--fs-md)/1 var(--font-label); }
 .only-hidden details.fam:not(.has-hidden) { display: none; }
 /* one edit made in several entities at once (builders/shared_rows.py): a chip on the row; a rule for every one of
