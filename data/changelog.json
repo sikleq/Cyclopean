@@ -12,7 +12,8 @@
       "Every page's top bar names the newest game build in the data and opens its build page; the Game change matrix shows each system's whole icon; the site changelog reads as one column.",
       "Change matrices: a month name is never cut off; it stays next to the names while you scroll sideways and reads short (Dec) where its month has little room. A chosen category, tier or role filter looks pressed.",
       "Stats tables, Game rules and the change matrices start at the left edge of the page, under their title and filter bar; on a phone their filters fold into one Filters button that says how many are on.",
-      "Item tiers read Tier 1 to Tier 5 everywhere, Item changes lists categories in the shop order (Weapon, Spirit, Vitality), and on a phone Game rules names wrap only between words."
+      "Item tiers read Tier 1 to Tier 5 everywhere, Item changes lists categories in the shop order (Weapon, Spirit, Vitality), and on a phone Game rules names wrap only between words.",
+      "One set of type sizes across the site: the pixel label font is never smaller than 16px and pixel headings never smaller than 20px, so small labels read clearly; every change tag, hover cards included, is the same size and width."
     ]
   },
   {

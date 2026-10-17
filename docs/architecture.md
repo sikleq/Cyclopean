@@ -111,7 +111,9 @@ counters) → its rows without the name repeated. Abilities re-created under a n
 their namesake with the same owner (`common.entity_icon`).
 
 Tag look (`render.tag_badge`, the only badge markup, used by all builders): the word in the UI font
-(600 11px uppercase), one width for every tag (`--tag-w`, 80px: CHANGED fits), a muted tint of the tag
+(600 11px uppercase, `--fs-xs`), one width for every tag (`--tag-w`, 80px: CHANGED fits with padding 4px 5px 3px
+7px and .02em spacing — at 8px / 6px and .03em it measured 82.6px and stood out of its column, 2026-10-17; a phone's
+row grid takes the column from `--tag-w` too, and hover cards use the same 11px tags), a muted tint of the tag
 colour with a 2px bar on the left, and one fill. The size of a change is shown by the % next to it, never
 by the badge. The % is coloured text whose ink strength follows `data-g`, not a second box. There is no
 clip-path, because it cut the focus and "chosen" rings. The tag's pixel icon is the badge's CSS
@@ -676,9 +678,20 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   `data-fonts` and switched on by scripts.js once it has loaded. With the fonts server answering in 2.5 s:
   DCL / first paint 2.7 s before, 35-250 ms after. A change-matrix tile of one tag is a class (`.dsq.s-<tag>`),
   not an inline gradient.
-- Fonts: Jersey 20 (headings, names, big numbers — unambiguous pixel digits, weight 400 only) **only at
-  20px and up**; smaller names (hero index, Hero Stats, ability sub-headers) use IBM Plex Sans 600.
-  VT323 for labels, badges, dates (16px and up); IBM Plex Sans for body and tabular numbers.
+- **Type scale** (type pass 2026-10-17; a critic counted 31 family / size / weight mixes on one hero page and VT323
+  at 13-15px): every font size is a step of ONE scale, the `--fs-*` tokens in `:root` (`--fs-2xs` 10, `--fs-xs` 11,
+  `--fs-sm` 13, `--fs-base` 14, `--fs-md` 16, `--fs-lg` 18, `--fs-xl` 20, `--fs-2xl` 26, `--fs-3xl` 34, `--fs-4xl` 40,
+  `--fs-brand` 28 / `--fs-brand-xl` 58). Each family keeps to its own steps: IBM Plex Sans — 11 tags, caps labels and
+  dense column heads, 13 secondary text / tables / tips / buttons / meta, 14 body (history rows, values, names), 10
+  only for a count inside a 14-30px tile, 16 a text field (a phone does not zoom in on it), 18 a band's date, 34 a date
+  that is a page's whole title; VT323 (labels, chips, counters) — 16 and 18 only, smaller small caps go to the UI
+  font's 11px caps; Jersey 20 (headings, names, big numbers, weight 400, unambiguous pixel digits) — 20 / 26 / 34 /
+  40, a name that must be smaller is IBM Plex 600 (Hero Stats, a phone's hero grid). Jacquard 24 is the wordmark only.
+  The shop draws the game's panel at the game's sizes in design px (`.gs-price`, `.gc-nm`, `.gc-imb`, `.gt-name`,
+  `.gt-cost`; docs/shop.md) — the only sizes that are not steps. A VT323 chip's `<b>` keeps the chip's weight (no
+  faked bold). Key-stat and weapon-tile values are one Jersey step, 20px; the six headline weapon values 34px. The
+  change matrix's column row sticks at `calc(var(--fs-sm) + 13px)`, the month row's height. `tests/test_vis_type.py`
+  keeps all of this: no px font size in rules, builders or scripts.js (AGENTS.md has the rule).
 - One entity-card component for every change list (`builders/cards.py`): one header height everywhere
   (36px framed icon, name, ▲▼✦✕ counters and the 12-patch history strip `builders/trail.py` on one
   line); rows on a grid status | tag | text | old → new with a % pill. Documented rows carry no mark (the
