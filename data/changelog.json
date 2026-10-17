@@ -8,7 +8,8 @@
       "The \"N not in patch notes\" chip of an update is one link to its build; in an update the notes never mentioned, every change keeps a dimmed eye that opens its own proof; every eye can be reached with the keyboard.",
       "Hero, Item, Unit and Game changes have a \"Not in patch notes\" switch that redraws every cell from the changes the notes left out; the home page's \"not in patch notes\" counter opens them with it on, and every matrix filter is kept in the page address.",
       "One wording across the site: \"not in patch notes\" for what the notes left out, \"no patch notes\" for an update without any, \"notes we couldn't match\"; counts of one are singular.",
-      "Links to a section no longer land under the sticky bars, and a hero's patch strip shows the month and year under its tiles with one line explaining the orange top."
+      "Links to a section no longer land under the sticky bars, and a hero's patch strip shows the month and year under its tiles with one line explaining the orange top.",
+      "An eye's words read the same everywhere (Not in patch notes, came in build N after the patch / No patch notes for this update), and a change shared by many abilities opens its own block on the build page."
     ]
   },
   {
