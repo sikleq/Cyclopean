@@ -21,6 +21,8 @@ KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move
              'stamina_regen', 'ground_dash', 'air_dash', 'light_melee', 'heavy_melee', 'melee_lvl', 'spirit_lvl')
 # the same for every hero (Crouch Speed 4.75 on all 44): no hero's own number; its one step is in the history
 NOT_ON_HERO = ('crouch',)
+# the head chip of a hero whose skin base body is in the files (pipeline/cosmetics.py)
+SKIN_CHIP = 'skins in the works'
 WEAPON_GROUP = 'Damage'
 # the six numbers a player compares first: one row of equal tiles with one-line labels
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
@@ -520,8 +522,9 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     if table_row and table_row.get('type'):
         chips.append(f'<span class="chip">{esc(table_row["type"].rsplit("_", 1)[-1])}</span>')
     if 'base body' in cosmetics()['heroes'].get(hid, ()):
-        # the body a skin is put on is in the files (pipeline/cosmetics.py): skins are being made
-        chips.append('<span class="chip">skin base in files</span>')
+        # the body a skin is put on is in the files (pipeline/cosmetics.py): skins are being made — said so, not in
+        # the files' words ("skin base in files" told a reader nothing; visual pass 2026-10-17, round 2)
+        chips.append(f'<span class="chip">{SKIN_CHIP}</span>')
     from .text_rows import former_names
     was = former_names(by_ent, f'heroes.vdata:{hid}', name)
     if was:          # renamed in development (Slork → Fathom): the names its history uses

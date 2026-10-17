@@ -66,12 +66,14 @@ def families(units: list[dict]) -> dict[str, list[dict]]:
 
 def member_label(u: dict, members: list[dict]) -> str:
     """'Tier II' for a tiered family (its variants differ in looks, not stats: "Tier I · trooper" named
-    one of five, advisor round 3), 'alt weak' between untiered copies, the family name for the main one."""
+    one of five, advisor round 3), the family name for the main one, and for another untiered copy the family name
+    with what tells it apart: "Guardian (Alt)", "Walker (Alt Weak)" — a group titled just "Alt" said nothing of what
+    it was (visual pass 2026-10-17, round 2)."""
     tier = tier_of(u)
     if tier:
         return f'Tier {tier}'
     words = _variant_words(members).get(u['id'], '') if len(members) > 1 else ''
-    return words or family_name(u)
+    return f'{family_name(u)} ({words})' if words else family_name(u)
 
 
 def merged_label(labels: list[str], total: int = 0) -> str:

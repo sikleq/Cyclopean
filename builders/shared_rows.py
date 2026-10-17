@@ -10,7 +10,7 @@ its Ground Dash Duration 0.7s → 0.72s. They were on no hero page: the blocks k
 A block on some of them (`scope` 'some': nine heroes' Max Health) is an ordinary row of each, with a chip "shared
 ×9 heroes". A block on (almost) every entity of its kinds ('all': the level curve, the investment bonuses, every
 melee attack, every item's slot cost) is a rule for all: on each hero or item it is ONE link row per Game system
-"All heroes: N changes · Hero progression ›" (cards.every_rows; its rows are on the Game page) and is counted apart
+"N changes for all heroes · see Hero progression ›" (cards.every_rows; its rows are on the Game page) and is counted apart
 from the entity's own changes (`is_every`), so 35 level-curve rows do not drown the hero's own patch nor fill every
 hero's cell of the change matrix. Units never fold (`FOLD_FILES`)."""
 from __future__ import annotations

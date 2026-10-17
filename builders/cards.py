@@ -794,10 +794,12 @@ def every_links(rows: list[dict], every_href=None) -> str:
         by_sys.setdefault(every_key(c), []).append(c)
     out = []
     for (sid, what), got in by_sys.items():
-        text = f'All {esc(what)}: {plural(len(got), "change")}'
+        # plain words: "15 changes for all heroes · see Hero progression ›" ("All heroes: 15 changes · Hero
+        # progression ›" read as a code; visual pass 2026-10-17, round 2)
+        text = f'{plural(len(got), "change")} for all {esc(what)}'
         name = esc(system(sid).name)
-        go = (f' <a class="shr-go" href="{esc(every_href(sid))}">{name} ›</a>' if every_href
-              else f' <span class="shr-go">{name}</span>')
+        go = (f' <a class="shr-go" href="{esc(every_href(sid))}">see {name} ›</a>' if every_href
+              else f' <span class="shr-go">in {name}</span>')
         # no status mark: the rows' own marks are on the Game page; here it is a way there, not a change
         out.append(row('shared', '', f'<span class="shr-t">{text}</span>{go}', tag_summary(got), 'shr-all'))
     return ''.join(out)
