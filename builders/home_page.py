@@ -115,18 +115,30 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
     system's icon (section 'game': the Soul Urn's rework of 2026-06-04 was on no icon, so the feed skipped it)."""
     from .cards import player_facing
     from .dynamics_page import _display
-    from .render import not_in_notes
+    from .hero_page import every_history_fold, repeats_dropped
+    from .render import not_in_notes, same_change
     out: dict[str, dict[str, dict]] = {}
     once: set = set()
-    for e, rows, key, section in _feed_rows(p, templates, unit_main, pages):
+    found = list(_feed_rows(p, templates, unit_main, pages))
+    # a nameless sub-ability or an alt fire whose rows repeat its parent's / gun's: the hero's page says them once
+    # (hero_page.history_folds), as its band and the change matrix count them (Violet's release read 19 here, 17 on her
+    # band: her two abilities' "trigger" parts, review 2026-10-17)
+    folds = every_history_fold() if pages is not None else {}
+    of_abil: dict[str, list[dict]] = {}
+    for e, rows, _, section in found:
+        if section == 'heroes' and e['file'] == 'abilities.vdata':
+            of_abil.setdefault(e['id'], []).extend(rows)
+    for e, rows, key, section in found:
+        if section == 'heroes' and e['file'] == 'abilities.vdata' and e['id'] in folds:
+            rows = repeats_dropped(rows, of_abil.get(folds[e['id']], []))
         rows = [c for c in player_facing(rows) if c.get('status') != 'unreleased']
         if not rows:
             continue
         # the same change on several members of a family counts once; so does one edit spread over a system's
         # entries (twelve breakable props)
         if section in ('units', 'game'):
-            rows = [c for c in rows if (key, c.get('label'), c.get('old_s'), c.get('new_s')) not in once]
-            once |= {(key, c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows}
+            rows = [c for c in rows if (key, *same_change(c)) not in once]
+            once |= {(key, *same_change(c)) for c in rows}
             if not rows:
                 continue
         slot = out.setdefault(section, {}).setdefault(key, {'n': 0, 'hidden': 0, 'buff': 0, 'nerf': 0,

@@ -1261,6 +1261,14 @@ left / right leg; another key reads as its words without "joint"): "Rear left le
 health" / "Weak Points joint rear left › …": `common.load_json` rewrites the labels of `patches/` and `builds/` records on
 load (`readable_labels` → `semantics.readable_label`, idempotent) until the data is regenerated.
 
+- `classify.VISUAL_RE`: `(?<!_)Light(?!ning|Melee|Attack)`. A light melee attack (`m_LightAttackData`,
+  `EAttackType_Light`, `EBabaBenchMeleeAttack_Light`) is gameplay. Build records 4330 and 6785 were regenerated
+  (`history`), because a visual change keeps no values.
+- `classify.STREET_BRAWL_VALUE` rows are balance; item draft weights stay in the `streetbrawl` category.
+- `semantics._NOT_A_LENGTH` / `_PROP_NOT_LENGTH`: `Power$` and `Exponent` are no lengths (enrich 39).
+- `classify.is_template_entry`: `_not_pickable` is a template unless a hero binds the entry in a slot. The catalog keeps
+  the newest state of an entry (it does not stick); `abilities.build` gives such an ability its card.
+
 ## Hero / unit stats
 
 `hero_page.says_nothing`: a stat at its neutral value (`NEUTRAL`: +range / resists per boon 0, headshot taken
@@ -1284,6 +1292,11 @@ page links the page itself. A band that holds only rules for all links its Game 
 
 The rules-for-all button says what those bands hold when the page gives no label (`every_label=None`: "For all
 abilities & items" on a unit page; several kinds: "Rules for all").
+
+The "Removed" chips of a hero page (`hero_page.removed_parts`) are the hero's abilities that are gone from the files, or
+were bound in a slot once and are not today. An ability that no slot ever bound but that is still in the files is today's
+kit, so it is not listed as removed (Move King, Move Piece). `hero_page.every_history_fold` is `history_folds` for every
+hero; the home feed uses it, so a hero's icon counts what its history band counts.
 
 `builders/evidence.py`: the eye on a history row names the build(s) whose game files carry the change and opens that
 build's page in the archive at the entity (`builds/<n>.html#c-<id>`: a hero's ability lands on its hero's card; a
@@ -1511,6 +1524,13 @@ on the values toggles it.
 | 19 | `builders/tables_pages.py:render_table` / `hist_attrs` | Every stats table (groups, sortable columns, heat, lazy columns) and a value's history attributes. |
 | 20 | `site/scripts.js` modules `hist-filter`, `dyn-tip`, `hist-tip` | The history toolbar's filters and recounts, the one hover-card renderer, the value-history tooltip. |
 
+Row 13's counting rule has one signature in code, `render.same_change(c)`, which every member-folding counter uses
+(`patch_counts`, the home icons, the bands with `merge`, the change matrix, the Game index): the label and the values,
+plus the entity key for an entity that came or went. One edit over a unit family or a Game system therefore counts once,
+while four new sketch pickups are four changes. A merged group (a family or a Game system) carries every member's rows
+(`history_view._groups`). The patch page's tiles count `patch_counts.counted_rows`, so they add up to its "All changes"
+count.
+
 ## Performance
 
 Measured 2026-10-05 on the maintainer's PC (Windows 11, Python 3.13). **Site build** (`python build_site.py`,
@@ -1665,6 +1685,20 @@ hidden changes stay hidden (2026-10-01: coverage 76%, real hidden kept 90%).
 | "Base HP reduced by 10 for all heroes", "Bullet Cycle Time for all heroes increased by 5%", "Spirit Power scaling globally reduced by -7%" | `match_rules.global_delta_line`: stat family named before the verb × "by N" or "by N%" × entity kind; links every change of that field that moved by exactly N (or N%, "~N" ±30%) when at least 3 do |
 | a bare "Sinclair" line, then "Now has +1% Spirit Resist per Boon." | the name is a sub-heading (`heading`): lines below get it as subject |
 | notes published days before the files change (2024-12-06 notes, values in build 5433 on 12-14) | a notes-less window right after a changelog that carries ≥10 of its numbered lines exactly is merged into it (`absorb_late_windows`); single lines link to a hidden change of the same subject with exactly their numbers within 14 days (`late_landings`, shown as "landed later: build N") |
+| "Strix Salvo - Cooldown from 30s to 25s" when only the hero's stamina moved | a hero line naming an ability / gun by a name of its own as a whole word (the `by_name` set in `match.annotate_line`; not every hero's "Melee", not "Heal" in "Health") links only that ability's fields; numbers in the line must agree with a linked field (one side within rounding, the same direction, or the multiplier given as a reduction: "Headshot reduction 25% → 35%" = taken × 0.75 → 0.65) |
+| "T1 +1m/s Move Speed to +2m/s Move Speed" | `_TIER_TO`: a tier's pair without "from" |
+| "Cooldown increased from 25s to 27s (moved to T2)" | `_MOVED_TO_TIER`: that tier's bonus to the same property is described |
+| "Now does half damage to objectives" | `_HALF_DAMAGE` ("half damage to / on / against objectives / bosses", never a fix line) → pair 100 → 50; label synonym boss ↔ objective(s) |
+| "Threadsap duration lasts 35% less" | `_PCT_LESS` reads "N% less / more" as "by N%" |
+| "Scrap Grenade - Fixed some bugs with bouncing targeting" | the named ability's fields by word stems (`_stems`: -ing, final e) |
+| "Repeat light melees while airborne…" | `topic_words`: in a "… Attack Light › X" label the attack's kind (melee / light / heavy / attack) names no field |
+| "Street Brawl: …" | `classify.STREET_BRAWL_VALUE` rows (an ability's m_strStreetBrawlValue / Bonus / StatScale) only answer lines or sections that say Street Brawl; `MChange.base` (enrich `street_brawl_base`) is the value the mode's number replaces, one more step for pairs and percents |
+| a default gun block (damage 0) that came or went on a non-gun ability | `match.mark_dud_guns`: its added / removed rows are technical |
+
+Result of the rules above (`tools/audit_score.py`, before → after, 2026-10-17): coverage 85% → 85%, real hidden kept
+93% → 93%, non-gameplay filtered 68% → 79%, eye precision 33% → 33% (88 of 270). Over all patches, 30 unmatched lines now
+read documented, described or rounded, and 9 described lines became documented. 27 lines lost a wrong link (another
+ability's fields: "Pain Battery now starts charged" had linked Aura of Suffering), and 4 became "code".
 
 ## Patch windows
 
@@ -1673,6 +1707,28 @@ hidden changes stay hidden (2026-10-01: coverage 76%, real hidden kept 90%).
 are re-assigned to whichever neighbouring changelog they document better. Posts without a change
 list (hero reveals, events) never open a window; a big build (≥150 gameplay fields) with no changelog
 within 3 days becomes its own patch, named after an announcement within 2 days if there is one.
+
+**Hero releases.** `history.released_heroes(rec)` (index row key `released`): the heroes whose `m_eHeroDevelopmentState`
+turns `EHeroDevState_Release` in that build. `patches.release_windows`: such a build with an announcement post (any
+non-changelog post, title-only included) within `ANNOUNCEMENT_GAP` is a window of its own (`Patch.release` = the heroes,
+id `build-<n>`, title and link = the post), unless a changelog is dated the build's own UTC day (then those notes are the
+release's, as on 01-17-2025). The window takes the builds of `[release, release + RELEASE_TAIL)` (6 h: the release-day
+hotfixes) that move fewer than `HOTFIX_MAX_FIELDS` (20) gameplay fields; a bigger one is the notes' balance build. The
+latest release owns a tail build (`release_of` in `group()`). Every other build is placed among the non-release windows,
+so a notes window "resumes" after a release that interrupts it (10-14's window = 6782 + 6785; Danny's 6779 and Violet's
+6790 are their own). `group()` returns the windows in the order their first builds shipped; `ambiguous_builds` and
+`absorb_late_windows` skip release windows.
+
+Statuses in a release window: everything is `unannounced` first, then `match.release_pass` sets the hero's state row to
+`documented` and its kit to `described`. The kit (`match.release_kit`) is the hero, what it owns, the entries whose id
+carries its code (`citadel_artist_strokeblocker`, `pickup_artist_drawing_*`) and the units named like one of its
+abilities. Edits shared by many entities and other heroes' tuning stay `unannounced` (the eye). The patch page's audit
+line reads "N released with the hero · M other changes, no official notes". `match.mark_unreleased` runs in every window,
+also one without notes. `RELEASED_STATES` is Release only: a PreRelease hero is `unreleased` (`LISTED_STATES` keeps both
+for `mark_availability_moves`). The in-development flag that flips together with a release is marked `moved` and folded
+into the state row. A window that a release interrupts has a gap (`patches.gap_builds`): its before and after states
+include the gap builds' edits, so `match.rekey_lists` keys only the lists those builds did not move. Text rows' values in
+such a window still read those states; that is a known limit.
 
 ## Known schema drift (handled by aliases in `pipeline/flatten.py`)
 

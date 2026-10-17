@@ -1,7 +1,7 @@
 [
   {
     "date": "2026-10-17",
-    "title": "Visual pass: game art for the new heroes, tidier pages, one-column patch pages, cards on touch screens",
+    "title": "Hero releases as their own updates, game art for the new heroes, tidier pages, cards on touch screens",
     "items": [
       "Violet, Deadman Danny, Baba and Solomon show their real ability icons, card portraits and minimap faces; Solomon's bishop and queen, Violet's ink wall, Graves' skeletons and Calico's cat have their game art, and \"Shop & item rules\" and \"Other rules & objects\" have icons from the game.",
       "Units with no picture in the game files no longer show grey squares on the home page: they gather in one \"+N\" tile. Heroes in development whose only picture is their name in plain letters are left out of the patch archive and show a plain silhouette on their pages.",
@@ -16,7 +16,11 @@
       "Stats tables and change matrices keep their column headers and filter bar in sight while you scroll, group names stay above their columns, and wide tables show a shadow and an arrow on the right until you reach the last column.",
       "Index, table and matrix pages line up with the top bar on wide screens; switches clearly show on and off; Item Stats chips have no empty icon gaps and the heatmap marks a value with a thin bar.",
       "Touch screens: small links are easier to tap, the back-to-top button is smaller and only shows while you scroll up, and faint labels are brighter everywhere.",
-      "On an iPhone an eye link to its build opens on the second tap (it took three), and hover cards say \"tap again\" on touch screens."
+      "On an iPhone an eye link to its build opens on the second tap (it took three), and hover cards say \"tap again\" on touch screens.",
+      "Each new hero's release is an update of its own, dated the day the hero shipped (Rat King, Baba, Solomon, Deadman Danny, Violet); a new hero's kit is no longer marked as missing from the patch notes, since the release post announces it.",
+      "Deadman Danny's Oct 14 balance changes read right: Max Health 680 to 730 and Health Regen 2.5 to 3.25 are buffs, and all nine of his patch-note lines find their changes; lines that name an ability no longer attach to unrelated base stats.",
+      "Heroes announced but not yet playable (Nurse Harrow) show their tuning as work before release, not as hidden changes; Solomon's Setup Bishop has its ability card again.",
+      "More patch-note lines find their changes (Vexing Bolt's half damage to objectives, Street Brawl's Threadsap duration, Baba's light melee launch); Street Brawl values show on hero pages; names: Chimera Peace Bringer, Violet's sketches, Tough Crate (Hideout), Zip Line; counts agree between the home page, patch pages and hero pages."
     ]
   },
   {

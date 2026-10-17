@@ -31,6 +31,7 @@ from . import flatten as flatten_mod
 from .diff import _eq as diff_eq, _jsonable as jsonable
 from . import match_rules as rules
 from . import patches as patches_mod
+from . import classify as classify_mod
 from .classify import category, decor_entity
 from .patches import Patch, group
 from .shared_groups import SharedGroups, window_of
@@ -61,6 +62,9 @@ SYNONYMS = {
 _SYNONYMS = rules.stemmed_synonyms(SYNONYMS)       # as words() writes them ('breakables' -> 'breakable')
 _ARROW_RE = re.compile(rf'(?P<a>{_NUM})\s*[a-z%]*\s*(?:->|→)\s*(?P<b>{_NUM})', re.I)
 _BY_RE = re.compile(rf'(increased|reduced|decreased|lowered|raised)\s+by\s+~?(?P<p>{_NUM})\s*%', re.I)
+_PCT_LESS = re.compile(rf'(?P<p>{_NUM})\s*%\s+(?:less|more|shorter|longer|lower|higher)\b', re.I)
+_HALF_DAMAGE = re.compile(r'\bhalf\s+(?:the\s+)?damage\s+(?:to|against|on|vs\.?)\s+(?:the\s+)?(?:objectives?|bosse?s?)\b',
+                          re.I)
 _WORD_RE = re.compile(r'[a-z]{3,}')
 _TIER_RE = re.compile(r'\bT([1-3])\b')
 _STOP = {'the', 'and', 'from', 'now', 'with', 'for', 'increased', 'reduced', 'decreased', 'per', 'base',
@@ -115,6 +119,7 @@ class MChange:
     # the old value's unit when Valve dropped or replaced the printed unit inside the window (labels.unit_switch):
     # "Extra Ammo Consumed 30% → 2" is CHANGED, no percent — 30% of a clip and 2 bullets do not compare
     old_unit: str | None = None
+    base: object = None                           # a Street Brawl value's normal value (enrich.street_brawl_base)
 
     @property
     def key(self) -> str:
@@ -127,6 +132,9 @@ class MChange:
         pairs = list(zip(chain, chain[1:]))
         if (chain[0], chain[-1]) not in pairs:
             pairs.append((chain[0], chain[-1]))
+        if self.base is not None and self.op == 'add':
+            # a mode's value set against the value it replaces: "Threadsap duration lasts 35% less" is 22 -> 14
+            pairs.append((self.base, self.new))
         if self.scale != 1.0:
             # the patch rescaled every per-boon value (rules.boon_rescale): the notes quote the new value
             # in the old scale ("Kelvin: Bullet damage growth 1.2 -> 0.9" is 1.2 -> 0.707 in the files)
@@ -256,6 +264,55 @@ def half_match(c: MChange, pairs) -> bool:
                for a, b in pairs for o, n in c.steps())
 
 
+# which attack a field belongs to ("Baba Bench Melee Attack Light › Attack Impulse Max Upward"): the attack's kind is
+# no topic of its own — "Repeat light melees while airborne…" and "Heavy melee ground pound…" took that launch field
+_ATTACK_KIND = {'melee', 'light', 'heavy', 'attack'}
+
+
+def topic_words(c: MChange) -> set[str]:
+    """The words a field is about: its label's, but of a block's attack ("… Attack Light ›") only what names more."""
+    head, sep, prop = (c.label or '').rpartition('›')
+    return words(c.label or '') if not sep else words(prop) | (words(head) - _ATTACK_KIND)
+
+
+def _stems(ws: set[str]) -> set[str]:
+    """Words without an -ing or a final e: "bouncing" and "bounce" are one, "targeting" is "target"."""
+    out = set()
+    for w in ws:
+        if w.endswith('ing') and len(w) > 6:
+            w = w[:-3]
+        out.add(w[:-1] if w.endswith('e') and len(w) > 4 else w)
+    return out
+
+
+def _shown_pair(c: MChange) -> tuple[float, float] | None:
+    """The field's old and new numbers the way the page prints them (a rate shown as a time is inverted), or None."""
+    o, n = num(c.old), num(c.new)
+    if o is None or n is None:
+        return None
+    if c.invert and o and n:
+        o, n = 1 / o, 1 / n
+    return o, n
+
+
+def _numeric(c: MChange) -> bool:
+    return _shown_pair(c) is not None
+
+
+def _same_way(c: MChange, pairs) -> bool:
+    """The field moved the way a pair of the line moves (both up or both down), or the line gives its multiplier as
+    a reduction: "Headshot reduction increased from 25% to 35%" is Headshot Damage Taken × 0.75 → 0.65, "No longer
+    has -30% Lifesteal Effectiveness" 0.7 → 1."""
+    on = _shown_pair(c)
+    if not on:
+        return False
+    if any((b - a) * (on[1] - on[0]) > 0 for a, b in pairs):
+        return True
+    o, n = on
+    return 0 <= o <= 2 and 0 <= n <= 2 and any(
+        close((1 - o) * 100, abs(a), APPROX) and close((1 - n) * 100, abs(b), APPROX) for a, b in pairs)
+
+
 def expand_words(ws: set[str]) -> set[str]:
     out = set(ws)
     for w in ws:
@@ -285,6 +342,11 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
         # "level 2 drops now happen at 15 minutes instead of 20": the new value first
         for m in _INSTEAD_RE.finditer(text):
             pairs.append((float(m.group('a')), float(m.group('b'))))
+    if not pairs:
+        # "T1 +1m/s Move Speed to +2m/s Move Speed": a tier's bonus without "from" (Rat King, 2026-10-05: exact, but
+        # only "described")
+        for m in _TIER_TO.finditer(text):
+            pairs.append((float(m.group('a')), float(m.group('b'))))
     if not pairs and not _SWAP_LINE.search(text):
         # (not 'T1 changed from "-15s Cooldown" to "+50 Max Health Steal"': two properties, no pair)
         pairs = _aligned_pairs(text)
@@ -292,6 +354,9 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
 
 
 _INSTEAD_RE = re.compile(rf'(?P<b>{_NUM})\s*[a-z%]*\s+instead of\s+(?P<a>{_NUM})', re.I)
+_TIER_TO = re.compile(rf'\bT[1-4]\s+(?P<a>{_NUM})\s*[a-z%/]*(?:\s+[a-z]+){{0,4}}\s+to\s+(?P<b>{_NUM})', re.I)
+# "Cooldown increased from 25s to 27s (moved to T2)": the tier's bonus to the same property moved with it
+_MOVED_TO_TIER = re.compile(r'\(\s*moved\s+to\s+T([1-3])\s*\)', re.I)
 _ITEM_TIER_MOVE = re.compile(r'\bmoved\s+from\s+T([1-5])\s+to\s+T([1-5])\b', re.I)
 _FROM_TO = re.compile(r'\bfrom\b(?P<a>(?:[^.;:]|(?<=\d)\.(?=\d))*?)\bto\b(?P<b>(?:[^.;:]|(?<=\d)\.(?=\d))*)', re.I)
 ALIGNED_MAX = 4
@@ -405,6 +470,7 @@ def mark_retyped(changes: list[MChange]) -> None:
 
 _SELECTABLE = 'm_bPlayerSelectable'
 _DEV_STATE = 'm_eHeroDevelopmentState'
+_IN_DEV = 'm_bInDevelopment'
 _TRUTHY = ('true', '1', 'yes')
 
 
@@ -417,14 +483,36 @@ def mark_availability_moves(changes: list[MChange]) -> None:
     and a released state, or not selectable and a state that is not; a hero that changed availability keeps both."""
     by_hero: dict[str, dict[str, MChange]] = {}
     for c in changes:
-        if c.file == 'heroes.vdata' and c.path in (_SELECTABLE, _DEV_STATE):
+        if c.file == 'heroes.vdata' and c.path in (_SELECTABLE, _DEV_STATE, _IN_DEV):
             by_hero.setdefault(c.eid, {})[c.path] = c
     for fields in by_hero.values():
-        flag, state = fields.get(_SELECTABLE), fields.get(_DEV_STATE)
+        flag, state, in_dev = fields.get(_SELECTABLE), fields.get(_DEV_STATE), fields.get(_IN_DEV)
+        if state and in_dev and state.op == 'change' and str(state.new) in RELEASED_STATES:
+            # the old in-development flag turned ON the day Baba and Violet were released ("OFF In Development no →
+            # yes" beside "ON Release", data review 2026-10-17): the state says it; the flag's row is part of it
+            in_dev.moved = True
         if not flag or not state or flag.op != 'remove' or state.op != 'add':
             continue
-        if (str(flag.old).lower() in _TRUTHY) == (str(state.new) in RELEASED_STATES):
+        if (str(flag.old).lower() in _TRUTHY) == (str(state.new) in LISTED_STATES):
             flag.moved = state.moved = True
+
+
+def mark_dud_guns(changes: list[MChange]) -> None:
+    """A weapon block that came or went whole on an ability that is no gun, with zero bullet damage, never fired: the
+    engine's default gun copied in (Aura of Suffering lost one of 100 fields on 2026-03-06 — spread, recoil, clip 0 —
+    which a wrong word link had called described; the audit calls them not gameplay). Its added / removed rows are
+    plumbing; a value that changed inside it stays."""
+    blocks: dict[str, list[MChange]] = {}
+    for c in changes:
+        if c.file == 'abilities.vdata' and c.kind != 'weapon' and c.path.startswith('m_mapWeaponInfos.'):
+            blocks.setdefault(c.eid, []).append(c)
+    for rows in blocks.values():
+        dmg = next((c for c in rows if c.path.endswith('.m_flBulletDamage')), None)
+        if dmg is None or not ((dmg.op == 'remove' and num(dmg.old) == 0) or (dmg.op == 'add' and num(dmg.new) == 0)):
+            continue
+        for c in rows:
+            if c.op in ('add', 'remove'):
+                c.cat = 'technical'
 
 
 def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared: bool, tok: dict[str, str],
@@ -440,7 +528,7 @@ def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared:
         builds, shared, chain=[c.get('old'), c.get('new')],
         drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
         unit=labels.display_unit(d, cn), invert=bool(d.get('invert')),
-        speed_m=bool(d.get('speed_m')), shown=cn['label'], sign=cn['sign'])
+        speed_m=bool(d.get('speed_m')), shown=cn['label'], sign=cn['sign'], base=c.get('base'))
 
 
 # lists whose entries carry their own name (a breakable's pickups, a loot table's items, the lanes): one entry
@@ -484,10 +572,18 @@ def rekey_lists(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dic
     """The window's rows of a named-entries list (`LIST_IDS`) by entry instead of by position: the list as the
     window found it and left it (`window_states`), diffed by the entries' names. The build records keep their
     positions (keying them in pipeline/flatten.py needs every record rebuilt: `history --rebuild`, ~25 min)."""
+    # a window a hero's release interrupts: its "before" and "after" states hold the release build's edits too — a list
+    # that build moved stays by position (its rows are the release's)
+    theirs: set[tuple[str, str, str]] = set()
+    for row in patches_mod.gap_builds(p):
+        for e in load_record(row['file'])['entities']:
+            if e['file'] in LIST_FILES:
+                theirs |= {(e['file'], e['id'], m.group(1)) for c in e.get('changes', ())
+                           for m in [_LIST_INDEX.match(c['path'])] if m}
     lists: dict[tuple[str, str, str], list[MChange]] = {}
     for c in changes:
         m = _LIST_INDEX.match(c.path)
-        if m and c.file in LIST_FILES:
+        if m and c.file in LIST_FILES and (c.file, c.eid, m.group(1)) not in theirs:
             lists.setdefault((c.file, c.eid, m.group(1)), []).append(c)
     if not lists:
         return changes
@@ -569,6 +665,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
             c.old_unit, c.unit = (labels.display_unit(era, {'unit': u}) for u in sw)
     mark_retyped(changes)
     mark_availability_moves(changes)
+    mark_dud_guns(changes)
     # console variables take part in matching ("Respawn time … from 35s to 38s"), and so does one a game system
     # names that came with a value ("Unstable Rift spawn interval increased from every 6 minutes to every 7
     # minutes" is citadel_koth_respawn_interval added at 420; coverage finding 8) — not the snapshot that started
@@ -951,11 +1048,19 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
     for c in changes:
         c.scale = rescale[0] if rules.rescaled_field(c, rescale) else 1.0
     pools = system_pools(by_ent, cat)
+    # an ability's Street Brawl numbers answer only the lines about that mode (classify.STREET_BRAWL_VALUE)
+    plain = [c for c in changes if not classify_mod.STREET_BRAWL_VALUE.search(c.path)]
+    plain_by_ent: dict[str, list[MChange]] = {}
+    for c in plain:
+        plain_by_ent.setdefault(ent_key(c), []).append(c)
     sections = []
     for sec in (p.notes.sections if p.notes else []):
         out_lines = []
         head = None
+        mode_sec = bool(_STREET_BRAWL.search(sec.title or ''))
         for text in sec.lines:
+            mode = mode_sec or bool(_STREET_BRAWL.search(text))
+            cs, be = (changes, by_ent) if mode else (plain, plain_by_ent)
             h = heading(text, idx)
             if h:
                 # the 2025 layout: a bare 'Sinclair' line heads the lines below it
@@ -964,7 +1069,7 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
                 continue
             own_prefix = ':' in text[:48] and resolve_subject(text.split(':', 1)[0], idx, cat)
             probe = f'{head}: {text}' if head and not own_prefix else text
-            res = annotate_line(probe, changes, by_ent, idx, cat, tok, rescale, pools)
+            res = annotate_line(probe, cs, be, idx, cat, tok, rescale, pools)
             res['text'] = text
             if res['status'] == 'unmatched':
                 topic = rules.untracked_topic(text.split(':', 1)[1] if own_prefix else text, sec.title,
@@ -979,6 +1084,7 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
 
 
 _HEADING_MAX = 40
+_STREET_BRAWL = re.compile(r'street\s*brawl', re.I)
 
 
 def heading(text: str, idx: dict[str, list[str]]) -> str | None:
@@ -997,9 +1103,11 @@ def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
         line = c.lines[0]
         # 7: a feature added in one go: the matched field's siblings (added/removed together)
         root = rules.cluster_root(c.path)
+        mode = bool(_STREET_BRAWL.search(line))
         for sib in by_ent.get(ent_key(c), []):
             if sib.status == 'hidden' and sib.cat in GAMEPLAY_CATS and sib.op in ('add', 'remove') \
-                    and rules.cluster_root(sib.path) == root:
+                    and rules.cluster_root(sib.path) == root \
+                    and (mode or not classify_mod.STREET_BRAWL_VALUE.search(sib.path)):
                 sib.status = 'described'
                 sib.lines.append(line)
         # 2: "(affects upgrades)": items built from this one moved the same way
@@ -1042,7 +1150,11 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         g = granted_pair(outer)
         if g:
             pairs, granted = g, True
-    m = _BY_RE.search(rest)
+    if not pairs and not fix_line and _HALF_DAMAGE.search(rest):
+        # "Vexing Bolt - Now does half damage to objectives": its Boss Damage Scale 100% -> 50% (review 2026-10-17)
+        pairs = [(100.0, 50.0)]
+    # "Threadsap duration lasts 35% less" says by how much as "increased by 35%" does
+    m = _BY_RE.search(rest) or _PCT_LESS.search(rest)
     by_pct = float(m.group('p')) if m else None
     by_at = m.start() if m else None
     mv = _ITEM_TIER_MOVE.search(rest)
@@ -1084,6 +1196,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
     else:
         pool = changes
     ability_hits = set()
+    by_name: set[str] = set()       # the hero's abilities / guns the line names by their own name
     if subject and subject.kind == 'hero':
         low = rest.lower()
         for k in subject.ids:
@@ -1091,6 +1204,11 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             nm = loc.plain(loc.entity_name(tok, e.get('id', ''), e.get('owner'))).lower()
             if nm and len(nm) > 2 and any(v in low for v in rules.name_variants(nm)):
                 ability_hits.add(k)
+                # a name of its own, as a whole word: every hero's "Melee" names no one ability ("Gloom Bomb T2 …
+                # Melee Resist"), nor does "Heal" inside "Health"
+                if (not k.startswith('heroes.vdata:') and len(idx.get(nm, ())) <= INLINE_NAME_MAX_KEYS
+                        and any(re.search(rf'\b{re.escape(v)}s?\b', low) for v in rules.name_variants(nm))):
+                    by_name.add(k)
         if _BASE_DAMAGE.search(rest) and not ability_hits:
             # a hero's "base damage" is its gun's bullet damage ("Celeste: Base damage reduced from 29 to
             # 25" is the gun's 28.75 -> 25; "damage" and "base" are no words of their own here)
@@ -1199,6 +1317,16 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
                 c.lines.append(text)
                 if not granted:          # "now grants +75" keeps the NEW value, not an invented 0 -> 75
                     _old_from_notes(c, pairs, text, pool)
+            moved_to = _MOVED_TO_TIER.search(rest)
+            if moved_to:
+                # "Baba's Brew - Cooldown increased from 25s to 27s (moved to T2)": T2's cooldown bonus -12s → -14s
+                # is that move (it had the eye, data review 2026-10-17)
+                props = {(ent_key(h), semantics.property_name(h.path)) for h in hits}
+                for c in pool:
+                    if c.status == 'hidden' and c.label.startswith(f'T{moved_to.group(1)}:') \
+                            and (ent_key(c), semantics.property_name(c.path)) in props:
+                        c.status = 'described'
+                        c.lines.append(text)
             # a "now grants +N" value is stated exactly; its invented 0 is not a rounding
             rounded = pairs and not granted and not any(exact_pair(c, pairs) for c in hits)
             result['status'] = 'fix' if fix_line else 'rounded' if rounded else 'documented'
@@ -1246,7 +1374,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             flags = set()
         if _STATE_MASK.search(c.path):
             return bool(flags)
-        return bool(words(c.label) & specific) or bool(label_words(c) & specific - SYNONYM_ONLY) or bool(flags)
+        own = topic_words(c)
+        wide = label_words(c) if '›' not in (c.label or '') else rules.expand_label_words(own)
+        return bool(own & specific) or bool(wide & specific - SYNONYM_ONLY) or bool(flags)
 
     def named_whole(c: MChange) -> bool:
         """Every word of the label is in the line, common ones too: "Fury Trance: Active Bullet Resistance
@@ -1305,7 +1435,21 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
     # the ability the line names, when it has such a field: "Siphon Life range now scales…" is not
     # Seismic Impact's collide radius
     named = [c for c in linked if ent_key(c) in ability_hits]
-    linked = named or linked
+    if by_name and not pairs:
+        # the named ability's fields by a word's stem: "Scrap Grenade - Fixed some bugs with bouncing targeting" is its
+        # Bounce Target Distance Check / Power and Bounce Max Horizontal Speed (they kept the eye, review 2026-10-17)
+        stems = _stems(specific) - GENERIC_WORDS
+        named += [c for c in pool if ent_key(c) in by_name and c not in named and not _STATE_MASK.search(c.path)
+                  and (_stems(topic_words(c)) - GENERIC_WORDS) & stems]
+    # a line that names an ability or gun by its name is about it, never the hero's base stats: "Strix Salvo -
+    # Cooldown from 30s to 25s" took Danny's Stamina Cooldown 4.5s → 5s, "Chimera Mk1 - Slow effectiveness in air
+    # reduced by 15%" his Air Dash Duration (data review 2026-10-17)
+    linked = named or ([] if by_name else linked)
+    if linked and pairs:
+        # the line's numbers must agree with the field: one side of a pair within the notes' rounding, or the same
+        # way up (30 → 25 is not 4.5 → 5); a field without numbers (a flag, a class) is judged by its words
+        said = [(a, b) for a, b in parse_pairs(_PARENS.sub(' ', rest)) if a != b] or pairs
+        linked = [c for c in linked if not _numeric(c) or half_match(c, said) or _same_way(c, said)]
     if linked and (pairs or by_pct is not None):
         # a line with numbers no field matched: the fields that share the MOST of its words ("Bullet
         # damage growth reduced by 18%" is the bullet growth, not the health growth)
@@ -1615,29 +1759,11 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
             c.status = 'unannounced'
         for ev in events:
             ev['change']['status'] = 'unannounced'
-    elif commit:
-        # work on heroes that are not in the game yet is not "hidden from the notes" — judged at the
-        # build the change shipped in: a hero revealed inside the window was still unreleased while
-        # tuned before the reveal (Paige, Doorman, Venator…: ~500 changes were "hidden", audit 2026-10-01)
-        commit_of = {row['build']: row['commit'] for row in p.builds if row.get('commit')}
-        at: dict = {}
-
-        def unreleased_at(builds) -> set[str]:
-            out = set()
-            for b in builds or [None]:
-                key = commit_of.get(b, commit)
-                if key not in at:
-                    at[key] = unreleased_heroes(key)
-                out |= at[key]
-            return out
-        for c in changes:
-            owner = c.eid if c.file == 'heroes.vdata' else cat.get(ent_key(c), {}).get('owner')
-            if c.status == 'hidden' and owner and owner in unreleased_at(c.builds):
-                c.status = 'unreleased'
-        for ev in events:
-            owner = ev['id'] if ev['file'] == 'heroes.vdata' else ev.get('owner')
-            if ev['change']['status'] == 'hidden' and owner and owner in unreleased_at([ev.get('build')]):
-                ev['change']['status'] = 'unreleased'
+        if p.release:
+            release_pass(p.release, changes, events, cat)
+    if commit:
+        mark_unreleased(p, commit, changes, events, cat)
+    if p.notes and commit:
         # lines that announce what came or went, and features announced in one sentence (after the
         # unreleased pass: work on a hero still in development stays "Before release")
         name_events(sections, events)
@@ -1695,14 +1821,73 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         'extras': slim_extras(extras, cat, lambda: window_states(p)),
         'counts': counts,
         'line_counts': line_counts,
+        **({'release': list(p.release)} if p.release else {}),
     }
 
 
-RELEASED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
+def mark_unreleased(p: Patch, commit: str, changes: list[MChange], events: list[dict], cat: dict[str, dict]) -> None:
+    """Work on heroes that are not in the game yet is not "hidden from the notes" — judged at the build the change
+    shipped in: a hero revealed inside the window was still unreleased while tuned before the reveal (Paige, Doorman,
+    Venator…: ~500 changes were "hidden", audit 2026-10-01). In a window without notes too: Nurse Harrow's boon
+    tuning in Violet's release build (6790) had the eye while she was pre-release (data review 2026-10-17)."""
+    commit_of = {row['build']: row['commit'] for row in p.builds if row.get('commit')}
+    at: dict = {}
+
+    def unreleased_at(builds) -> set[str]:
+        out = set()
+        for b in builds or [None]:
+            key = commit_of.get(b, commit)
+            if key not in at:
+                at[key] = unreleased_heroes(key)
+            out |= at[key]
+        return out
+    open_ = ('hidden', 'unannounced')
+    for c in changes:
+        owner = c.eid if c.file == 'heroes.vdata' else cat.get(ent_key(c), {}).get('owner')
+        if c.status in open_ and owner and owner in unreleased_at(c.builds):
+            c.status = 'unreleased'
+    for ev in events:
+        owner = ev['id'] if ev['file'] == 'heroes.vdata' else ev.get('owner')
+        if ev['change']['status'] in open_ and owner and owner in unreleased_at([ev.get('build')]):
+            ev['change']['status'] = 'unreleased'
+
+
+def release_kit(hid: str, cat: dict[str, dict]) -> set[str]:
+    """The entities a hero's release ships: the hero, what it owns (abilities, guns), every entry named after it
+    (Violet's citadel_artist_strokeblocker, her sketch pickups pickup_artist_drawing_*) and the units its abilities
+    make, which bear their names (Solomon's bishop piece is "Setup Bishop": data/overrides/unit_names.json)."""
+    code = re.compile(rf'(?:^|_){re.escape(hid[len("hero_"):])}(?:_|$)')
+    owned = {k for k, e in cat.items() if e.get('owner') == hid}
+    names = {cat[k].get('name') for k in owned} - {None, ''}
+    summons = {k for k, e in cat.items() if e['file'] == 'npc_units.vdata' and e.get('name') in names}
+    return {f'heroes.vdata:{hid}'} | owned | summons | {k for k, e in cat.items() if code.search(e['id'])}
+
+
+def release_pass(heroes: list[str], changes: list[MChange], events: list[dict], cat: dict[str, dict]) -> None:
+    """A hero's release window (pipeline.patches.release_windows): its announcement post names the hero, so the
+    hero's development state turning Release is documented and its kit — the abilities, guns, summons and pickups
+    that came with it, the stats it shipped with — is the release itself, described by that post, not "not in patch
+    notes" (Violet's 18 rows, Baba's 19 had the eye; data review 2026-10-17). Everything else the window changed
+    stays unannounced; so does an edit shared by many entities."""
+    kit = set().union(*(release_kit(h, cat) for h in heroes))
+    for c in changes:
+        if c.shared or ent_key(c) not in kit:
+            continue
+        c.status = 'documented' if c.file == 'heroes.vdata' and c.path == _DEV_STATE else 'described'
+    for ev in events:
+        if f"{ev['file']}:{ev['id']}" in kit:
+            ev['change']['status'] = 'described'
+
+
+# a hero is in the game from its release; pre-release (in the files, announced, not playable: Nurse Harrow on
+# 2026-10-16, due on 10-20) is still work before release — her boon tuning had the eye (data review 2026-10-17)
+RELEASED_STATES = ('EHeroDevState_Release',)
+# the states a hero is listed in (the old m_bPlayerSelectable said the same: `mark_availability_moves`)
+LISTED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
 
 
 def unreleased_heroes(commit: str) -> set[str]:
-    """Heroes not playable at that build (in development / disabled)."""
+    """Heroes not playable at that build (in development / disabled / pre-release)."""
     heroes = cache.vdata(commit, tracker.SCRIPTS + 'heroes.vdata')
     out = set()
     for hid, h in heroes.items():
@@ -2018,7 +2203,8 @@ def absorb_late_windows(results: list[tuple[Patch, dict]], cat: dict[str, dict])
         p, data = results[i]
         if i + 1 < len(results):
             q, qd = results[i + 1]
-            if p.notes and not q.notes and p.builds and _days(p.date, q.date) <= LATE_DAYS \
+            # (never a hero's release window: its own announcement names it)
+            if p.notes and not q.notes and not q.release and p.builds and _days(p.date, q.date) <= LATE_DAYS \
                     and _late_count(p, data, [(q, qd)], hero_name) >= ABSORB_MIN:
                 p.builds = sorted(p.builds + q.builds, key=lambda b: b['date'])
                 out.append((p, build_patch(p, cat)))
@@ -2116,7 +2302,8 @@ def run() -> None:
     for p, data in results:
         jsonio.dump(OUT / f'{p.id}.json.gz', data)
         index.append({'id': p.id, 'title': p.title, 'date': p.date[:10], 'builds': len(p.builds),
-                      'counts': data['counts'], 'line_counts': data['line_counts'], 'has_notes': p.has_notes})
+                      'counts': data['counts'], 'line_counts': data['line_counts'], 'has_notes': p.has_notes,
+                      **({'release': list(p.release)} if p.release else {})})
         print(p.id, p.title[:40], len(p.builds), 'builds', data['counts'], data['line_counts'])
     jsonio.dump(OUT / 'index.json', index, indent=1)
 

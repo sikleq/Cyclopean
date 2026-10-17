@@ -148,12 +148,30 @@ def build_record(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, 
     }
 
 
+RELEASED_STATE = 'EHeroDevState_Release'
+
+
+def released_heroes(rec: dict) -> list[str]:
+    """Heroes this build ships as released: their development state turned Release (the field exists since build
+    6711, 2026-09-29; before it heroes came with changelogs). pipeline.patches gives such a build a window of its
+    own: Deadman Danny's release (6779) and the 10-14 balance build (6785) were one window, his kit "added, then
+    tuned" read as one NEW row and nine of his note lines found nothing (data review 2026-10-17)."""
+    out = []
+    for e in rec['entities']:
+        if e['file'] != 'heroes.vdata' or e['status'] != 'changed' or not e['id'].startswith('hero_'):
+            continue
+        if any(c['path'] == 'm_eHeroDevelopmentState' and c.get('new') == RELEASED_STATE
+               and c.get('old') != RELEASED_STATE for c in e['changes']):
+            out.append(e['id'])
+    return sorted(out)
+
+
 def summary(rec: dict, file_name: str) -> dict:
     by_cat: dict[str, int] = {}
     for e in rec['entities']:
         for c in e['changes']:
             by_cat[c['cat']] = by_cat.get(c['cat'], 0) + 1
-    return {
+    out = {
         'build': rec['build'], 'commit': rec['commit'], 'date': rec['date'], 'file': file_name,
         'entities': len(rec['entities']),
         'added': sum(1 for e in rec['entities'] if e['status'] == 'added'),
@@ -164,6 +182,10 @@ def summary(rec: dict, file_name: str) -> dict:
         'convars': len(rec['convars']),
         'assets': {k: sum(v.values()) for k, v in (rec['assets'] or {}).get('counts', {}).items()},
     }
+    released = released_heroes(rec)
+    if released:
+        out['released'] = released
+    return out
 
 
 def run(rebuild: bool = False) -> None:

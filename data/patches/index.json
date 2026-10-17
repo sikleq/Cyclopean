@@ -170,8 +170,8 @@
   "builds": 1,
   "counts": {
    "documented": 74,
-   "described": 24,
-   "hidden": 51,
+   "described": 25,
+   "hidden": 50,
    "unannounced": 0,
    "unreleased": 17
   },
@@ -268,8 +268,8 @@
   "builds": 10,
   "counts": {
    "documented": 84,
-   "described": 23,
-   "hidden": 28,
+   "described": 24,
+   "hidden": 26,
    "unannounced": 0,
    "unreleased": 3
   },
@@ -310,10 +310,10 @@
   "builds": 4,
   "counts": {
    "documented": 88,
-   "described": 55,
-   "hidden": 88,
+   "described": 58,
+   "hidden": 97,
    "unannounced": 0,
-   "unreleased": 83
+   "unreleased": 91
   },
   "line_counts": {
    "untracked": 17,
@@ -333,18 +333,18 @@
   "builds": 9,
   "counts": {
    "documented": 89,
-   "described": 48,
-   "hidden": 106,
+   "described": 47,
+   "hidden": 107,
    "unannounced": 0,
    "unreleased": 16
   },
   "line_counts": {
-   "unmatched": 40,
+   "unmatched": 42,
    "untracked": 16,
    "fix": 13,
    "rounded": 2,
    "documented": 88,
-   "described": 24,
+   "described": 22,
    "code": 1
   },
   "has_notes": true
@@ -419,17 +419,17 @@
   "builds": 10,
   "counts": {
    "documented": 96,
-   "described": 25,
-   "hidden": 185,
+   "described": 24,
+   "hidden": 186,
    "unannounced": 0,
    "unreleased": 105
   },
   "line_counts": {
-   "unmatched": 33,
+   "unmatched": 35,
    "untracked": 34,
    "fix": 30,
    "documented": 88,
-   "described": 17,
+   "described": 15,
    "rounded": 2,
    "code": 1
   },
@@ -472,11 +472,11 @@
    "unmatched": 44,
    "untracked": 50,
    "fix": 28,
-   "described": 25,
+   "described": 24,
    "documented": 158,
    "mismatch": 1,
    "rounded": 4,
-   "code": 1
+   "code": 2
   },
   "has_notes": true
  },
@@ -586,8 +586,8 @@
   "builds": 6,
   "counts": {
    "documented": 120,
-   "described": 65,
-   "hidden": 160,
+   "described": 66,
+   "hidden": 159,
    "unannounced": 0,
    "unreleased": 290
   },
@@ -667,8 +667,8 @@
    "unreleased": 24
   },
   "line_counts": {
-   "unmatched": 61,
-   "described": 23,
+   "unmatched": 62,
+   "described": 22,
    "fix": 44,
    "untracked": 44,
    "documented": 104,
@@ -758,20 +758,20 @@
   "builds": 1,
   "counts": {
    "documented": 144,
-   "described": 79,
-   "hidden": 79,
+   "described": 80,
+   "hidden": 78,
    "unannounced": 0,
    "unreleased": 56
   },
   "line_counts": {
-   "unmatched": 74,
+   "unmatched": 75,
    "untracked": 39,
    "fix": 30,
-   "described": 38,
+   "described": 36,
    "rounded": 5,
    "documented": 135,
    "mismatch": 2,
-   "code": 2
+   "code": 3
   },
   "has_notes": true
  },
@@ -840,15 +840,15 @@
   "builds": 13,
   "counts": {
    "documented": 156,
-   "described": 75,
+   "described": 51,
    "hidden": 78,
    "unannounced": 0,
    "unreleased": 177
   },
   "line_counts": {
-   "unmatched": 56,
+   "unmatched": 57,
    "untracked": 36,
-   "described": 28,
+   "described": 27,
    "fix": 17,
    "documented": 142,
    "rounded": 3,
@@ -918,17 +918,17 @@
   "date": "2024-11-07",
   "builds": 8,
   "counts": {
-   "documented": 112,
-   "described": 38,
-   "hidden": 34,
+   "documented": 115,
+   "described": 32,
+   "hidden": 37,
    "unannounced": 0,
    "unreleased": 45
   },
   "line_counts": {
    "untracked": 35,
-   "unmatched": 35,
+   "unmatched": 34,
    "fix": 18,
-   "documented": 105,
+   "documented": 106,
    "described": 26,
    "rounded": 1,
    "code": 1
@@ -960,15 +960,15 @@
   "date": "2024-11-13",
   "builds": 4,
   "counts": {
-   "documented": 12,
+   "documented": 13,
    "described": 0,
    "hidden": 21,
    "unannounced": 0,
    "unreleased": 30
   },
   "line_counts": {
-   "unmatched": 4,
-   "documented": 9
+   "documented": 10,
+   "unmatched": 3
   },
   "has_notes": true
  },
@@ -979,8 +979,8 @@
   "builds": 15,
   "counts": {
    "documented": 171,
-   "described": 122,
-   "hidden": 114,
+   "described": 123,
+   "hidden": 113,
    "unannounced": 0,
    "unreleased": 97
   },
@@ -1002,15 +1002,15 @@
   "date": "2024-11-29",
   "builds": 1,
   "counts": {
-   "documented": 1,
+   "documented": 2,
    "described": 0,
    "hidden": 2,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "documented": 1,
-   "unmatched": 3
+   "documented": 2,
+   "unmatched": 2
   },
   "has_notes": true
  },
@@ -1020,8 +1020,8 @@
   "date": "2024-12-06",
   "builds": 9,
   "counts": {
-   "documented": 138,
-   "described": 99,
+   "documented": 139,
+   "described": 98,
    "hidden": 114,
    "unannounced": 0,
    "unreleased": 31
@@ -1030,8 +1030,8 @@
    "untracked": 23,
    "unmatched": 46,
    "fix": 22,
-   "documented": 130,
-   "described": 46,
+   "documented": 131,
+   "described": 45,
    "rounded": 2,
    "mismatch": 2,
    "code": 4
@@ -1062,8 +1062,8 @@
   "builds": 1,
   "counts": {
    "documented": 16,
-   "described": 8,
-   "hidden": 5,
+   "described": 5,
+   "hidden": 8,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -1119,7 +1119,7 @@
   "counts": {
    "documented": 0,
    "described": 7,
-   "hidden": 126,
+   "hidden": 100,
    "unannounced": 0,
    "unreleased": 5
   },
@@ -1166,11 +1166,11 @@
   },
   "line_counts": {
    "documented": 31,
-   "unmatched": 13,
-   "untracked": 5,
+   "unmatched": 16,
+   "untracked": 6,
    "fix": 2,
-   "described": 13,
-   "rounded": 2
+   "rounded": 2,
+   "described": 9
   },
   "has_notes": true
  },
@@ -1189,7 +1189,7 @@
   "line_counts": {
    "documented": 16,
    "untracked": 3,
-   "described": 1
+   "unmatched": 1
   },
   "has_notes": true
  },
@@ -1200,19 +1200,19 @@
   "builds": 8,
   "counts": {
    "documented": 22,
-   "described": 70,
+   "described": 43,
    "hidden": 59,
    "unannounced": 0,
-   "unreleased": 48
+   "unreleased": 75
   },
   "line_counts": {
-   "untracked": 167,
-   "unmatched": 70,
+   "untracked": 168,
+   "unmatched": 72,
    "documented": 15,
-   "described": 17,
+   "described": 13,
    "fix": 69,
    "heading": 42,
-   "code": 18
+   "code": 19
   },
   "has_notes": true
  },
@@ -1320,18 +1320,18 @@
   "date": "2025-05-08",
   "builds": 12,
   "counts": {
-   "documented": 81,
-   "described": 170,
-   "hidden": 1162,
+   "documented": 95,
+   "described": 161,
+   "hidden": 1153,
    "unannounced": 0,
-   "unreleased": 158
+   "unreleased": 148
   },
   "line_counts": {
-   "described": 31,
+   "described": 30,
    "unmatched": 66,
    "untracked": 243,
    "fix": 76,
-   "documented": 61,
+   "documented": 62,
    "heading": 53,
    "mismatch": 1,
    "code": 1
@@ -1431,16 +1431,16 @@
   "builds": 5,
   "counts": {
    "documented": 39,
-   "described": 194,
-   "hidden": 34,
+   "described": 150,
+   "hidden": 33,
    "unannounced": 0,
    "unreleased": 4
   },
   "line_counts": {
    "untracked": 15,
-   "described": 9,
+   "described": 8,
    "documented": 36,
-   "unmatched": 9,
+   "unmatched": 10,
    "rounded": 1,
    "fix": 2,
    "code": 1
@@ -1454,15 +1454,15 @@
   "builds": 6,
   "counts": {
    "documented": 108,
-   "described": 57,
+   "described": 59,
    "hidden": 205,
    "unannounced": 0,
    "unreleased": 8
   },
   "line_counts": {
-   "described": 17,
+   "described": 19,
    "documented": 80,
-   "unmatched": 22,
+   "unmatched": 20,
    "rounded": 3,
    "fix": 13,
    "untracked": 1
@@ -1609,17 +1609,17 @@
   "date": "2025-09-04",
   "builds": 9,
   "counts": {
-   "documented": 138,
-   "described": 18,
+   "documented": 139,
+   "described": 17,
    "hidden": 21,
    "unannounced": 0,
    "unreleased": 2
   },
   "line_counts": {
    "unmatched": 4,
-   "documented": 127,
+   "documented": 128,
    "rounded": 6,
-   "described": 10,
+   "described": 9,
    "code": 3
   },
   "has_notes": true
@@ -1637,8 +1637,8 @@
    "unreleased": 0
   },
   "line_counts": {
-   "described": 25,
-   "unmatched": 14,
+   "described": 26,
+   "unmatched": 13,
    "untracked": 5,
    "documented": 137,
    "fix": 4,
@@ -1711,15 +1711,15 @@
   "date": "2025-11-21",
   "builds": 1,
   "counts": {
-   "documented": 202,
-   "described": 239,
+   "documented": 210,
+   "described": 231,
    "hidden": 49,
    "unannounced": 0,
    "unreleased": 6
   },
   "line_counts": {
-   "unmatched": 36,
-   "documented": 168,
+   "unmatched": 35,
+   "documented": 169,
    "untracked": 1,
    "described": 28,
    "rounded": 7,
@@ -1812,16 +1812,16 @@
   "date": "2025-12-16",
   "builds": 5,
   "counts": {
-   "documented": 90,
-   "described": 50,
+   "documented": 91,
+   "described": 49,
    "hidden": 39,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 18,
+   "unmatched": 17,
    "described": 11,
-   "documented": 46,
+   "documented": 47,
    "fix": 2
   },
   "has_notes": true
@@ -1933,7 +1933,7 @@
    "described": 0,
    "hidden": 0,
    "unannounced": 30,
-   "unreleased": 0
+   "unreleased": 1
   },
   "line_counts": {},
   "has_notes": false
@@ -1946,7 +1946,7 @@
   "counts": {
    "documented": 98,
    "described": 42,
-   "hidden": 107,
+   "hidden": 141,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -1969,7 +1969,7 @@
   "counts": {
    "documented": 18,
    "described": 0,
-   "hidden": 52,
+   "hidden": 54,
    "unannounced": 0,
    "unreleased": 3
   },
@@ -1985,18 +1985,18 @@
   "date": "2026-02-04",
   "builds": 14,
   "counts": {
-   "documented": 31,
-   "described": 6,
-   "hidden": 163,
+   "documented": 33,
+   "described": 5,
+   "hidden": 164,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
    "documented": 27,
    "fix": 4,
-   "described": 5,
    "unmatched": 7,
-   "rounded": 1
+   "described": 3,
+   "rounded": 3
   },
   "has_notes": true
  },
@@ -2008,7 +2008,7 @@
   "counts": {
    "documented": 46,
    "described": 8,
-   "hidden": 14,
+   "hidden": 17,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -2066,16 +2066,16 @@
   "date": "2026-03-06",
   "builds": 1,
   "counts": {
-   "documented": 544,
-   "described": 768,
-   "hidden": 192,
+   "documented": 545,
+   "described": 726,
+   "hidden": 197,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 47,
-   "documented": 471,
-   "described": 314,
+   "unmatched": 52,
+   "documented": 472,
+   "described": 308,
    "untracked": 2,
    "fix": 9,
    "rounded": 27,
@@ -2092,7 +2092,7 @@
   "counts": {
    "documented": 18,
    "described": 5,
-   "hidden": 10,
+   "hidden": 13,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -2109,15 +2109,15 @@
   "date": "2026-03-10",
   "builds": 5,
   "counts": {
-   "documented": 60,
+   "documented": 61,
    "described": 108,
-   "hidden": 18,
+   "hidden": 17,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "documented": 106,
-   "unmatched": 14,
+   "documented": 108,
+   "unmatched": 12,
    "described": 28,
    "fix": 8,
    "code": 2
@@ -2130,15 +2130,15 @@
   "date": "2026-03-21",
   "builds": 3,
   "counts": {
-   "documented": 165,
-   "described": 117,
-   "hidden": 108,
+   "documented": 167,
+   "described": 115,
+   "hidden": 111,
    "unannounced": 0,
    "unreleased": 1
   },
   "line_counts": {
-   "described": 34,
-   "documented": 145,
+   "described": 33,
+   "documented": 146,
    "unmatched": 9,
    "fix": 5,
    "rounded": 2,
@@ -2154,7 +2154,7 @@
   "counts": {
    "documented": 43,
    "described": 7,
-   "hidden": 15,
+   "hidden": 17,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -2192,7 +2192,7 @@
   "counts": {
    "documented": 97,
    "described": 24,
-   "hidden": 76,
+   "hidden": 77,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -2211,19 +2211,19 @@
   "date": "2026-04-30",
   "builds": 1,
   "counts": {
-   "documented": 124,
+   "documented": 129,
    "described": 102,
-   "hidden": 113,
+   "hidden": 126,
    "unannounced": 0,
    "unreleased": 18
   },
   "line_counts": {
    "described": 20,
-   "documented": 116,
-   "unmatched": 14,
+   "documented": 117,
+   "unmatched": 11,
    "fix": 10,
    "mismatch": 1,
-   "rounded": 1
+   "rounded": 3
   },
   "has_notes": true
  },
@@ -2251,20 +2251,20 @@
   "builds": 3,
   "counts": {
    "documented": 196,
-   "described": 169,
-   "hidden": 93,
+   "described": 170,
+   "hidden": 96,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "described": 52,
+   "described": 51,
    "unmatched": 45,
    "documented": 184,
    "untracked": 3,
    "fix": 19,
    "mismatch": 2,
    "rounded": 2,
-   "code": 2
+   "code": 3
   },
   "has_notes": true
  },
@@ -2316,7 +2316,7 @@
   "counts": {
    "documented": 23,
    "described": 0,
-   "hidden": 117,
+   "hidden": 120,
    "unannounced": 0,
    "unreleased": 4
   },
@@ -2351,15 +2351,15 @@
   "date": "2026-06-11",
   "builds": 9,
   "counts": {
-   "documented": 58,
-   "described": 36,
-   "hidden": 12,
+   "documented": 59,
+   "described": 37,
+   "hidden": 11,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "documented": 54,
-   "unmatched": 4,
+   "documented": 55,
+   "unmatched": 3,
    "fix": 8,
    "described": 14,
    "code": 2
@@ -2374,14 +2374,14 @@
   "counts": {
    "documented": 89,
    "described": 187,
-   "hidden": 62,
+   "hidden": 65,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 22,
+   "unmatched": 23,
    "documented": 91,
-   "described": 27,
+   "described": 26,
    "untracked": 2,
    "fix": 1,
    "rounded": 1
@@ -2433,15 +2433,15 @@
   "counts": {
    "documented": 83,
    "described": 20,
-   "hidden": 18,
+   "hidden": 19,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
    "documented": 75,
-   "unmatched": 3,
+   "unmatched": 4,
    "fix": 2,
-   "described": 16,
+   "described": 15,
    "rounded": 1,
    "code": 3
   },
@@ -2511,7 +2511,7 @@
   "counts": {
    "documented": 93,
    "described": 125,
-   "hidden": 25,
+   "hidden": 26,
    "unannounced": 0,
    "unreleased": 12
   },
@@ -2529,11 +2529,11 @@
   "id": "2026-09-29",
   "title": "City Never Sleeps",
   "date": "2026-09-29",
-  "builds": 12,
+  "builds": 8,
   "counts": {
    "documented": 1,
-   "described": 630,
-   "hidden": 578,
+   "described": 629,
+   "hidden": 562,
    "unannounced": 0,
    "unreleased": 262
   },
@@ -2547,24 +2547,59 @@
   "has_notes": true
  },
  {
+  "id": "build-6736",
+  "title": "Listen up, Crumbums! Your King is here.",
+  "date": "2026-10-02",
+  "builds": 4,
+  "counts": {
+   "documented": 1,
+   "described": 28,
+   "hidden": 0,
+   "unannounced": 10,
+   "unreleased": 1
+  },
+  "line_counts": {},
+  "has_notes": false,
+  "release": [
+   "hero_ratking"
+  ]
+ },
+ {
   "id": "2026-10-05",
   "title": "Minor Update - 10-05-2026",
   "date": "2026-10-05",
-  "builds": 5,
+  "builds": 3,
   "counts": {
-   "documented": 21,
-   "described": 5,
-   "hidden": 39,
+   "documented": 23,
+   "described": 7,
+   "hidden": 12,
    "unannounced": 0,
-   "unreleased": 0
+   "unreleased": 1
   },
   "line_counts": {
    "fix": 1,
-   "described": 4,
-   "documented": 19,
-   "unmatched": 1
+   "described": 3,
+   "documented": 21
   },
   "has_notes": true
+ },
+ {
+  "id": "build-6757",
+  "title": "Mind the Birds!",
+  "date": "2026-10-06",
+  "builds": 2,
+  "counts": {
+   "documented": 1,
+   "described": 20,
+   "hidden": 0,
+   "unannounced": 0,
+   "unreleased": 2
+  },
+  "line_counts": {},
+  "has_notes": false,
+  "release": [
+   "hero_baba"
+  ]
  },
  {
   "id": "build-6769",
@@ -2572,32 +2607,71 @@
   "date": "2026-10-09",
   "builds": 4,
   "counts": {
-   "documented": 0,
-   "described": 0,
+   "documented": 1,
+   "described": 27,
    "hidden": 0,
-   "unannounced": 28,
+   "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {},
-  "has_notes": false
+  "has_notes": false,
+  "release": [
+   "hero_chessmaster"
+  ]
+ },
+ {
+  "id": "build-6779",
+  "title": "Fairfax Industries Employee Spotlight",
+  "date": "2026-10-13",
+  "builds": 1,
+  "counts": {
+   "documented": 1,
+   "described": 20,
+   "hidden": 0,
+   "unannounced": 4,
+   "unreleased": 0
+  },
+  "line_counts": {},
+  "has_notes": false,
+  "release": [
+   "hero_deadpack"
+  ]
  },
  {
   "id": "2026-10-14",
   "title": "Minor Update - 10-14-2026",
   "date": "2026-10-14",
-  "builds": 5,
+  "builds": 2,
   "counts": {
-   "documented": 10,
+   "documented": 24,
    "described": 5,
-   "hidden": 79,
+   "hidden": 8,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "documented": 10,
-   "unmatched": 13,
-   "described": 4
+   "documented": 22,
+   "unmatched": 3,
+   "described": 2
   },
   "has_notes": true
+ },
+ {
+  "id": "build-6790",
+  "title": "Paint the Town",
+  "date": "2026-10-16",
+  "builds": 2,
+  "counts": {
+   "documented": 1,
+   "described": 28,
+   "hidden": 0,
+   "unannounced": 31,
+   "unreleased": 1
+  },
+  "line_counts": {},
+  "has_notes": false,
+  "release": [
+   "hero_artist"
+  ]
  }
 ]

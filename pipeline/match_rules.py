@@ -140,6 +140,9 @@ LABEL_SYNONYMS = {
     'shock': {'chain'}, 'lifesteal': {'heal', 'healing'}, 'heal': {'healing', 'lifesteal'},
     'duration': {'time'}, 'charges': {'charge'}, 'barrier': {'shield'}, 'speed': {'velocity'},
     'velocity': {'speed'}, 'souls': {'bounty', 'gold'}, 'gold': {'souls', 'bounty'},
+    # the notes' "objectives" are the bosses a damage scale names ("Vexing Bolt - Now does half damage to objectives"
+    # is its Boss Damage Scale 100% → 50%, review 2026-10-17)
+    'boss': {'objective', 'objectives'},
 }
 
 

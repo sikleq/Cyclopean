@@ -98,6 +98,15 @@ HIDDEN_LIKE = ('hidden', 'unreleased', 'unannounced')
 NOT_IN_NOTES = ('hidden', 'unannounced')
 
 
+def same_change(c: dict) -> tuple:
+    """What makes rows of several entities ONE change — the label and the values: one edit over a unit family or a
+    Game system's entries counts once (twelve breakable props). An entity that came or went is a change of its own:
+    four new sketch pickups were "1 change" on the home page and their Game page (review 2026-10-17). THE signature of
+    every counter that folds members (patch_counts, the home icons, the bands, the change matrix, the Game index)."""
+    sig = (c.get('label'), c.get('old_s'), c.get('new_s'))
+    return sig + (c.get('key'),) if str(c.get('path') or '').startswith('@') else sig
+
+
 def not_in_notes(c: dict) -> bool:
     return c.get('status') in NOT_IN_NOTES
 

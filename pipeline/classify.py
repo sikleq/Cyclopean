@@ -22,10 +22,12 @@ AUDIO_RE = re.compile(r'(Sound|[Vv][Oo](?:[A-Z_]|$)|Music|Audio|Voice|m_strLastH
                       # Min", Splatter "Speed To Pitch Remap" on the pages)
                       r'Vol(?:ume)?Scale(?:Min|Max)|PitchScale(?:Min|Max)|[sS]peedToPitchRemap|[dD]istanceToPitchRemap)')
 # Light / Effect / Model also start gameplay words: LightMelee*, *Effectiveness, ModelScaleGrowth (a
-# hero grows bigger) — 77 gameplay rows read as visual and lost their values (audit 2026-10-01)
+# hero grows bigger) — 77 gameplay rows read as visual and lost their values (audit 2026-10-01); a light melee's
+# attack (m_LightAttackData, the attacks keyed "EAttackType_Light" / "…Attack_Light": Baba's Granny Long Legs "Attack
+# Impulse Max Upward" lost its 150 and the notes' "Light melee upward launch reduced" found nothing, review 2026-10-17)
 VISUAL_RE = re.compile(
     r'(Particle|Material|Model(?!Scale)|Image|Icon|[Cc]olor|Anim|Decal|Effect(?!iveness)|Glow|Tracer|Muzzle|'
-    r'Screen(?!ing)|Skin|Camera|Shake|Light(?!ning|Melee)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
+    r'Screen(?!ing)|Skin|Camera|Shake|(?<!_)Light(?!ning|Melee|Attack)|Vfx|VFX|Mesh|Cosmetic|Outline|Render|Tint|'
     r'Pose|Attachment|Bodygroup|Ragdoll|Gib|Portrait|Logo|Emblem|Sprite|[Ff][Oo][Vv]|Movie|Video|m_h[A-Z]|m_particle|DOF|'
     r'Desat|RangeRing|Dying|DeathFade|BreakableForce|'
     # how a thing looks, not how it plays (review 2026-10-05: Time Wall "Depth Visual Scale 0.04 → 0.16 BUFF +300%",
@@ -54,6 +56,10 @@ CAMERA_RE = re.compile(r'camera|viewpunch|(vertical|horizontal)punch|punchangle|
 
 
 STREET_BRAWL_RE = re.compile(r'StreetBrawl|ItemDraft', re.I)
+# an ability's own number in the Street Brawl mode (its value, a tier's bonus, a scaling): balance the notes write
+# about ("Street Brawl: Baba Threadsap duration lasts 35% less" is Debuff Duration (Street Brawl) 14 against 22, data
+# review 2026-10-17) — the label says "(Street Brawl)"; the mode's item draft weights stay out of the pages
+STREET_BRAWL_VALUE = re.compile(r'\.(m_strStreetBrawlValue|m_strStreetBrawlBonus|m_flStreetBrawlStatScale)$')
 
 # Engine plumbing that changes with refactors but carries no balance meaning:
 # scale-function wiring, state bit masks, property-type plumbing, spline
@@ -145,7 +151,7 @@ def _value_kind(v) -> str | None:
 
 
 def category(path: str, old, new) -> str:
-    if STREET_BRAWL_RE.search(path):
+    if STREET_BRAWL_RE.search(path) and not STREET_BRAWL_VALUE.search(path):
         return 'streetbrawl'
     if TECHNICAL_RE.search(path) or TECH_EXTRA_RE.search(path):
         return 'technical'
@@ -181,6 +187,12 @@ def category(path: str, old, new) -> str:
     if _is_num(old) or _is_num(new):
         return 'balance'
     return 'mechanic'
+
+
+def is_template_entry(eid: str, val: dict, bound) -> bool:
+    """A template (`_not_pickable`) — never an ability a hero binds in a slot (`bound`: ids): Solomon's Setup Bishop
+    carries the flag and is his ability 1; it had no card and sat under "Removed" (review 2026-10-17)."""
+    return bool(val.get('_not_pickable')) and eid not in bound
 
 
 def _is_num(v) -> bool:

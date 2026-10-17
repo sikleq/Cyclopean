@@ -157,14 +157,14 @@ def _stats(hist: dict, keys: list[str]) -> tuple[int, str, int]:
     """(changes a player reads, the newest patch date, how many of them the notes left out) of a system: the history
     rows of its keys."""
     from .cards import player_facing
-    from .render import not_in_notes
+    from .render import not_in_notes, same_change
     n, last, hidden = 0, '', 0
     seen: set[tuple] = set()          # one edit over several entries counts once (the band, matrix and home icon)
     for k in keys:
         for row, ch in hist.get(k, ()):
             rows = [c for c in player_facing(ch) if c.get('status') != 'unreleased'
-                    and (row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) not in seen]
-            seen.update((row['id'], c.get('label'), c.get('old_s'), c.get('new_s')) for c in rows)
+                    and (row['id'], *same_change(c)) not in seen]
+            seen.update((row['id'], *same_change(c)) for c in rows)
             n += len(rows)
             hidden += sum(1 for c in rows if not_in_notes(c))
             if rows:

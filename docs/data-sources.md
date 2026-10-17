@@ -15,6 +15,17 @@
   - property labels: `<Prop>_label`, `_postfix`, `_prefix` (`citadel_attributes`, `citadel_heroes`)
   - hero stat labels: `StatDesc_<Stat>` (exceptions in `pipeline/semantics.py`)
   - unit names: `m_sLocUnitName` → `citadel_main`
+- Name lookups beyond the plain localization keys:
+  - `loc.loc_base` (`pipeline/loc.py`): a gun filed as an ability (`ability_deadpack_primary_weapon_charge`) takes the
+    hero's `citadel_weapon_<code>_set` text; a `pickup_*` entry takes its key without the prefix (`artist_drawing_mystic`
+    = "Mystic Sketch").
+  - `data/overrides/unit_names.json`: summons with no text take the name of the ability that makes them (strokeblocker
+    = "Living Ink"; chess bishop / queen = "Setup Bishop" / "Develop Queen").
+  - `data/overrides/game_systems.json`: a part named "Violet's sketches (Still Life)" under Pickups; names for the hideout
+    crate ("Tough Crate (Hideout)"), the sketch template and `citadel_ability_zip_line` ("Zip Line": its only text is the
+    status "Knocked off Zipline"). `builders/common.py:ids_to_names` takes these hand names first for ability ids.
+  - `builders/common.py:sub_part_name`: a nameless `_trigger` / `_cancel` / `_teleport` / `_recast` part reads
+    "<parent> · trigger".
 - Assets: `game/citadel/pak01_dir.txt` (every packed file with CRC) → model / VFX / sound / UI changes.
 - Console variables: `DumpSource2/convars.txt` → `citadel_*` defaults (respawn times, bounties, new toggles).
 
