@@ -1534,7 +1534,11 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 .home-stats .hs.documented { box-shadow: inset 4px 0 0 var(--patina), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.documented .n { color: var(--patina); }
 .home-stats .hs.hidden { box-shadow: inset 4px 0 0 var(--eye), 0 0 0 2px var(--frame-line); }
-a.hs.hidden:hover, a.hs.hidden:focus-visible { background: var(--bg-hover); }
+/* the count opens the Hero changes with "Not in patch notes" on; the four sections' names under it, each its own
+   change matrix so filtered (home_page._top, scripts.js dyn-url) */
+.home-stats .hs-go { display: flex; flex-direction: column; gap: 4px; color: inherit; }
+.home-stats .hs-go:hover .l, .home-stats .hs-go:focus-visible .l { color: var(--text-bright); }
+.home-stats .hs-in { margin-top: 2px; font: 500 var(--fs-sm)/1.3 var(--font-ui); color: var(--text-dimmer); }
 /* "N not in patch notes" leads to what Valve did not say (scripts.js hidden-hash): a link, the same look */
 .sum-audit a.au-hidden { color: inherit; }
 a.au.au-hidden:hover, a.au.au-hidden:focus-visible { color: var(--text-bright); }

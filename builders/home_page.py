@@ -338,14 +338,22 @@ def _tiles(counts: dict[str, int], faces: list[str], units: list[str], items: li
         for sec, title in SECTIONS) + '</div>'
 
 
+HIDDEN_VIEW = 'changes.html#hidden'    # a section's change matrix with its "Not in patch notes" filter on (dyn-url)
+
+
 def _top(total: int, hidden: int) -> str:
-    """The logo, the search and the two counters (all changes, those not in the patch notes)."""
+    """The logo, the search and the two counters (all changes, those not in the patch notes). The second opens the
+    change matrices with their "Not in patch notes" filter on — the Hero changes, or any section by its name (review
+    2026-10-17: it opened the plain patch archive; the site is about the entities, the patches are its archive)."""
+    ways = ' · '.join(f'<a href="{sec}/{HIDDEN_VIEW}">{title.lower()}</a>' for sec, title in SECTIONS)
+    count = (f'<a class="hs-go" href="heroes/{HIDDEN_VIEW}"><span class="n">{hidden}</span>'
+             f'<span class="l">not in patch notes</span></a>')
     return f'''<div class="home-top">
   <div class="home-brand">{EYE_MARK}<h1>Cyclopean</h1></div>
   {search_box()}
   <div class="home-stats">
     <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>
-    <a class="hs hidden" href="patches/index.html"><span class="n">{hidden}</span><span class="l">not in patch notes</span></a>
+    <div class="hs hidden">{count}<span class="hs-in">{ways}</span></div>
   </div>
 </div>'''
 

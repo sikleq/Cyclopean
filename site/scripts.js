@@ -2269,4 +2269,79 @@
     window.addEventListener('hashchange', show);
     show();
   });
+
+  /* ---------- a change matrix's filters in its address: "#hidden&old&bvn&extra&part=abil&tags=buff,nerf&role=brawler
+     &cat=w&tier=3&q=haze". A link opens the matrix so filtered — the home page's "N not in patch notes" opens
+     heroes/changes.html#hidden (review 2026-10-17: it opened the plain patch archive) — and every filter chosen here
+     is written back, so a reload, "back" from a tile's page and a shared link keep it. The state is set by pressing
+     the bar's own controls: their modules (toggles, dyn-parts, dyn-rows, search, tb-fold) do the rest ---------- */
+  safe('dyn-url', function () {
+    var bar = document.querySelector('.dyn-bar'), table = document.querySelector('table.dyn');
+    if (!bar || !table) return;
+    var SWITCHES = { old: 'show-old', bvn: 'bvn', extra: 'show-extra' };
+    var search = bar.querySelector('input[type=search]');
+    function parse() {
+      var s = {};
+      location.hash.replace(/^#/, '').split('&').forEach(function (kv) {
+        if (!kv) return;
+        var i = kv.indexOf('=');
+        try {
+          s[decodeURIComponent(i < 0 ? kv : kv.slice(0, i))] = i < 0 ? '' : decodeURIComponent(kv.slice(i + 1));
+        } catch (e) { /* a broken escape: that key is left out */ }
+      });
+      return s;
+    }
+    function pressed(b) { return b.getAttribute('aria-pressed') === 'true'; }
+    function apply(s) {
+      var hid = bar.querySelector('.dyn-hid');
+      if (hid && ('hidden' in s) !== pressed(hid)) hid.click();
+      Object.keys(SWITCHES).forEach(function (k) {
+        var box = bar.querySelector('input[data-toggle-class="' + SWITCHES[k] + '"]');
+        if (box && box.checked !== (k in s)) box.click();
+      });
+      var part = bar.querySelector('.dyn-parts button[data-part="' + (s.part || 'all') + '"]');
+      if (part && !pressed(part)) part.click();
+      var tags = (s.tags || '').split(',');
+      bar.querySelectorAll('[data-dyn-tag]').forEach(function (b) {
+        if (pressed(b) !== (tags.indexOf(b.getAttribute('data-dyn-tag')) >= 0)) b.click();
+      });
+      // one choice per group (dyn-rows): a press clears the group's other button, so each is read again here
+      bar.querySelectorAll('.dyn-rows button[data-rowf]').forEach(function (b) {
+        if (pressed(b) !== (s[b.getAttribute('data-rowf')] === b.getAttribute('data-v'))) b.click();
+      });
+      if (search && search.value !== (s.q || '')) {
+        search.value = s.q || '';
+        search.dispatchEvent(new Event('input'));
+      }
+    }
+    function state() {
+      var out = [];
+      if (table.classList.contains('only-hid')) out.push('hidden');
+      Object.keys(SWITCHES).forEach(function (k) { if (table.classList.contains(SWITCHES[k])) out.push(k); });
+      var part = table.getAttribute('data-part');
+      if (part && part !== 'all') out.push('part=' + encodeURIComponent(part));
+      if ((table.__sel || []).length) out.push('tags=' + table.__sel.map(encodeURIComponent).join(','));
+      bar.querySelectorAll('.dyn-rows button[data-rowf][aria-pressed="true"]').forEach(function (b) {
+        out.push(encodeURIComponent(b.getAttribute('data-rowf')) + '=' + encodeURIComponent(b.getAttribute('data-v')));
+      });
+      var q = search ? search.value.trim() : '';
+      if (q) out.push('q=' + encodeURIComponent(q));
+      return out.join('&');
+    }
+    var writing = 0;
+    function write() {
+      clearTimeout(writing);
+      writing = setTimeout(function () {
+        var h = state();
+        if (location.hash.replace(/^#/, '') === h) return;
+        try { history.replaceState(null, '', location.pathname + location.search + (h ? '#' + h : '')); }
+        catch (e) { /* file:// in some browsers */ }
+      }, 0);
+    }
+    if (location.hash.length > 1) apply(parse());
+    bar.addEventListener('click', write);
+    bar.addEventListener('change', write);
+    if (search) search.addEventListener('searched', write);
+    window.addEventListener('hashchange', function () { apply(parse()); });
+  });
 })();
