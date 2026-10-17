@@ -160,13 +160,12 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
                  cell_attrs: Callable[[dict, dict], str] | None = None,
                  row_attrs: Callable[[dict], str] | None = None,
                  cells_by_key: dict[str, Callable[[dict, dict, str], str]] | None = None,
-                 group_cls: dict[str, str] | None = None, rel: str = '../', center: bool = False,
-                 table_attrs: str = '') -> str:
+                 group_cls: dict[str, str] | None = None, rel: str = '../', table_attrs: str = '') -> str:
     """`cells_by_key`: a column whose cell is not one number (items: the stats as chips, the effects,
     what an item builds from and into) — builder(row, column, cutoff) -> '<td…>'. A column's own `cls`
     goes on its header and cells, a group's (`group_cls`) on its group header; a `lazy` column has no
     cells (scripts.js builds them). `section_of` -> a band row before each new section: its label, or
-    (label, row attributes). `center`: the box sits in the middle of the page when narrower.
+    (label, row attributes). The box hugs the table at the page's left edge (styles.css `.table-fade`).
     `table_attrs`: extra attributes of the <table> (Item Stats' data-heat-by)."""
     cutoff = _recent_cutoff(as_of)
     groups: list[list] = []
@@ -245,9 +244,18 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
         body.append(f'<tr{rc}{ra} data-search="{esc(r["name"].lower())}">' + ''.join(cells) + '</tr>')
     # the fade on the right edge says "more columns this way" until the table is scrolled to its end
     tid = f' id="{esc(table_id)}"' if table_id else ''
-    fade = 'table-fade center' if center else 'table-fade'
-    return (f'<div class="{fade}"><div class="table-scroll"><table class="stats"{tid}{table_attrs}><thead>{cat_row}{col_row}</thead>'
+    return (f'<div class="table-fade"><div class="table-scroll"><table class="stats"{tid}{table_attrs}><thead>{cat_row}{col_row}</thead>'
             f'<tbody>{"".join(body)}</tbody></table></div></div>')
+
+
+def filters_fold(inner: str) -> str:
+    """A table's or a matrix's bar after its search box: on a phone (≤ 600px) all of it folds behind one "Filters"
+    disclosure that counts what differs from the page's start ("Filters (2 active)", scripts.js tb-fold); a desktop
+    sees the controls as before (`.tb-opts` is `display: contents`). Hero changes' bar took ~440px of an 844px screen,
+    Item Stats' ~400px, before the first row (review 2026-10-17). A <details> outside the controls: it opens without
+    scripts, with the keyboard, and a fold keeps every switch's state (the controls only hide)."""
+    return ('<details class="tb-fold"><summary class="px-btn">Filters <span class="tb-n"></span></summary></details>'
+            f'<div class="tb-opts">{inner}</div>')
 
 
 def _toolbar(placeholder: str, details: bool = False, extra: str = '', heat_on: bool = False) -> str:
@@ -263,8 +271,9 @@ def _toolbar(placeholder: str, details: bool = False, extra: str = '', heat_on: 
     # not sticky: stuck, it covered the table's own sticky header (a third of a phone screen)
     return ('<div class="toolbar tbl-bar">'
             f'<input type="search" placeholder="{esc(placeholder)}" data-search-target="table.stats tbody tr:not(.sec)">'
-            f'<span class="sep"></span><label class="switch"><input type="checkbox" data-heatmap{checked}>'
-            f'<span class="track"></span>Heatmap</label>{more}{extra}<span class="sep"></span>{legend}</div>')
+            + filters_fold(f'<span class="sep"></span><label class="switch"><input type="checkbox" data-heatmap{checked}>'
+                           f'<span class="track"></span>Heatmap</label>{more}{extra}<span class="sep"></span>{legend}')
+            + '</div>')
 
 
 MAX_BOONS = 35            # levels 2-36 each give a boon (heroes.vdata m_mapLevelInfo)
@@ -587,6 +596,13 @@ def tier_starts(rows: list[dict]) -> set[str]:
     return out
 
 
+def tier_label(tier) -> str:
+    """An item tier as the site writes it everywhere: "Tier 1" (the game's own words: its shop art reads "TIER 1",
+    lane stats "Tier 1", an item's info "T1"). It read "TIER 4" on a chip, "Tier I" here, "I" on Item changes
+    (review 2026-10-17). Item tiers only: a neutral camp's tiers are another scale (unit_families)."""
+    return f'Tier {tier}'
+
+
 def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
     """Item Stats' toolbar: category / tier / kind chips, the "Stat columns" and "Souls per point" switches
     (scripts.js item-filter)."""
@@ -594,8 +610,8 @@ def item_filter_chips(cat_icon: Callable[[str], str] = lambda ik: '') -> str:
             + ''.join(f'<button class="px-btn" data-f="cat" data-v="{css}" aria-pressed="false">{cat_icon(ik)}{esc(slot)}</button>'
                       for slot, css, ik in ITEM_SECTIONS)
             + '</span><span class="sep"></span><span class="it-filter">'
-            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}" aria-pressed="false">Tier {r}</button>'
-                      for n, r in ((1, 'I'), (2, 'II'), (3, 'III'), (4, 'IV')))
+            + ''.join(f'<button class="px-btn" data-f="tier" data-v="{n}" aria-pressed="false">{esc(tier_label(n))}</button>'
+                      for n in (1, 2, 3, 4))
             + '</span><span class="sep"></span><span class="it-filter">'
             + ''.join(f'<button class="px-btn" data-f="kind" data-v="{k}" aria-pressed="false">{lbl}</button>'
                       for k, lbl in (('active', 'Active'), ('passive', 'Passive'), ('imbue', 'Imbue')))
@@ -701,7 +717,7 @@ def items_table() -> str:
                          cell_attrs=cell_attrs,
                          cells_by_key={'stats': lambda r, c, cut: stats_cell(r, stat_cols, cut, rel),
                                        'effect': lambda r, c, cut: effects_cell(r, cut, rel), 'builds': builds},
-                         group_cls=group_cls, rel=rel, center=True,
+                         group_cls=group_cls, rel=rel,
                          # the heat compares items of one tier (one price): ranked over all tiers every
                          # tier-I number read red and every tier-IV one green; "Souls per point" evens
                          # the price out, so it ranks over all (scripts.js heatmap)

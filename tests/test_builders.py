@@ -788,10 +788,11 @@ def test_the_item_matrix_reads_in_shop_order_with_slot_and_tier_filters():
                                 ('upgrade_c', 'Gamma', 'EItemSlotType_WeaponMod', 'EModTier_1'),
                                 ('upgrade_d', 'Delta', 'EItemSlotType_Armor', 'EModTier_5')]]
     entries = dynamics_page.item_entries(items, {}, '../')
-    assert [e[1] for e in entries] == ['Gamma', 'Alpha', 'Delta', 'Beta']
-    assert entries[2][5] == {'data-cat': 'v', 'data-tier': '5'}
+    # the game's shop order, Weapon / Spirit / Vitality (it read Weapon / Vitality / Spirit; 2026-10-17)
+    assert [e[1] for e in entries] == ['Gamma', 'Alpha', 'Beta', 'Delta']
+    assert entries[3][5] == {'data-cat': 'v', 'data-tier': '5'}
     bar = dynamics_page.toolbar('item', 0, 'Removed')
-    assert 'data-rowf="cat" data-v="w"' in bar and 'data-rowf="tier" data-v="5"' in bar and '>V</button>' in bar
+    assert 'data-rowf="cat" data-v="w"' in bar and 'data-rowf="tier" data-v="5"' in bar and '>Tier 5</button>' in bar
     hero_bar = dynamics_page.toolbar('hero', 0, 'Pre-release', ('Assassin', 'Brawler'))
     assert 'data-rowf="role" data-v="brawler"' in hero_bar
     heroes = dynamics_page.hero_entries([{'file': 'heroes.vdata', 'id': 'hero_atlas', 'name': 'Abrams',
@@ -1281,10 +1282,10 @@ def test_item_table_bands_tiers_and_lazy_columns():
                         cells_by_key={'stats': lambda r, c, cut: '<td class="sumc"></td>',
                                       'effect': lambda r, c, cut: '<td class="fxc"></td>',
                                       'builds': lambda r, c, cut: '<td class="xcol"></td>'},
-                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'}, center=True)
-    # one band row per category, spanning the table; the box centred on the page
+                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'})
+    # one band row per category, spanning the table; the box at the page's left edge like every table's (2026-10-17)
     assert html.count('<tr class="sec"') == 2 and '<tr class="sec" data-cat="s">' in html
-    assert 'class="sec-fill"' in html and 'class="table-fade center"' in html
+    assert 'class="sec-fill"' in html and 'class="table-fade"' in html
     # a lazy column: its header says how to build its cells, the rows have none
     assert re.search(r'data-col="health_max"[^>]*data-cell-cls="grp-start( g-odd)? stc"', html)
     assert 'data-col="health_max" data-sort' not in html

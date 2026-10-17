@@ -10,7 +10,7 @@ them only when they change, so their values today are not known for every level 
 has their history)."""
 from __future__ import annotations
 
-from .common import esc, json_attr, page
+from .common import esc, json_attr, page, plural, wbr_ids
 from .game_systems import SECTION, convar_number, convar_place, convar_side, convar_unit, convar_value, shown
 
 DIGITS = 3
@@ -94,13 +94,17 @@ DASH = '<span class="dash">—</span>'
 def _row(name: str, slot: dict) -> str:
     """Name | value now (its history on hover) | how many times it moved (NEW: added since the tracking began, no
     move yet — "—" beside a date read as a contradiction on 55 of 190; review 2026-10-05) | the date of the last
-    move."""
+    move. The name may break after its underscores only (`wbr_ids`: a phone broke "citadel_bounty_a|oe_deny_radius");
+    a phone shows the count under the date (`lc-n`) and hides the Changes column, mostly dashes in 45% of the width
+    (review 2026-10-17)."""
     from .render import tag_badge
     moves = [h for h in slot['hist'] if h[2] is not None and h[3] is not None]
     last = esc(slot['hist'][-1][1]) if slot['hist'] else DASH
     count = str(len(moves)) if moves else tag_badge('new', 'NEW') if slot['hist'] else DASH
-    return (f'<tr data-search="{esc(name.lower())}"><td class="nm"><code>{esc(name)}</code></td>{_cell(name, slot)}'
-            f'<td>{count}</td><td>{last}</td></tr>')
+    under = (plural(len(moves), 'change') if moves else tag_badge('new', 'NEW')) if slot['hist'] else ''
+    under = f'<span class="lc-n">{under}</span>' if under else ''
+    return (f'<tr data-search="{esc(name.lower())}"><td class="nm"><code>{wbr_ids(esc(name))}</code></td>'
+            f'{_cell(name, slot)}<td class="cn">{count}</td><td class="lc">{last}{under}</td></tr>')
 
 
 def rules_page(raw: list, led: dict | None = None) -> str:
@@ -119,10 +123,11 @@ def rules_page(raw: list, led: dict | None = None) -> str:
     # page (its own 816px scroll box inside the page's was a double scroll over 200 rows; review 2026-10-05)
     content = (f'<div class="toolbar"><input type="search" placeholder="Variable…" '
                f'data-search-target="table.game-rules tbody tr:not(.sec)"></div>'
-               f'<table class="game-rules"><thead><tr><th>Console variable</th><th>Now</th><th>Changes</th>'
-               f'<th>Last change</th></tr></thead><tbody>{"".join(body)}</tbody></table>'
+               f'<table class="game-rules"><thead><tr><th>Console variable</th><th>Now</th><th class="cn">Changes</th>'
+               f'<th class="lc">Last change</th></tr></thead><tbody>{"".join(body)}</tbody></table>'
                if body else '<p class="muted">No console variables recorded.</p>')
-    # the title and the tabs where the section's other tabs have them; the table stays a centred column
+    # the title and the tabs where the section's other tabs have them; the search and the table share one column
+    # under them, at the page's left edge
     return page('Game rules', '<h1>Game rules</h1>' + section_tabs('stats') + '<div class="rules-col">' + content + '</div>',
                 rel, SECTION, wide=True,
                 description='Deadlock: respawn times, soul rewards and objective timers as the game sets them today')

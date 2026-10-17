@@ -20,6 +20,7 @@ from functools import lru_cache
 from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, same_change, tag_badge, tag_of
+from .tables_pages import filters_fold, tier_label
 from .weights import NET_WORDS, net_of
 
 OLD_DAYS = 365            # columns older than this hide behind "Older patches"
@@ -275,8 +276,21 @@ def _months(rows: list[dict], cutoff: str) -> list[tuple[str, int, bool, bool]]:
     return months
 
 
+MONTH_ABBR = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+
+
+def month_label(m: str) -> str:
+    """A month's header: "2025-12", its short form ("Dec", `data-s`) where a month has less room than that — one
+    column (always: `.one`), or one half scrolled out of sight (scripts.js dyn-months). The label is sticky inside its
+    header (styles.css): centred over the whole month it sat half under the sticky names and read "025-12" (review
+    2026-10-17)."""
+    short = MONTH_ABBR[int(m[5:7]) - 1] if len(m) == 7 and m[5:7].isdigit() and 1 <= int(m[5:7]) <= 12 else m
+    return f'<span class="ml" data-s="{esc(short)}">{esc(m)}</span>'
+
+
 def _head(rows: list[dict], cutoff: str, label: str) -> str:
-    top = ''.join(f'<th class="dm{" old" if old else ""}{" cont" if cont else ""}" colspan="{n}">{esc(m)}</th>'
+    top = ''.join(f'<th class="dm{" old" if old else ""}{" cont" if cont else ""}{" one" if n == 1 else ""}" colspan="{n}">'
+                  f'{month_label(m)}</th>'
                   for m, n, old, cont in _months(rows, cutoff))
     sub = ''.join(f'<th class="dd{" old" if r["date"] < cutoff else ""}{" named" if patch_name(r["title"]) else ""}">'
                   f'<a href="../patches/{esc(r["id"])}.html" data-tooltip="{esc(patch_title_text(r))}">{esc(r["date"][8:])}</a></th>'
@@ -362,12 +376,13 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
     parts_filter = ''
     if kind == 'item':
         # the shop's slots and tiers as filters (Item Stats has them; the matrix had none): one choice per group,
-        # pressed again to clear (scripts.js dyn-rows); Tier V too — 23 of the matrix's rows are tier 5
+        # pressed again to clear (scripts.js dyn-rows); Tier 5 too — 23 of the matrix's rows are tier 5 (tables_pages.
+        # tier_label: it read "I"-"V" here, "Tier I" on Item Stats; review 2026-10-17)
         parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
             f'<button class="px-btn" data-rowf="cat" data-v="{c}" aria-pressed="false">{esc(lbl)}</button>'
             for _, c, lbl in ITEM_SLOTS) + '<span class="sep"></span>' + ''.join(
-            f'<button class="px-btn" data-rowf="tier" data-v="{t}" aria-pressed="false">{"I II III IV V".split()[i]}</button>'
-            for i, t in enumerate(ITEM_TIERS)) + '</span>')
+            f'<button class="px-btn" data-rowf="tier" data-v="{t}" aria-pressed="false">{esc(tier_label(t))}</button>'
+            for t in ITEM_TIERS) + '</span>')
     elif kind == 'hero' and roles:
         parts_filter = ('<span class="sep"></span><span class="dyn-rows" data-target="' + target + '">' + ''.join(
             f'<button class="px-btn" data-rowf="role" data-v="{esc(r.lower())}" aria-pressed="false">{esc(r)}</button>'
@@ -377,12 +392,13 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
             f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
             for p, lbl in (('all', 'All'),) + PARTS) + '</span>' + parts_filter)
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
-            f'<span class="sep"></span>'
-            f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
-            f'<span class="track"></span>Older patches</label>'
-            f'<label class="switch"><input type="checkbox" data-toggle-class="bvn" data-target="{target}">'
-            f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{parts_filter}'
-            f'<span class="sep"></span><span class="dyn-tags">{tags}</span></div>')
+            + filters_fold(f'<span class="sep"></span>'
+                           f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
+                           f'<span class="track"></span>Older patches</label>'
+                           f'<label class="switch"><input type="checkbox" data-toggle-class="bvn" data-target="{target}">'
+                           f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{parts_filter}'
+                           f'<span class="sep"></span><span class="dyn-tags">{tags}</span>')
+            + '</div>')
 
 
 def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list[tuple]:
@@ -426,7 +442,9 @@ def game_entries(rel: str) -> list[tuple]:
             for s in shown()]
 
 
-ITEM_SLOTS = (('WeaponMod', 'w', 'Weapon'), ('Armor', 'v', 'Vitality'), ('Tech', 's', 'Spirit'))
+# the game's shop order: Weapon, Spirit, Vitality (panorama citadel_hud_hero_shop.xml: WeaponNav, TechNav, ArmorNav),
+# as the Items page and Item Stats have it (this matrix read Weapon, Vitality, Spirit; review 2026-10-17)
+ITEM_SLOTS = (('WeaponMod', 'w', 'Weapon'), ('Tech', 's', 'Spirit'), ('Armor', 'v', 'Vitality'))
 ITEM_TIERS = ('1', '2', '3', '4', '5')
 
 
@@ -440,7 +458,7 @@ def _item_slot_tier(it: dict) -> tuple[str, str]:
 
 
 def item_entries(items: list[dict], cards: dict, rel: str) -> list[tuple]:
-    """A row per item in the shop's order — Weapon, Vitality, Spirit, then tier and name (it was alphabetical over 238
+    """A row per item in the shop's order — Weapon, Spirit, Vitality, then tier and name (it was alphabetical over 238
     rows; review 2026-10-05) — each carrying its slot and tier for the toolbar's filters (`data-cat`, `data-tier`)."""
     from .common import slug
     order = {c: i for i, (_, c, _) in enumerate(ITEM_SLOTS)}

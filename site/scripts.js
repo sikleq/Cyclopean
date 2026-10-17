@@ -691,8 +691,12 @@
         if (!btn) return;
         var f = btn.getAttribute('data-rowf'), v = btn.getAttribute('data-v');
         chosen[f] = chosen[f] === v ? null : v;
+        // a px-btn shows it is pressed by `.on` (as the part buttons and Item Stats' chips do): with aria-pressed alone
+        // a chosen Weapon / Tier 2 looked like the rest while the rows were filtered (2026-10-17)
         box.querySelectorAll('button[data-rowf="' + f + '"]').forEach(function (b) {
-          b.setAttribute('aria-pressed', chosen[f] === b.getAttribute('data-v') ? 'true' : 'false');
+          var on = chosen[f] === b.getAttribute('data-v');
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+          b.classList.toggle('on', on);
         });
         table.querySelectorAll('tbody tr').forEach(function (tr) {
           var out = false;
@@ -812,7 +816,6 @@
       var sc = t.closest('.table-scroll');
       var box = sc && sc.parentNode;
       if (!sc || !box) return;
-      box.classList.add('center');
       function fit() {
         box.style.maxWidth = '';
         var name = t.querySelector('thead tr.cols th.name');
@@ -847,6 +850,83 @@
           sc.scrollLeft = Math.max(0, sc.scrollWidth - sc.clientWidth - gap);
         });
       });
+    });
+  });
+
+  /* ---------- change matrices: a month's label is whole, short ("Dec") or out of sight — never cut ---------- */
+  /* centred over its whole month, a label sat half under the sticky names and read "025-12" (review 2026-10-17). The
+     label is sticky in its header (styles.css `.ml`): the compositor keeps it in the part of its month in sight. Here,
+     only where that part is too narrow for it: the short label at the end in sight (`sr` when the month runs off to the
+     left, `sl` to the right), or none. Each state is a colour / a visibility, written only when it changes: on this page
+     any change in the box costs a frame its paint (~5 ms), so moving the labels from here (a write a frame) was out.
+     The headers' places are read once per layout change; a vertical scroll returns at once */
+  safe('dyn-months', function () {
+    var EDGE = 4, FADE = 22;          // the sticky insets: past the names, short of the right edge's arrow (styles.css)
+    document.querySelectorAll('table.dyn').forEach(function (t) {
+      var sc = t.closest('.table-scroll');
+      var labs = Array.prototype.map.call(t.querySelectorAll('thead tr.cats th.dm > .ml'), function (el) {
+        return { el: el, one: el.parentNode.classList.contains('one'), state: '', full: 0, short: 0, l: 0, r: 0, on: false };
+      });
+      var name = t.querySelector('thead tr.cats th.name');
+      if (!sc || !name || !labs.length) return;
+      var pen = document.createElement('canvas').getContext('2d');
+      var g = null, lastSl = null;
+      function measure() {
+        var cs = getComputedStyle(labs[0].el.parentNode);
+        pen.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+        var tr = t.getBoundingClientRect(), x0 = t.offsetLeft;
+        g = { name: name.getBoundingClientRect().width, cw: sc.clientWidth, sw: sc.scrollWidth,
+              padL: parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), padR: parseFloat(cs.paddingRight) };
+        labs.forEach(function (x) {               // in the box's content coordinates (as at scrollLeft 0)
+          var r = x.el.parentNode.getBoundingClientRect();
+          x.on = r.width > 0;
+          x.l = r.left - tr.left + x0 + g.padL;   // the header's content box
+          x.r = r.right - tr.left + x0 - g.padR;
+          x.full = pen.measureText(x.el.textContent).width;
+          x.short = pen.measureText(x.el.getAttribute('data-s') || '').width;
+        });
+        lastSl = null;
+        update();
+      }
+      function update() {
+        var sl = sc.scrollLeft;
+        if (!g || sl === lastSl) return;
+        lastSl = sl;
+        // at the end nothing covers the right edge (the arrow is gone)
+        var from = sl + g.name + EDGE, to = sl + g.cw - (sl + g.cw >= g.sw - 2 ? EDGE : FADE);
+        labs.forEach(function (x) {
+          if (!x.on) return;
+          var vl = Math.max(x.l, from), room = Math.min(x.r, to) - vl, st;
+          if (x.one) st = room >= x.short - 0.5 ? '' : 'none';
+          else st = room >= x.full - 0.5 ? '' : room < x.short - 0.5 ? 'none' : vl > x.l ? 'sr' : 'sl';
+          if (st === x.state) return;
+          if (x.state) x.el.classList.remove(x.state);
+          if (st) x.el.classList.add(st);
+          x.state = st;
+        });
+      }
+      var pending = false;
+      sc.addEventListener('scroll', function () {
+        if (pending) return;
+        pending = true;
+        requestAnimationFrame(function () { pending = false; update(); });
+      }, { passive: true });
+      // "Older patches" moves every header; the box's new width (a window's, a scrollbar's) and the fonts change the room
+      var old = t.classList.contains('show-old');
+      new MutationObserver(function () {
+        var now = t.classList.contains('show-old');
+        if (now !== old) { old = now; measure(); }
+      }).observe(t, { attributes: true, attributeFilter: ['class'] });
+      var w0 = sc.clientWidth;
+      function resized() {
+        if (sc.clientWidth === w0) return;
+        w0 = sc.clientWidth;
+        requestAnimationFrame(measure);
+      }
+      if (window.ResizeObserver) new ResizeObserver(resized).observe(sc);
+      else window.addEventListener('resize', resized);
+      if (document.fonts && document.fonts.ready) document.fonts.ready.then(measure);
+      measure();
     });
   });
 
@@ -935,6 +1015,33 @@
         window.addEventListener('resize', sized);
       }
       sized();
+    });
+  });
+
+  /* ---------- a phone's folded table bar says how many of its options differ from the page's start ---------- */
+  /* (tables_pages.filters_fold; styles.css shows the fold at ≤ 600px only): "Filters (2 active)" — a switch turned on,
+     a button pressed that was not, a number changed. Counted after the other modules' handlers ran (a timeout), and
+     on "back", when the browser restores the boxes */
+  safe('tb-fold', function () {
+    document.querySelectorAll('.toolbar > .tb-fold').forEach(function (fold) {
+      var bar = fold.parentNode, opts = bar.querySelector('.tb-opts'), n = fold.querySelector('.tb-n');
+      if (!opts || !n) return;
+      var pressed = Array.prototype.filter.call(opts.querySelectorAll('[aria-pressed]'), function (b) {
+        return b.getAttribute('aria-pressed') !== 'true';            // only what starts unpressed can count
+      });
+      function count() {
+        var k = 0;
+        opts.querySelectorAll('input').forEach(function (inp) {
+          if (inp.type === 'checkbox' ? inp.checked && !inp.defaultChecked : inp.value !== inp.defaultValue) k++;
+        });
+        pressed.forEach(function (b) { if (b.getAttribute('aria-pressed') === 'true') k++; });
+        var txt = k ? '(' + k + ' active)' : '';
+        if (n.textContent !== txt) n.textContent = txt;
+      }
+      function later() { setTimeout(count, 0); }
+      ['click', 'change', 'input'].forEach(function (ev) { opts.addEventListener(ev, later); });
+      window.addEventListener('pageshow', later);
+      count();
     });
   });
 
