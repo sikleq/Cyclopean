@@ -573,6 +573,15 @@ def patch_name(title: str) -> str | None:
     return None if rest.lower() in ('', 'update', 'patch', 'patch notes') else rest
 
 
+def checks_notes(row: dict) -> bool:
+    """The update has a post its rows are checked against: patch notes, or a hero release's announcement (its kit is
+    "released with the hero", the rest of the build is hidden: pipeline.match.release_pass). Its rows not in the post
+    carry the eye everywhere — the home icons, the patch list's bar, the patch page; only an update with no post at all
+    says so once, "no patch notes" (review 2026-10-17, round 4: Violet's release showed Solomon's silent rework with
+    no eye and 0% "not in notes"). `row`: a patch index row (data/patches/index.json)."""
+    return bool(row.get('has_notes', True) or row.get('release'))
+
+
 def patch_parts(row: dict) -> tuple[str | None, str, bool]:
     """(name or None, ISO date, is a follow-up) for a patch index row."""
     return patch_name(row['title']), fmt_date(row['date']), FOLLOW_UP in row['title']

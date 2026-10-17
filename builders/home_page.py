@@ -3,8 +3,8 @@ a strip of icons per update, each opening that hero's, item's, unit's or Game sy
 site is about the entities, not the patch notes (owner, 2026-10-03: "closer to Sloppy")."""
 from __future__ import annotations
 
-from .common import (EYE_MARK, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark, page,
-                     patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
+from .common import (EYE_MARK, checks_notes, display_name, entity_icon, esc, glyph_for, hero_icon, load_json, mark,
+                     page, patch_name, patch_title_html, plural, pretty_id, slug, visual, write)
 from . import archive
 from .site_search import search_box
 from .weights import NET_WORDS, net_of
@@ -249,8 +249,9 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             if got:
                 # every icon of the group all out of the notes: ONE eye on the group's label, none on the icons,
                 # as one eye on an all-hidden band (review 2026-10-05: 171 of 246 icons had it, it marked nothing)
-                # (an update with no notes at all says so once, on its banner: no eye anywhere below)
-                notes = row.get('has_notes', True)
+                # (an update with no post at all says so once, on its banner: no eye anywhere below; a hero's release
+                # post is its notes: common.checks_notes)
+                notes = checks_notes(row)
                 all_out = notes and all(s['hidden'] == s['n'] for _, s in got)
                 chips = []
                 # units the game files have no picture for fold into one '+N' tile at the end (fold_bare)
@@ -280,7 +281,7 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
             # a way in: the patch page with its "Not in patch notes" filter pressed (scripts.js hidden-hash)
             # an update Valve posted no notes for says so, as its bands do (Rat King's build 6736: nothing was "left
             # out" of notes that do not exist)
-            what = 'not in patch notes' if row.get('has_notes', True) else '· no patch notes'
+            what = 'not in patch notes' if checks_notes(row) else '· no patch notes'
             # the entity pages' eye chip (history_view.hidden_link: "2 NOT IN PATCH NOTES"); the clauses that explain
             # the number follow it in the date's quiet type, each after " · " (review 2026-10-17: 13px pixel caps, two
             # clauses run together, "46 NOT IN PATCH NOTES 2 OF THEM IN GAME RULES…")

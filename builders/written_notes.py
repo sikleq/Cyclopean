@@ -115,6 +115,17 @@ def who(e: dict | None, name: str, heroes: dict[str, str]) -> str:
     return name
 
 
+def with_owner(e: dict | None) -> dict | None:
+    """The entity with its hero: a removed ability is bound by no hero in its own build, so its record has none — the
+    catalog keeps the last one ("Breach: removed from the game" named no hero among City Never Sleeps' hidden lines:
+    "Tokamak · Breach"; review 2026-10-17, round 4)."""
+    if e is None or e.get('owner') or e.get('id') == '@shared':
+        return e
+    from .shared_rows import catalog
+    owner = (catalog().get(f"{e['file']}:{e['id']}") or {}).get('owner')
+    return {**e, 'owner': owner} if owner else e
+
+
 def _lines(rows: list[tuple[dict | None, dict, bool]], name_of, heroes: dict[str, str]) -> dict[str, list[tuple]]:
     """section -> [(sort key, subject, row)]: one entity's rows told apart as on its page (`cards.disambiguate`)."""
     from .cards import disambiguate
@@ -126,7 +137,7 @@ def _lines(rows: list[tuple[dict | None, dict, bool]], name_of, heroes: dict[str
     out: dict[str, list[tuple]] = {}
     first: dict[tuple[str, str], str] = {}        # (section, subject) -> the id that has it plain
     for e, got, on_page in by_ent.values():
-        subject = who(e, name_of(e) if e is not None else '', heroes)
+        subject = who(with_owner(e), name_of(e) if e is not None else '', heroes)
         sec = section_of(e, on_page)
         if e is not None and e['id'] != '@shared':
             # two entities of one name (City Never Sleeps' five removed guns all "Weapon"): the later ones say how
@@ -139,9 +150,14 @@ def _lines(rows: list[tuple[dict | None, dict, bool]], name_of, heroes: dict[str
     return out
 
 
-def notes_html(rows: list[tuple[dict | None, dict, bool]], name_of, heroes: dict[str, str]) -> tuple[str, int]:
+def notes_html(rows: list[tuple[dict | None, dict, bool]], name_of, heroes: dict[str, str],
+               marks: dict[str, str] | None = None) -> tuple[str, int]:
     """(the written notes' HTML, how many lines they hold): Valve's sections, the lines of each by subject; a line
-    is its tag badge (render.tag_badge) and its sentence."""
+    is its tag badge (render.tag_badge) and its sentence. `marks` (status -> the mark's words, else its own): each
+    line leads with its status mark, as a page's rows do — a hero's release lists its kit ("released with the hero")
+    and what its post left out (the eye) in one list: Solomon's silent Move Piece rework read like Violet's launch
+    lines (review 2026-10-17, round 4)."""
+    from .common import mark
     from .render import TAG_ORDER, tag_badge, tag_of
     secs = _lines(rows, name_of, heroes)
     out, n, cut = [], 0, 0
@@ -157,7 +173,9 @@ def notes_html(rows: list[tuple[dict | None, dict, bool]], name_of, heroes: dict
             # a console variable's name is its subject, in the engine's spelling (the one id a page shows, AGENTS)
             text = (f'<code>{esc(c.get("label"))}</code> ' + esc(line_text({**c, 'label': ''}).lstrip(': '))
                     if sid == 'convars' else f'{esc(subject)}: {esc(line_text(c))}')
-            lis.append(f'<li>{tag_badge(cls, word)}<span class="gn-t">{text}</span></li>')
+            st = c.get('status') or 'hidden'
+            lead = mark(st, marks.get(st)) if marks is not None else ''
+            lis.append(f'<li>{lead}{tag_badge(cls, word)}<span class="gn-t">{text}</span></li>')
         if lis:
             out.append(f'<h3 class="gn-h">{esc(title)}<span class="n">{len(lis)}</span></h3>'
                        f'<ul class="gen-notes cols-2">{"".join(lis)}</ul>')

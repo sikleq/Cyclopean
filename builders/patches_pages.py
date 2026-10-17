@@ -6,8 +6,8 @@ import re
 from functools import lru_cache
 
 from .notes_view import notes_table
-from .common import (build_href, esc, plural, load_json, mark, names_by_id, page, patch_name, patch_title_html,
-                     patch_title_text, pretty_id, write)
+from .common import (build_href, checks_notes, esc, plural, load_json, mark, names_by_id, page, patch_name,
+                     patch_title_html, patch_title_text, pretty_id, write)
 
 HIDDEN_TAB = 'Not in patch notes'   # an update with notes: the tab of what they left out (its eye is the tab's mark)
 
@@ -74,13 +74,18 @@ def _audit_line(p: dict) -> str:
             audit.insert(3, ('unreleased', c['unreleased'], 'heroes in development'))
     elif p.get('release'):
         # a hero's release: its post announces the hero, whose kit is the release itself (match.release_pass); the
-        # rest of the build came without notes ("1 announced in earlier notes" read the release row, review 2026-10-17)
+        # rest of the build is what the post left out — the eye's count, as on the home page and the patch list
+        # ("1 announced in earlier notes" read the release row, review 2026-10-17)
         audit = [('described', c.get('documented', 0) + c.get('described', 0), 'released with the hero'),
-                 ('hidden', c.get('unannounced', 0), 'other changes, no official notes')]
+                 ('hidden', c.get('not_in_notes', 0), 'other changes, no official notes')]
     else:
         audit = [('hidden', c.get('unannounced', 0), 'changes, no official notes')]
         if c.get('documented'):
             audit.append(('documented', c['documented'], 'announced in earlier notes'))
+    if not p.get('sections') and c.get('unreleased'):
+        # every counted row in one bucket: Nurse Harrow's pre-release tuning was in neither of Paint the Town's two
+        # (25 + 12 under 38 changes; review 2026-10-17, round 4)
+        audit.append(('unreleased', c['unreleased'], 'heroes in development'))
     off = off_pages(c)
     html = ''
     for k, n, lbl in audit:
@@ -280,6 +285,11 @@ def _key_changes(p: dict, rel: str, only_hidden: bool = False) -> str:
     return f'<h2>Biggest changes</h2><table class="hist big px-frame">{trs}</table>'
 
 
+# a release's lines: its kit is "released with the hero" (the summary's words), the rest keeps its own mark's words
+RELEASE_WORDS = 'Released with the hero: its announcement covers it'
+RELEASE_MARKS = {'described': RELEASE_WORDS, 'documented': RELEASE_WORDS}
+
+
 def _generated_notes(p: dict, only_hidden: bool = False, pages: frozenset[str] | None = None) -> str:
     """Valve-style notes written from the files (`written_notes`): exactly the rows the patch's counters count
     (`patch_counts.counted_rows`, console variables too), each line with its tag and the values the entity pages
@@ -292,7 +302,10 @@ def _generated_notes(p: dict, only_hidden: bool = False, pages: frozenset[str] |
     rows = [(e, c, on) for e, c, on in counted_rows(p, pages) if not only_hidden or not_in_notes(c)]
     if not rows:
         return ''
-    body, _ = notes_html(rows, _display_name, hero_names())
+    # a hero's release: its kit and what its post left out in one list, each line with its mark (an update with no
+    # post at all has one status, said once by the page)
+    marks = RELEASE_MARKS if p.get('release') and not only_hidden else None
+    body, _ = notes_html(rows, _display_name, hero_names(), marks)
     intro = ("Valve's patch notes do not mention these changes; every line below is read from the game files."
              if only_hidden else 'Valve published no patch notes for this update; every line below is read from '
                                  'the game files.')
@@ -564,7 +577,9 @@ def _index_row(p: dict, stats: dict, rel: str, follow: bool) -> str:
     names = hero_names()
     faces = ''.join(f'<img class="px" src="{esc(hero_icon(h, rel) or "")}" alt="" loading="lazy" '
                     f'data-tooltip="{esc(names.get(h, h))}">' for h in st['heroes'][:INDEX_HEROES] if hero_icon(h, rel))
-    if p.get('has_notes'):
+    # a hero's release is checked against its post: the eye and the bar's hidden part, not "no notes" (review
+    # 2026-10-17, round 4: Paint the Town read 0% not in notes over Solomon's silent rework)
+    if checks_notes(p):
         audit = (f'<span class="au">{mark("documented")}<b>{c.get("documented", 0)}</b></span>'
                  f'<span class="au au-hidden">{mark("hidden")}<b>{c.get("not_in_notes", 0)}</b></span>')
         if p['line_counts'].get('mismatch'):

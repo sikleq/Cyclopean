@@ -1715,6 +1715,9 @@ h3.gn-h .n { font-size: var(--fs-xl); color: var(--text-dim); margin-left: 6px; 
 ul.gen-notes { margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
 ul.gen-notes li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
 ul.gen-notes li .tag { flex: none; }
+/* a hero release's lines lead with their status mark (written_notes `marks`): an empty box sits on the baseline by
+   its bottom edge, above the text's middle — drawn 3px lower, the line itself unmoved */
+ul.gen-notes li > .mark { position: relative; top: 3px; }
 ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 /* phones: a notes row puts its values under the text; an ability header wraps (both widened the page) */
 @media (max-width: 600px) {

@@ -122,13 +122,26 @@ def _placed_rows(p: dict, pages: frozenset[str] | set[str] | None = None):
     home icons a PAGE row sits (one edit over several heroes or units: on each of theirs, once in the count)."""
     from .cards import gameplay_entities, player_facing
     from .game_systems import place_all_row
+    from .hero_page import every_history_fold, repeats_dropped
     from .render import same_change
     from .shared_rows import spread
     if pages is None:
         pages = page_set()
     once: set[tuple] = set()
-    for e in drop_inherited(gameplay_entities(p['entities']), pages):
-        rows = player_facing(e['changes'])
+    ents = drop_inherited(gameplay_entities(p['entities']), pages)
+    # a nameless part or an alt fire whose rows repeat its parent's / gun's: the hero's page says them once
+    # (hero_page.history_folds), and so do its band, the home icon and the change matrix — the patch page counted
+    # them again (Violet: 17 on the home page, 19 on Paint the Town's hero chip; review 2026-10-17, round 4)
+    folds = every_history_fold()
+    of_abil: dict[str, list[dict]] = {}
+    for e in ents:
+        if e['file'] == 'abilities.vdata':
+            of_abil.setdefault(e['id'], []).extend(e['changes'])
+    for e in ents:
+        rows = e['changes']
+        if e['file'] == 'abilities.vdata' and e['id'] in folds:
+            rows = repeats_dropped(rows, of_abil.get(folds[e['id']], []))
+        rows = player_facing(rows)
         if not rows:
             continue
         group, on_page = _counted_as(e, pages)
