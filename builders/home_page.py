@@ -349,7 +349,6 @@ def hero_tile(heroes: list[dict]) -> tuple[int, int]:
 
 def build_all() -> int:
     patches = archive.index()
-    builds = load_json('builds/index.json')
     heroes = load_json('tables/heroes.json')['heroes']
     ents = load_json('entities.json')['entities']
     names = {f"{e['file']}:{e['id']}": display_name(e) for e in ents}
@@ -364,7 +363,6 @@ def build_all() -> int:
     from .patch_counts import for_id, page_set
     total = sum(for_id(row['id'])['changes'] - for_id(row['id']).get('unreleased', 0) for row in patches)
     total_hidden = sum(for_id(row['id'])['not_in_notes'] for row in patches)
-    last_build = builds[-1] if builds else None
     # (a removed item's last known card, `last`, is no item on sale)
     shop = [c['item'] for c in load_json('abilities.json')['abilities'].values() if c.get('item') and not c.get('last')]
     n_released, n_pre = hero_tile(heroes)
@@ -401,7 +399,7 @@ def build_all() -> int:
 <h2 class="home-h">Latest changes</h2>
 {_feed(patches, names, templates, unit_main, page_set())}
 '''
-    write('index.html', page('Deadlock change history', body, '', '', build=last_build['build'] if last_build else None,
+    write('index.html', page('Deadlock change history', body, '', '',
                              description='What changed on every Deadlock hero, item, unit and game rule, from the game '
                                          'files: exact values and the changes the notes leave out.'))
     write('changelog.html', changelog_page())

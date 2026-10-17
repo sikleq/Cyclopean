@@ -319,7 +319,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
 /* active = bone text on a copper underline, not a filled block */
 .nav-tab.active { color: var(--text-bright); box-shadow: inset 0 -3px 0 var(--patina); }
 .nav-build { justify-self: end; font: 18px/1 var(--font-label); color: var(--label); letter-spacing: .06em;
-  padding: 4px 10px 3px; box-shadow: inset 0 0 0 1px var(--frame-line); }
+  padding: 4px 10px 3px; box-shadow: inset 0 0 0 1px var(--frame-line); white-space: nowrap; }
+/* the newest game build in the data, on every page: it opens that build's page (common.build_badge) */
+a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-shadow: inset 0 0 0 1px var(--patina); }
 
 /* ---------- 05. Page shell ---------- */
 .page { max-width: var(--content-w); margin: 0 auto; padding: 18px var(--gutter) 60px; }
