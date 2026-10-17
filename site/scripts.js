@@ -1995,6 +1995,30 @@
     });
   });
 
+  /* ---------- --stick-h: how tall the toolbar stuck under the site bar is, for the anchored targets' scroll-margin
+     (styles.css: a patch page's cards and tab panels). The home page's "12 not in patch notes" landed Deadman Danny's
+     card head under a patch page's filter bar, the rows without their hero (review 2026-10-17). Several bars stick at
+     one top (a patch page's tabs and its panel's own bar): the tallest one shown counts. `window.__stickH` re-measures
+     at once — the tabs module calls it when it opens a panel, before it scrolls to a card ---------- */
+  safe('sticky-h', function () {
+    var bars = document.querySelectorAll('.toolbar');
+    if (!bars.length) return;
+    var root = document.documentElement, last = null, pending = false;
+    function measure() {
+      pending = false;
+      var h = 0;
+      bars.forEach(function (b) {
+        if (b.getClientRects().length && getComputedStyle(b).position === 'sticky') h = Math.max(h, b.offsetHeight);
+      });
+      if (h !== last) { last = h; root.style.setProperty('--stick-h', h + 'px'); }
+    }
+    function later() { if (!pending) { pending = true; requestAnimationFrame(measure); } }
+    measure();
+    window.__stickH = measure;
+    window.addEventListener('resize', later, { passive: true });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
+  });
+
   /* ---------- #p-<patch>: a history band named in the address — or clicked on this page (a strip tile,
      an ability card's trail square or its last change) — opens and comes into view, even when a filter
      or "Before release" hid it and even when the address already names it ---------- */
@@ -2078,6 +2102,7 @@
         if (on) reveal(b);
       });
       document.querySelectorAll('.tab-panel').forEach(function (p) { p.classList.toggle('on', p.id === id); });
+      if (window.__stickH) window.__stickH();      // the panel's own bar may be taller: before any scroll to a card
     }
     buttons.forEach(function (b) {
       b.addEventListener('click', function () {

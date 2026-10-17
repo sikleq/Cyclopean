@@ -375,6 +375,7 @@ a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-sh
   background: var(--bg-panel);
   border-bottom: var(--px) solid var(--line);
   margin: 0 0 18px;
+  scroll-margin-top: var(--nav-h);      /* a bar scrolled to (#hidden) stops at its stuck place, under the site bar */
 }
 .toolbar .sep { width: 2px; height: 26px; background: var(--line); margin: 0 4px; }
 /* a phone: an index's toolbar scrolls away like a table's (stuck, it took 96px for a search box), and the separators
@@ -559,7 +560,9 @@ a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }
 }
 .ecard.plain { background: var(--bg-panel); column-span: all; margin-bottom: 16px; }
 /* a card an entity page's "patch ↗" lands on (#n- / #c-): its head clears the site bar and the sticky tabs */
-.ecard[id], .ecard > .anc { scroll-margin-top: calc(var(--nav-h) + 72px); }
+/* … and the toolbar stuck under it, however tall it wraps (scripts.js sticky-h measures --stick-h): the home page's
+   chip landed a card's head under a patch page's two-row filter bar on a phone (review 2026-10-17) */
+.ecard[id], .ecard > .anc, .tab-panel[id] { scroll-margin-top: calc(var(--nav-h) + var(--stick-h, 64px) + 8px); }
 /* a shared edit's card stands for each target without a card of its own (patches_pages.shared_anchor_ids) */
 .ecard > .anc { display: block; height: 0; }
 /* one header height for every card (design review: 70px and 44px headers side by side looked
