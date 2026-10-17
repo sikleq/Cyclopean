@@ -742,7 +742,8 @@ def test_change_matrix_rows_cells_and_switches(monkeypatch):
     assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
     assert '--n-all:2;--n-new:1' in html
     # a tile opens the row's own page at that patch, not the patch page (off the bar since 10-03)
-    assert 'href="hero_atlas.html#p-p2"' in html and 'tr class="extra"' in html
+    # (`nh nhn`: nothing of it left out of the notes, out of sight under "Not in patch notes")
+    assert 'href="hero_atlas.html#p-p2"' in html and 'tr class="extra nh nhn"' in html
     # the hover card's data: the cell's counts and its biggest changes, the number on the tile
     assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
     # one tile per cell (no split, owner 10-01); the part counts ride in the data for the filter

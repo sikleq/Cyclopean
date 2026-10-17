@@ -59,7 +59,10 @@ def _collect() -> dict:
     cells      {row key: {pid: {tag: n}}}
     parts      {row key: {pid: {part: {tag: n}}}}           (heroes: stats / weapon / abil)
     samples    {row key: {pid: [[what, field, old, new, tag, part, hidden], ...]}}
-    hidden     {row key: {pid: n}}                          (not in the notes: render.not_in_notes)"""
+    hidden     {row key: {pid: n}}                          (not in the notes: render.not_in_notes)
+    hcells     {row key: {pid: {tag: n}}}                   the cell's rows not in the notes, by tag …
+    hparts     {row key: {pid: {part: {tag: n}}}}           … and by part (heroes): the "Not in patch notes" filter
+    hsamples   {row key: {pid: [sample, ...]}}              the biggest of them, picked as `samples` are"""
     from . import archive
     from .render import not_in_notes
     from .cards import disambiguate, player_facing
@@ -75,6 +78,8 @@ def _collect() -> dict:
     parts: dict = {}
     raw: dict = {}
     hidden: dict = {}
+    hcells: dict = {}          # the same counts over the rows not in the notes only (the matrices' eye filter)
+    hparts: dict = {}
     weighed: dict = {}         # {row key: {pid: [rows]}}: the cell's net mark (weights.net_of)
     once: set = set()
     from .game_systems import (convar_changes, convar_start, heir_sig, heir_sigs, is_template, name_of, place,
@@ -180,31 +185,56 @@ def _collect() -> dict:
                     hid = int(bool(not_in_notes(c)))
                     if hid:
                         hidden.setdefault(key, {})[r['id']] = hidden.get(key, {}).get(r['id'], 0) + 1
+                        hcell = hcells.setdefault(key, {}).setdefault(r['id'], {})
+                        hpart = hparts.setdefault(key, {}).setdefault(r['id'], {}).setdefault(part, {})
+                        for d in (hcell, hpart):
+                            d[t] = d.get(t, 0) + 1
                     s = (what, c.get('label') or '', *_sample_values(c),
                          t, part, abs(c['pct']) if isinstance(c.get('pct'), (int, float)) else 0, hid)
                     raw.setdefault(key, {}).setdefault(r['id'], []).append(s)
     samples: dict = {}
+    hsamples: dict = {}
     for k, per in raw.items():
+        limit = SAMPLES if k.startswith('hero:') else SAMPLES_ONE
         for pid, lst in per.items():
-            ranked = sorted(lst, key=lambda x: (-x[6], TAG_ORDER.get(x[4], 9)))
-            picked, seen = [], {}
-            limit = SAMPLES if k.startswith('hero:') else SAMPLES_ONE
-            for x in ranked:                      # the biggest per part, the parts in their order
-                if seen.get(x[5], 0) < limit:
-                    seen[x[5]] = seen.get(x[5], 0) + 1
-                    picked.append([*x[:6], x[7]])
+            ranked = _ranked(lst)
+            picked = _pick(ranked, limit)
             # a cell whose card says "N not in patch notes" shows one of them (review 2026-10-05: the biggest by %
             # were all in the notes)
             if picked and not any(x[6] for x in picked):
                 first = next((x for x in ranked if x[7]), None)
                 if first is not None:
                     picked[-1] = [*first[:6], first[7]]
-            order = {p: i for i, (p, _) in enumerate(PARTS)}
-            samples.setdefault(k, {})[pid] = sorted(picked, key=lambda x: order.get(x[5], 9))
+            samples.setdefault(k, {})[pid] = _by_part(picked)
+            # the card under the "Not in patch notes" filter: the biggest of the rows the notes left out
+            if any(x[7] for x in ranked):
+                hsamples.setdefault(k, {})[pid] = _by_part(_pick([x for x in ranked if x[7]], limit))
     # the cell's net weighs what the row's page band counts (weights.weighed_rows: no rule for all, no work before
     # release — every hero on a matrix is released or pre-release, so its page counts released rows only)
     nets = {k: {pid: net_of(cs) for pid, cs in per.items()} for k, per in weighed.items()}
-    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples, 'hidden': hidden, 'nets': nets}
+    return {'rows': rows, 'cells': cells, 'parts': parts, 'samples': samples, 'hidden': hidden, 'nets': nets,
+            'hcells': hcells, 'hparts': hparts, 'hsamples': hsamples}
+
+
+def _ranked(lst: list[tuple]) -> list[tuple]:
+    """A cell's rows, the biggest change (|%|) first, then by tag order."""
+    return sorted(lst, key=lambda x: (-x[6], TAG_ORDER.get(x[4], 9)))
+
+
+def _pick(ranked: list[tuple], limit: int) -> list[list]:
+    """The `limit` biggest per part, as card samples [what, field, old, new, tag, part, hidden]."""
+    picked, seen = [], {}
+    for x in ranked:
+        if seen.get(x[5], 0) < limit:
+            seen[x[5]] = seen.get(x[5], 0) + 1
+            picked.append([*x[:6], x[7]])
+    return picked
+
+
+def _by_part(picked: list[list]) -> list[list]:
+    """Samples in the parts' order (base stats, weapon, abilities), each part's biggest first."""
+    order = {p: i for i, (p, _) in enumerate(PARTS)}
+    return sorted(picked, key=lambda x: order.get(x[5], 9))
 
 
 def _net(counts: dict[str, int]) -> str:
@@ -302,6 +332,19 @@ def _head(rows: list[dict], cutoff: str, label: str) -> str:
             f'<tr class="cols"><th class="name">{esc(label)}</th>{sub}</tr></thead>')
 
 
+def _hidden_tail(d: dict, key: str, pid: str, counts: dict[str, int], n_hid: int, hero: bool) -> list:
+    """The cell's data for the "Not in patch notes" filter (scripts.js dyn-parts / dyn-tip), after its six fields:
+    nothing when no row or every row is out of the notes (the filter reads the cell's own counts, parts and samples
+    then — most 2026 cells), else [counts by tag, counts by part (heroes; 0 otherwise), samples (0 when they are the
+    cell's own samples that carry the eye)] of those rows only."""
+    if not n_hid or n_hid == sum(counts.values()):
+        return []
+    hs = d.get('hsamples', {}).get(key, {}).get(pid, [])
+    own = [s for s in d['samples'].get(key, {}).get(pid, []) if s[6]]
+    return [d.get('hcells', {}).get(key, {}).get(pid, {}),
+            d.get('hparts', {}).get(key, {}).get(pid, {}) if hero else 0, 0 if hs == own else hs]
+
+
 def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str) -> str:
     """entries: (row key, display name, icon url, page href, extra row class)."""
     d = _collect()
@@ -309,6 +352,7 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
     nets = d.get('nets', {})
     cutoff = (date.fromisoformat(rows[-1]['date'][:10]) - timedelta(days=OLD_DAYS)).isoformat() if rows else ''
     pidx = {r['id']: i for i, r in enumerate(rows)}
+    pdate = {r['id']: r['date'] for r in rows}
     tips: list = []
     body: list[str] = []
 
@@ -328,7 +372,8 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
             # [patch, counts, samples, {part: {tag: n}} for the hero filter or None, not in the notes,
             #  net mark 'buff' / 'nerf' / 'mix' / '' (weights.net_of; scripts.js reads it, never re-weighs)]
             entry = [pidx[r['id']], counts, samples.get(key, {}).get(r['id'], []),
-                     part_of_cell.get(r['id'], {}) if part_of_cell is not None else None, n_hid, mark]
+                     part_of_cell.get(r['id'], {}) if part_of_cell is not None else None, n_hid, mark,
+                     *_hidden_tail(d, key, r['id'], counts, n_hid, part_of_cell is not None)]
             tips.append(entry)
             # the row's own page at that patch (patch pages are off the bar since 2026-10-03)
             out.append(_cell(counts, f'{href}#p-{r["id"]}', len(tips) - 1, old, n_hid, mark))
@@ -345,7 +390,12 @@ def matrix_html(entries: list[tuple[str, str, str | None, str, str]], kind: str)
         img = (visual(None, ic[6:], 'mx-g') if ic and ic.startswith('glyph:') else
                f'<img src="{esc(ic)}" alt="" loading="lazy">' if ic else '')
         ic = '' if ic and ic.startswith('glyph:') else ic
-        body.append(f'<tr class="{esc(extra)}"{attrs} data-search="{esc(name.lower())}" data-name="{esc(name)}" '
+        # a row with nothing the notes left out: out of sight under "Not in patch notes" (facts, not a :has()) — `nh`
+        # none at all, `nhn` none in the columns shown without "Older patches"
+        mine_hid = [pid for pid, n in hidden.get(key, {}).items() if n]
+        new_hid = any(pid in pdate and pdate[pid] >= cutoff for pid in mine_hid)
+        cls = ' '.join(c for c in (extra, '' if mine_hid else 'nh', '' if new_hid else 'nhn') if c)
+        body.append(f'<tr class="{esc(cls)}"{attrs} data-search="{esc(name.lower())}" data-name="{esc(name)}" '
                     f'data-icon="{esc(ic or "")}"><td class="name"><a href="{esc(href)}">{img}{esc(name)}</a></td>'
                     f'{tds(key, mine, href, parts.get(key, {}) if kind == "hero" else None)}</tr>')
     data = {'patches': [[r['date'][:10], patch_title_text(r), bool(patch_name(r['title']))] for r in rows],
@@ -391,14 +441,27 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
         parts_filter = ('<span class="sep"></span><span class="dyn-parts">' + ''.join(
             f'<button class="px-btn{" on" if p == "all" else ""}" data-part="{p}" data-target="{target}" aria-pressed="{"true" if p == "all" else "false"}">{esc(lbl)}</button>'
             for p, lbl in (('all', 'All'),) + PARTS) + '</span>' + parts_filter)
+    # what Valve did not say, as on an entity page's history bar: every tile redrawn from its rows not in the patch
+    # notes only (scripts.js dyn-parts; "#hidden" presses it, dyn-url). The orange top sat on nearly every 2026 hero
+    # tile and said nothing; the legend says what it means (review 2026-10-17)
+    hid_btn = (f'<button class="px-btn dyn-hid" data-target="{target}" aria-pressed="false">{EYE_MARK}'
+               f'Not in patch notes</button><span class="sep"></span>')
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
-            + filters_fold(f'<span class="sep"></span>'
+            + filters_fold(f'<span class="sep"></span>{hid_btn}'
                            f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'
                            f'<span class="track"></span>Older patches</label>'
                            f'<label class="switch"><input type="checkbox" data-toggle-class="bvn" data-target="{target}">'
                            f'<span class="track"></span>Buff vs nerf</label>{rows_switch}{parts_filter}'
-                           f'<span class="sep"></span><span class="dyn-tags">{tags}</span>')
+                           f'<span class="sep"></span><span class="dyn-tags">{tags}</span>'
+                           f'<span class="sep"></span>{cap_key()}')
             + '</div>')
+
+
+def cap_key() -> str:
+    """The tiles' orange top in words, once on a page that draws them (a change matrix's bar, an entity page's patch
+    strip): a small tile with the top, and what it means (review 2026-10-17: unexplained on every page)."""
+    return ('<span class="cap-key"><i class="ck-tile" aria-hidden="true"></i>'
+            'some changes not in patch notes</span>')
 
 
 def hero_entries(heroes: list[dict], rel: str, trow: dict | None = None) -> list[tuple]:

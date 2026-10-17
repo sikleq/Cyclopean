@@ -416,6 +416,17 @@
     });
   });
 
+  /* a change-matrix cell's rows not in the patch notes (builders/dynamics_page._hidden_tail): counts by tag, by part
+     (heroes) and samples. A cell with none hidden is empty; one with every row hidden reads its own counts, parts and
+     the samples that carry the eye (s[6]) — the build writes the three only when they differ. `withSamples`: the
+     hover card's; a redraw of ~1.5k tiles needs the counts only */
+  var NO_HIDDEN = { counts: {}, parts: null, samples: [] };
+  function dynHidden(c, withSamples) {
+    if (!c[4]) return NO_HIDDEN;
+    return { counts: c[6] || c[1], parts: c[7] || c[3],
+             samples: withSamples ? c[8] || c[2].filter(function (s) { return s[6]; }) : null };
+  }
+
   /* ---------- hover cards: what a patch did. ONE renderer for a change-matrix cell, an entity page's strip
      tile (the whole patch) and an ability card's trail square (that ability in the patch): head, counts by
      tag, "N not in patch notes", the biggest changes grouped by ability, a foot. Each page's JSON is parsed
@@ -497,10 +508,12 @@
       var k = a.getAttribute('data-k');
       if (!d || k === null) return null;
       var c = d.cells[+k], p = d.patches[c[0]], tr = a.closest('tr');
-      var counts = c[1], samples = c[2];
+      // "Not in patch notes": the card says what the tile shows — those rows only, their biggest changes
+      var only = table.classList.contains('only-hid'), h = only ? dynHidden(c, true) : null;
+      var counts = only ? h.counts : c[1], samples = only ? h.samples : c[2], parts = only ? h.parts : c[3];
       var part = table.getAttribute('data-part') || 'all';
       if (part !== 'all' && c[3]) {             // the filter: only this part's counts and changes
-        counts = c[3][part] || {};
+        counts = (parts || {})[part] || {};
         samples = samples.filter(function (s) { return s[5] === part; });
       }
       // chosen tags: the card says what the tile shows (the tile kept only BUFF's stripe, the card every tag)
@@ -525,10 +538,12 @@
           '<td class="dt-field">' + (s[6] ? '<span class="dt-e">' + d.eye + '</span>' : '') + txt(s[1]) +
           '</td><td class="dt-vals">' + valsHtml(s[2], s[3], s[4]) + '</td></tr>';
       });
-      // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered
+      // how many the notes left out: the whole cell's (a part or tag filter does not split it), so only unfiltered;
+      // under "Not in patch notes" every count shown is one
       var whole = part === 'all' && !sel.length;
       return card({ icon: tr.getAttribute('data-icon'), name: tr.getAttribute('data-name'), patch: p[1], named: p[2],
-                    counts: counts, net: whole ? c[5] : '', hidden: whole ? c[4] : 0, d: d, rows: rows,
+                    counts: counts, net: whole && !only ? c[5] : '', hidden: only ? total(counts) : whole ? c[4] : 0,
+                    d: d, rows: rows,
                     more: total(counts) - samples.length,
                     foot: 'click for its history at this patch' });
     }
@@ -748,23 +763,31 @@
       var sel = table.__sel || [];
       var hidden = sel.length ? order.filter(function (t) { return sel.indexOf(t) < 0; }) : [];
       var showOld = table.classList.contains('show-old'), showExtra = table.classList.contains('show-extra');
+      // "Not in patch notes" (the bar's eye button): each tile is drawn from its rows the notes left out only
+      var only = table.classList.contains('only-hid');
+      function pick(counts, parts) { return part === 'all' ? counts : ((parts || {})[part] || {}); }
+      function sum(counts) {
+        var n = 0;
+        order.forEach(function (t) { if (counts[t] && hidden.indexOf(t) < 0) n += counts[t]; });
+        return n;
+      }
       list.forEach(function (pair) {
         var a = pair[0], c = pair[1];
         if (onlyDirty && !pair[4]) return;
-        var counts = part === 'all' ? c[1] : ((c[3] || {})[part] || {});
         if ((pair[2] && !showOld) || (pair[3] && !showExtra)) { pair[4] = true; return; }
         pair[4] = false;
-        var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = 0;
-        tags.forEach(function (t) { total += counts[t]; });
+        var h = dynHidden(c), hc = pick(h.counts, h.parts);
+        var counts = only ? hc : pick(c[1], c[3]);
+        var tags = order.filter(function (t) { return counts[t] && hidden.indexOf(t) < 0; }), total = sum(counts);
         var good = (counts.buff || 0) + (counts['new'] || 0) + (counts.on || 0);
         var bad = (counts.nerf || 0) + (counts.del || 0) + (counts.off || 0);
         // unfiltered, the cell's weighed net as the build marked it (builders/weights.net_of: c[5] = 'buff' / 'nerf' /
         // 'mix' / '' — the rule lives there only); a filter falls back to which side has more rows
-        var whole = part === 'all' && !sel.length, w = c[5];
+        var whole = part === 'all' && !sel.length && !only, w = c[5];
         var net = whole && w != null ? 'net-' + (w || 'mix')
           : good > bad ? 'net-buff' : bad > good ? 'net-nerf' : 'net-mix';
-        var cls = 'dsq ' + (!total ? 'part-out' : net) +
-          (total && c[4] && whole ? ' hid' : '');      // the built eye, while unfiltered
+        // the orange top: the tile shows a row the notes left out (under any filter: the part's and tags' own)
+        var cls = 'dsq ' + (!total ? 'part-out' : net) + (total && sum(hc) ? ' hid' : '');
         // write only what changed: a text or class write re-lays the tile out
         if (a.className !== cls) a.className = cls;
         if (!total) return;
@@ -795,6 +818,19 @@
         if (i >= 0) sel.splice(i, 1); else sel.push(tag);
         // chosen = aria-pressed: the class "on" is the ON tag's colour (a chosen NERF turned green)
         btn.setAttribute('aria-pressed', i < 0 ? 'true' : 'false');
+        redraw(table);
+      });
+    });
+    // "Not in patch notes": the tiles of the rows the notes left out only (a row with none goes: `tr.nh`, built);
+    // pressed = `.on` too, as the part and row buttons
+    document.querySelectorAll('.dyn-bar .dyn-hid[data-target]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var table = document.querySelector(btn.getAttribute('data-target'));
+        if (!table) return;
+        var on = !table.classList.contains('only-hid');
+        table.classList.toggle('only-hid', on);
+        btn.classList.toggle('on', on);
+        btn.setAttribute('aria-pressed', on ? 'true' : 'false');
         redraw(table);
       });
     });

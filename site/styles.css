@@ -881,8 +881,8 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 .hist-bar .hf-tags, .hist-bar .hf-areas, .hist-bar .hf-abs { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .hist-bar .hf-tags .tag { min-width: 0; padding: 5px 4px 4px 6px; letter-spacing: 0; }
 .hist-bar .px-btn { padding: 5px 8px 6px; font-size: var(--fs-sm); }
-.hf-hidden .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
-.hf-hidden .mark::before { width: 14px; height: 14px; }
+.hf-hidden .mark, .dyn-hid .mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; color: var(--eye); }
+.hf-hidden .mark::before, .dyn-hid .mark::before { width: 14px; height: 14px; }
 .hf-hidden .n { color: var(--eye); margin-left: 4px; }
 .hist-bar .hf-dev .mark { width: 14px; height: 14px; margin-right: 5px; vertical-align: -2px; }
 .hist-bar .hf-dev .n { color: var(--dev); margin-left: 4px; }
@@ -2043,6 +2043,9 @@ table.dyn:not(.show-old) .old { display: none; }
 table.dyn.show-old thead th.dm.cont { --ml-c: transparent; color: transparent; border-left-color: transparent; }
 table.dyn:not(.show-extra) tr.extra { display: none; }
 table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
+/* "Not in patch notes" (dynamics_page.toolbar .dyn-hid): a row the notes never left anything out of goes (`nh`, built),
+   one with nothing of it in the newer columns while the older ones hide (`nhn`) */
+table.dyn.only-hid tr.nh, table.dyn.only-hid:not(.show-old) tr.nhn { display: none; }
 .dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .dyn-bar { flex-wrap: wrap; row-gap: 8px; }
 .dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
@@ -2115,6 +2118,11 @@ table.stats td.name .it-act { margin: 0 0 0 6px; }
 .dsq.s-mech { background: var(--tag-mech); }
 .dsq.s-changed { background: var(--tag-changed); }
 /* the count and the eye edge: the strip tile's (07a, `.ps-tile .dn, .dsq .dn`) */
+/* the orange top in words (dynamics_page.cap_key: a matrix's bar, an entity page's strip): a small tile with the top */
+.cap-key { display: inline-flex; align-items: center; gap: 6px; font: 500 var(--fs-xs)/1 var(--font-ui);
+  color: var(--text-dim); white-space: nowrap; }
+.cap-key .ck-tile { flex: none; width: 12px; height: 12px; background: var(--tag-changed); border-top: 3px solid var(--eye);
+  box-shadow: inset 0 0 0 1px var(--bg-page); }
 .dsq:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; transform: translateY(-1px); }
 table.dyn th, table.dyn td { border-bottom: 1px solid var(--grid); }
 table.dyn thead tr.cats th { text-align: center; border-left: 1px solid var(--grid-strong); }
