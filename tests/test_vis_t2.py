@@ -207,8 +207,10 @@ def test_unit_stats_tables_start_at_their_bands_left_edge(browser, tmp_path):
                             ".map(e => Math.round(e.getBoundingClientRect().left))")
         # each box hugs its table, or the room it has when the table is wider (the fonts decide which: CI's Linux
         # fonts made the 16-column table wider than the page, 2026-10-17)
-        boxes = pg.evaluate("[...document.querySelectorAll('.table-fade')].map(e => [e.getBoundingClientRect().width,"
-                            " e.querySelector('table').getBoundingClientRect().width, e.parentNode.clientWidth])")
+        boxes = pg.evaluate("[...document.querySelectorAll('.table-fade')].map(e => { const p = getComputedStyle("
+                            "e.parentNode); return [e.getBoundingClientRect().width, e.querySelector('table')"
+                            ".getBoundingClientRect().width, e.parentNode.clientWidth - parseFloat(p.paddingLeft)"
+                            " - parseFloat(p.paddingRight)]; })")
         assert len(set(lefts)) == 1, lefts
         for box, table, room in boxes:
             assert abs(box - min(table, room)) < 8, (box, table, room)          # the box's own frame
