@@ -333,6 +333,10 @@ a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-sh
    build page's cards are the same one column (`column`, common.page) */
 .page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
 .page.column { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
+/* the site changelog: one centred column of prose, lines of ~80 characters (they ran ~1370px, ~200 characters at
+   1440: review 2026-10-17) */
+.page.changelog { max-width: calc(80ch + 2 * var(--gutter) + 40px); }
+.page.changelog .section-title .dimmer { white-space: nowrap; }      /* a date is one word */
 .page-head { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
 .page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
 .page-head .meta { color: var(--text-dim); font-size: 14px; }

@@ -413,4 +413,5 @@ def changelog_page() -> str:
         items = ''.join(f'<li><span class="lbl">{esc(i)}</span></li>' for i in e['items'])
         parts.append(f'<section class="section px-frame"><h3 class="section-title">{esc(e["title"])}'
                      f'<span class="dimmer">{esc(e["date"])}</span></h3><ul class="change-list">{items}</ul></section>')
-    return page('Site changelog', ''.join(parts), '', '')
+    # one column of readable lines (common.page cls: styles.css .page.changelog)
+    return page('Site changelog', ''.join(parts), '', '', cls='changelog')
