@@ -331,7 +331,9 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px
    build page's cards are the same one column (`column`, common.page) */
 .page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
 .page.column { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
-.page-head { display: flex; gap: 18px; align-items: center; margin-bottom: 18px; }
+/* an entity's patch strip wraps to the head's own row (.page-head > .head-strip, 07a) */
+.page-head { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-bottom: 18px; }
+.page-head > div:not(.head-strip) { flex: 1 1 0; min-width: 0; }     /* the name block stays beside the icon */
 .page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
 .page-head .meta { color: var(--text-dim); font-size: 14px; }
 .page-head .meta b { color: var(--text-main); font-weight: 600; }
@@ -816,10 +818,18 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 @media (max-width: 760px) { .ps-tile .dn { padding: 0 1px; font-size: 9px; line-height: 11px; } }
 .ps-tile:hover, .ps-tile:focus-visible { z-index: 2; transform: scale(1.18); outline: 2px solid var(--text-bright); outline-offset: 1px; }
 @media (max-width: 760px) { .ps-tile:nth-last-child(n+16) { display: none; } }
-/* on a hero, item or unit page the strip is the row under the head (history_view.head_strip): the first screen
-   shows what changed, as Sloppy's head row does (review 2026-10-05) */
-.head-strip { margin: -4px 0 14px; }
-.head-strip .patch-strip { margin: 0; }
+/* on a hero, item, unit or Game page the strip is the head's last row, under the name and its chips, after a small
+   "Patches" label (history_view.head_strip): the first screen shows what changed, as Sloppy's header band does —
+   two or three tiles alone under the portrait read as leftovers (visual pass 2026-10-17, round 2). A phone gives it
+   the head's whole width */
+.head-strip { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.head-strip .hs-l { flex: none; font: 16px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.head-strip .patch-strip { flex: 1 1 auto; min-width: 0; margin: 0; }
+.hero-head > .head-strip { grid-column: 2; margin-top: 6px; }
+/* at the name's edge: the icon, its frame's margins, the gap */
+.page-head > .head-strip { flex: 1 1 100%; margin-left: calc(96px + 2 * var(--px) + 18px); }
+@media (max-width: 980px) { .hero-head > .head-strip { grid-column: 1 / -1; margin-top: 12px; } }
+@media (max-width: 600px) { .page-head > .head-strip { margin-left: 0; } }
 /* the entity page's history (builders/history_view.py, owner 2026-10-03): one mark only — the eye on
    what the notes left out; work on a hero in development behind "In development"; filters (scripts.js) */
 .hblocks .erow:not(.is-hidden):not(.st-unreleased):not(.st-unannounced) .st .mark { visibility: hidden; }
@@ -1198,9 +1208,9 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 /* ---------- 09b. Entity pages: hero head, stat tables, ability cards, history table ---------- */
 /* portrait | name, chips, "First seen" over the key stats; under 980px the stats take the whole width below and the
    portrait keeps the name beside it, as an item's or a unit's head does (it stood alone over 250-600px of nothing) */
-.hero-head { display: grid; grid-template-columns: 150px minmax(0, 1fr); grid-template-rows: auto 1fr; gap: 0 18px;
+.hero-head { display: grid; grid-template-columns: 150px minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 0 18px;
   align-items: start; margin-bottom: 16px; }
-.hero-head .portrait { grid-row: 1 / span 2; width: 150px; aspect-ratio: 280 / 380; object-fit: cover; background: var(--bg-panel-2); }
+.hero-head .portrait { grid-row: 1 / span 3; width: 150px; aspect-ratio: 280 / 380; object-fit: cover; background: var(--bg-panel-2); }
 .hero-head .hh-id { min-width: 0; }
 .hero-head .keystats { grid-column: 2; }
 /* a hero in development with no portrait in the files: the hero glyph, square and dim, not stretched to the frame */
@@ -1209,17 +1219,27 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .hero-head h1 { font-size: 40px; margin: 0; }
 .hero-head .meta { color: var(--text-dim); font-size: 13px; margin: 4px 0 10px; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; }
-/* 13-15 tiles (the movement and melee extras joined the head, review 2026-10-05): seven a row on a desktop; a short
-   last row stretches to the edge instead of ending in a hole (visual pass 2026-10-17: 7 + 6 left one, a phone's
-   3-wide rows left two) */
-.keystats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-.keystats > .keystat { flex: 1 1 104px; min-width: 0; }
-@media (min-width: 900px) { .keystats > .keystat { flex-basis: calc((100% - 6 * 6px) / 7 - 1px); } }
-/* values centred in their tile; the stat icon sits in the corner, "changed lately" is a corner notch */
-.keystat { position: relative; min-height: 62px; padding: 8px 6px 7px; background: var(--bg-panel-2); text-align: center; }
+/* 13-15 tiles (the movement and melee extras joined the head, review 2026-10-05): a real grid, so every row's columns
+   line up — the builder sets the columns (`--ks-c`: 13 → 7, 15 → 8) and how wide the first tile, Health, is so the
+   rows come out whole (`--ks-s`, hero_page.lead_span): no hole at the end, no stretched lone tile (visual pass
+   2026-10-17, round 2: 7 + 6 stretched tiles missed each other's columns, a phone's 13th spanned the screen) */
+.keystats { display: grid; grid-template-columns: repeat(var(--ks-c, 7), minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.keystats > .keystat:first-child { grid-column: span var(--ks-s, 1); }
+@media (max-width: 980px) {
+  .keystats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .keystats > .keystat:first-child { grid-column: span var(--ks-s5, 1); }
+}
+@media (max-width: 600px) {
+  .keystats { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .keystats > .keystat:first-child { grid-column: span var(--ks-s3, 1); }
+}
+/* the value on top, its label under it in the one tile label (key stats and every weapon tile): values share a line
+   across a row even when a label wraps; the stat icon sits in the corner, "changed lately" is a corner notch */
+.keystat { position: relative; min-width: 0; min-height: 62px; padding: 8px 6px 7px; background: var(--bg-panel-2); text-align: center; }
 .keystat .si { position: absolute; left: 7px; top: 7px; width: 14px; height: 14px; opacity: .85; }
 .keystat .v { font: 22px/1 var(--font-px); color: var(--text-bright); }
-.keystat .l { font: 16px/1.1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .04em; margin-top: 5px; white-space: nowrap; }
+.keystat .l, .wcell .l { font: 16px/1.1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .04em; }
+.keystat .l { margin-top: 5px; }
 .keystat.has-hist, .wcell.has-hist { cursor: help; }
 .keystat.has-hist.recent::after, .wcell.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
   border-top: 7px solid var(--patina); border-left: 7px solid transparent; }
@@ -1240,24 +1260,29 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wb-name { font: 24px/1.15 var(--font-px); color: var(--text-bright); margin: 2px 0 0; }
 .wb-name.unnamed { font-size: 17px; color: var(--text-dimmer); }
 .wb-desc { flex-basis: 100%; font-size: 13px; color: var(--text-dim); }
-/* six equal headline tiles, then the rest in even rows: the builder picks how many a row (`--wb-per`, rows balanced)
-   and a short last row stretches, so no row ends in a hole */
+/* six equal headline tiles, then the rest in whole rows of a grid: the builder picks how many a row (`--wb-per`, rows
+   balanced; `--wb-t` under 1100px) and how wide the first tile is so no row ends in a hole or a stretched tile, on
+   every screen (`--wb-s`, `--wb-st`, `--wb-s3`: hero_page.lead_span) — the columns line up row to row like the key
+   stats' */
 .wb-nums { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .wb-top { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.wb-cells { --wb-n: var(--wb-per, 6); display: flex; flex-wrap: wrap; gap: 6px; align-content: start; }
-.wb-cells > .wcell { flex: 1 1 calc((100% - (var(--wb-n) - 1) * 6px) / var(--wb-n) - 1px); min-width: 0; }
-/* weapon tiles: value centred over its label, the stat icon in the corner */
-.wcell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-  min-height: 52px; padding: 7px 8px 6px; background: var(--bg-panel); outline: 1px solid var(--line-soft); text-align: center; }
+.wb-cells { display: grid; grid-template-columns: repeat(var(--wb-per, 6), minmax(0, 1fr)); gap: 6px; }
+.wb-cells > .wcell { min-width: 0; }
+.wb-cells > .wcell:first-child { grid-column: span var(--wb-s, 1); }
+/* weapon tiles: the value on top, its label under it in the tile label every tile uses (key stats, the six headline
+   tiles, the rest: two fonts in two cases sat in one block — visual pass 2026-10-17, round 2); top-aligned, so a row's
+   values share a line when a label wraps on a phone. Every tile keeps the icon's corner slot: the game has no stat
+   icon for radius, spread, gravity or lifetime, and none is invented (AGENTS.md: icons only from the game's files) */
+.wcell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;
+  min-height: 52px; padding: 8px 8px 7px; background: var(--bg-panel); outline: 1px solid var(--line-soft); text-align: center; }
 .wcell .si { position: absolute; left: 6px; top: 6px; width: 14px; height: 14px; opacity: .85; }
 .wcell .v { font: 20px/1 var(--font-px); color: var(--text-bright); font-variant-numeric: tabular-nums; }
-.wcell .l { max-width: 100%; font-size: 12px; line-height: 1.25; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wcell .l { max-width: 100%; overflow-wrap: break-word; }
 .wcell.spirit .v { color: var(--tag-rework); }
 .wcell .v .u { margin-left: 2px; font: 15px/1 var(--font-label); color: var(--label); }
 .wcell.top { min-height: 72px; gap: 6px; padding: 10px 8px; background: var(--bg-panel-2); outline: 0; box-shadow: inset 0 -2px 0 var(--patina-dim); }
 .wcell.top .si { width: 18px; height: 18px; }
-.wcell.top .l { order: 2; font: 17px/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .05em; }
-.wcell.top .v { order: 1; font-size: 32px; }
+.wcell.top .v { font-size: 32px; }
 .wcell:hover { background: var(--bg-hover); }
 /* the gun's (and its alt fire's) last change, History link and trail — an ability card's head line */
 .wb-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 6px; font: 600 12px/1 var(--font-ui); }
@@ -1285,32 +1310,52 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wb-alt-cells .wcell .v { font-size: 17px; }
 .wb-alt-cells .wcell .v .u { font-size: 13px; }
 .wb-none { padding: 10px 12px; font-size: 13px; color: var(--text-dimmer); background: var(--bg-panel); outline: 1px solid var(--line-soft); }
-@media (max-width: 1100px) { .wb-top { grid-template-columns: repeat(3, minmax(0, 1fr)); } .wb-cells { --wb-n: 4; } }
-@media (max-width: 600px) { .wb-cells { --wb-n: 3; } }
+@media (max-width: 1100px) {
+  .wb-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wb-cells { grid-template-columns: repeat(var(--wb-t, 4), minmax(0, 1fr)); }
+  .wb-cells > .wcell:first-child { grid-column: span var(--wb-st, 1); }
+}
+@media (max-width: 600px) {
+  .wb-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .wb-cells > .wcell:first-child { grid-column: span var(--wb-s3, 1); }
+}
 
-/* stat groups: panels that share the width in even columns, left to right, a row's panels as tall as its tallest (three
-   280px panels centred in the box floated with dead gutters under a full-width console-variables panel; visual pass
-   2026-10-17); a lone panel lays its rows in columns like the console variables, so a label and its value stay close */
-.stat-flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); align-items: stretch;
-  gap: 12px; margin-bottom: 12px; }
-.stat-panel { min-width: 0; margin: 0; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--line-soft); }
-.stat-flow > .stat-panel:only-child:not(.now-cv) { columns: 330px auto; column-gap: 0; column-rule: 1px solid var(--line-soft); }
-.stat-flow > .stat-panel:only-child > h3 { column-span: all; }
-.stat-flow > .stat-panel:only-child .sc-row { break-inside: avoid; }
+/* what an entity is today (builders/now_values.py): a unit's stats, an item's sections, a Game system's entries and a
+   hero's other stats are ONE component — groups (a heading bar, maybe chips and a text, then label · value rows) flow
+   down columns like the console variables, 330px at least. A group stays whole where it fits; a long one (`.long`) and
+   a lone group's rows flow on. No box per group, so a short group leaves no empty frame, and each value sits at its
+   column's right edge (visual pass 2026-10-17, round 2: equal-height boxes with one row in a box made for six, values
+   floating mid-card, three-column lists leaving empty boxes) */
+.stat-flow { columns: 330px auto; column-gap: 24px; column-rule: 1px solid var(--line-soft); margin-bottom: 12px; }
+.stat-panel { min-width: 0; margin: 0 0 14px; break-inside: avoid; }
+.stat-flow > .stat-panel:last-child { margin-bottom: 0; }
+.stat-flow > .stat-panel.long, .stat-flow > .stat-panel:only-child { break-inside: auto; }
+/* a lone group: its heading and text across the width, its rows in the columns under them */
+.stat-flow > .stat-panel:only-child > h3, .stat-flow > .stat-panel:only-child > .vg-top { column-span: all; }
 .sc-row .v .u, .keystat .v .u, table.kvt td.v .u { margin-left: 2px; font: 13px/1 var(--font-label); color: var(--label); }
-.stat-panel h3 { margin: 0; padding: 7px 10px 6px; font-size: 15px; background: var(--bg-panel-2); }
-.sc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px; border-top: 1px solid var(--line-soft); font-size: 13px; }
+.stat-panel h3 { margin: 0; padding: 7px 10px 6px; font-size: 15px; background: var(--bg-panel-3); break-after: avoid; }
+/* a hero's other stats sit on the page, not in a fold's frame: the component's ground of its own */
+.now-open > .stat-flow { padding: 10px 12px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--line-soft); }
+/* an item section's header values (cooldown, duration…) and its text, between its heading and its rows */
+.stat-panel .vg-top { padding: 7px 10px 3px; break-inside: avoid; break-after: avoid; }
+.stat-panel .vg-hdr { gap: 4px; margin-bottom: 5px; }
+.stat-panel .vg-desc { margin-bottom: 4px; font-size: 13px; color: var(--text-dim); }
+.sc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px; border-top: 1px solid var(--line-soft);
+  font-size: 13px; break-inside: avoid; }
+.stat-panel > h3 + .sc-row, .stat-panel > .vg-top + .sc-row { border-top-color: transparent; }
 .sc-row:hover { background: var(--bg-hover); }
 .sc-row .k { display: flex; align-items: center; gap: 7px; color: var(--text-main); min-width: 0; }
-.sc-row .v { color: var(--text-bright); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sc-row .k > .si { width: 16px; height: 16px; }
+.sc-row .v { color: var(--text-bright); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.sc-row .v .scale { display: block; font-size: 11px; color: var(--tag-rework); }
 .sc-row .v.spirit { color: var(--tag-rework); }
 .sc-row .v.has-hist { cursor: help; }
 .sc-row .v.has-hist.recent::after { content: ""; display: inline-block; width: 4px; height: 4px; margin-left: 5px; vertical-align: 3px; background: var(--patina-dim); }
-/* a Game system's values today (builders/game_now.py): its entries' panels, then its console variables across the
-   width in columns (61 of Souls' in one 280px panel was a 1,500px column) */
+/* a Game system's values today (builders/game_now.py): its entries' groups, then its console variables across the
+   width, their rows in columns of their own (61 of Souls' in one 280px panel was a 1,500px column) */
 .now-flow { margin-bottom: 0; }
-.stat-panel.now-cv { grid-column: 1 / -1; }
-.cv-rows { columns: 330px auto; column-gap: 0; column-rule: 1px solid var(--line-soft); }
+.now-flow > .stat-panel.now-cv { margin-bottom: 0; }
+.cv-rows { columns: 330px auto; column-gap: 24px; column-rule: 1px solid var(--line-soft); }
 .cv-rows .sc-row { break-inside: avoid; }
 .cv-rows .sc-row .k code { min-width: 0; font-size: 12px; color: var(--text-main); overflow-wrap: anywhere; }
 .cv-rows .sc-row .v.has-hist { text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
@@ -1343,7 +1388,7 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-sub { font: 17px/1.2 var(--font-label); color: var(--text-dim); text-transform: uppercase; }
 .ability-card .ac-hdr { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0; }
 /* compact enough that the usual pair ("Cooldown 30s", "Cast time 0.2s") shares one line in a 270px card */
-.ability-card .ac-hdr .chip { gap: 4px; padding: 2px 5px 1px; font-size: 15px; letter-spacing: .02em; }
+.ability-card .ac-hdr .chip, .stat-panel .vg-hdr .chip { gap: 4px; padding: 2px 5px 1px; font-size: 15px; letter-spacing: .02em; }
 .ability-card .ac-desc { padding: 6px 10px; font-size: 13px; color: var(--text-dim); }
 .ability-card table.kvt td { padding: 3px 10px; }
 /* the scaling rides under its number on a line of its own (nowrap from td.v), so the label keeps its width:
@@ -1356,9 +1401,9 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .pi { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; object-fit: contain; flex: none; }
 .chip .pi { width: 13px; height: 13px; margin-right: 3px; }
 .chip b { color: var(--text-bright); font-weight: 700; text-transform: none; }   /* "42s", "20m", not "42S" */
-.p-tech_damage td.v, .chip.p-tech_damage b { color: var(--spirit); }
-.p-bullet_damage td.v, .chip.p-bullet_damage b { color: var(--weapon); }
-.p-healing td.v, .chip.p-healing b { color: var(--tag-buff); }
+.p-tech_damage td.v, .sc-row.p-tech_damage .v, .chip.p-tech_damage b { color: var(--spirit); }
+.p-bullet_damage td.v, .sc-row.p-bullet_damage .v, .chip.p-bullet_damage b { color: var(--weapon); }
+.p-healing td.v, .sc-row.p-healing .v, .chip.p-healing b { color: var(--tag-buff); }
 .tier { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 5px 10px; border-top: 1px solid var(--line-soft); font-size: 12.5px; }
 .tier .tn { font: 17px/1 var(--font-label); color: var(--bg-page); background: var(--patina-dim); text-align: center; padding: 4px 0; }
 .tier .tt { white-space: pre-line; }
@@ -1552,7 +1597,8 @@ table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; col
 }
 @media (max-width: 420px) {
   .hero-head { grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; }
-  .hero-head > img.portrait { width: 88px; }
+  /* the glyph of a hero with no portrait too: at 110px (section 10's 860px rule) it ran under the name */
+  .hero-head > img.portrait, .hero-head > .portrait.glyph { width: 88px; }
   .hero-head h1 { font-size: 32px; }
 }
 
@@ -1628,20 +1674,9 @@ ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 .flag.bad { color: var(--tag-nerf); }
 .flag.even { color: var(--tag-changed); }
 table.hist td.ov { white-space: nowrap; min-width: 150px; }
+/* an item's sections are groups of the "today" component (09b .stat-flow, builders/now_values.py); an item without
+   sections keeps its values as a row of chips */
 .item-hdr { margin-bottom: 10px; }
-/* an item's sections share the panel's width, left to right, each as tall as its own rows (a one-row Innate beside an
-   Active does not stretch); inside a card the rows flow in columns as wide as it allows, so a lone card fills the
-   panel with each label near its value (Warp Stone's card floated mid-panel with ~300px of nothing each side; visual
-   pass 2026-10-17). Its cooldown / duration chips sit in the card they belong to (entities_pages.header_host) */
-.ability-grid.item-secs { grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); align-items: start; }
-.ability-grid.item-secs table.kvt { display: block; }
-.ability-grid.item-secs table.kvt tbody { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
-  column-gap: 24px; }
-.ability-grid.item-secs table.kvt tr { display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
-  border-bottom: 1px solid var(--line-soft); }
-.ability-grid.item-secs table.kvt td { border-bottom: 0; }
-.ability-grid.item-secs table.kvt td:first-child { flex: 1 1 auto; min-width: 0; }
-.ability-grid.item-secs table.kvt td.v { flex: none; }
 @media (max-width: 860px) {
   table.hist, table.kvt { display: block; max-width: 100%; overflow-x: auto; }
   /* an ability card's table fits a phone: its rows and lines run the card's whole width */

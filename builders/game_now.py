@@ -16,6 +16,7 @@ import re
 
 from .common import esc, wbr_ids
 from .game_systems import merged_label, system
+from .now_values import Row, flow as now_flow, group as now_group
 
 NOW_PANELS = 6         # entry panels a system's block shows (two rows of three): its most recently tuned entries
 NOW_ROWS = 6           # numbers an entry's panel shows: its most recently moved ones
@@ -64,9 +65,8 @@ def _panel(title: str, rows: str, cls: str = '') -> str:
     return f'<section class="stat-panel{cls}"><h3>{esc(title)}</h3>{rows}</section>'
 
 
-def _value_rows(vals: list[tuple[str, str, str]]) -> str:
-    return ''.join(f'<div class="sc-row"><span class="k">{esc(label)}</span><span class="v">{esc(v)}</span></div>'
-                   for label, v, _ in vals)
+def _value_rows(vals: list[tuple[str, str, str]]) -> list[Row]:
+    return [Row(esc(label), esc(v)) for label, v, _ in vals]
 
 
 def _convar_rows(got: list[tuple[str, dict]]) -> str:
@@ -85,10 +85,12 @@ def now_block(sys_id: str, parts: dict, hist: dict, cat: dict, convars: dict) ->
     the data has no value of it today."""
     sys_ = system(sys_id)
     order = [p.id for p in sys_.parts]
-    panels = [_panel(merged_label(names), _value_rows(vals))
-              for names, vals in entry_panels([parts[p] for p in order if p in parts], hist, cat)]
+    # the entries' numbers: groups of the one "today" component (now_values), flowing in columns — three columns of
+    # boxes as tall as their tallest left empty frames (visual pass 2026-10-17, round 2)
+    groups = now_flow([now_group(merged_label(names), _value_rows(vals))
+                       for names, vals in entry_panels([parts[p] for p in order if p in parts], hist, cat)])
+    # the console variables after them, across the width, their rows in columns of their own
     with_cvs = [p for p in sys_.parts if convars.get(p.id)]
-    for p in with_cvs:
-        title = 'Console variables' + (f' · {p.name}' if len(with_cvs) > 1 else '')
-        panels.append(_panel(title, _convar_rows(convars[p.id]), ' now-cv'))
-    return f'<div class="stat-flow now-flow">{"".join(panels)}</div>' if panels else ''
+    cvs = ''.join(_panel('Console variables' + (f' · {p.name}' if len(with_cvs) > 1 else ''),
+                         _convar_rows(convars[p.id]), ' now-cv') for p in with_cvs)
+    return f'<div class="now-flow">{groups}{cvs}</div>' if groups or cvs else ''

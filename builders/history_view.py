@@ -189,14 +189,20 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         # down — review 2026-10-05)
         facts_out['hidden'] = facts['hidden']
         facts_out['strip'], strip = strip, ''
+        facts_out['strip_tiles'] = len(facts.get('strip', [])) > 1     # patch_strip draws tiles for two or more
     cls = 'hblocks' + (' show-dev' if in_dev else '')
     return f'{heading}{strip}{bar}<div id="history" class="{cls}">{"".join(blocks)}</div>'
 
 
 def head_strip(told: dict) -> str:
-    """The entity's patch strip (and the hover cards' data blob) as a row of its own under the page head."""
+    """The entity's patch strip (and the hover cards' data blob) inside the page head, under the name and its chips,
+    with a small "Patches" label — as Sloppy's sits in its header band. Two or three tiles alone under the portrait
+    read as leftovers (Violet, Deadman Danny, Ablative Coat; visual pass 2026-10-17, round 2). Without tiles (one
+    patch) only the blob comes: the ability cards' trail squares read it."""
     strip = told.get('strip') or ''
-    return f'<div class="head-strip">{strip}</div>' if strip else ''
+    if not strip or not told.get('strip_tiles'):
+        return strip
+    return f'<div class="head-strip"><span class="hs-l">Patches</span>{strip}</div>'
 
 
 STRIP_MAX = 40            # the latest patches in the strip (one row that never scrolls: tiles shrink to fit)

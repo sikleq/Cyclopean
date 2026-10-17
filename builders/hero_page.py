@@ -8,6 +8,7 @@ import re
 
 from .common import cosmetics, display_name, entity_icon, esc, first_seen, hero_icon, icon, img, load_json, mark, page
 from .history_view import history_table
+from .now_values import Row, flow as now_flow, group as now_group
 from .render import tag_badge
 from .tables_pages import _fmt, hist_attrs
 
@@ -100,9 +101,33 @@ def says_nothing(row: dict, c: dict) -> bool:
     return at_default(row, c['key']) and not _real_steps(row, c['key'], c.get('digits', 2))
 
 
+def _stat_src(key: str, rel: str) -> str | None:
+    return icon(f'StatDesc:{STAT_ICON[key]}', rel) if key in STAT_ICON else None
+
+
 def _stat_icon(key: str, rel: str) -> str:
-    src = icon(f'StatDesc:{STAT_ICON[key]}', rel) if key in STAT_ICON else None
+    src = _stat_src(key, rel)
     return f'<img class="si" src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="si"></span>'
+
+
+KS_ROW_MAX = 8            # key stats a row holds on a desktop (13 → 7 a row, 15 → 8)
+KS_TABLET, KS_PHONE = 5, 3   # …a row under 980px and on a phone (styles.css .keystats)
+
+
+def lead_span(n: int, cols: int) -> int:
+    """How many columns the first tile (Health) spans so `n` tiles fill whole rows of `cols`: the headline stat
+    widens and every column lines up — 13 tiles at seven a row ended in a hole, then stretched 7 + 6 so the two rows'
+    columns missed each other, and a phone's lone 13th tile spanned the screen (visual pass 2026-10-17, round 2)."""
+    r = n % cols if cols > 0 else 0
+    return cols - r + 1 if r else 1
+
+
+def keystats_vars(n: int) -> str:
+    """The grid of the head's key stats as CSS variables: columns on a desktop (rows balanced, `KS_ROW_MAX` at most)
+    and the first tile's span there, under 980px and on a phone."""
+    cols = wb_per_row(n, KS_ROW_MAX)
+    return (f'--ks-c:{cols};--ks-s:{lead_span(n, cols)};--ks-s5:{lead_span(n, KS_TABLET)};'
+            f'--ks-s3:{lead_span(n, KS_PHONE)}')
 
 
 def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
@@ -117,7 +142,7 @@ def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
         label, unit = _split_unit(c['label'])
         out.append(f'<div class="keystat {cls}"{attrs}>{_stat_icon(k, rel)}<div class="v">{_fmt(row["values"][k], c["digits"])}'
                    f'{_unit_html(unit)}</div><div class="l">{esc(label)}</div></div>')
-    return '<div class="keystats">' + ''.join(out) + '</div>'
+    return f'<div class="keystats" style="{keystats_vars(len(out))}">' + ''.join(out) + '</div>'
 
 
 def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
@@ -129,7 +154,7 @@ def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
     return f'<h2>Stats</h2>{panels}'
 
 
-def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
+def _cells(row: dict, cs: list[dict], name: str, rel: str) -> list[Row]:
     out = []
     for c in cs:
         v = row['values'].get(c['key'])
@@ -137,25 +162,20 @@ def _cells(row: dict, cs: list[dict], name: str, rel: str) -> str:
             continue
         cls, attrs = _hist_attrs(row, c, name)
         label, unit = _split_unit(c['label'])           # "Ground Dash 0.72 s", not "Ground Dash (s) 0.72"
-        out.append(f'<div class="sc-row"><span class="k">{_stat_icon(c["key"], rel)}{esc(label)}</span>'
-                   f'<span class="v {cls}"{attrs}>{_fmt(v, c["digits"])}{_unit_html(unit)}</span></div>')
-    return ''.join(out)
+        out.append(Row(esc(label), f'{_fmt(v, c["digits"])}{_unit_html(unit)}', _stat_src(c['key'], rel),
+                       vcls=cls, attrs=attrs))
+    return out
 
 
 def stat_tables(row: dict, cols: list[dict], name: str, rel: str = '../', skip: tuple[str, ...] = (),
                 skip_keys: tuple[str, ...] = ()) -> str:
-    """Stat groups as compact panels that flow in columns (no tall-block gaps); skip_keys are
-    already on screen (the head strip) and are not repeated."""
+    """Stat groups flowing in columns (now_values: the one "today" component of units, items and Game systems);
+    skip_keys are already on screen (the head strip) and are not repeated."""
     groups: dict[str, list[dict]] = {}
     for c in cols:
         if c['group'] not in skip and c['key'] not in skip_keys:
             groups.setdefault(c['group'], []).append(c)
-    parts = []
-    for g, cs in groups.items():
-        body = _cells(row, cs, name, rel)
-        if body:
-            parts.append(f'<section class="stat-panel"><h3>{esc(g)}</h3>{body}</section>')
-    return '<div class="stat-flow">' + ''.join(parts) + '</div>' if parts else ''
+    return now_flow([now_group(g, _cells(row, cs, name, rel)) for g, cs in groups.items()])
 
 
 _UNIT = re.compile(r'^(.*?)\s*\(([^()]+)\)$')
@@ -264,12 +284,18 @@ def _gun_links(aid: str, group: str, rel: str) -> str:
             f'{trail_html("abilities.vdata:" + aid, None, rel, local=True)}</div>')
 
 
-WB_ROW_MAX = 8            # weapon numbers a row holds on a wide screen (styles.css .wb-cells: 4 under 1100px, 3 on a phone)
+WB_ROW_MAX = 8            # weapon numbers a row holds on a wide screen (styles.css .wb-cells: 4-5 under 1100px, 3 on a phone)
+WB_TABLET = (4, 5)        # under 1100px: whichever leaves the first tile the narrower (14 → 5 a row, 16 → 4)
+
+
+def fit_cols(n: int, options: tuple[int, ...]) -> int:
+    """Of `options`, the columns a row that leave the first tile the narrowest (`lead_span`), more columns on a tie."""
+    return min(options, key=lambda c: (lead_span(n, c), -c))
 
 
 def wb_per_row(n: int, most: int = WB_ROW_MAX) -> int:
     """How many weapon numbers a row holds so the rows come out even: 14 → 7 + 7, not 8 + 6 (or 6 + 6 + 2, which left
-    a hole of four tiles); a short last row stretches (styles.css)."""
+    a hole of four tiles); the first tile widens to fill a short row (`lead_span`)."""
     if n <= 0:
         return 1
     rows = -(-n // most)
@@ -277,27 +303,48 @@ def wb_per_row(n: int, most: int = WB_ROW_MAX) -> int:
 
 
 def _more_weapon(cells: list[str]) -> str:
-    """Every other weapon number in even rows under the six headline tiles — shown, not folded."""
+    """Every other weapon number in whole rows under the six headline tiles — shown, not folded. A grid like the key
+    stats': the columns line up row to row and the first tile (the longest label, "+Bullet DMG / boon") widens so the
+    rows come out whole on every screen (a phone's 14 left two stretched tiles; visual pass 2026-10-17, round 2)."""
     if not cells:
         return ''
-    return f'<div class="wb-cells" style="--wb-per:{wb_per_row(len(cells))}">{"".join(cells)}</div>'
+    n, per = len(cells), wb_per_row(len(cells))
+    tab = fit_cols(n, WB_TABLET)
+    return (f'<div class="wb-cells" style="--wb-per:{per};--wb-s:{lead_span(n, per)};--wb-t:{tab};'
+            f'--wb-st:{lead_span(n, tab)};--wb-s3:{lead_span(n, KS_PHONE)}">{"".join(cells)}</div>')
+
+
+def prop_src(css: str | None, rel: str) -> str | None:
+    """The property's icon from the in-game tooltip (m_strCSSClass -> icons/stats/prop), None without one."""
+    return icon(f'prop:{css}', rel) if css else None
 
 
 def prop_icon(css: str | None, rel: str) -> str:
-    """The property's icon from the in-game tooltip (m_strCSSClass -> icons/stats/prop)."""
-    src = icon(f'prop:{css}', rel) if css else None
+    src = prop_src(css, rel)
     return f'<img class="pi" src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="pi"></span>'
+
+
+def scale_html(r: dict) -> str:
+    """"+0.5×Spirit", "−0.186×Spirit" (not "+-"), "+4×Boon" for what the coefficient really multiplies; '' without."""
+    if not r.get('scale'):
+        return ''
+    return (f'<span class="scale">{"+" if r["scale"] >= 0 else "−"}{abs(round(r["scale"], 4)):g}'
+            f'×{esc(r.get("scale_by") or "Spirit")}</span>')
+
+
+def prop_values(rows: list[dict], rel: str) -> list[Row]:
+    """An item section's properties as rows of the "today" component (now_values): the tooltip's icon, the label,
+    the value with its scaling under it, the game's colour for spirit / bullet damage and healing (`p-<css>`)."""
+    return [Row(esc(r['label']), f'{esc(r["value"])}{scale_html(r)}', prop_src(r.get('css'), rel),
+                cls=f'p-{esc(r.get("css") or "")}') for r in rows]
 
 
 def prop_rows(rows: list[dict], rel: str) -> str:
     out = []
     for r in rows:
-        # "+0.5×Spirit", "−0.186×Spirit" (not "+-"), "+4×Boon" for what the coefficient really multiplies
-        scale = (f'<span class="scale">{"+" if r["scale"] >= 0 else "−"}{abs(round(r["scale"], 4)):g}'
-                 f'×{esc(r.get("scale_by") or "Spirit")}</span>' if r.get('scale') else '')
         css = r.get('css') or ''
         out.append(f'<tr class="p-{esc(css)}"><td>{prop_icon(css, rel)}{esc(r["label"])}</td>'
-                   f'<td class="v">{esc(r["value"])}{scale}</td></tr>')
+                   f'<td class="v">{esc(r["value"])}{scale_html(r)}</td></tr>')
     return ''.join(out)
 
 
@@ -578,9 +625,11 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             f'<div class="hero-head">{pic}'
             f'<div class="hh-id"><h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
             f'{first_seen(h["first"])}</div>'
+            # the patch strip in the head, under the name (history_view.head_strip): the first screen shows what
+            # changed (History sat at y=1365-2096); a phone gives it the head's whole width
+            f'{head_strip(told)}'
             f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
             f'</div>')
-    # the patch strip right under the head: the first screen shows what changed (History sat at y=1365-2096)
-    body = head + head_strip(told) + (f'<section class="now-open">{now}</section>' if now else '') + hist
+    body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',
                 cls='entity')

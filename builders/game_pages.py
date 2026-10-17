@@ -135,20 +135,23 @@ def system_page(sys_id: str, parts: dict, hist: dict, by_subject: dict, cat: dic
                 convars: dict | None = None) -> str:
     """A system's page: its head, what it is today (game_now: its entries' numbers and its console variables, open,
     like a unit's "Current stats") and its history. `convars`: game_rules.convar_parts of this system."""
-    from .history_view import history_table, now_fold
+    from .history_view import head_strip, history_table, now_fold
     from .game_now import now_block
     from .game_systems import icon_html
     rel = '../'
     sys_ = system(sys_id)
     keys, areas = _keys(sys_id, parts, rel)
-    # the parts are the toolbar's filters (Soul Urn / Unstable Rift): the head is the icon and the name
+    # the parts are the toolbar's filters (Soul Urn / Unstable Rift)
     labels = tuple((p.id, p.name) for p in sys_.parts if p.id in parts)
+    now = now_fold('Current values', now_block(sys_id, parts, hist, cat or {}, convars or {}))
+    told: dict = {}
+    body = history_table(keys, list(sys_.subjects), hist, by_subject, rel, line_names=False, areas=areas,
+                         area_labels=labels, merge=merged_label, facts_out=told)
+    # the head: the icon, the name and the patch strip under it, as a hero's, item's or unit's (history_view.head_strip;
+    # the strip sat under "History", below the values)
     head = (f'<div class="crumbs"><a href="index.html">Game</a> / {esc(sys_.name)}</div>'
             f'<div class="page-head">{icon_html(sys_, rel, "head-icon px px-frame")}<div><h1>{esc(sys_.name)}</h1>'
-            f'</div></div>')
-    now = now_fold('Current values', now_block(sys_id, parts, hist, cat or {}, convars or {}))
-    body = history_table(keys, list(sys_.subjects), hist, by_subject, rel, line_names=False, areas=areas,
-                         area_labels=labels, merge=merged_label)
+            f'</div>{head_strip(told)}</div>')
     return page(sys_.name, head + now + body, rel, SECTION, cls='entity',
                 description=f'Deadlock: every change to {sys_.name.lower()}, from the game files')
 
