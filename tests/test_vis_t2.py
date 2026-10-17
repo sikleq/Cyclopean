@@ -205,9 +205,14 @@ def test_unit_stats_tables_start_at_their_bands_left_edge(browser, tmp_path):
     try:
         lefts = pg.evaluate("[...document.querySelectorAll('main h1, main > .toolbar, .tbl-sec, .table-fade')]"
                             ".map(e => Math.round(e.getBoundingClientRect().left))")
-        widths = pg.evaluate("[...document.querySelectorAll('.table-fade')].map(e => e.getBoundingClientRect().width)")
+        # each box hugs its table, or the room it has when the table is wider (the fonts decide which: CI's Linux
+        # fonts made the 16-column table wider than the page, 2026-10-17)
+        boxes = pg.evaluate("[...document.querySelectorAll('.table-fade')].map(e => [e.getBoundingClientRect().width,"
+                            " e.querySelector('table').getBoundingClientRect().width, e.parentNode.clientWidth])")
         assert len(set(lefts)) == 1, lefts
-        assert len(set(widths)) == 3 and max(widths) < 1500                 # each hugs its table
+        for box, table, room in boxes:
+            assert abs(box - min(table, room)) < 8, (box, table, room)          # the box's own frame
+        assert len({round(b) for b, _, _ in boxes}) == 3
         assert not errors
     finally:
         ctx.close()
