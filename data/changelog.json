@@ -1,6 +1,18 @@
 [
   {
     "date": "2026-10-17",
+    "title": "The eye proves its claim; a \"Not in patch notes\" filter on every change matrix",
+    "items": [
+      "Clicking an eye opens the build page at that exact change, highlighted: the data file, the entry and the field as the game files name them, the raw old and new values, a link to that file's diff in the tracker, and \"This update's notes: no line mentions this\".",
+      "A change is called a late addition only when it came in a build after the update's own notes build, dated by the game's own build dates: Deadman Danny's Oct 14 changes no longer claim a silent hotfix, and about 3,300 such false claims are gone across the site.",
+      "The \"N not in patch notes\" chip of an update is one link to its build; in an update the notes never mentioned, every change keeps a dimmed eye that opens its own proof; every eye can be reached with the keyboard.",
+      "Hero, Item, Unit and Game changes have a \"Not in patch notes\" switch that redraws every cell from the changes the notes left out; the home page's \"not in patch notes\" counter opens them with it on, and every matrix filter is kept in the page address.",
+      "One wording across the site: \"not in patch notes\" for what the notes left out, \"no patch notes\" for an update without any, \"notes we couldn't match\"; counts of one are singular.",
+      "Links to a section no longer land under the sticky bars, and a hero's patch strip shows the month and year under its tiles with one line explaining the orange top."
+    ]
+  },
+  {
+    "date": "2026-10-17",
     "title": "Hero pages on one grid, the patch strip in the head, tables at the left edge, filters folded on phones",
     "items": [
       "Hero pages: the key stats and the weapon's numbers sit on a real grid (every column lines up, no stretched or missing tiles) with one label style, and the strip of patches moved into the page head with a \"Patches\" label.",

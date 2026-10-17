@@ -152,8 +152,8 @@ no Breakables icon, page or cell).
 `patch_counts._placed_rows`: every counted row with where it is shown — PAGE, GAME or ARCHIVE (no hero / item / unit
 page and no Game system: a designers' test object) — and on how many home icons a page row sits (`_icons`: an
 '@shared' block's distinct page routes and the Game systems of its targets no page shows). `count` adds
-`hidden_archive` and `hidden_shared`; `off_pages` = not in notes − on pages − archive-only, so "N of them in game
-rules & map objects" is what the Game icons carry.
+`hidden_archive` and `hidden_shared`; `off_pages` = not in patch notes − on pages − archive-only, so
+"N of them in game rules & map objects" is what the Game icons carry.
 
 An '@shared' block on map objects of several Game systems counts once in each, with the status of its first entry
 there (`_by_system`; template targets yield to the others; a block whose only placed entry is a template keeps its rows
@@ -162,7 +162,7 @@ on the Pickups icon while the count took the block's "described" once, in Breaka
 
 The home banner says what makes the icons add up to another number: "S of them on several icons" (an edit shared by
 several heroes or units counts once in the banner and on each of their icons) and "K only in the patch archive"
-(links the patch page). City Never Sleeps: 353 not in notes, 114 of them in game rules (= the Game icons), 5 of them
+(links the patch page). City Never Sleeps: 353 not in patch notes, 114 of them in game rules (= the Game icons), 5 of them
 on several icons (the icons carry 9 more copies). The four updates on the home page: banner = icons + those copies.
 
 **The eye everywhere a change is shown:**
@@ -181,7 +181,7 @@ the hero pages' tiles, the alt fire's own gun), Unit Stats, Item Stats (`mark_ro
 patch's `extras.convars` status). Steps with the eye: Hero Stats 705 of 3,561, Item Stats 733 of 2,663, Unit Stats 56
 of 110, Game rules 70 of 96.
 
-Game index cards: "N not in notes" with the eye under the date (`game_pages._stats` → (changes, last, hidden), the
+Game index cards: "N not in patch notes" with the eye under the date (`game_pages._stats` → (changes, last, hidden), the
 same rows and dedupe as the count).
 
 **What a page lists** starts at `cards.gameplay_entities` (gameplay rows only; one object kept under
@@ -535,7 +535,7 @@ History bands:
   nano 9.5k elements p95 16.8 ms, haze 5.8k 16.8, atlas 5.6k 16.7.
 
 Game section (2026-10-05, part 2; owner: "I want to see ALL changes to everything in the game"):
-- 2,040 gameplay changes (1,340 not in the notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04,
+- 2,040 gameplay changes (1,340 not in patch notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04,
   crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables).
   The fourth section, Game, is everything no hero, item or unit page shows (`builders/game_systems.py`, `game_pages.py`,
   `game_rules.py`; config `data/overrides/game_systems.json`).
@@ -800,8 +800,10 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   already names it. A square scrolls to its ability's group and lights it briefly. On the patch archive
   the squares still link to `patches/<id>.html` with a text tooltip.
 - Round 4 (advisor, a player's eye): one wording — "not in patch notes" for the eye (toolbar, banners,
-  home), "Before release" for work on a hero before it shipped, "First seen <date>" (`common.first_seen`)
-  instead of a build number. Labels split from field names use the game's words
+  home), "no patch notes" for an update without any, "notes we couldn't match" for a note line no change was found for,
+  "Before release" for work on a hero before it shipped, "First seen <date>" (`common.first_seen`)
+  instead of a build number; a count of one is singular ("1 change", "1 bug fix"). Labels split from field names
+  use the game's words
   (`semantics.game_words`: Tech → Spirit, Armor Damage Resist → Resist; `m_vecIntrinsicModifiers` →
   "Passive"); a time field without a tooltip unit gets "s" (`semantics._TIME_FIELD`), a speed Valve
   writes as "20m" reads m/s (`speed_m` → `M_SPEED`, display only: the matcher's transforms are
@@ -898,7 +900,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   hidden the newer part spans only its own dates), a cell = a square striped in the
   tag colours, each stripe as tall as its share (same counting rule as every counter). Switches: older
   patches (> 1 year, hidden by default; the table opens scrolled to the newest), buff vs nerf (one net
-  colour), tag filters, pre-release heroes / removed items and units. Heroes index: pre-release heroes hide behind
+  colour), tag filters, "Not in patch notes" (below), pre-release heroes / removed items and units. Heroes index: pre-release heroes hide behind
   a switch, "Unreleased & hero labs" is folded.
 - Hero changes: one tile per cell holds everything a patch did to the hero (stats, weapon, abilities);
   a filter — All / Stats / Weapon / Abilities (`dynamics_page.PARTS`, `part_of`: weapon = gun + melee) —
@@ -908,6 +910,23 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Change matrix cells: a bevelled tile, its number of changes in the corner; hovering opens a card drawn by
   scripts.js from the page's `.dyn-data` JSON (who, which patch, counts with the tag icons, the three
   biggest changes, "+N more").
+- **"Not in patch notes"** (2026-10-17): `dynamics_page.toolbar` puts a `button.px-btn.dyn-hid` (`EYE_MARK`) first
+  after the search in every matrix bar, and `cap_key()` (`.cap-key`: a 12px tile with the eye-coloured top and "some
+  changes not in patch notes") at its end. Pressing it redraws every tile from the rows the notes left out.
+  `_collect` also returns `hcells`, `hparts` and `hsamples`: the cell's rows with `render.not_in_notes`, counted by
+  tag and by part, and their biggest per part (`_ranked`, `_pick`, `_by_part`). A cell entry is `[patch, counts,
+  samples, parts|null, hidden, net]`, plus, only for a cell PARTLY out of the notes, `_hidden_tail`: `[hidden counts,
+  hidden parts (heroes; 0 else), hidden samples (0 = the cell's samples with s[6])]`. A cell with every row out reads
+  its own fields (heroes/changes 706 → 760 KB HTML). Rows carry `nh` (nothing out of the notes) and `nhn` (none in
+  the columns shown without "Older patches"); `table.dyn.only-hid` hides them. scripts.js `dynHidden(c,
+  withSamples)` reads the fields, and `dyn-parts` redraws from them while `only-hid` is on. The orange top marks a
+  tile that shows such a row under ANY filter, from the same counts. `dyn-tip`'s `matrixCard` lists those rows only
+  and says "N not in patch notes". Toggle cost: 2-8 ms script, next frame ≤ 32 ms (items).
+- **Filters in the address** (scripts.js `dyn-url`, the last module): `#hidden&old&bvn&extra&part=<p>&tags=<t,t>
+  &role=<r>&cat=<w|s|v>&tier=<n>&q=<text>`. `hidden` is the eye, `old` "Older patches", `bvn` "Buff vs nerf", `extra`
+  the rows switch ("Pre-release" for heroes, "Removed" for items, "Removed & helpers" for units), `part` and `role`
+  (heroes), `cat` and `tier` (items), `q` the search. The address is read at load and on `hashchange` by pressing
+  the bar's own controls, and written back with `history.replaceState` after every click, change and `searched`.
 - Matrix performance (2026-10-03, item matrix 29k → 4.8k cells, 38k → 10k elements): the stripes are ONE
   inline gradient (`dynamics_page.stripes`, the same in scripts.js after a filter; 12% minimum share);
   a run of empty cells is one `<td colspan>` (`_gap`) that never crosses into the old columns, the column
@@ -956,13 +975,17 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   Units with no game art (`entity_icon` None) are not drawn as the unit glyph: `home_page.fold_bare` splits them off
   and `_fold_tile` draws one `a.lu.lu-fold` "+N" tile after the drawn icons (tooltip lists their names, link to the
   patch page's changes, no hover card / data-k). The phone's "+N more" link counts the units the fold tile stands for.
-  An update's banner: the count not in the notes is the entity pages' eye chip (`a.chip.eye-link`, as
+  An update's banner: the count not in patch notes is the entity pages' eye chip (`a.chip.eye-link`, as
   `history_view.hidden_link`), linking to the patch page's `#hidden`. The clauses that explain it (`au-off`, `au-shr`,
   `au-arch`) each sit in a `span.au-more` after a `span.au-dot` " · ", in 13px UI type. At most 700px they go one a
   line, without the dot, starting at the left (`.update > .banner .bc` flex-basis 100%). A group whose icons are all
   out of the notes gets `span.chip.lu-all` "all not in patch notes" beside its label (its margin box no taller than
   the label's line); an update without notes gets none (its banner says "no patch notes"). At most 640px the four
   tiles stay two a row, the title and the number share a line when they fit, and the 32px icons sit at the bottom.
+  The home counter's second number is `div.hs.hidden`: `a.hs-go` opens `heroes/changes.html#hidden`
+  (`home_page.HIDDEN_VIEW`: the Hero changes with "Not in patch notes" on), and `.hs-in` names the four sections,
+  each linking to its own `<sec>/changes.html#hidden`. An update without notes keeps its banner chip, an eye link to
+  its `#hidden`, which reads "N changes · no patch notes" (singular for 1).
 - Shared abilities (`builders/shared_page.py`): the abilities every hero has (kind 'shared'): heroes/shared.html (the hero history
   view), the hero matrix's "All heroes · movement & shared" row, search rows.
 - Group names are centred, in a `span.cl` that is sticky inside its header (`left: --name-w + 8px`,
@@ -1084,6 +1107,12 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   and `.tb-opts` is `display: contents`. scripts.js `tb-fold` counts what differs from the page's start: a box turned
   on that was off (`defaultChecked`), a button pressed that started unpressed, a changed number (Boons) — "Filters (2
   active)"; a default-on Heatmap turned off does not count.
+- Anchors below the sticky bars: every `.toolbar` has `scroll-margin-top: var(--nav-h)`, so a bar scrolled to by
+  `#hidden` stops at its stuck place. scripts.js `sticky-h` measures the tallest shown sticky toolbar into
+  `--stick-h` (at load, when the fonts are in, and on resize); `window.__stickH()` measures again at once, and `tabs`
+  calls it when it opens a panel, before it scrolls to a card. `.ecard[id]`, `.ecard > .anc` and `.tab-panel[id]`
+  keep `scroll-margin-top: calc(var(--nav-h) + var(--stick-h, 64px) + 8px)` (the 64px only before the script has
+  measured). Entity bands keep `--hist-bar-h`, which `hist-filter` measures.
 - Change matrices (scripts.js `dyn-scroll`): the box is as wide as the name column + a whole number of
   patch columns, so the newest end opens with the first column at the sticky names; month labels are
   clipped (a one-patch month's label overflowed and made the box scroll 25px too far); only "Older
@@ -1106,11 +1135,17 @@ An update with notes and changes they left out has the tab "Not in patch notes N
 `patches_pages.HIDDEN_TAB`, `data-hidden-tab`): its biggest changes and readable lines of those rows only
 (`_key_changes(only_hidden=)`, `_generated_notes(only_hidden=)`); "#hidden" opens it (scripts.js
 hidden-hash), while the All changes eye keeps "#changes". An update without notes says "no patch notes"
-(home banner too: "N · no patch notes"). "N of them in game rules" opens game/changes.html.
+(home banner too: "N changes · no patch notes"; the patch list counts such an update by all its changes).
+"N of them in game rules" opens game/changes.html. The band chips read "N not in patch notes", "all N not in patch
+notes" or "no patch notes" (`history_view`); scripts.js `hist-filter` keeps "no patch notes" under a filter. The
+notes check under the tiles (`patches_pages._audit_line`) reads "N not in patch notes", "N changes · no patch notes"
+(a release's other changes: "other changes · no patch notes"), "notes we couldn't match", "N on heroes in development"
+(a count of changes), and singular "bug fix" / "note disagrees with the files".
 
-`builders/written_notes.py` writes the tabs "Not in patch notes" (an update with notes: what they left out) and
-"From the files" (an update with none). Their lines are exactly the rows the patch's counters count
-(`patch_counts.counted_rows`, which `count` now sums: console variables included, one edit over a family or a
+`patches_pages` names the tabs "Not in patch notes" (an update with notes; its heading "What the patch notes left
+out") and "Notes from the files" (an update with none; its heading "Patch notes written from the files").
+`builders/written_notes.py` writes their lines (`notes_html`). Their lines are exactly the rows the patch's counters
+count (`patch_counts.counted_rows`, which `count` now sums: console variables included, one edit over a family or a
 Game system once), so a tab's number is what it lists. Valve's sections: Heroes, Items, Units, Game rules & map
 objects, Console variables (`section_of`: the page the row is on, as the home icons route it). A line is its tag
 badge (`render.tag_of`) and "Subject: what changed": an ability with its hero ("Kelvin · Frozen Shelter"), values
@@ -1221,9 +1256,11 @@ abilities.json `penalties`; `render.penalty_words`, also on an unfolded "Exclude
 corrupted bonus carries its tooltip token, m/s for a speed and the enemy-slow minus (enrich 32).
 
 Change matrices show the eye on patches with changes Valve didn't mention, and their cards list one.
-A tile with changes not in the notes has the eye (`.dsq.hid`, `dynamics_page._collect`
-`hidden`; the tile's data `[patch, counts, samples, parts|null, hidden]`, a sample's 7th element its eye);
-scripts.js matrixCard marks those samples and says the count while unfiltered; redraw keeps the eye then.
+A tile with changes not in patch notes has the eye (`.dsq.hid`, `dynamics_page._collect`
+`hidden`; the tile's data `[patch, counts, samples, parts|null, hidden, net]`, plus `_hidden_tail` for a cell
+partly out of the notes, see "Not in patch notes" above; a sample's 7th element its eye);
+scripts.js matrixCard marks those samples and says the count (under "Not in patch notes", of those rows only);
+redraw keeps the eye then.
 
 Hover cards (strip tile, trail square, home icon, matrix tile) keep one sample slot for a change not in the
 notes (`history_view.tile_card`, `home_page.chip_card`, scripts.js `rowsHtml(eyeSlot)`).
@@ -1458,7 +1495,7 @@ Description rows (`text_rows`): a short text opens unless either side holds a va
 `now_fold` escapes its summary (plain text).
 
 A template's edit its heirs carry (trooper_base, neutral_base) counts on the heirs only
-(`patch_counts.counted_rows`, as `home_page._feed_rows`): City Never Sleeps 360 → 335 not in notes, Rat King's
+(`patch_counts.counted_rows`, as `home_page._feed_rows`): City Never Sleeps 360 → 335 not in patch notes, Rat King's
 "in game rules & map objects" 3 → 2.
 
 A hero with no role in the files yet carries `data-role="*"`; scripts.js dyn-rows lets "*" through every role.
@@ -1555,6 +1592,10 @@ Trail (`trail.trail_html`): on the entity's own page (`local=True`) a trail with
 changes in its span is not drawn; an empty slot (`span.sq`) is a 2px dot; a hidden square is a 3px eye-coloured top
 edge. Tiles (strip `.ps-tile`, matrix `.dsq`): hidden = `border-top: 4px solid var(--eye)` (the stripes keep their
 proportions below it; no `::before/::after` plate), the count `.dn` on a `--shadow` plate, 9px under 760px.
+`history_view.month_cues(dates)` gives a strip tile its `data-m`: "Oct" under a month's first tile, "2026" under a
+year's first (labels at least `CUE_GAP` 2 tiles apart; a year's label wins over the month before it).
+`.ps-tile[data-m]::after` draws it in the strip's bottom padding (`.patch-strip` padding 6px 4px 19px); the tile's
+aria-label and hover card carry the whole date.
 
 History bands: `.hblocks .banner .bc > .chip / .net-chip / .pnotes` share one spec (600 11px UI font, 20px, 0 7px
 padding, outline and ink from `--c`), "patch ↗" is a chip too; under 700px `.bc` takes its own line, left. The %
@@ -1588,6 +1629,11 @@ the blob comes. A hero's strip is a grid item of `.hero-head` (column 2, under `
 Game system's is the last child of `.page-head`: `flex-wrap` puts it on a row of its own at the name's edge
 (`margin-left: 96px + 2 × --px + 18px`; on a phone at the icon's edge), and the name block keeps `flex: 1 1 0` beside
 the icon. Game system pages pass `facts_out` as well.
+
+`.head-strip` is a grid: `.hs-l` ("Patches") | the strip, and `.hs-l` has `margin-bottom: 13px` to sit level with the
+tiles. A strip with any orange top is followed by `div.hs-key` (`dynamics_page.cap_key()`: a 12px tile with the
+eye-coloured top and "some changes not in patch notes") in the grid's second column, under the tiles from their left
+edge.
 
 A history band's title is `common.band_title_html(row)`: `.pdate` first (700 18px UI font, tabular figures), then
 `.pname` (gold, pixel caps) or `.pkind` "Update", then `.pfu` for a follow-up, so the dates line up from band to band.
@@ -1822,7 +1868,7 @@ Statuses in a release window: everything is `unannounced` first, then `match.rel
 `documented` and its kit to `described`. The kit (`match.release_kit`) is the hero, what it owns, the entries whose id
 carries its code (`citadel_artist_strokeblocker`, `pickup_artist_drawing_*`) and the units named like one of its
 abilities. Edits shared by many entities and other heroes' tuning stay `unannounced` (the eye). The patch page's audit
-line reads "N released with the hero · M other changes, no official notes". `match.mark_unreleased` runs in every window,
+line reads "N released with the hero" and "M other changes · no patch notes". `match.mark_unreleased` runs in every window,
 also one without notes. `RELEASED_STATES` is Release only: a PreRelease hero is `unreleased` (`LISTED_STATES` keeps both
 for `mark_availability_moves`). The in-development flag that flips together with a release is marked `moved` and folded
 into the state row. A window that a release interrupts has a gap (`patches.gap_builds`): its before and after states
