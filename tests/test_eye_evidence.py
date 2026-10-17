@@ -98,7 +98,7 @@ def test_a_bands_banner_eye_opens_the_build(monkeypatch):
     # the whole chip is the link (review 2026-10-17: only its eye was), its words the tooltip
     chip = re.search(r'<a class="chip eye-chip"[^>]*>.*?</a>', html).group(0)
     assert chip.startswith('<a class="chip eye-chip" href="../builds/6440.html#c-hero_haze"')
-    assert 'in the game files of build 6440 (2026-04-10)' in chip and '>all 2 not in notes</span>' in chip
+    assert 'in the game files of build 6440 (2026-04-10)' in chip and '>all 2 not in patch notes</span>' in chip
     # the rows' eyes link too, and none of them is a hotfix
     assert html.count('<a class="mark hidden" href="../builds/6440.html#c-hero_haze"') == 2 and ' late"' not in html
 

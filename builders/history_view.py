@@ -595,7 +595,7 @@ def patch_href(pid: str, rel: str, entity_id: str | None = None, also: tuple[str
 
 
 def _eye_chip(text: str, words: str | None, href: str | None) -> str:
-    """The banner's "N not in notes" chip. With a build to open the whole chip is the link (review 2026-10-17: only
+    """The banner's "N not in patch notes" chip. With a build to open the whole chip is the link (review 2026-10-17: only
     its 13px eye was, the words beside it folded the band); its words are the tooltip, the count and the words its
     name for a screen reader."""
     if not href:
