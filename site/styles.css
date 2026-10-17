@@ -836,7 +836,12 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 /* the entity's patch strip (history_view.patch_strip): oldest → newest, the newest on the right like the
    matrices (owner 2026-10-05); ONE row with no scrollbar — 40 tiles shrink to fit the column, a phone
    keeps the newest 15; a tile lifts on hover and its card says what the patch did */
-.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px; overflow: hidden; }
+.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 6px 4px 19px; overflow: hidden; }
+/* the month under its first tile ("Oct"), the year under a year's first ("2026"): history_view.month_cues, in the
+   strip's bottom padding (review 2026-10-17: a row of tiles with no date; the hover card has the whole date) */
+.ps-tile[data-m]::after { content: attr(data-m); position: absolute; left: 50%; top: 100%; margin-top: 4px;
+  transform: translateX(-50%); font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap;
+  pointer-events: none; }
 .ps-tile { position: relative; flex: 0 1 30px; min-width: 14px; display: block; height: 30px; transition: transform .08s;
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
 /* a tile's look, shared by the strip and the change matrices (.dsq): the count on a solid plate in the corner, not dark
@@ -853,9 +858,13 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
    "Patches" label (history_view.head_strip): the first screen shows what changed, as Sloppy's header band does —
    two or three tiles alone under the portrait read as leftovers (visual pass 2026-10-17, round 2). A phone gives it
    the head's whole width */
-.head-strip { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.head-strip .hs-l { flex: none; font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
-.head-strip .patch-strip { flex: 1 1 auto; min-width: 0; margin: 0; }
+.head-strip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; min-width: 0; }
+/* level with the tiles, not with the strip's box (its bottom padding holds the month labels) */
+.head-strip .hs-l { margin-bottom: 13px; font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.head-strip .patch-strip { grid-column: 2; min-width: 0; margin: 0; }
+/* the orange top in words, its own line under the tiles, from their left edge (dynamics_page.cap_key) */
+.hs-key { display: flex; margin: -2px 0 8px; }
+.head-strip > .hs-key { grid-column: 2; margin-bottom: 0; }
 .hero-head > .head-strip { grid-column: 2; margin-top: 6px; }
 /* at the name's edge: the icon, its frame's margins, the gap */
 .page-head > .head-strip { flex: 1 1 100%; margin-left: calc(96px + 2 * var(--px) + 18px); }

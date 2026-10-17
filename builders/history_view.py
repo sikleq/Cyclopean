@@ -307,21 +307,51 @@ def patch_strip(items: list[tuple]) -> str:
     from .dynamics_page import stripes
     if not items:
         return ''
+    from .dynamics_page import cap_key
+    shown = items[:STRIP_MAX] if len(items) > 1 else []
+    # the month under the first tile of each month, oldest left (review 2026-10-17: a row of tiles with no date)
+    cues = month_cues([str(hdr.get('date') or '') for _, hdr, *_ in reversed(shown)])[::-1]
     tiles = []
-    for k, (pid, hdr, tally, hidden, *_) in enumerate(items[:STRIP_MAX] if len(items) > 1 else []):
+    for k, (pid, hdr, tally, hidden, *_) in enumerate(shown):
         text = f'{patch_title_text(hdr)}: {plural(sum(tally.values()), "change")}'
         if hidden:
             text += f', {hidden} not in patch notes'
         # the eye is CSS (a mask on ::after): one inline SVG per tile cost 13 KB on a unit page
         cls = ' hid' if hidden else ''
-        tiles.append(f'<a class="ps-tile{cls}" href="#p-{esc(pid)}" data-k="{k}" '
+        cue = f' data-m="{esc(cues[k])}"' if cues[k] else ''
+        tiles.append(f'<a class="ps-tile{cls}" href="#p-{esc(pid)}" data-k="{k}"{cue} '
                      f'aria-label="{esc(text)}" style="background:{stripes(tally)}">'
                      f'<span class="dn">{sum(tally.values())}</span></a>')
     tiles.reverse()                                        # oldest left, newest right
     # JSON inside a script element: "</" would end it early
     blob = json.dumps(strip_data(items), ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/')
     strip = f'<div class="patch-strip">{"".join(tiles)}</div>' if tiles else ''
-    return f'{strip}<script type="application/json" class="strip-data">{blob}</script>'
+    # the orange top in words, once, under the strip that shows it (dynamics_page.cap_key)
+    key = f'<div class="hs-key">{cap_key()}</div>' if any(it[3] for it in shown) else ''
+    return f'{strip}{key}<script type="application/json" class="strip-data">{blob}</script>'
+
+
+CUE_GAP = 2               # tiles from one month label to the next at least: a 14px tile is narrower than "Sep"
+
+
+def month_cues(dates: list[str]) -> list[str]:
+    """A label per tile, oldest first: "Oct" under the first tile of a month, the year ("2026") under the first of a
+    year, '' elsewhere; labels at least CUE_GAP tiles apart (a year's wins over the month's before it). The hover card
+    and the tile's label carry the whole date."""
+    from .dynamics_page import MONTH_ABBR
+    out = [''] * len(dates)
+    last, last_year = -CUE_GAP, False
+    for i, d in enumerate(dates):
+        if len(d) < 7 or not d[5:7].isdigit() or (i and d[:7] == dates[i - 1][:7]):
+            continue
+        year = bool(i) and d[:4] != dates[i - 1][:4]
+        if i - last < CUE_GAP:
+            if not year or last_year:
+                continue
+            out[last] = ''                       # the year's label takes the month's place before it
+        out[i] = d[:4] if year else MONTH_ABBR[int(d[5:7]) - 1]
+        last, last_year = i, year
+    return out
 
 
 def toolbar(facts: dict, keys: list[tuple], areas: dict | None, gone: set[str], in_dev: bool, rel: str,
