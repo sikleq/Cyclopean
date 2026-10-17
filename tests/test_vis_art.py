@@ -167,12 +167,13 @@ def test_units_and_game_systems_take_the_art_the_game_draws_for_them():
     from builders.common import entity_icon, icon_manifest
     from builders.game_systems import missing_icons, shown
     man = icon_manifest()
-    assert man['unit:citadel_chesspiece_bishop'] == 'units/_class/chessmaster_bishop.webp'     # its minimap mark
-    assert man['unit:citadel_chesspiece_queen'] == 'units/_class/chessmaster_queen.webp'
-    assert man['unit:citadel_artist_strokeblocker'] == 'units/_class/artist_livingink.webp'    # Living Ink's wall
+    # (flat HUD marks live in units/_mark/, painted portraits in units/_class/: extract_icons.unit_art_dir)
+    assert man['unit:citadel_chesspiece_bishop'] == 'units/_mark/chessmaster_bishop.webp'      # its minimap mark
+    assert man['unit:citadel_chesspiece_queen'] == 'units/_mark/chessmaster_queen.webp'
+    assert man['unit:citadel_artist_strokeblocker'] == 'units/_mark/artist_livingink.webp'     # Living Ink's wall
     assert man['unit:npc_necro_skele'] == 'units/_class/necro_shambler.webp'
     # the Mid-Boss: its mark at full size, not the glowing minimap pip that was a speck on its card
-    assert man['unit:npc_super_neutral'] == man['misc:neutral_camp_midboss'] == 'units/_class/map_rejuv.webp'
+    assert man['unit:npc_super_neutral'] == man['misc:neutral_camp_midboss'] == 'units/_mark/map_rejuv.webp'
     assert entity_icon('misc.vdata', 'pickup_artist_drawing_mystic', 'misc', '') == 'icons/game/artist_portrait.webp'
     assert man['ability:ability_deadpack_zip_line'] == 'game/zipline_icon.webp'
     # every Game system shows game art (the shop's dark tab grid and the site's map glyph are gone)

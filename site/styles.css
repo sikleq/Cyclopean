@@ -995,6 +995,10 @@ table.kvt.tier-grid td.v { text-align: center; }
 /* every card's art sits on the glyph's tile, at one inset: cut-out renders, a render with its own backdrop (Base
    Defense Sentry), white HUD marks and the site glyph read as one set (review 2026-10-17) */
 .card img { padding: 5px; background: var(--bg-panel-3); }
+/* a flat HUD mark (icons/units/_mark/: an ability icon, a minimap or map-legend marker) sits inside its tile as a
+   Game card's mark and the site glyph do; a painted portrait fills it (review 2026-10-17: the yellow Mid-Boss filled
+   its tile edge to edge beside the paintings) */
+.card img[src*="/_mark/"] { padding: 13px; }
 .card .nm { font: 600 14px/1.15 var(--font-ui); }
 .card .sub { font: 17px/1 var(--font-label); color: var(--text-dimmer); text-transform: uppercase; }
 .card .sub:empty { display: none; }
@@ -1013,6 +1017,7 @@ table.kvt.tier-grid td.v { text-align: center; }
   .grid.units { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .grid.units .card { padding: 10px 4px 8px; }
   .grid.units .card img, .grid.units .card .glyph { width: 56px; height: 56px; }
+  .grid.units .card img[src*="/_mark/"] { padding: 10px; }
   .grid.units .card .nm { overflow-wrap: break-word; }
 }
 .card.gone { opacity: .55; }
