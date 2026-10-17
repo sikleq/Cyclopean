@@ -68,8 +68,9 @@ def sub_head(name: str, icon_url: str | None, glyph: str, counted: list[dict], h
 def row(status: str, tag: str, text_html: str, values_html: str = '', extra: str = '', attrs: str = '',
         tip: str | None = None, href: str | None = None, late: bool | None = None) -> str:
     """One change row. `tip` / `href`: the eye's own words and the build page it opens (evidence.row_evidence);
-    `late`: it shipped silently after the patch (None: when it has words of its own)."""
-    m = mark(status, tip, href, focusable=False) if status in ROW_MARKS else ''
+    `late`: it shipped silently after the patch (None: when it has words of its own). A linked eye is in the tab
+    order: the keyboard reaches each row's proof (review 2026-10-17; only the bands a reader opened hold rows)."""
+    m = mark(status, tip, href) if status in ROW_MARKS else ''
     # a row that shipped silently in a later build ("shipped silently …") keeps the eye where a band's rows show
     # none (styles.css .all-hidden): the words are the proof
     late = bool(tip) if late is None else late

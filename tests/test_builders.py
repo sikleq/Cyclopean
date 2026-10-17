@@ -1180,8 +1180,8 @@ def test_a_shared_edits_card_is_the_place_of_its_targets(monkeypatch):
 
 
 def test_one_hidden_change_is_never_all_of_one():
-    """Review 2026-10-05: "ALL 1 NOT IN NOTES"; an all-hidden band keeps ONE eye, on its banner (advisor round 2,
-    confirmed by the review: its rows keep the stripe)."""
+    """Review 2026-10-05: "ALL 1 NOT IN NOTES"; an all-hidden band's rows keep a dimmed eye, each its row's proof
+    (review 2026-10-17: they had none, the banner's was the only way to a build)."""
     from builders.history_view import history_table
     r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
     key = 'abilities.vdata:upgrade_x'
@@ -1189,7 +1189,7 @@ def test_one_hidden_change_is_never_all_of_one():
     assert '>1 not in notes<' in html and 'all 1 not in' not in html
     from pathlib import Path
     css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.pblock.all-hidden .erow:not(.late) .st .mark { visibility: hidden; }' in css
+    assert '.pblock.all-hidden .erow:not(.late) .st .mark { opacity: .45; }' in css
     # a row that shipped silently in a later build keeps its eye there: its words are the proof (review 2026-10-05)
     from builders.cards import row
     assert 'class="erow st-hidden is-hidden late"' in row('hidden', '', 'x', tip='shipped silently 2026-03-09')

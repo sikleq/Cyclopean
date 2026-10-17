@@ -379,9 +379,10 @@
       document.addEventListener('pointerdown', touchStart, true);
       document.addEventListener('touchstart', touchStart, { capture: true, passive: true });
     }
+    // (a band's "N not in notes" chip is such a link too: history_view._eye_chip)
     document.addEventListener('click', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-tooltip]');
-      if (el && noHover && el.matches('a.mark[href]') && upBefore !== el) {
+      if (el && noHover && el.matches('a.mark[href], a.eye-chip[href]') && upBefore !== el) {
         ev.preventDefault();
         show(el);
         return;
