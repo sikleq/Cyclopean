@@ -28,6 +28,7 @@ YEAR_BANNERS_MIN = 8      # a history longer than this gets a year banner where 
 TEXT_STATUSES = ('code',)  # note lines shown as rows: changes in the game's code (the files did not move)
 TAG_FILTERS = ('new', 'rework', 'buff', 'nerf', 'del', 'mech', 'up', 'down')
 AREAS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
+CONVARS_KEY = ':convars'  # a Game system part's console variables (game_pages: 'game:<system>:<part>:convars')
 _ENHANCED = 'Enhanced: '
 
 
@@ -444,6 +445,15 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
             rows += row(ln['status'], text_tag(text, ln.get('topic')) or note_badge('NOTE'), _highlight(text, 'changed'))
         rows += text_rows(texts.get(key, []), hero, changes)
         if not rows:
+            continue
+        cv = next((g for g in groups if g['keys'][0].endswith(CONVARS_KEY)), None) if key.endswith(CONVARS_KEY) else None
+        if merge and cv is not None and not (lines or cv['lines'] or texts.get(key) or texts.get(cv['keys'][0])):
+            # a Game system's console variables are one group per band, whichever part each belongs to: the Souls page
+            # read "Console variables" twice in one update (review 2026-10-17, round 4); the group keeps every part's
+            # filter (its keys' areas)
+            cv['keys'].append(key)
+            cv['changes'] = cv['changes'] + changes
+            cv['rows'] = entity_rows(cv['changes'], None, every_href)
             continue
         # the same rows on another member: one group, both named (a family, a Game system); on any page the same rows
         # under the same name are one group too (review 2026-10-05: Holliday's "Weapon (shotgun)" twice, Kelvin's

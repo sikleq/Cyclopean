@@ -515,12 +515,48 @@ def mark_dud_guns(changes: list[MChange]) -> None:
                 c.cat = 'technical'
 
 
+_BASE_LINK = ('_base', '_multibase')
+
+
+def nameless_part(eid: str, cat: dict[str, dict]) -> bool:
+    """A second part of an ability with no name of its own: its id is the parent's plus a part suffix
+    (classify._SUB_SUFFIX) and it bears the parent's name or none ('ability_ice_dome_trigger' of Frozen Shelter). A part
+    named on its own is an ability of its own (Solomon's 'ability_chessmaster_knightbuff_trigger' is "Move King", Mirage's
+    'mirage_teleport' "Traveler")."""
+    parent = classify_mod.sub_part_parent(eid)
+    pe = cat.get(f'abilities.vdata:{parent}') if parent else None
+    if not pe:
+        return False
+    name = (cat.get(f'abilities.vdata:{eid}') or {}).get('name')
+    return not name or name == eid or name == pe.get('name')
+
+
+def mark_inherited_defaults(changes: list[MChange], cat: dict[str, dict]) -> None:
+    """A nameless part of an ability (`nameless_part`: its trigger, cancel, recast) that gets a template in the
+    window (`_multibase` / `_base` added) takes the template's defaults: every field it did not have "appears" — Frozen
+    Shelter's trigger read "Activation added (instant cast)", "Max Level added (1)", "Charge Delay added (default)",
+    "Bullet Velocity added (254m/s)" among City Never Sleeps' hidden changes (review 2026-10-17, round 4). Those added
+    rows are plumbing, as the audit calls an explicit default (NOT_GAMEPLAY "explicit 0 default added"); a value that
+    changed stays. Only a part: a whole ability or item moving to another template (an item's tier move) is real."""
+    linked = {(c.file, c.eid) for c in changes if c.path in _BASE_LINK and c.op == 'add'
+              and c.file == 'abilities.vdata' and nameless_part(c.eid, cat)}
+    for c in changes:
+        if (c.file, c.eid) in linked and c.op == 'add' and c.cat in GAMEPLAY_CATS:
+            c.cat = 'technical'
+
+
 def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared: bool, tok: dict[str, str],
                    canon: dict[str, dict]) -> MChange:
     """A record's field change `c` of entity `tid` as the window's MChange (labels of that build's text)."""
     key = f"{file}:{tid}:{c['path']}"
-    d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'), c.get('loc_token'))
+    d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'), c.get('loc_token'),
+                           c.get('scale_parts'))
     cn = canon[key] = labels.canonical(key, d)
+    shown = cn['label']
+    if c.get('scale_parts') and 'scaling' not in shown:
+        # a scaling T1-T3 bonus its path does not name (enrich.tier_scaling) says so in ITS window only: one field can
+        # be a flat bonus in one build and a scaling one later (Warden's T3 Barrier +150, Fire Scarabs' T3 63 → 1.2)
+        shown += semantics.scaling_suffix(c['scale_parts'])
     return MChange(
         file, tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
         # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
@@ -528,7 +564,7 @@ def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared:
         builds, shared, chain=[c.get('old'), c.get('new')],
         drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
         unit=labels.display_unit(d, cn), invert=bool(d.get('invert')),
-        speed_m=bool(d.get('speed_m')), shown=cn['label'], sign=cn['sign'], base=c.get('base'))
+        speed_m=bool(d.get('speed_m')), shown=shown, sign=cn['sign'], base=c.get('base'))
 
 
 # lists whose entries carry their own name (a breakable's pickups, a loot table's items, the lanes): one entry
@@ -666,6 +702,7 @@ def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple
     mark_retyped(changes)
     mark_availability_moves(changes)
     mark_dud_guns(changes)
+    mark_inherited_defaults(changes, cat)
     # console variables take part in matching ("Respawn time … from 35s to 38s"), and so does one a game system
     # names that came with a value ("Unstable Rift spawn interval increased from every 6 minutes to every 7
     # minutes" is citadel_koth_respawn_interval added at 420; coverage finding 8) — not the snapshot that started
@@ -1771,7 +1808,8 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     entities: dict[str, dict] = {}
     cv_status = {c.eid: c.status for c in changes if c.file == 'convars'}
     for cv in extras['convars']:
-        cv['status'] = cv_status.get(cv['name'], 'unannounced' if not p.notes else 'hidden')
+        # a hero's release post is the window's notes: what it left out is hidden (release_pass)
+        cv['status'] = cv_status.get(cv['name'], 'unannounced' if not p.notes and not p.release else 'hidden')
     shared = SharedGroups()
     for c in changes:
         if c.file == 'convars':
@@ -1867,16 +1905,18 @@ def release_pass(heroes: list[str], changes: list[MChange], events: list[dict], 
     """A hero's release window (pipeline.patches.release_windows): its announcement post names the hero, so the
     hero's development state turning Release is documented and its kit — the abilities, guns, summons and pickups
     that came with it, the stats it shipped with — is the release itself, described by that post, not "not in patch
-    notes" (Violet's 18 rows, Baba's 19 had the eye; data review 2026-10-17). Everything else the window changed
-    stays unannounced; so does an edit shared by many entities."""
+    notes" (Violet's 18 rows, Baba's 19 had the eye; data review 2026-10-17). Everything else the window changed —
+    other heroes' tuning, an edit shared by many entities — is what that post left out: hidden, the eye of any update
+    with notes (Solomon's silent Move Piece rework sat unmarked among Violet's launch lines, its patch read 0% "not in
+    notes" in the archive; review 2026-10-17, round 4). Only a window with no post at all is "unannounced"."""
     kit = set().union(*(release_kit(h, cat) for h in heroes))
     for c in changes:
         if c.shared or ent_key(c) not in kit:
+            c.status = 'hidden'
             continue
         c.status = 'documented' if c.file == 'heroes.vdata' and c.path == _DEV_STATE else 'described'
     for ev in events:
-        if f"{ev['file']}:{ev['id']}" in kit:
-            ev['change']['status'] = 'described'
+        ev['change']['status'] = 'described' if f"{ev['file']}:{ev['id']}" in kit else 'hidden'
 
 
 # a hero is in the game from its release; pre-release (in the files, announced, not playable: Nurse Harrow on

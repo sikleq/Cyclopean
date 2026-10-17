@@ -471,7 +471,10 @@ def track(series: dict, first: dict, iid: str, build: int, date: str, vals: dict
     starts from None there (a stat added later is an addition, not the item's first value)."""
     hs = series.setdefault(iid, {})
     first.setdefault(iid, (build, date))
-    for k in set(hs) | set(vals):
+    # in a fixed order: `joined` picks a renamed predecessor by the series' order, and a set's order changes with
+    # every run (Superior Cooldown's Cooldown Reduction read "30 → 32 → 27" in one data run, "20 → 22 → 24 → 27" in
+    # the next; 11 items differed between two runs of the same data, review 2026-10-17 round 4)
+    for k in sorted(set(hs) | set(vals)):
         v = vals.get(k)
         pts = hs.get(k)
         if pts is None:
@@ -572,7 +575,8 @@ def build() -> dict:
     col_keys = {c['key'] for c in cols}
     rows = []
     for iid, it in live.items():
-        values = {k: now[iid][k] for k in col_keys if now[iid].get(k) is not None}
+        # in column order (a set's order changed the file on every data run)
+        values = {c['key']: now[iid][c['key']] for c in cols if now[iid].get(c['key']) is not None}
         shown = {k: cards[iid][p]['value'] for k, (p, _) in raw[iid].items() if k in col_keys and p in cards[iid]}
         effects = row_effects(raw[iid], now[iid], cards[iid], col_keys)
         hist = item_history(series.get(iid, {}), metas.get(iid, {}), raw[iid], values, col_keys, aliases)

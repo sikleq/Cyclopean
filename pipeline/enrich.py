@@ -17,10 +17,11 @@ from . import cache, flags, jsonio, loc, semantics, tracker
 from .classify import (ability_kind, category, decor_entity, hero_bound_abilities, shared_abilities,
                        unit_bound_abilities, unit_kind)
 from .diff import VALUELESS_CATS
+from .flatten import _id_case
 from .history import OUT as BUILDS
 from .history import reindex
 
-ENRICH_VERSION = 39       # 39: Street Brawl ability values balance + their base, a light melee's attack and an exponent ("Power") no visual / length; 38: a notification's attributes sideless; 37: a target set compared bit by bit; 36: a trooper's resist vs one foe in %; 35: capped / modifier / killer-plane / sub-field speeds m/s, a growing value in its field's unit; 34: Spawn On Ground / a buff's value type technical; 33: looks / sounds / engine tuning out of gameplay, boss-tier and "Pct" labels, helpers UP / DOWN; 32: corrupted bonuses: tooltip token, m/s speeds, enemy-slow sign; 31: qualifier-only loc text is no label, a hero's signed base stat % with its sign; 30: modifier states a mechanic, flag rows (pipeline.flags), polarity rules, container words; 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
+ENRICH_VERSION = 40       # 40: a scaling T1-T3 bonus keyed by its property alone says so (scale_parts), a modifier's attributes are "<name> effect", "Gold" reads Souls, ping targets / shop filters / a trooper's boss-weapon key not gameplay; 39: Street Brawl ability values balance + their base, a light melee's attack and an exponent ("Power") no visual / length; 38: a notification's attributes sideless; 37: a target set compared bit by bit; 36: a trooper's resist vs one foe in %; 35: capped / modifier / killer-plane / sub-field speeds m/s, a growing value in its field's unit; 34: Spawn On Ground / a buff's value type technical; 33: looks / sounds / engine tuning out of gameplay, boss-tier and "Pct" labels, helpers UP / DOWN; 32: corrupted bonuses: tooltip token, m/s speeds, enemy-slow sign; 31: qualifier-only loc text is no label, a hero's signed base stat % with its sign; 30: modifier states a mechanic, flag rows (pipeline.flags), polarity rules, container words; 29: shared abilities ownerless, label_src / sign, enemy slows, -1 not metres; 28: game words, time "s", "Nm" speeds m/s; 27: id map keys as words; 26: typed fields without m_ named; 25: tier speeds m/s; 24: modifier values; 23: shares %
 
 
 def _num(v):
@@ -72,6 +73,30 @@ def street_brawl_base(data: dict | None, path: str) -> float | None:
         return None
     prop = ((data or {}).get('m_mapAbilityProperties') or {}).get(m.group(1))
     return _num(prop.get('m_strValue')) if isinstance(prop, dict) else None
+
+
+# the bonus itself — not its sibling fields (the upgrade type, the property name: plumbing rows)
+_TIER_KEY = re.compile(r'^m_vecAbilityUpgrades\[(\d+)\]\.m_vecPropertyUpgrades\{([^}|]+)\}\.m_strBonus$')
+SCALE_TYPES = ('EAddToScale', 'EMultiplyScale')
+
+
+def tier_scaling(data: dict | None, path: str) -> list[str] | None:
+    """[m_eUpgradeType, m_eScaleStatFilter] of a T1-T3 bonus keyed by its property alone that is a scaling bonus:
+    flatten keys a tier's bonus by its property name, and adds the upgrade type only to tell two of one property
+    apart, so Strix Salvo's T3 "+0.35 Damage (spirit scaling)" was "T3: Damage 0.225 → 0.35" (review 2026-10-17,
+    round 4). None for another path or a flat bonus."""
+    m = _TIER_KEY.match(path)
+    ups = (data or {}).get('m_vecAbilityUpgrades') if m else None
+    i = int(m.group(1)) if m else 0
+    if not isinstance(ups, list) or i >= len(ups) or not isinstance(ups[i], dict):
+        return None
+    same = [u for u in map(_id_case, ups[i].get('m_vecPropertyUpgrades') or ())
+            if isinstance(u, dict) and u.get('m_strPropertyName') == m.group(2)]
+    # two bonuses to one property are keyed apart (flatten: "ImpactDamage" flat, "ImpactDamage|EAddToScale|…" the
+    # scaling): the bare key is then the flat one
+    if len(same) != 1 or same[0].get('m_eUpgradeType') not in SCALE_TYPES:
+        return None
+    return [str(same[0]['m_eUpgradeType']), str(same[0].get('m_eScaleStatFilter') or '')]
 
 
 def enrich_record(rec: dict) -> dict:
@@ -135,7 +160,16 @@ def enrich_record(rec: dict) -> dict:
             c.pop('base', None)
             if base is not None:
                 c['base'] = base                # the value the mode's number replaces (match: "lasts 35% less")
-            d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'), token)
+            c.pop('scale_parts', None)
+            parts = tier_scaling(data, c['path']) if f == 'abilities.vdata' and eid != '@shared' else None
+            if parts is None and c.get('op') == 'remove' and f == 'abilities.vdata' and _TIER_KEY.match(c['path']):
+                # a bonus that went is read where it still was: the build before
+                if prev_abilities is None:
+                    prev_abilities = cache.vdata(rec['prev_commit'], tracker.SCRIPTS + 'abilities.vdata')
+                parts = tier_scaling(prev_abilities.get(eid), c['path'])
+            if parts:
+                c['scale_parts'] = parts        # a scaling T1-T3 bonus its path does not name (labels, match)
+            d = semantics.describe(c['path'], tok, eid, e['kind'], c.get('scaled_by'), token, c.get('scale_parts'))
             # this build's own words; pipeline.labels picks one label / unit / sign per field from them
             for k in ('label_src', 'unit', 'sign'):
                 c.pop(k, None)              # a re-enriched record keeps nothing of an older pass

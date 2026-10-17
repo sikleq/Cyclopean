@@ -105,6 +105,30 @@ def drop_inherited(ents: list[dict], pages: frozenset[str] | set[str] | None = N
     return out
 
 
+def fold_repeats(ents: list[dict]) -> list[dict]:
+    """A patch's entities without the rows a nameless part or an alt fire repeats from its parent / gun in the patch:
+    the hero's page says them once (hero_page.history_folds), and so do its band, the home icon and the change matrix —
+    the patch page counted them again (Violet: 17 on the home page, 19 on Paint the Town's hero chip; review 2026-10-17,
+    round 4). The count (`_placed_rows`) and the patch page's All changes cards both read these. Copies; an emptied
+    entity drops out."""
+    from .hero_page import every_history_fold, repeats_dropped
+    folds = every_history_fold()
+    of_abil: dict[str, list[dict]] = {}
+    for e in ents:
+        if e['file'] == 'abilities.vdata':
+            of_abil.setdefault(e['id'], []).extend(e['changes'])
+    out = []
+    for e in ents:
+        if e['file'] == 'abilities.vdata' and e['id'] in folds:
+            kept = repeats_dropped(e['changes'], of_abil.get(folds[e['id']], []))
+            if len(kept) != len(e['changes']):
+                if kept:
+                    out.append({**e, 'changes': kept})
+                continue
+        out.append(e)
+    return out
+
+
 def counted_rows(p: dict, pages: frozenset[str] | set[str] | None = None) -> list[tuple[dict | None, dict, bool]]:
     """THE rows `count` counts, in the patch archive's order, as (entity, row, whether a hero / item / unit page
     shows it); a console variable's row has no entity. The patch page's written notes ("Not in patch notes", "From
@@ -127,7 +151,7 @@ def _placed_rows(p: dict, pages: frozenset[str] | set[str] | None = None):
     if pages is None:
         pages = page_set()
     once: set[tuple] = set()
-    for e in drop_inherited(gameplay_entities(p['entities']), pages):
+    for e in fold_repeats(drop_inherited(gameplay_entities(p['entities']), pages)):
         rows = player_facing(e['changes'])
         if not rows:
             continue

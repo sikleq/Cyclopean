@@ -71,6 +71,10 @@ TECHNICAL_RE = re.compile(
     r'm_bits\w*Mask|m_UsageFlags|m_ValueType|'
     r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|m_AutoIntrinsicModifiers|'
     r'm_strAG2SourceName|m_nShopVersion|m_strSelectionNameOverride|m_eShopFilters|m_eAdditionalShopFilters|'
+    # the shop's search filters an item leaves out, and the key of a trooper's weapon against bosses (its numbers
+    # are the "(Boss)" rows): "Disable Shop Filters: +eshopfilterspiritdamage", "Boss Weapon Name added (boss)" sat
+    # among City Never Sleeps' hidden changes (review 2026-10-17, round 4)
+    r'm_eDisableShopFilters|m_BossWeaponName$|'
     r'm_strDisableItemTarget|m_strPropertyName$|'
     r'Curve\.|m_spline|m_flSlope|flPercentOnGraph|m_vDomainM(in|ax)s|\.(x|y)$|'
     r'm_strContext$|m_strModifierContext|_editor)')
@@ -89,7 +93,10 @@ VISUAL_EXTRA_RE = re.compile(
 UI_MORE_RE = re.compile(r'(RichPresence|m_eHudStyle|HudStyle|m_nNameOffset|HealthBarOffset|m_strLocUnitName|'
                         r'm_sLocUnitName|NameOffset|m_bIsHiddenOverhead|vOffset2D|HudSharedStyle|LocToken|'
                         r'SecondaryStatName|CrosshairCSSClass|SpectatePriority|ShowTargetingPreview|'
-                        r'ReverseHudProgressBar|LowAmmoIndicator|HUDSnippetName)')
+                        r'ReverseHudProgressBar|LowAmmoIndicator|HUDSnippetName|'
+                        # where a ping's marker sits over an object ("Unstable Rift: Ping Target Height Offset added
+                        # (5.08m)", review 2026-10-17 round 4)
+                        r'PingTarget)')
 # a respawn time the designers test with (a crate's "Respawn Time Test")
 META_EXTRA_RE = re.compile(r'(m_iUpdateTime|m_Recommended|(?:Respawn|InitialSpawn)TimeTest)')
 TECH_EXTRA_RE = re.compile(r'((^|\.)(m_eScaleStatFilter|m_eUpgradeType)$|m_flHullCapsuleRadius|m_flSightRangeNPCs|'
@@ -265,6 +272,13 @@ _BARE_PREFIX = re.compile(r'^([a-z0-9]+)_')
 # the second part of an ability: its trigger, cancel or teleport (Frozen Shelter's 'ability_ice_dome_trigger',
 # McGinnis' 'citadel_ability_fissure_wall_cancel', Drifter's 'drifter_shadow_mark_teleport' — Ambush)
 _SUB_SUFFIX = re.compile(r'_(?:cancel_trigger|cancel|trigger|teleport|recast)$')
+
+
+def sub_part_parent(aid: str) -> str | None:
+    """The id a second part's id extends ('ability_ice_dome_trigger' -> 'ability_ice_dome'), or None: by the id alone
+    (`sub_ability_parent` checks an owner too)."""
+    m = _SUB_SUFFIX.search(aid or '')
+    return aid[:m.start()] if m else None
 
 
 def sub_ability_parent(aid: str, owner: dict[str, str]) -> str | None:
