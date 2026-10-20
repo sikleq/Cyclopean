@@ -2673,5 +2673,23 @@
   "release": [
    "hero_artist"
   ]
+ },
+ {
+  "id": "build-6801",
+  "title": "Shh... This Won't Hurt a Bit.",
+  "date": "2026-10-20",
+  "builds": 1,
+  "counts": {
+   "documented": 1,
+   "described": 21,
+   "hidden": 686,
+   "unannounced": 0,
+   "unreleased": 153
+  },
+  "line_counts": {},
+  "has_notes": false,
+  "release": [
+   "hero_nurse"
+  ]
  }
 ]

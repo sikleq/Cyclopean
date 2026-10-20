@@ -207,6 +207,17 @@
     "hero_yamato"
    ],
    "files": 48
+  },
+  {
+   "build": 6801,
+   "date": "2026-10-20",
+   "commit": "37f9aebd",
+   "kind": "cosmetic animation",
+   "op": "added",
+   "subjects": [
+    "hero_nurse"
+   ],
+   "files": 1
   }
  ],
  "heroes": {
@@ -304,6 +315,9 @@
    "cosmetic animation"
   ],
   "hero_necro": [
+   "cosmetic animation"
+  ],
+  "hero_nurse": [
    "cosmetic animation"
   ],
   "hero_orion": [
