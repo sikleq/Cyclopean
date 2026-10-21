@@ -50,6 +50,14 @@ do it with or after that, not before.
 real browser), so a plain fetch in CI will not work. A link is a claim: show it only with evidence (report date,
 fixed build, matching field), never a guess.
 
+## Fuller build pages (written 2026-10-21, not started, after DL-ida-researcher)
+
+Build 6810's page read as empty: no gameplay, text or convar change, only "Game files" counts (+2 / −0 / ~11) for
+Nurse's model and animations; a removed matchmaking flag (`is_high_skill_range_party`, protobuf) and the client
+binary's strings are not shown at all. Owner: first the Deadlock research project (Deadlock IDA Researcher, like
+dota2-ida-researcher), then decide what a build page shows (file names by folder, binary and protobuf changes),
+together with the bug-report links above.
+
 ## Owner answers of 2026-10-21 (to the questions below; all done in 250f7cb, not pushed yet)
 
 Q14 was no break: release_pass described the hero's stats on purpose (option A); now its numbers are hidden.
