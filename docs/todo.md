@@ -38,7 +38,10 @@ How (checked 2026-10-19 by that session):
 (docs/data-sources.md). **How to apply:** when asked, add to the notes fetch (pipeline) + a mark on the patch
 page; live checks stay separate from deploy (AGENTS.md rule 9).
 
-## Owner answers of 2026-10-21 (to the questions below; work in progress)
+## Owner answers of 2026-10-21 (to the questions below; all done in 250f7cb, not pushed yet)
+
+Q14 was no break: release_pass described the hero's stats on purpose (option A); now its numbers are hidden.
+Q11: 33 units still have no art in pak01_dir.txt (two found: Nurse leech, Nano rollermine).
 
 | # | Answer |
 |---|---|
