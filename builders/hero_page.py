@@ -575,7 +575,9 @@ def current_cards(cards: dict, hid: str) -> list[dict]:
 
 
 def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], ents_by_id: dict,
-              by_ent, by_subject) -> str:
+              by_ent, by_subject, pickups: list[dict] = ()) -> str:
+    """`pickups`: what the hero's abilities drop (game_map.pickup_owner: Violet's sketches), after its abilities in
+    the history (owner 2026-10-21, question 13: they sat in Game › Pickups)."""
     rel = '../'
     hid = h['id']
     name = display_name(h)
@@ -623,6 +625,9 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     templates = gun_templates(hid, ents_by_id)
     keys = _owned_keys(hid, mine, ents_by_id, rel, skip=(set(alts) if gun else set()) | set(templates),
                        parents=parents, prerelease=prerelease_kit(hid, ents_by_id, by_ent))
+    from .game_systems import name_of
+    keys += [(f'misc.vdata:{e["id"]}', name_of(f'misc.vdata:{e["id"]}', e), entity_icon(e['file'], e['id'], '', rel))
+             for e in sorted(pickups, key=lambda e: (e['id'].endswith('_base'), e.get('name') or ''))]
     hist_ents = drop_parent_rows(fold_alt(by_ent, gun, alts) if gun and alts else by_ent, parents)
     for tmpl, real in templates.items():
         hist_ents = fold_into(hist_ents, real, [tmpl])
@@ -630,6 +635,7 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     from .dynamics_page import part_of
     areas = {f'heroes.vdata:{hid}': 'stats'}
     areas |= {f'abilities.vdata:{e["id"]}': part_of(e) for e in ents_by_id.values() if e.get('owner') == hid}
+    areas |= {f'misc.vdata:{e["id"]}': 'abil' for e in pickups}
     gone = removed_parts(hid, mine, ents_by_id)
     chip_of = {f'abilities.vdata:{c}': f'abilities.vdata:{p}' for c, p in parents.items()}
     told: dict = {}

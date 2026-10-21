@@ -173,9 +173,9 @@ def _ability(cid: str, rows: int, tiers: int) -> dict:
             'tiers': [{'tier': i + 1, 'text': f'+{i}s Duration', 'bonuses': []} for i in range(tiers)]}
 
 
-def test_ability_cards_end_at_their_last_tier(browser, tmp_path, monkeypatch):
-    """Cards stretched to the row's tallest with T1-T3 pinned to the bottom left 150-200px holes (Smoke Bomb, Bullet
-    Dance); the usual two header chips share one line."""
+def test_ability_cards_share_one_height_with_tiers_at_the_foot(browser, tmp_path, monkeypatch):
+    """Owner 2026-10-21, question 5: the cards of a row are one height (ragged bottoms before), the upgrades at each
+    card's foot so T1-T3 line up; the usual two header chips share one line."""
     from builders import hero_page
     from builders.common import page
     monkeypatch.setattr('builders.trail.trail_html', lambda *a, **k: '')
@@ -186,17 +186,16 @@ def test_ability_cards_end_at_their_last_tier(browser, tmp_path, monkeypatch):
     ctx, pg, errors = _open(browser, tmp_path, page('Haze', body, '../', cls='entity'), 1440)
     try:
         boxes = _boxes(pg, '.ability-card')
-        assert len({round(b['t']) for b in boxes}) == 1 and boxes[1]['h'] < boxes[0]['h'] - 100
+        assert len({round(b['t']) for b in boxes}) == 1 and len({round(b['h']) for b in boxes}) == 1
         for c in pg.query_selector_all('.ability-card'):
             card, last = c.bounding_box(), c.query_selector('.tier:last-child').bounding_box()
             assert card['y'] + card['height'] - (last['y'] + last['height']) < 4      # no hole under T3
         assert not errors
     finally:
         ctx.close()
-    # the chips' size: the label font's smallest step, 16px (the fonts are offline here, so their line is checked on the
-    # built site's screenshots)
-    assert re.search(r'\.ability-card \.ac-hdr \.chip(, [^{]+)? \{[^}]*font-size: var\(--fs-md\)', CSS)
-    assert '.tiers { margin-top: auto; }' not in CSS
+    # the chips in the UI face, label small and dim, value bright (owner 2026-10-21, question 5: the pixel face read off)
+    assert re.search(r'\.ability-card \.ac-hdr \.chip(, [^{]+)? \{[^}]*font: 600 var\(--fs-xs\)/1 var\(--font-ui\)', CSS)
+    assert '.ability-card > .tiers { margin-top: auto; }' in CSS
 
 
 # ---- 3. the weapon: a header row over even rows of numbers -----------------------------------------------------
@@ -352,6 +351,8 @@ def test_a_tile_keeps_its_stripes_whole_and_its_count_on_a_plate(browser, tmp_pa
                                                     cls='entity'), 390, 844, True)
     try:
         for t in pg.query_selector_all('.ps-tile'):
+            t.hover()                    # the count shows on hover (owner 2026-10-21, question 2)
+            pg.wait_for_timeout(200)     # the tile's grow transition
             tile, n = t.bounding_box(), t.query_selector('.dn').bounding_box()
             assert n['x'] >= tile['x'] and n['x'] + n['width'] <= tile['x'] + tile['width'] + 0.5   # "28" fits its tile
         st = pg.evaluate("(() => { const s = getComputedStyle(document.querySelector('.ps-tile .dn'));"

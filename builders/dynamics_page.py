@@ -309,22 +309,32 @@ def _months(rows: list[dict], cutoff: str) -> list[tuple[str, int, bool, bool]]:
 MONTH_ABBR = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 
 
-def month_label(m: str) -> str:
-    """A month's header: "2025-12", its short form ("Dec", `data-s`) where a month has less room than that — one
-    column (always: `.one`), or one half scrolled out of sight (scripts.js dyn-months). The label is sticky inside its
-    header (styles.css): centred over the whole month it sat half under the sticky names and read "025-12" (review
-    2026-10-17)."""
-    short = MONTH_ABBR[int(m[5:7]) - 1] if len(m) == 7 and m[5:7].isdigit() and 1 <= int(m[5:7]) <= 12 else m
-    return f'<span class="ml" data-s="{esc(short)}">{esc(m)}</span>'
+def month_label(m: str, year_starts: bool = False) -> str:
+    """A month's header: its number, "12" over the day row's "17" — month and day read first, the year is a divider
+    (owner 2026-10-21, question 9). The first month of a year reads "2026 · 01", its short form ("01", `data-s`)
+    where the month has less room than that — one column (always: `.one`), or one half scrolled out of sight
+    (scripts.js dyn-months). The label is sticky inside its header (styles.css): centred over the whole month it sat
+    half under the sticky names (review 2026-10-17)."""
+    mm = m[5:7] if len(m) == 7 else m
+    long = f'{m[:4]} · {mm}' if year_starts else mm
+    return f'<span class="ml" data-s="{esc(mm)}">{esc(long)}</span>'
 
 
 def _head(rows: list[dict], cutoff: str, label: str) -> str:
-    top = ''.join(f'<th class="dm{" old" if old else ""}{" cont" if cont else ""}{" one" if n == 1 else ""}" colspan="{n}">'
-                  f'{month_label(m)}</th>'
-                  for m, n, old, cont in _months(rows, cutoff))
-    sub = ''.join(f'<th class="dd{" old" if r["date"] < cutoff else ""}{" named" if patch_name(r["title"]) else ""}">'
+    # the year is named where it starts and on the first month in sight while the older patches are hidden
+    months, top, prev_year, prev_old = _months(rows, cutoff), [], None, True
+    for m, n, old, cont in months:
+        yr = m[:4] != prev_year
+        named = yr or (prev_old and not old)
+        top.append(f'<th class="dm{" old" if old else ""}{" cont" if cont else ""}{" one" if n == 1 else ""}'
+                   f'{" yr" if yr and top else ""}" colspan="{n}">{month_label(m, named)}</th>')
+        prev_year, prev_old = m[:4], old
+    top = ''.join(top)
+    first_of_year = {i for i, r in enumerate(rows) if i and r['date'][:4] != rows[i - 1]['date'][:4]}
+    sub = ''.join(f'<th class="dd{" old" if r["date"] < cutoff else ""}{" named" if patch_name(r["title"]) else ""}'
+                  f'{" yr" if i in first_of_year else ""}">'
                   f'<a href="../patches/{esc(r["id"])}.html" data-tooltip="{esc(patch_title_text(r))}">{esc(r["date"][8:])}</a></th>'
-                  for r in rows)
+                  for i, r in enumerate(rows))
     # fixed layout takes the widths from these: the name, then 30px per patch (0 for an old one while
     # the old patches are hidden) — the automatic layout of ~5k cells with colspans took 0.5 s per toggle
     cols = '<col class="nm">' + ''.join('<col class="old">' if r['date'] < cutoff else '<col>' for r in rows)

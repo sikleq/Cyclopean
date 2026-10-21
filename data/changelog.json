@@ -1,6 +1,22 @@
 [
   {
     "date": "2026-10-21",
+    "title": "Patch tiles like Sloppy's, full-width tables, a cleaner head",
+    "items": [
+      "An entity's patch strip: one coloured square per patch (what it did on balance); hover shows its tags, the count and the card. The row scrolls and opens at the newest patch.",
+      "Every table spans the page's width.",
+      "Change matrices read month and day first (\"12\" over \"17\"); a new year is a gold divider with \"2026 · 01\".",
+      "The big home logo and the section titles under their own tabs are gone: the site bar names them.",
+      "Ability cards in a row share one height, their upgrades at the foot; cooldown, cast time and the last-change date are set in the site's text face.",
+      "Units and items the game has no art for show a \"?\"; Nurse Harrow's leech and Calico's old rollermine got their art from the game files. Items the game never released have their own shelf in the shop.",
+      "Trooper and Guardian role marks are smaller, on a dark disc.",
+      "Violet's sketches are on Violet's page.",
+      "A hero's release: the post covers the kit, the hero's base stats are marked not in patch notes. The 2025-05-08 shop rework covers items moving tree or tier.",
+      "A home feed group all out of the notes shows the eye alone beside its count."
+    ]
+  },
+  {
+    "date": "2026-10-21",
     "title": "Nurse Harrow's ability icons",
     "items": [
       "Nurse Harrow's abilities, weapon and hero card show the game's own art instead of placeholders."

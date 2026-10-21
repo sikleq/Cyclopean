@@ -38,7 +38,28 @@ How (checked 2026-10-19 by that session):
 (docs/data-sources.md). **How to apply:** when asked, add to the notes fetch (pipeline) + a mark on the patch
 page; live checks stay separate from deploy (AGENTS.md rule 9).
 
-## Owner questions from the visual pass of 2026-10-17 (written 2026-10-20, unanswered)
+## Owner answers of 2026-10-21 (to the questions below; work in progress)
+
+| # | Answer |
+|---|---|
+| 2 | Rework strip tiles like Sloppy: wider dynamic cells, colour at rest, main info on hover |
+| 3 | A (no names). Restyle the "All / Not in patch notes" switch: it stands out from the design |
+| 4 | Remove the big home wordmark and hub H1s; logo only in the site header like Sloppy ("sikleq \| dota.vpk"), section names only in the header. Logo will be redrawn later |
+| 5 | B (one height). Also restyle the cooldown / cast time / duration / date labels: font or look is off |
+| 6 | A; check every hero stat is in the key stats |
+| 7 | B (smaller); maybe in a circle or square |
+| 8 | B: every table stretched to full width (rule for all tables) |
+| 9 | Show mm.dd; the year as a divider |
+| 10 | A for now |
+| 11 | "?" placeholder when there is surely no icon/portrait, and for WIP / unreleased units |
+| 12 | Same placeholder for items; unreleased items not in the shop, or in their own "unreleased" category |
+| 13 | B: Violet's sketches on Violet's page |
+| 14 | B: release post covers the kit, stats are hidden; the site shows A (Nurse, Deadman Danny): find the break |
+| 15 | A (no page) |
+| 16 | A: keep the path; exception recorded in project memory, not AGENTS.md |
+| 17 | B: covered by "Full shop rework"; update the audit reference |
+
+## Owner questions from the visual pass of 2026-10-17 (written 2026-10-20, answered 2026-10-21 above)
 
 The site is live as described in "now"; an answer only changes it if it picks the other option. Ask the owner
 these at the start of work; Q1 (delete worktrees) is answered and done (2026-10-19).

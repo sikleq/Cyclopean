@@ -1901,6 +1901,9 @@ def release_kit(hid: str, cat: dict[str, dict]) -> set[str]:
     return {f'heroes.vdata:{hid}'} | owned | summons | {k for k, e in cat.items() if code.search(e['id'])}
 
 
+_HERO_NUMBERS = re.compile(r'^m_map(StartingStats|StandardLevelUpUpgrades|ScalingStats)\.')
+
+
 def release_pass(heroes: list[str], changes: list[MChange], events: list[dict], cat: dict[str, dict]) -> None:
     """A hero's release window (pipeline.patches.release_windows): its announcement post names the hero, so the
     hero's development state turning Release is documented and its kit — the abilities, guns, summons and pickups
@@ -1908,13 +1911,20 @@ def release_pass(heroes: list[str], changes: list[MChange], events: list[dict], 
     notes" (Violet's 18 rows, Baba's 19 had the eye; data review 2026-10-17). Everything else the window changed —
     other heroes' tuning, an edit shared by many entities — is what that post left out: hidden, the eye of any update
     with notes (Solomon's silent Move Piece rework sat unmarked among Violet's launch lines, its patch read 0% "not in
-    notes" in the archive; review 2026-10-17, round 4). Only a window with no post at all is "unannounced"."""
+    notes" in the archive; review 2026-10-17, round 4). Only a window with no post at all is "unannounced".
+    The hero's own numbers (`_HERO_NUMBERS`: base stats, per-boon growth, spirit scaling) are not the kit: the post
+    names the hero, not its numbers, so they are hidden too; the kit slots ("Kit: Ability 1"), its role, complexity
+    and sounds stay described (owner 2026-10-21, question 14)."""
     kit = set().union(*(release_kit(h, cat) for h in heroes))
     for c in changes:
         if c.shared or ent_key(c) not in kit:
             c.status = 'hidden'
-            continue
-        c.status = 'documented' if c.file == 'heroes.vdata' and c.path == _DEV_STATE else 'described'
+        elif c.file == 'heroes.vdata' and c.path == _DEV_STATE:
+            c.status = 'documented'
+        elif c.file == 'heroes.vdata' and _HERO_NUMBERS.match(c.path):
+            c.status = 'hidden'
+        else:
+            c.status = 'described'
     for ev in events:
         ev['change']['status'] = 'described' if f"{ev['file']}:{ev['id']}" in kit else 'hidden'
 

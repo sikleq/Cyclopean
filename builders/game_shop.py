@@ -65,7 +65,8 @@ def card_html(e: dict, card: dict | None, rel: str, used_in: list[str], n: int, 
     href = slug(e['file'], e['id']).split('/', 1)[1]
     active = info.get('activation') == 'Active'
     src = entity_icon(e['file'], e['id'], 'item', rel)
-    img = f'<img src="{esc(src)}" alt="" loading="lazy">' if src else ''
+    # no art in the game ever: the site's "?" (owner 2026-10-21, question 12: the empty arch read as a broken shop)
+    img = f'<img src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="glyph g-unknown"></span>'
     cls = f'gcard p-{cat}{min(max(tier, 1), 4)}' + (' act' if active else f' m{n % 3 + 1}')
     imbue = '<span class="gc-imb">Imbue</span>' if info.get('imbue') else ''
     return (f'<a class="{cls}" href="{esc(href)}" data-id="{esc(e["id"])}" '
@@ -177,9 +178,16 @@ def all_page(s: Shop, brawl: list[dict], gone: list[dict]) -> str:
                        for c in CATEGORIES)
         out.append('<h2 class="ga-title">Street Brawl legendaries <small>T5 · draft only</small></h2>'
                    f'<div class="gs-board extra"><div class="ga-row">{cols}</div></div>')
-    if gone:
+    # an item the game never drew is one it never released (Stabilizing Tripod: disabled since the first build we
+    # have, no art): a shelf of its own, apart from what was sold and removed (owner 2026-10-21, question 12)
+    unreleased = [e for e in gone if not entity_icon(e['file'], e['id'], 'item', s.rel)]
+    removed = [e for e in gone if e not in unreleased]
+    if removed:
         out.append('<h2 class="ga-title">Removed or disabled</h2>'
-                   f'<div class="gs-board extra gone"><div class="ga-flow">{s.cards_html(sorted(gone, key=_name), 1)}</div></div>')
+                   f'<div class="gs-board extra gone"><div class="ga-flow">{s.cards_html(sorted(removed, key=_name), 1)}</div></div>')
+    if unreleased:
+        out.append('<h2 class="ga-title">Never released</h2>'
+                   f'<div class="gs-board extra gone"><div class="ga-flow">{s.cards_html(sorted(unreleased, key=_name), 1)}</div></div>')
     return f'<section class="gs-page all" data-page="all" hidden>{"".join(out)}</section>'
 
 

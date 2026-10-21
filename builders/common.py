@@ -366,6 +366,8 @@ GLYPHS = {
     'rules': 'M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z'
              'M5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5zM7 7h2v2H7z',
     'loot': 'M3 3h10v3H3zM2 6h12v8H2zM7 8h2v3H7z',
+    # one unit or item the game has no art for (owner 2026-10-21, questions 11-12): a question mark, not its category
+    'unknown': 'M5 2h6v2H5zM3 4h2v2H3zM11 4h2v3h-2zM9 7h2v2H9zM7 9h2v2H7zM7 12h2v2H7z',
 }
 _SHARED_GLYPH = {'heroes.vdata': 'heroes', 'abilities.vdata': 'abilities', 'npc_units.vdata': 'units',
                  'misc.vdata': 'map', 'modifiers.vdata': 'modifier'}
@@ -374,6 +376,8 @@ _SHARED_GLYPH = {'heroes.vdata': 'heroes', 'abilities.vdata': 'abilities', 'npc_
 def glyph_for(file: str, eid: str, kind: str = '') -> str:
     if eid == '@shared':
         return _SHARED_GLYPH.get(file, 'rules')
+    if file in ('npc_units.vdata', 'abilities.vdata'):
+        return 'unknown'               # one unit, item or ability without game art: "?" (owner 2026-10-21)
     return {'heroes.vdata': 'hero', 'abilities.vdata': 'abilities', 'npc_units.vdata': 'units',
             'misc.vdata': 'map', 'modifiers.vdata': 'modifier', 'loot_tables.vdata': 'loot'}.get(file, 'rules')
 

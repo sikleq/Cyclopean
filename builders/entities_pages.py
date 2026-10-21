@@ -9,6 +9,7 @@ from .hero_page import _split_unit, _unit_html, hero_page, history_table, prop_i
 from .history_view import head_strip, hidden_link, now_fold
 from .now_values import flow as now_flow, group as now_group
 from .render import KIND_LABEL, tag_badge
+from pipeline.game_map import pickup_owner
 
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
                ('unit', 'Other units'), ('helper', 'Unnamed, hideout, bots & effects'))
@@ -128,7 +129,7 @@ def item_page(it: dict, card: dict | None, by_ent, by_subject) -> str:
     chips.append(hidden_link(told.get('hidden', 0)))
     # the patch strip is the head's last row, under the name and its chips (history_view.head_strip)
     head = (f'<div class="crumbs"><a href="index.html">Items</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "abilities")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "unknown")}<div><h1>{esc(name)}{gone}{disabled}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
             f'{first_seen(it["first"])}</div>{head_strip(told)}</div>')
     # the page is the history (owner, 2026-10-03); what the item does today sits open above it (owner
@@ -199,7 +200,7 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
                          merge=lambda labels: merged_label(labels, len(members)), facts_out=told)
     chips.append(hidden_link(told.get('hidden', 0)))
     head = (f'<div class="crumbs"><a href="index.html">Units</a> / {esc(name)}</div>'
-            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "units")}<div><h1>{esc(name)}{gone}</h1>'
+            f'<div class="page-head">{img(ic, "", "head-icon px px-frame", "unknown")}<div><h1>{esc(name)}{gone}</h1>'
             f'<div class="chips">{"".join(chips)}</div>'
             f'{first_seen(u["first"])}</div>{head_strip(told)}</div>')
     return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
@@ -261,6 +262,7 @@ def page_keys(ents: dict[str, dict], heroes: list[dict], items: list[dict], unit
     out = {f"{e['file']}:{e['id']}" for e in heroes + items + units}
     out |= {k for k, e in ents.items() if e['file'] == 'abilities.vdata'
             and (e.get('owner') in hero_ids or set(e.get('units') or ()) & unit_ids)}
+    out |= {k for k, e in ents.items() if pickup_owner(e['file'], e['id']) in hero_ids}
     return out
 
 
@@ -284,7 +286,7 @@ def build_all() -> dict[str, int]:
     from .dynamics_page import matrix_html, toolbar, unit_entries
     entries = unit_entries(units, UNIT_GROUPS, rel)
     n_gone = drawn_extra(entries)
-    write('units/changes.html', page('Unit changes', '<h1>Unit changes</h1>' + sub_tabs('units', 'changes')
+    write('units/changes.html', page('Unit changes', '<h1 class="vh">Unit changes</h1>' + sub_tabs('units', 'changes')
                                      + toolbar('unit', n_gone, 'Removed & helpers') + matrix_html(entries, 'unit'),
                                      rel, 'units', wide=True))
     return {'heroes': len(heroes), 'items': len(items), 'units': len(fams), 'game': n_game}
@@ -316,9 +318,13 @@ def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
     Returns the heroes a player can pick."""
     ents, by_ent, by_subject, rel = ctx['ents'], ctx['by_ent'], ctx['by_subject'], ctx['rel']
     table, trow = ctx['heroes_t'], ctx['trow']
+    pickups = defaultdict(list)
+    for e in ents.values():
+        if pickup_owner(e['file'], e['id']):
+            pickups[pickup_owner(e['file'], e['id'])].append(e)
     for h in heroes:
         write(slug(h['file'], h['id']), hero_page(h, ctx['cards'], trow.get(h['id']), table['columns'], ctx['by_id'],
-                                                  by_ent, by_subject))
+                                                  by_ent, by_subject, pickups.get(h['id'], [])))
     live = sorted((h for h in heroes if h.get('state') in ('EHeroDevState_Release', 'EHeroDevState_PreRelease')),
                   key=lambda h: h.get('name') or '')
     other = sorted((h for h in heroes if h not in live), key=lambda h: h.get('name') or '')
@@ -329,7 +335,7 @@ def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
     has_shared = shared_page.has_history(shared, by_ent)
     if has_shared:          # jump, dash, parry… live in Game › Movement & combat now; the old address points there
         write(f'heroes/{shared_page.HREF}', shared_page.redirect())
-    body = ('<h1>Heroes</h1>' + sub_tabs('heroes', 'index') +
+    body = ('<h1 class="vh">Heroes</h1>' + sub_tabs('heroes', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Hero…" data-search-target=".hgcard">'
             f'<span class="sep"></span>{pre_release_switch(live)}{shared_page.index_link() if has_shared else ""}</div>'
             + heroes_grid_html(live, other, trow, rel))
@@ -340,7 +346,7 @@ def _build_heroes(ctx: dict, heroes: list[dict]) -> list[dict]:
     dyn = matrix_html(hero_entries(live, rel, trow), 'hero')
     # the roles Hero Stats filters by, as the matrix's row filter too (review 2026-10-05: it had none)
     roles = tuple(sorted({str(r.get('type') or '').rsplit('_', 1)[-1] for r in trow.values()} - {''}))
-    write('heroes/changes.html', page('Hero changes', '<h1>Hero changes</h1>' + sub_tabs('heroes', 'changes')
+    write('heroes/changes.html', page('Hero changes', '<h1 class="vh">Hero changes</h1>' + sub_tabs('heroes', 'changes')
                                       + toolbar('hero', n_pre, 'Pre-release', roles) + dyn, rel, 'heroes', wide=True))
     return live
 
@@ -355,11 +361,11 @@ def _build_items(ctx: dict, items: list[dict]) -> None:
     from .shop_page import shop_html
     shop, tips = shop_html(items, cards, rel)
     write('items/shop-tips.json', tips)          # the tooltips, loaded on the first hover
-    body = ('<h1>Items</h1>' + sub_tabs('items', 'index') +
+    body = ('<h1 class="vh">Items</h1>' + sub_tabs('items', 'index') +
             '<div class="toolbar"><input type="search" placeholder="Item…" data-search-target=".gcard"></div>' + shop)
     entries = item_entries(items, cards, rel)
     n_gone = drawn_extra(entries)
-    write('items/changes.html', page('Item changes', '<h1>Item changes</h1>' + sub_tabs('items', 'changes')
+    write('items/changes.html', page('Item changes', '<h1 class="vh">Item changes</h1>' + sub_tabs('items', 'changes')
                                      + toolbar('item', n_gone, 'Removed') + matrix_html(entries, 'item'),
                                      rel, 'items', wide=True))
     from .game_shop import FONTS as SHOP_FONTS
@@ -428,6 +434,6 @@ def _units_index(fams: dict, rel: str) -> str:
         f'<span class="track"></span>{label} <span class="n">{n}</span></label>'
         for cls, label, n in (('show-gone', 'Removed', n_gone), ('show-helpers', helpers_label, n_helpers)) if n)
     gone_switch = f'<span class="sep"></span>{gone_switch}' if gone_switch else ''
-    return ('<h1>Units</h1>' + sub_tabs('units', 'index')
+    return ('<h1 class="vh">Units</h1>' + sub_tabs('units', 'index')
             + f'<div class="toolbar"><input type="search" placeholder="Unit…" data-search-target=".card">{gone_switch}</div>'
             + f'<div id="units-grid">{"".join(groups)}</div>')

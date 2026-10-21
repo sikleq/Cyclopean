@@ -12,6 +12,11 @@
   var redirect = document.body && document.body.getAttribute('data-redirect');
   if (redirect) { location.replace(redirect + location.hash); return; }
 
+  /* a patch strip opens at its newest end, on the right (styles.css .patch-strip: 24px tiles that scroll) */
+  safe('strip-end', function () {
+    document.querySelectorAll('.patch-strip').forEach(function (s) { s.scrollLeft = s.scrollWidth; });
+  });
+
   /* the fonts' stylesheet arrives as media="print" so it never holds the first paint (builders/common.page):
      switched on once it has loaded */
   safe('fonts', function () {

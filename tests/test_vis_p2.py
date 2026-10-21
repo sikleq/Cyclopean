@@ -79,7 +79,9 @@ def test_marked_svg_and_where_flat_marks_go():
     svg = extract_icons.marked_svg('data:image/webp;base64,AA', 'data:image/svg+xml;base64,BB', 128)
     assert svg.startswith('<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">')
     assert '<feMorphology in="SourceAlpha" operator="dilate" radius="3"/>' in svg          # a dark rim of its own alpha
-    assert 'preserveAspectRatio="xMaxYMin meet"' in svg and 'filter="url(#rim)"' in svg     # top-right corner
+    assert 'preserveAspectRatio="xMidYMid meet"' in svg and 'filter="url(#rim)"' in svg
+    # small, on a dark disc in the top-right corner (owner 2026-10-21, question 7)
+    assert '<circle cx="103.24" cy="24.76" r="21.76" opacity="0.75"/>' in svg and 'width="31" height="31"' in svg
     assert extract_icons.unit_art_dir('getting_started/map_rejuv_png.png') == 'units/_mark'
     assert extract_icons.unit_art_dir('hud/abilities/ratking/ratking_nibble_psd.png') == 'units/_mark'
     assert extract_icons.unit_art_dir('npcs/trooper_psd.png') == 'units/_class'
@@ -119,8 +121,9 @@ def test_home_says_not_in_patch_notes_with_the_entity_chip(monkeypatch):
     assert ('<span class="au-more"><span class="au-dot" aria-hidden="true">·</span><a class="au au-off" '
             'href="game/changes.html"><b>1</b> of them in game rules &amp; map objects</a></span>') in feed
     assert '<span class="au-dot" aria-hidden="true">·</span><span class="au au-shr"><b>5</b>' in feed
-    # a group all out of the notes: the same chip on its label, not amber sans glued to the eye
-    assert '<span class="chip lu-all"><span class="mark hidden"></span>all not in patch notes</span>' in feed
+    # a group all out of the notes: the eye alone on its label, the words in its tooltip (owner 2026-10-21, q3)
+    assert ('<span class="lu-all" data-tooltip="All not in patch notes"><span class="mark hidden"></span></span>'
+            in feed)
 
 
 def test_home_banner_chip_looks_like_the_entity_chip(browser):
@@ -130,19 +133,15 @@ def test_home_banner_chip_looks_like_the_entity_chip(browser):
               'patch notes</a><span class="au-more"><span class="au-dot" aria-hidden="true">·</span>'
               '<a class="au au-off" id="o" href="#"><b>2</b> of them in game rules</a></span></span></div>'
               '<div class="lu-groups"><div class="lu-group"><span class="lu-h" id="g1">Heroes <b>5</b></span></div>'
-              '<div class="lu-group"><span class="lu-h" id="g2">Units <b>1</b><span class="chip lu-all" id="a">'
-              '<span class="mark hidden"></span>all not in patch notes</span></span></div></div></section>')
+              '</div></section>')
     ctx, page, errors = _open(browser, head + banner)
     look = """s => { const c = getComputedStyle(document.querySelector(s));
                      return [c.fontFamily, c.fontSize, c.textTransform, c.color, c.backgroundColor, c.boxShadow]; }"""
-    assert page.evaluate(look, '#h') == page.evaluate(look, '#e') == page.evaluate(look, '#a')
+    assert page.evaluate(look, '#h') == page.evaluate(look, '#e')
     # the explaining clause is quiet sans, not 13px pixel caps run into the chip
     other = page.evaluate("() => { const c = getComputedStyle(document.querySelector('#o')); "
                           "return [c.textTransform, c.fontSize]; }")
     assert other == ['none', '13px']
-    # a label with the chip is no taller than one without: the groups' icons start on one line
-    heights = page.evaluate("() => ['#g1', '#g2'].map(s => document.querySelector(s).getBoundingClientRect().height)")
-    assert abs(heights[0] - heights[1]) < 1, heights
     assert not errors
     ctx.close()
 

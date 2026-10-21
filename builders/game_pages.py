@@ -191,7 +191,7 @@ def index_page(entries: dict, hist: dict) -> str:
         cards.append(f'<a class="card px-frame game-card" href="{esc(s.href)}" data-search="{esc(s.name.lower())}">'
                      f'{icon_html(s, rel)}<span class="nm">{esc(s.name)}</span>'
                      f'<span class="sub">{esc(plural(n, "change"))}</span>{when}</a>')
-    body = ('<h1>Game</h1>' + section_tabs('index') +
+    body = ('<h1 class="vh">Game</h1>' + section_tabs('index') +
             '<div class="toolbar"><input type="search" placeholder="System…" data-search-target=".game-card"></div>'
             f'<div class="grid units game-grid">{"".join(cards)}</div>')
     return page('Game', body, rel, SECTION, wide=True,            # one width for the section's tabs
@@ -207,7 +207,7 @@ def section_tabs(active: str) -> str:
 def matrix_page() -> str:
     from .dynamics_page import game_entries, matrix_html, toolbar
     rel = '../'
-    return page('Game changes', '<h1>Game changes</h1>' + section_tabs('changes') + toolbar('game', 0, '')
+    return page('Game changes', '<h1 class="vh">Game changes</h1>' + section_tabs('changes') + toolbar('game', 0, '')
                 + matrix_html(game_entries(rel), 'game'), rel, SECTION, wide=True)
 
 

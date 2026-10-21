@@ -328,7 +328,7 @@ def heroes_table() -> str:
              f'value="0" data-boons="#hero-stats"></label>')
     role_btns = '<span class="sep"></span>' + ''.join(
         f'<button class="px-btn" data-role-filter="{esc(r.lower())}" data-target="#hero-stats" aria-pressed="false">{esc(r)}</button>' for r in roles)
-    body = ('<h1>Hero Stats</h1>' + section_tabs('heroes', 'stats') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
+    body = ('<h1 class="vh">Hero Stats</h1>' + section_tabs('heroes', 'stats') + _toolbar('Hero…', details=True, extra=switch + boons + role_btns)
             + table)
     return page('Hero Stats', body, rel, 'heroes', build=t['build'],
                 description='Deadlock hero stats with the full history of every value', wide=True)
@@ -494,7 +494,7 @@ def units_table() -> str:
             groups += neutral_groups(rows, t['columns'], title)
             continue
         groups.append((kind, title, merge_copies(sorted(rows, key=lambda u: unit_label(u).lower()))))
-    body = ('<h1>Unit Stats</h1>' + section_tabs('units', 'stats') + _toolbar('Unit…')
+    body = ('<h1 class="vh">Unit Stats</h1>' + section_tabs('units', 'stats') + _toolbar('Unit…')
             + _section_tables(groups, t['columns'], name_cell, 'Unit', t.get('date')))
     return page('Unit Stats', body, rel, 'units', build=t['build'],
                 description='Deadlock troopers, guardians, walkers, patron and neutrals with the history of every value', wide=True)
@@ -722,7 +722,7 @@ def items_table() -> str:
                          # tier-I number read red and every tier-IV one green; "Souls per point" evens
                          # the price out, so it ranks over all (scripts.js heatmap)
                          table_attrs=' data-heat-by="tier"')
-    body = ('<h1>Item Stats</h1>' + section_tabs('items', 'stats')
+    body = ('<h1 class="vh">Item Stats</h1>' + section_tabs('items', 'stats')
             + _toolbar('Item…', extra='<span class="sep"></span>' + chips, heat_on=True) + table)
     return page('Item Stats', body, rel, 'items', build=t['build'],
                 description='Deadlock shop items with the history of every value', wide=True)

@@ -171,8 +171,10 @@ def test_a_label_shortens_only_when_its_month_has_no_room(browser, tmp_path):
 
 def test_month_label_carries_its_short_form():
     from builders.dynamics_page import month_label
-    assert month_label('2025-12') == '<span class="ml" data-s="Dec">2025-12</span>'
-    assert 'data-s="May"' in month_label('2026-05')
+    # month and day first, the year only where it starts (owner 2026-10-21, question 9)
+    assert month_label('2025-12') == '<span class="ml" data-s="12">12</span>'
+    assert month_label('2026-01', True) == '<span class="ml" data-s="01">2026 · 01</span>'
+    assert 'data-s="05"' in month_label('2026-05')
     # sticky in its header (the compositor moves it); scripts.js only switches its state, never its place: a label moved
     # from a script re-laid the matrix out every frame of a sideways scroll. A vertical scroll returns at once
     block = JS[JS.index("safe('dyn-months'"):JS.index("safe('table-fit'")]
@@ -181,8 +183,12 @@ def test_month_label_carries_its_short_form():
             '  left: calc(var(--dyn-name) + 4px); right: 22px;' in CSS)
     from builders.dynamics_page import _head
     head = _head([{'id': d, 'date': d, 'title': ''} for d in ('2026-01-05', '2026-02-03', '2026-02-09')], '', 'Hero')
-    assert '<th class="dm one" colspan="1"><span class="ml" data-s="Jan">2026-01</span></th>' in head
-    assert '<th class="dm" colspan="2"><span class="ml" data-s="Feb">2026-02</span></th>' in head
+    assert '<th class="dm one" colspan="1"><span class="ml" data-s="01">2026 · 01</span></th>' in head
+    assert '<th class="dm" colspan="2"><span class="ml" data-s="02">02</span></th>' in head
+    # a new year: the gold divider on its first month and first day
+    head = _head([{'id': d, 'date': d, 'title': ''} for d in ('2025-12-05', '2026-01-03')], '', 'Hero')
+    assert '<th class="dm one yr" colspan="1"><span class="ml" data-s="01">2026 · 01</span></th>' in head
+    assert '<th class="dd yr">' in head
 
 
 def test_a_vertical_scroll_leaves_the_month_labels_alone(browser, tmp_path):
@@ -238,9 +244,9 @@ def test_unit_stats_tables_start_at_their_bands_left_edge(browser, tmp_path):
                             ".getBoundingClientRect().width, e.parentNode.clientWidth - parseFloat(p.paddingLeft)"
                             " - parseFloat(p.paddingRight)]; })")
         assert len(set(lefts)) == 1, lefts
+        # every table spans the page (owner 2026-10-21, question 8)
         for box, table, room in boxes:
-            assert abs(box - min(table, room)) < 8, (box, table, room)          # the box's own frame
-        assert len({round(b) for b, _, _ in boxes}) == 3
+            assert abs(box - room) < 1 and table >= box - 8, (box, table, room)
         assert not errors
     finally:
         ctx.close()
@@ -276,8 +282,8 @@ def test_game_rules_starts_under_its_title(browser, tmp_path, monkeypatch):
     """Game rules centred its 776px table and search under a title and tabs at the left (review 2026-10-17)."""
     ctx, pg, errors = _open_html(browser, tmp_path, _rules_html(monkeypatch), DESK)
     try:
-        h1 = _left(pg, 'main h1')
-        assert _left(pg, '.rules-col > .toolbar') == _left(pg, 'table.game-rules') == h1
+        tabs = _left(pg, 'main .table-tabs')        # the title is for screen readers only (owner 2026-10-21, q4)
+        assert _left(pg, '.rules-col > .toolbar') == _left(pg, 'table.game-rules') == tabs
         assert not errors
     finally:
         ctx.close()

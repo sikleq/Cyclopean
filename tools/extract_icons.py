@@ -438,7 +438,9 @@ def _stem(rel: str) -> str:
 # portrait: stored under icons/units/_mark/, so a unit card insets it on its tile as the Game cards do their marks
 # (styles.css `.card img[src*="/_mark/"]`; review 2026-10-17: the yellow Mid-Boss filled its tile edge to edge)
 FLAT_SOURCES = ('hud/', 'minimap/', 'getting_started/', 'upgrades/')
-MARK_BOX = 0.42         # a role mark's square, of the portrait's side (top-right corner)
+MARK_BOX = 0.24         # a role mark's square, of the portrait's side (top-right corner; 0.42 hid the portrait,
+                        # owner 2026-10-21, question 7: smaller, in a circle)
+MARK_DISC = 0.34        # the dark disc the mark sits on, of the portrait's side
 MARK_OUTLINE = 0.025    # its dark rim, of the portrait's side: the mark reads on the art and on the tile
 MARK_SIDE = 96          # a raster mark stored at most this big inside the composite
 
@@ -471,17 +473,20 @@ def _data_uri(path: Path, max_side: int | None = None) -> str | None:
 
 def marked_svg(portrait: str, mark: str, side: int) -> str:
     """One unit type's picture: the class portrait the game shares between several types (data: URI) with a role mark
-    from the game files in its top-right corner (data: URI), ringed by its own alpha grown a little (feMorphology on
-    SourceAlpha: black, no colour of our own)."""
+    from the game files in its top-right corner (data: URI), on a dark disc, ringed by its own alpha grown a little
+    (feMorphology on SourceAlpha: black, no colour of our own)."""
     box = round(side * MARK_BOX)
     rim = max(1, round(side * MARK_OUTLINE))
-    x, y = side - box - rim, rim
+    r = side * MARK_DISC / 2
+    cx, cy = side - r - rim, r + rim
+    x, y = round(cx - box / 2), round(cy - box / 2)
     return (f'<svg xmlns="http://www.w3.org/2000/svg" width="{side}" height="{side}" viewBox="0 0 {side} {side}">'
             f'<defs><filter id="rim" x="-25%" y="-25%" width="150%" height="150%">'
             f'<feMorphology in="SourceAlpha" operator="dilate" radius="{rim}"/>'
             f'<feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>'
             f'<image href="{portrait}" width="{side}" height="{side}"/>'
-            f'<image href="{mark}" x="{x}" y="{y}" width="{box}" height="{box}" preserveAspectRatio="xMaxYMin meet" '
+            f'<circle cx="{cx:g}" cy="{cy:g}" r="{r:g}" opacity="0.75"/>'      # SVG's default fill: black
+            f'<image href="{mark}" x="{x}" y="{y}" width="{box}" height="{box}" preserveAspectRatio="xMidYMid meet" '
             f'filter="url(#rim)"/></svg>')
 
 

@@ -664,7 +664,10 @@ def test_items_index_is_the_game_shop_matrix(monkeypatch):
     assert 'class="gcard p-w2 act"' in html and 'class="gcard p-s1 m1"' in html and 'class="gc-imb"' in html
     assert 'data-comp="upgrade_basic"' in html and 'data-up="upgrade_sharp"' in html
     # Street Brawl's T5 on the dark card, removed items last; tooltips are a separate json
-    assert 'Street Brawl legendaries' in html and 'gcard p-v4' in html and 'Removed or disabled' in html
+    assert 'Street Brawl legendaries' in html and 'gcard p-v4' in html
+    # a gone item the game never drew is one it never released: its own shelf, the "?" for art (owner 2026-10-21, q12)
+    assert 'Never released' in html and 'Removed or disabled' not in html
+    assert '<span class="gc-ic"><span class="glyph g-unknown"></span></span><span class="gc-nm">Old</span>' in html
     assert '<template' not in html and 'data-tips="shop-tips.json"' in html
     tips = json.loads(tips)
     assert set(tips) == {'upgrade_basic', 'upgrade_sharp', 'upgrade_spell', 'upgrade_brawl', 'upgrade_old'}
@@ -1197,16 +1200,27 @@ def test_one_hidden_change_is_never_all_of_one():
     assert ' late' not in row('hidden', '', 'x')
 
 
-def test_the_strip_never_scrolls():
-    """Owner 2026-10-05 (screenshot: a scrollbar under the strip): tiles shrink to fit, a phone keeps the
-    newest; no horizontal scrolling on the row."""
+def test_strip_tiles_are_one_colour_squares_that_scroll_from_the_newest():
+    """Owner 2026-10-21, question 2 (Sloppy's dynamic cells; 14px tiles were too narrow): a 24px square of one colour
+    at rest, the stripes and the count on hover; the row scrolls with no bar until hovered (2026-10-05: a bar under the
+    strip) and opens at its newest end."""
     import re
     from pathlib import Path
-    css = Path(__file__).resolve().parent.parent.joinpath('site', 'styles.css').read_text(encoding='utf-8')
+    from builders.history_view import patch_strip, tile_colour
+    root = Path(__file__).resolve().parent.parent
+    css = root.joinpath('site', 'styles.css').read_text(encoding='utf-8')
     rule = re.search(r'\.patch-strip \{[^}]*\}', css).group(0)
-    assert 'overflow: hidden' in rule and 'overflow-x: auto' not in rule
-    assert re.search(r'\.ps-tile \{[^}]*flex: 0 1 30px[^}]*min-width', css)
-    assert '.ps-tile:nth-last-child(n+16) { display: none; }' in css
+    assert 'overflow-x: auto' in rule and 'scrollbar-width: none' in rule
+    assert re.search(r'\.ps-tile \{[^}]*flex: 0 0 24px[^}]*height: 24px', css)
+    assert '.ps-tile:hover, .ps-tile:focus-visible { background: var(--st, var(--c)); }' in css
+    assert "safe('strip-end'" in root.joinpath('site', 'scripts.js').read_text(encoding='utf-8')
+    # the colour: the patch's net mark, else its most counted tag
+    assert tile_colour({'buff': 1, 'nerf': 5}, 'mix') == 'changed' and tile_colour({'buff': 1}, 'nerf') == 'nerf'
+    assert tile_colour({'new': 3, 'rework': 3, 'buff': 1}, '') == 'new'
+    assert tile_colour({'up': 2}, '') == 'changed'
+    hdr = [{'id': f'p{i}', 'date': f'2026-0{i}-01', 'title': f'0{i}-01-2026 Update'} for i in (1, 2)]
+    html = patch_strip([(h['id'], h, {'buff': 2}, 0, [], 'buff') for h in hdr])
+    assert 'class="ps-tile c-buff"' in html and 'style="--st:linear-gradient(' in html
 
 
 def test_current_fold_is_open_and_events_carry_no_value():

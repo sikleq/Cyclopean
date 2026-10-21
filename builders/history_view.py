@@ -313,15 +313,14 @@ def patch_strip(items: list[tuple]) -> str:
     # the month under the first tile of each month, oldest left (review 2026-10-17: a row of tiles with no date)
     cues = month_cues([str(hdr.get('date') or '') for _, hdr, *_ in reversed(shown)])[::-1]
     tiles = []
-    for k, (pid, hdr, tally, hidden, *_) in enumerate(shown):
+    for k, (pid, hdr, tally, hidden, _card, *rest) in enumerate(shown):
         text = f'{patch_title_text(hdr)}: {plural(sum(tally.values()), "change")}'
         if hidden:
             text += f', {hidden} not in patch notes'
-        # the eye is CSS (a mask on ::after): one inline SVG per tile cost 13 KB on a unit page
         cls = ' hid' if hidden else ''
         cue = f' data-m="{esc(cues[k])}"' if cues[k] else ''
-        tiles.append(f'<a class="ps-tile{cls}" href="#p-{esc(pid)}" data-k="{k}"{cue} '
-                     f'aria-label="{esc(text)}" style="background:{stripes(tally)}">'
+        tiles.append(f'<a class="ps-tile c-{tile_colour(tally, rest[0] if rest else "")}{cls}" href="#p-{esc(pid)}" '
+                     f'data-k="{k}"{cue} aria-label="{esc(text)}" style="--st:{stripes(tally)}">'
                      f'<span class="dn">{sum(tally.values())}</span></a>')
     tiles.reverse()                                        # oldest left, newest right
     # JSON inside a script element: "</" would end it early
@@ -332,7 +331,24 @@ def patch_strip(items: list[tuple]) -> str:
     return f'{strip}{key}<script type="application/json" class="strip-data">{blob}</script>'
 
 
-CUE_GAP = 2               # tiles from one month label to the next at least: a 14px tile is narrower than "Sep"
+_NET_COLOUR = {'buff': 'buff', 'nerf': 'nerf', 'mix': 'changed'}
+
+
+def tile_colour(tally: dict[str, int], net: str) -> str:
+    """A strip tile's one colour at rest (owner 2026-10-21, question 2: Sloppy's cells — a colour, the details on
+    hover): what the patch did on balance (weights.net_of), else its most counted tag (the first by TAG_ORDER on a
+    tie). Hover shows the tag stripes and the count."""
+    from .dynamics_page import STRIPE_COLOUR, TAG_ORDER
+    if net in _NET_COLOUR:
+        return _NET_COLOUR[net]
+    tags = [t for t in tally if tally[t]]
+    if not tags:
+        return 'changed'
+    top = min(tags, key=lambda t: (-tally[t], TAG_ORDER.get(t, 9)))
+    return STRIPE_COLOUR.get(top, top)
+
+
+CUE_GAP = 2               # tiles from one month label to the next at least
 
 
 def month_cues(dates: list[str]) -> list[str]:

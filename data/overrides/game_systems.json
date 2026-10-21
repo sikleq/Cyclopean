@@ -80,9 +80,7 @@
           "misc[.]vdata:citadel_item_pickup_rejuv",
           "modifiers[.]vdata:modifier_rejuv"]},
         {"id": "health", "name": "Health & item pickups", "match": [
-          "misc[.]vdata:(medic_trooper_aoe_health_pickup|street_brawl_health_pickup|small_health_pickup|citadel_pickup_|floating_apple_pickup|dropped_necro_pickup|citadel_item_pickup#|item_pickup#)"]},
-        {"id": "sketches", "name": "Violet's sketches (Still Life)", "match": [
-          "misc[.]vdata:pickup_artist_drawing_"]}
+          "misc[.]vdata:(medic_trooper_aoe_health_pickup|street_brawl_health_pickup|small_health_pickup|citadel_pickup_|floating_apple_pickup|dropped_necro_pickup|citadel_item_pickup#|item_pickup#)"]}
       ]
     },
     {

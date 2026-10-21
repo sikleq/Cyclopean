@@ -285,12 +285,12 @@ def test_every_month_header_sits_over_its_own_dates(browser, show_old):
       const dd = [...document.querySelectorAll('th.dd')].filter(shown);
       return [...document.querySelectorAll('th.dm')].filter(shown).map(th => {
         const mine = dd.filter(d => box(d).left >= box(th).left - 1 && box(d).right <= box(th).right + 1);
-        return [th.textContent, mine.map(d => d.querySelector('a').getAttribute('href').slice(11, 18))];
+        return [th.textContent.slice(-2), mine.map(d => d.querySelector('a').getAttribute('href').slice(16, 18))];
       });
     }""")
     for month, under in got:
         assert under and all(m == month for m in under), (month, under)
     seen = sorted({m for _, under in got for m in under})
-    want = sorted({d[:7] for d in dates if show_old or d >= cutoff})
+    want = sorted({d[5:7] for d in dates if show_old or d >= cutoff})
     assert seen == want
     assert not errors

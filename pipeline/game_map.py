@@ -45,10 +45,23 @@ def is_template(e: dict) -> bool:
     return bool(e.get('template')) or str(e.get('id', '')).endswith('_base')
 
 
+_HERO_PICKUP = re.compile(r'^pickup_([a-z]+)_')
+
+
+def pickup_owner(file: str, eid: str) -> str | None:
+    """The hero whose ability drops this pickup, named in its id: pickup_artist_drawing_mystic is Violet's
+    (hero_artist) sketch from Still Life. Her page shows them, not Game › Pickups (owner 2026-10-21, question 13)."""
+    m = _HERO_PICKUP.match(eid) if file == 'misc.vdata' else None
+    return f'hero_{m.group(1)}' if m else None
+
+
 def claimed(e: dict) -> bool:
     """A hero, item or unit page shows this entry (catalog row or patch entity): a hero and its abilities and gun,
-    a shop item ('upgrade_*'), an NPC and the abilities it binds. Templates never."""
+    the pickups its abilities drop (`pickup_owner`), a shop item ('upgrade_*'), an NPC and the abilities it binds.
+    Templates never, but a hero's pickup template goes with its pickups."""
     file, eid = e.get('file'), str(e.get('id', ''))
+    if pickup_owner(file, eid):
+        return True
     if file not in PAGE_FILES or is_template(e):
         return False
     if file in ('heroes.vdata', 'npc_units.vdata'):

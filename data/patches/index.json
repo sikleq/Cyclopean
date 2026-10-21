@@ -1321,8 +1321,8 @@
   "builds": 12,
   "counts": {
    "documented": 95,
-   "described": 236,
-   "hidden": 1078,
+   "described": 277,
+   "hidden": 1037,
    "unannounced": 0,
    "unreleased": 148
   },
@@ -2553,8 +2553,8 @@
   "builds": 4,
   "counts": {
    "documented": 1,
-   "described": 28,
-   "hidden": 10,
+   "described": 19,
+   "hidden": 19,
    "unannounced": 0,
    "unreleased": 1
   },
@@ -2590,8 +2590,8 @@
   "builds": 2,
   "counts": {
    "documented": 1,
-   "described": 20,
-   "hidden": 0,
+   "described": 13,
+   "hidden": 7,
    "unannounced": 0,
    "unreleased": 2
   },
@@ -2608,8 +2608,8 @@
   "builds": 4,
   "counts": {
    "documented": 1,
-   "described": 27,
-   "hidden": 0,
+   "described": 19,
+   "hidden": 8,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -2626,8 +2626,8 @@
   "builds": 1,
   "counts": {
    "documented": 1,
-   "described": 20,
-   "hidden": 4,
+   "described": 14,
+   "hidden": 10,
    "unannounced": 0,
    "unreleased": 0
   },
@@ -2663,8 +2663,8 @@
   "builds": 2,
   "counts": {
    "documented": 1,
-   "described": 28,
-   "hidden": 31,
+   "described": 22,
+   "hidden": 37,
    "unannounced": 0,
    "unreleased": 1
   },
@@ -2681,8 +2681,8 @@
   "builds": 3,
   "counts": {
    "documented": 1,
-   "described": 21,
-   "hidden": 686,
+   "described": 14,
+   "hidden": 693,
    "unannounced": 0,
    "unreleased": 153
   },

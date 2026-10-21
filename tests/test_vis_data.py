@@ -128,13 +128,20 @@ def test_a_release_windows_kit_is_announced_and_the_rest_hidden():
     every = _mc('heroes.vdata', 'hero_artist', 'm_flX', 1, 2, 'X', kind='hero', shared=True)
     item = _mc('abilities.vdata', 'upgrade_medic_bullets', 'm_nAbilityTargetTypes', 'A', 'A | B', 'Can target',
                cat='mechanic', kind='item')
-    changes = [state, hp, every, item]
+    slot = _mc('heroes.vdata', 'hero_artist', 'm_mapBoundAbilities.ESlot_Signature_1', None, 'ability_artist_tether',
+               'Kit: Ability 1', kind='hero')
+    cd = _mc('abilities.vdata', 'ability_artist_tether', 'm_mapAbilityProperties.AbilityCooldown.m_strValue', 30, 28,
+             'Cooldown', owner='hero_artist')
+    sound = _mc('heroes.vdata', 'hero_artist', 'm_strHeroDebutSound', None, 'x.vsnd', 'Debut sound', kind='hero')
+    changes = [state, hp, every, item, slot, cd, sound]
     for c in changes:
         c.status = 'unannounced'
     events = [{'file': 'abilities.vdata', 'id': 'ability_artist_tether', 'change': {'status': 'unannounced'}},
               {'file': 'misc.vdata', 'id': 'pickup_artist_drawing_mystic', 'change': {'status': 'unannounced'}}]
     release_pass(['hero_artist'], changes, events, cat)
-    assert (state.status, hp.status, every.status, item.status) == ('documented', 'described', 'hidden', 'hidden')
+    # the post names the hero, not its numbers: its stats are hidden, its kit described (owner 2026-10-21, q14)
+    assert (state.status, hp.status, every.status, item.status) == ('documented', 'hidden', 'hidden', 'hidden')
+    assert (slot.status, cd.status, sound.status) == ('described', 'described', 'described')
     assert [e['change']['status'] for e in events] == ['described', 'described']
 
 

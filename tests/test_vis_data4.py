@@ -50,7 +50,8 @@ def test_what_a_release_post_left_out_is_hidden_and_its_kit_described():
               {'file': 'misc.vdata', 'id': 'citadel_breakable_prop_tough_crate_hideout',
                'change': {'status': 'unannounced'}}]
     release_pass(['hero_artist'], [hp, solomon, every], events, cat)
-    assert (hp.status, solomon.status, every.status) == ('described', 'hidden', 'hidden')
+    # the post names the hero, not its numbers: its stats are hidden (owner 2026-10-21, question 14)
+    assert (hp.status, solomon.status, every.status) == ('hidden', 'hidden', 'hidden')
     assert [e['change']['status'] for e in events] == ['described', 'hidden']
 
 
@@ -279,11 +280,13 @@ def test_the_shop_rework_lines_cover_shields_bounties_and_the_level_table():
     assert any(_in_scope(s, 'npc_units.vdata', 'neutral_base', 'm_flGoldReward', 'change', 'neutral') for s in bounties)
     assert not any(_in_scope(s, 'npc_units.vdata', 'trooper_normal', 'm_flGoldReward', 'change', 'trooper')
                    for s in bounties)
-    # an item's slot, tier and price stay hidden: the audit's verdicts call them real finds (Diviner's Kevlar,
-    # Infuser, the tier prices)
+    # an item's slot and tier moves are the rework itself (owner 2026-10-21, q17); its stat numbers stay hidden
     rework = lines['Full shop rework, including many new items']['match']
-    assert not any(_in_scope(s, 'abilities.vdata', 'upgrade_diviners_kevlar', 'm_eItemSlotType', 'change', 'item')
-                   for s in rework)
+    assert any(_in_scope(s, 'abilities.vdata', 'upgrade_diviners_kevlar', 'm_eItemSlotType', 'change', 'item')
+               for s in rework)
+    assert any(_in_scope(s, 'abilities.vdata', 'upgrade_infuser', 'm_iItemTier', 'change', 'item') for s in rework)
+    assert not any(_in_scope(s, 'abilities.vdata', 'upgrade_extra_health',
+                             'm_mapAbilityProperties.BonusHealth.m_strValue', 'change', 'item') for s in rework)
 
 
 # ---- 5. one count ----------------------------------------------------------------------------------------------------

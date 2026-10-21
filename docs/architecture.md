@@ -762,11 +762,12 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as ONE
   row of tiles in the page head under the name on a hero, item, unit or Game page (`history_view.head_strip`),
   oldest → newest with the newest on the RIGHT, as in the change matrices and the trail squares (owner 2026-10-05:
-  "новые справа везде"). The row never scrolls: tiles are
-  `flex: 0 1 30px` (min 14px) and shrink to fit the column; below 760px only the newest 15 show
-  (`nth-last-child`). Tiles are striped by tag (`dynamics_page.stripes`), show the count, and carry the site's eye (a
-  CSS mask, `--mask-eye`) when the notes left something out. A tile opens `#p-<patch>`. Hovering it
-  shows the hover card (below).
+  "новые справа везде"). Tiles are Sloppy's dynamic cells (owner 2026-10-21): a 24px square (`flex: 0 0 24px`) of
+  ONE colour at rest, `c-<tag>` from `history_view.tile_colour` (the patch's net mark buff / nerf / mix→changed, else
+  its most counted tag); on hover it grows 1.4× and shows its tag stripes (`--st`, `dynamics_page.stripes`) and the
+  count. The row scrolls sideways (`overflow-x: auto`, no bar until hovered) and scripts.js `strip-end` opens it at
+  the newest end. The notes leaving something out = the eye-coloured top edge. A tile opens `#p-<patch>`. Hovering
+  it shows the hover card (below).
 - Hover cards (scripts.js `dyn-tip`, ONE renderer `card()`): a change-matrix cell, an entity page's strip
   tile, an ability card's trail square and its "last change" link, and a home feed icon. Each card shows
   the patch (named ones in gold), counts by tag, "N not in patch notes", and the biggest changes (tag,
@@ -985,8 +986,8 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   `history_view.hidden_link`), linking to the patch page's `#hidden`. The clauses that explain it (`au-off`, `au-shr`,
   `au-arch`) each sit in a `span.au-more` after a `span.au-dot` " · ", in 13px UI type. At most 700px they go one a
   line, without the dot, starting at the left (`.update > .banner .bc` flex-basis 100%). A group whose icons are all
-  out of the notes gets `span.chip.lu-all` "all not in patch notes" beside its label (its margin box no taller than
-  the label's line); an update with no changelog and no hero release gets none (its banner says "no patch notes"). At most 640px the four
+  out of the notes gets `span.lu-all`, the eye alone beside its count, the words in its `data-tooltip` (owner
+  2026-10-21: the boxed chip stood out of the feed); an update with no changelog and no hero release gets none (its banner says "no patch notes"). At most 640px the four
   tiles stay two a row, the title and the number share a line when they fit, and the 32px icons sit at the bottom.
   The home counter's second number is `div.hs.hidden`: `a.hs-go` opens `heroes/changes.html#hidden`
   (`home_page.HIDDEN_VIEW`: the Hero changes with "Not in patch notes" on), and `.hs-in` names the four sections,
@@ -999,7 +1000,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   running off either edge keeps its name in sight. While a box is not scrolled to its end, `.table-fade::after` draws
   a shadow with a copper rule and `::before` an arrow (`--mask-more`, the sort triangle turned right); scripts.js
   `table-fade` keeps them off the box's scrollbars (`--fade-r`, `--fade-b`). Stats cells have 4px side padding.
-  A change matrix's month label (`dynamics_page.month_label`: `span.ml`, its short form in `data-s`, "Dec") is
+  A change matrix's month label (`dynamics_page.month_label`: `span.ml`, the month's number "12" over the day row's
+  "17" — month and day first; a year's first month, and the first in sight, read "2026 · 01"; its short form in
+  `data-s`, "01"; a year's first month and day carry `.yr`, a gold divider on their left) is
   sticky inside its header (`left: --dyn-name + 4px`, `right: 22px`; the header clips with `overflow: clip` —
   `hidden` made each header its label's scroll box). scripts.js `dyn-months` reads the headers' places once per
   layout change (at start-up, fonts, Older patches, the box's width via ResizeObserver) and, on a sideways scroll
@@ -1647,7 +1650,7 @@ edge. Tiles (strip `.ps-tile`, matrix `.dsq`): hidden = `border-top: 4px solid v
 proportions below it; no `::before/::after` plate), the count `.dn` on a `--shadow` plate, 9px under 760px.
 `history_view.month_cues(dates)` gives a strip tile its `data-m`: "Oct" under a month's first tile, "2026" under a
 year's first (labels at least `CUE_GAP` 2 tiles apart; a year's label wins over the month before it).
-`.ps-tile[data-m]::after` draws it in the strip's bottom padding (`.patch-strip` padding 6px 4px 19px); the tile's
+`.ps-tile[data-m]::after` draws it in the strip's bottom padding (`.patch-strip` padding 10px 8px 21px); the tile's
 aria-label and hover card carry the whole date.
 
 History bands: `.hblocks .banner .bc > .chip / .net-chip / .pnotes` share one spec (600 11px UI font, 20px, 0 7px

@@ -263,9 +263,10 @@ def _feed(patches: list[dict], names: dict[str, str], templates: frozenset[str],
                     cards.append([len(updates) - 1, *chip_card(s), net])
                 if bare:
                     chips.append(_fold_tile(bare, row['id'], names, eye=notes and not all_out))
-                # the entity pages' eye chip (history_view.hidden_link), not a fourth style of its own (review 2026-10-17:
-                # amber lowercase sans, the eye glued to the words)
-                whole = f'<span class="chip lu-all">{EYE_MARK}all not in patch notes</span>' if all_out else ''
+                # the eye alone beside the count, the words in its tooltip: the boxed "ALL NOT IN PATCH NOTES" chip stood
+                # out of the feed's design (owner 2026-10-21, question 3)
+                whole = (f'<span class="lu-all" data-tooltip="All not in patch notes">{EYE_MARK}</span>'
+                         if all_out else '')
                 # a phone shows three rows of icons (styles.css); the rest is the patch page's (City Never Sleeps'
                 # 102 items were 17 rows, ~900px). The fold tile stands for all its units.
                 past = sum(([1] * len(drawn) + ([len(bare)] if bare else []))[PHONE_ICONS:])
@@ -354,7 +355,7 @@ def _top(total: int, hidden: int) -> str:
     count = (f'<a class="hs-go" href="heroes/{HIDDEN_VIEW}"><span class="n">{hidden}</span>'
              f'<span class="l">not in patch notes</span></a>')
     return f'''<div class="home-top">
-  <div class="home-brand">{EYE_MARK}<h1>Cyclopean</h1></div>
+  <h1 class="vh">Cyclopean</h1>
   {search_box()}
   <div class="home-stats">
     <div class="hs"><span class="n">{total}</span><span class="l">changes</span></div>

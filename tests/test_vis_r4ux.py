@@ -352,8 +352,9 @@ def test_the_strip_labels_stay_inside_it_never_overlap_and_the_legend_sits_under
           const tile = [...document.querySelectorAll('.ps-tile')].find(t => t.offsetParent !== null)
             .getBoundingClientRect();
           return {labs: labs, stripB: strip.bottom, stripL: strip.left, stripR: strip.right, keyT: key.top,
-                  keyL: key.left, tileL: [...document.querySelectorAll('.ps-tile')].find(t => t.offsetParent !== null)
-                    .getBoundingClientRect().left,
+                  // the strip scrolls and opens at its newest end: its first tile in sight starts at its padding
+                  keyL: key.left, tileL: strip.left + parseFloat(getComputedStyle(document.querySelector('.patch-strip'))
+                    .paddingLeft),
                   labelMid: (label.top + label.bottom) / 2, tileMid: (tile.top + tile.bottom) / 2}; }""")
         labs = got['labs']
         assert len(labs) >= 3 and all(lb['b'] <= got['stripB'] for lb in labs), got

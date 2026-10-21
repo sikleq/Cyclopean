@@ -38,7 +38,8 @@ def test_a_sections_tabs_share_one_width(monkeypatch):
     html = rules_page([])
     assert '<main class="page wide">' in html
     # the title and the tabs where the other tabs have them; the table a centred column below
-    assert re.search(r'<h1>Game rules</h1><div class="flex table-tabs">.*?</div><div class="rules-col">', html)
+    # the section's name is its tab in the site bar: the title is for screen readers only (owner 2026-10-21, q4)
+    assert re.search(r'<h1 class="vh">Game rules</h1><div class="flex table-tabs">.*?</div><div class="rules-col">', html)
     written: dict[str, str] = {}
     monkeypatch.setattr(entities_pages, 'write', lambda path, text: written.__setitem__(path, text))
     ctx = {'rel': '../', 'units_t': {'units': [], 'columns': []}, 'by_id': {}, 'by_ent': {}, 'by_subject': {}}

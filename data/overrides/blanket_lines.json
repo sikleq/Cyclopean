@@ -21,9 +21,11 @@
     {
       "patch": "2025-05-08",
       "line": "Full shop rework, including many new items",
-      "why": "The items added to and removed from the shop. Only the events: the numbers of the existing items are not in the notes and stay hidden (audit verdicts TRUE_HIDDEN: Extra Health 160 -> 175 and 48 others).",
+      "why": "The items added to and removed from the shop, and where the shop put every item: its slot (tree), tier and the per-tree spend bonuses of all heroes (owner 2026-10-21, question 17: moving an item is the rework, not a secret edit). The numbers of the existing items are not in the notes and stay hidden (audit verdicts TRUE_HIDDEN: Extra Health 160 -> 175 and 48 others).",
       "match": [
-        {"file": "abilities.vdata", "path": "^@(add|remove|return)$", "kinds": ["item"]}
+        {"file": "abilities.vdata", "path": "^@(add|remove|return)$", "kinds": ["item"]},
+        {"file": "abilities.vdata", "path": "^m_iItemTier$|^m_eItemSlotType$", "kinds": ["item"], "ops": ["change"]},
+        {"file": "heroes.vdata", "path": "^m_MapModCostBonuses\\."}
       ]
     },
     {
