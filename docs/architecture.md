@@ -759,7 +759,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   drops a column that repeats another (Walk = Run), a glyph where there is no art; the history toolbar
   is not sticky (Sloppy's scrolls away); home counters count what the pages show (`update_feed` over
   every patch).
-- Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as ONE
+- Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 80 patches (`STRIP_MAX`) as ONE
   row of tiles in the page head under the name on a hero, item, unit or Game page (`history_view.head_strip`),
   oldest → newest with the newest on the RIGHT, as in the change matrices and the trail squares (owner 2026-10-05:
   "новые справа везде"). Tiles are Sloppy's dynamic cells (owner 2026-10-21): a 24px square (`flex: 0 0 24px`) with
@@ -1036,8 +1036,9 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   ("All heroes 38 changes", the ref's fifth element in `strip_data` 'g'), and "+N more" counts its rows (they are not
   in the tile's counts). `builders/caches.clear_all()` clears every functools cache a `builders.*` module defines;
   `archive.clear()` calls it (it forgot the archive only: trail, patch_counts, stat_eyes and evidence kept answering
-  from the old data). The patch strip keeps the entity's latest 40 patches of its own (empty tiles for the patches
-  between were tried and dropped: Haze showed ~27 of hers; `tests/test_page_polish.py` keeps 40 and no gap tile).
+  from the old data). The patch strip keeps the entity's latest 80 patches of its own (40 until 2026-10-21; empty
+  tiles for the patches between were tried and dropped: Haze showed ~27 of hers; `tests/test_page_polish.py` keeps
+  80 and no gap tile).
 - Page shell: `.page.wide` is `max-width: var(--content-w)` like the site bar, so the title, toolbar and table start at
   the brand's x (at 1920: 134px); the footer's side padding is `--gutter`.
 - Site changelog (`changelog.html`, `home_page.changelog_page` from `data/changelog.json`): `page(cls='changelog')`

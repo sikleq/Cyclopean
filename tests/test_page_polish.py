@@ -1,7 +1,7 @@
 """The low items of the 2026-10-06 review: a neutral TEXT / NOTE badge, one width across a section's tabs, the home
 tiles' counters, the change matrices' box height, sort hints on the stats tables, a rule for all's own number in a
 strip tile's card, and one way to clear every builder's cache. (Empty tiles on the patch strip were tried and dropped:
-the strip keeps the entity's latest 40 patches of its own, the owner's wording.)"""
+the strip keeps the entity's latest patches of its own, the owner's wording; 80 since 2026-10-21.)"""
 from __future__ import annotations
 
 import re
@@ -100,13 +100,14 @@ def test_the_matrix_box_ends_on_the_first_screen(browser):
 
 
 def test_the_strip_keeps_the_entitys_latest_own_patches():
-    """Owner's wording: the strip is the entity's latest 40 patches of its own — empty tiles for the patches that did
-    not change it were tried (2026-10-06) and dropped: Haze showed ~27 of hers instead of 40."""
+    """Owner's wording: the strip is the entity's latest patches of its own — empty tiles for the patches that did
+    not change it were tried (2026-10-06) and dropped: Haze showed ~27 of hers instead of 40. 80 since 2026-10-21 (the
+    owner: 40 filled half the head of the wider page); the script shows those that fit whole."""
     from builders.history_view import STRIP_MAX, patch_strip
     hdr = {'id': 'x', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    many = [(f'q{i}', {**hdr, 'id': f'q{i}'}, {'buff': 1}, 0, [], '') for i in range(60)]
+    many = [(f'q{i}', {**hdr, 'id': f'q{i}'}, {'buff': 1}, 0, [], '') for i in range(100)]
     html = patch_strip(many)
-    assert html.count('data-k=') == STRIP_MAX == 40 and 'ps-tile gap' not in html and '.ps-tile.gap' not in CSS
+    assert html.count('data-k=') == STRIP_MAX == 80 and 'ps-tile gap' not in html and '.ps-tile.gap' not in CSS
 
 
 def test_a_rule_for_all_has_its_own_number_in_a_tiles_card(browser):

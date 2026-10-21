@@ -206,7 +206,9 @@ def head_strip(told: dict) -> str:
     return f'<div class="head-strip"><span class="hs-l">Patches</span>{strip}</div>'
 
 
-STRIP_MAX = 40            # the latest patches in the strip (one row that never scrolls: tiles shrink to fit)
+# the latest patches in the strip: one row that never scrolls, scripts.js strip-end shows the newest that fit whole
+# (owner 2026-10-21: 40 filled half the head of a 1680px page)
+STRIP_MAX = 80
 TILE_SAMPLES = 6          # a strip tile's hover card lists the patch's biggest changes…
 GROUP_SAMPLES = 3         # …and keeps an ability's own biggest ones for its trail squares' card
 
