@@ -78,6 +78,9 @@ buckets, bot difficulty, HUD button hints, spline tangents, recoil seeds.
 
 - `tools/extract_icons.py` runs Source2Viewer-CLI (`CYCLOPEAN_VRF`, or a copy in `vendor/vrf/`, or PATH) on
   `…/Deadlock/game/citadel/pak01_dir.vpk` (`CYCLOPEAN_VPK`) → PNG/SVG → WebP in `icons/`, keyed by entity id.
+- Which images to take comes from the tracker clone's vdata, so the script pulls the tracker first (`--no-sync`
+  skips it): a clone left at 2026-10-16 had no Nurse Harrow, her abilities stayed without icons and CI was red for
+  three builds (2026-10-21). The game folder itself is kept current by Steam.
 - vdata `panorama:"file://{images}/<p>.psd"` → VPK `panorama/images/<p>_psd.vtex_c`; `.svg` → `.vsvg_c`.
 - `-f` is a case-sensitive prefix; `heroes/` root is passed as a file list (the folder also has 1.7 GB of backgrounds).
 - **Never** pass `--vpk_cache`: it writes a manifest into the game folder.

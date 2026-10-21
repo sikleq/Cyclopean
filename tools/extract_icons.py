@@ -6,6 +6,7 @@ store them under icons/ keyed by *entity id* (stable across renames).
 
     python tools/extract_icons.py            # extract + convert, report missing
     python tools/extract_icons.py --check    # only report what would be missing
+    (both pull the tracker clone first; --no-sync skips that)
 
 Env overrides: CYCLOPEAN_VRF (Source2Viewer-CLI.exe), CYCLOPEAN_VPK (pak01_dir.vpk).
 
@@ -598,7 +599,12 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument('--check', action='store_true', help='report missing icons without writing')
     ap.add_argument('--skip-extract', action='store_true', help='reuse .cache/vpk_raw')
+    ap.add_argument('--no-sync', action='store_true', help='do not pull the tracker first')
     args = ap.parse_args()
+    # the icon paths come from the tracker clone's vdata: a stale clone left Nurse Harrow's abilities
+    # without icons although the game files had them (2026-10-21, CI red for three builds)
+    if not args.no_sync:
+        print('tracker ->', tracker.sync()[:8])
     if not args.skip_extract and not args.check:
         extract_raw()
     manifest, missing = convert()
