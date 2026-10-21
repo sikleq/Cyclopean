@@ -38,6 +38,18 @@ How (checked 2026-10-19 by that session):
 (docs/data-sources.md). **How to apply:** when asked, add to the notes fetch (pipeline) + a mark on the patch
 page; live checks stay separate from deploy (AGENTS.md rule 9).
 
+## Link bug reports to changes (written 2026-10-21, not started, not urgent)
+
+Owner's idea: the forum's bug board https://forums.playdeadlock.com/forums/bug-reports.6/ — tie a report to the
+change that fixed it, so a row tells what was changed and why (hidden changes most of all). The same thing is done
+in the owner's dota2-ida-researcher project for Dota 2.
+
+**Wait for:** a Deadlock research project like dota2-ida-researcher ("DL-ida-researcher"), planned by the owner;
+do it with or after that, not before.
+**Known so far:** the forum sits behind a browser challenge (docs/data-sources.md: changelogs were imported with a
+real browser), so a plain fetch in CI will not work. A link is a claim: show it only with evidence (report date,
+fixed build, matching field), never a guess.
+
 ## Owner answers of 2026-10-21 (to the questions below; all done in 250f7cb, not pushed yet)
 
 Q14 was no break: release_pass described the hero's stats on purpose (option A); now its numbers are hidden.
