@@ -107,7 +107,9 @@ def test_a_lone_item_card_fills_the_panel_with_each_label_near_its_value(browser
         assert len({round(r['l']) for r in rows}) >= 2                    # the rows flow in columns
         for tr in pg.query_selector_all('.stat-flow .sc-row'):
             lab, val = tr.query_selector('.k').bounding_box(), tr.query_selector('.v').bounding_box()
-            assert val['x'] + val['width'] - lab['x'] < 400                # a label stays near its value
+            # a label stays near its value: one column of a wide page (owner 2026-10-21: entity pages 1680px), not the
+            # 1100px of a panel without columns
+            assert val['x'] + val['width'] - lab['x'] < 450
         assert not errors
     finally:
         ctx.close()

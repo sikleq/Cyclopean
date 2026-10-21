@@ -12,9 +12,29 @@
   var redirect = document.body && document.body.getAttribute('data-redirect');
   if (redirect) { location.replace(redirect + location.hash); return; }
 
-  /* a patch strip opens at its newest end, on the right (styles.css .patch-strip: 24px tiles that scroll) */
+  /* a patch strip shows the newest tiles that fit whole (styles.css .patch-strip: 24px tiles), the older ones
+     `ps-out`: a scrolled strip cut its oldest tile in sight at the left edge (owner 2026-10-21); the history below
+     has every patch. Again when the strip's column changes width */
   safe('strip-end', function () {
-    document.querySelectorAll('.patch-strip').forEach(function (s) { s.scrollLeft = s.scrollWidth; });
+    function fit(s) {
+      var tiles = s.children, cs, gap, step, n, i;
+      for (i = 0; i < tiles.length; i++) tiles[i].classList.remove('ps-out');
+      if (!tiles.length) return;
+      cs = getComputedStyle(s);
+      gap = parseFloat(cs.columnGap) || 0;
+      step = tiles[0].getBoundingClientRect().width + gap;
+      n = Math.max(1, Math.floor((s.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) + gap) / step));
+      for (i = 0; i < tiles.length - n; i++) tiles[i].classList.add('ps-out');
+    }
+    document.querySelectorAll('.patch-strip').forEach(function (s) {
+      fit(s);
+      if (window.ResizeObserver) {
+        var w = s.parentNode.clientWidth;
+        new ResizeObserver(function () {
+          if (s.parentNode.clientWidth !== w) { w = s.parentNode.clientWidth; fit(s); }
+        }).observe(s.parentNode);
+      }
+    });
   });
 
   /* the fonts' stylesheet arrives as media="print" so it never holds the first paint (builders/common.page):

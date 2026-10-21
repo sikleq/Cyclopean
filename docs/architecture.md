@@ -762,11 +762,12 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Patch strip (`history_view.patch_strip`, Sloppy's entity strip): the entity's latest 40 patches as ONE
   row of tiles in the page head under the name on a hero, item, unit or Game page (`history_view.head_strip`),
   oldest → newest with the newest on the RIGHT, as in the change matrices and the trail squares (owner 2026-10-05:
-  "новые справа везде"). Tiles are Sloppy's dynamic cells (owner 2026-10-21): a 24px square (`flex: 0 0 24px`) of
-  ONE colour at rest, `c-<tag>` from `history_view.tile_colour` (the patch's net mark buff / nerf / mix→changed, else
-  its most counted tag); on hover it grows 1.4× and shows its tag stripes (`--st`, `dynamics_page.stripes`) and the
-  count. The row scrolls sideways (`overflow-x: auto`, no bar until hovered) and scripts.js `strip-end` opens it at
-  the newest end. The notes leaving something out = the eye-coloured top edge. A tile opens `#p-<patch>`. Hovering
+  "новые справа везде"). Tiles are Sloppy's dynamic cells (owner 2026-10-21): a 24px square (`flex: 0 0 24px`) with
+  the stripes of every tag at rest (`--st`, `dynamics_page.stripes`; `c-<tag>` from `history_view.tile_colour`, the
+  net mark or the most counted tag, is the fallback); on hover it grows 1.4× and shows the count. The row never
+  scrolls: scripts.js `strip-end` shows the newest tiles that fit whole and marks the older ones `ps-out` (hidden),
+  again when the column's width changes (a scrolled row cut its oldest tile in sight). The notes leaving something
+  out = the eye-coloured top edge. A tile opens `#p-<patch>`. Hovering
   it shows the hover card (below).
 - Hover cards (scripts.js `dyn-tip`, ONE renderer `card()`): a change-matrix cell, an entity page's strip
   tile, an ability card's trail square and its "last change" link, and a home feed icon. Each card shows

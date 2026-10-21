@@ -170,7 +170,8 @@
   --px: 2px;                  /* pixel unit for frames */
   --nav-h: 56px;
   --content-w: 1680px;
-  --entity-w: 1180px;         /* a hero / item / unit page: ONE centred column (owner 2026-10-04) */
+  --entity-w: 1680px;         /* a hero / item / unit page: ONE centred column (owner 2026-10-04), as wide as the
+                                 others (owner 2026-10-21: 1180px left half of a 1920 screen empty) */
   --tag-w: 80px;              /* every tag badge one width (CHANGED, the longest, fits), so a row's text starts on one line */
   --gutter: 20px;
   /* a sortable header's hint and the sorted one's direction (pixel_icons.SORT_ART) */
@@ -857,21 +858,20 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 /* a removed value (DEL: the old value alone) reads struck through */
 .hblocks .erow .vals > .old:first-child:nth-last-child(2) { text-decoration: line-through; text-decoration-color: var(--arrow); }
 /* the entity's patch strip (history_view.patch_strip): oldest → newest, the newest on the right like the
-   matrices (owner 2026-10-05); ONE row with no scrollbar — 40 tiles shrink to fit the column, a phone
-   keeps the newest 15; a tile lifts on hover and its card says what the patch did */
-/* owner 2026-10-21, question 2 (Sloppy's dynamic cells): a tile is one 24px square of one colour at rest — what the
-   patch did (history_view.tile_colour) — and on hover it grows and shows its tag stripes and count; the row scrolls
-   sideways (no bar until hovered), opened at its newest end (scripts.js strip-end) instead of shrinking tiles to 14px */
-.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 10px 8px 21px; overflow-x: auto;
-  overflow-y: hidden; scrollbar-width: none; }
-.patch-strip:hover { scrollbar-width: thin; scrollbar-color: var(--frame-line) transparent; }
+   matrices (owner 2026-10-05); ONE row with no scrollbar. Owner 2026-10-21 (Sloppy's dynamic cells; 14px tiles were
+   too narrow): a 24px square with the stripes of every tag at rest, on hover it grows and shows its count and card;
+   the newest tiles that fit whole show, the older ones are `ps-out` (scripts.js strip-end) */
+.patch-strip { display: flex; flex-wrap: nowrap; gap: 4px; margin: 0 0 8px; padding: 10px 8px 21px; overflow: hidden; }
+.ps-tile.ps-out { display: none; }
 /* the month under its first tile ("Oct"), the year under a year's first ("2026"): history_view.month_cues, in the
    strip's bottom padding (review 2026-10-17: a row of tiles with no date; the hover card has the whole date) */
 .ps-tile[data-m]::after { content: attr(data-m); position: absolute; left: 50%; top: 100%; margin-top: 4px;
   transform: translateX(-50%); font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap;
   pointer-events: none; }
+/* at rest the stripes of every tag in the patch (owner 2026-10-21: one colour showed half of what changed); the
+   net-mark class `c-<tag>` stays the fallback of a tile with no stripes */
 .ps-tile { position: relative; flex: 0 0 24px; display: block; height: 24px; transition: transform .1s;
-  background: var(--c, var(--tag-changed));
+  background: var(--st, var(--c, var(--tag-changed)));
   box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
 .ps-tile.c-buff { --c: var(--tag-buff); }
 .ps-tile.c-nerf { --c: var(--tag-nerf); }
@@ -883,7 +883,6 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 .ps-tile.c-on { --c: var(--tag-on); }
 .ps-tile.c-off { --c: var(--tag-off); }
 .ps-tile .dn { display: none; }
-.ps-tile:hover, .ps-tile:focus-visible { background: var(--st, var(--c)); }
 .ps-tile:hover .dn, .ps-tile:focus-visible .dn { display: block; }
 /* a tile's look, shared by the strip and the change matrices (.dsq): the count on a solid plate in the corner, not dark
    ink on whatever stripe lay under it; not in the notes = the eye's colour as the tile's top edge, the stripes whole
@@ -1347,7 +1346,7 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wb-id { display: flex; gap: 12px; align-items: center; min-width: 0; }
 .wb-id img { width: 56px; height: 56px; object-fit: contain; background: var(--bg-panel-4); padding: 4px; flex: none; }
 .wb-id > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; min-width: 0; }
-.wb-kicker { flex-basis: 100%; font: var(--fs-md)/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .1em; }
+.wb-kicker { flex-basis: 100%; font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--patina); text-transform: uppercase; letter-spacing: .1em; }
 .wb-name { font: var(--fs-xl)/1.15 var(--font-px); color: var(--text-bright); margin: 2px 0 0; }
 /* not a name but a sentence ("No in-game name yet"): the UI font */
 .wb-name.unnamed { font: var(--fs-base)/1.15 var(--font-ui); color: var(--text-dimmer); }
@@ -1464,7 +1463,7 @@ table.kvt td.spirit { color: var(--tag-rework); }
 /* a card ends where its last tier does: stretched to the row's tallest card with T1-T3 pinned to the bottom, Smoke Bomb
    and Bullet Dance held 150-200px of nothing (visual pass 2026-10-17) */
 /* every card in a row one height (owner 2026-10-21, question 5): stretch, the card's own frame fills it */
-.ability-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 12px; align-items: stretch; }
+.ability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; align-items: stretch; }
 .ability-card { display: flex; flex-direction: column; }
 .ability-card > .tiers { margin-top: auto; }      /* the upgrades line up at the foot of cards of one height */
 .ability-card .ac-head { display: flex; gap: 10px; align-items: center; padding: 8px 10px; background: var(--bg-panel-2); }
@@ -1479,7 +1478,9 @@ table.kvt td.spirit { color: var(--tag-rework); }
 .ability-card .ac-last:hover { color: var(--text-bright); }
 .ability-card .ac-hist { margin-left: 10px; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--patina); }
 .ability-card .ac-hist:hover { color: var(--text-bright); }
-.ability-card .ac-sub { font: var(--fs-md)/1.2 var(--font-label); color: var(--text-dim); text-transform: uppercase; }
+/* "Ability 1", "Ultimate", "Weapon": the UI face, small caps-like (owner 2026-10-21: the pixel face read badly) */
+.ability-card .ac-sub { font: 600 var(--fs-xs)/1.4 var(--font-ui); color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: .06em; }
 .ability-card .ac-hdr { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0; }
 /* compact enough that the usual pair ("Cooldown 30s", "Cast time 0.2s") shares one line in a 270px card */
 /* label small and dim in the UI face, the value in the same face, bright: the pixel face's "COOLDOWN 30s" read

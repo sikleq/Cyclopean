@@ -1200,20 +1200,21 @@ def test_one_hidden_change_is_never_all_of_one():
     assert ' late' not in row('hidden', '', 'x')
 
 
-def test_strip_tiles_are_one_colour_squares_that_scroll_from_the_newest():
-    """Owner 2026-10-21, question 2 (Sloppy's dynamic cells; 14px tiles were too narrow): a 24px square of one colour
-    at rest, the stripes and the count on hover; the row scrolls with no bar until hovered (2026-10-05: a bar under the
-    strip) and opens at its newest end."""
+def test_strip_tiles_are_striped_squares_and_whole_ones_show():
+    """Owner 2026-10-21 (Sloppy's dynamic cells; 14px tiles were too narrow): a 24px square with the stripes of every
+    tag at rest (one colour showed half of what changed), the count on hover; the row never scrolls (2026-10-05: a
+    bar under the strip; 2026-10-21: a scrolled row cut its oldest tile): the newest tiles that fit whole show."""
     import re
     from pathlib import Path
     from builders.history_view import patch_strip, tile_colour
     root = Path(__file__).resolve().parent.parent
     css = root.joinpath('site', 'styles.css').read_text(encoding='utf-8')
     rule = re.search(r'\.patch-strip \{[^}]*\}', css).group(0)
-    assert 'overflow-x: auto' in rule and 'scrollbar-width: none' in rule
-    assert re.search(r'\.ps-tile \{[^}]*flex: 0 0 24px[^}]*height: 24px', css)
-    assert '.ps-tile:hover, .ps-tile:focus-visible { background: var(--st, var(--c)); }' in css
-    assert "safe('strip-end'" in root.joinpath('site', 'scripts.js').read_text(encoding='utf-8')
+    assert 'overflow: hidden' in rule and 'overflow-x: auto' not in rule
+    assert re.search(r'\.ps-tile \{[^}]*flex: 0 0 24px[^}]*height: 24px[^}]*background: var\(--st, var\(--c', css)
+    assert '.ps-tile.ps-out { display: none; }' in css
+    js = root.joinpath('site', 'scripts.js').read_text(encoding='utf-8')
+    assert "safe('strip-end'" in js and "classList.add('ps-out')" in js
     # the colour: the patch's net mark, else its most counted tag
     assert tile_colour({'buff': 1, 'nerf': 5}, 'mix') == 'changed' and tile_colour({'buff': 1}, 'nerf') == 'nerf'
     assert tile_colour({'new': 3, 'rework': 3, 'buff': 1}, '') == 'new'

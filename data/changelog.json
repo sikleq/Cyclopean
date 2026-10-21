@@ -3,7 +3,8 @@
     "date": "2026-10-21",
     "title": "Patch tiles like Sloppy's, full-width tables, a cleaner head",
     "items": [
-      "An entity's patch strip: one coloured square per patch (what it did on balance); hover shows its tags, the count and the card. The row scrolls and opens at the newest patch.",
+      "An entity's patch strip: one 24px square per patch, striped by every tag it carries; hover grows it and shows the count and the card. The newest patches that fit whole show; the history below has them all.",
+      "Entity pages are as wide as the rest of the site; \"Ability 1\", \"Ultimate\" and \"Weapon\" are set in the site's text face.",
       "Every table spans the page's width.",
       "Change matrices read month and day first (\"12\" over \"17\"); a new year is a gold divider with \"2026 · 01\".",
       "The big home logo and the section titles under their own tabs are gone: the site bar names them.",
