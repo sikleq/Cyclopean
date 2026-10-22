@@ -235,12 +235,15 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
                  else '<div class="wb-name unnamed">No in-game name yet</div>')
     ic = entity_icon('abilities.vdata', wid, 'weapon', rel) if wid else None
     desc = f'<div class="wb-desc">{esc(card["desc"])}</div>' if card and card.get('desc') else ''
-    links = _gun_links(wid, wid, rel) if wid else ''
+    game_panels = bool(row and row.get('panels'))
+    # the game-style weapon panel carries no "History" link (owner 2026-10-22); the old block keeps it
+    links = _gun_links(wid, wid, rel, history=not game_panels) if wid else ''
     lines = ''
     if alt:
         lines += (f'<div class="wb-alt"><span class="wb-alt-l">Alt fire</span>'
-                  f'{_gun_links(alt["id"], wid or alt["id"], rel)}{alt_cells(row, alt["id"], name, rel)}</div>')
-    if row and row.get('panels'):
+                  f'{_gun_links(alt["id"], wid or alt["id"], rel, history=not game_panels)}'
+                  f'{alt_cells(row, alt["id"], name, rel)}</div>')
+    if game_panels:
         # the game's own Weapon / Vitality / Spirit Stats panels and its Boon Rewards card (owner 2026-10-22)
         from .hero_panels import panels
         return panels(row, cols, name, rel, list(cards), name_html, links + desc, lines)
@@ -287,11 +290,13 @@ def alt_cells(row: dict | None, aid: str, name: str, rel: str) -> str:
     return f'<div class="wb-alt-cells">{"".join(out)}</div>' if out else ''
 
 
-def _gun_links(aid: str, group: str, rel: str) -> str:
+def _gun_links(aid: str, group: str, rel: str, history: bool = True) -> str:
     """A gun's (or its alt fire's) last change, trail squares and "History" — the ability card's head line.
-    `group`: the gun whose history group holds the rows (an alt fire's are in its gun's)."""
+    `group`: the gun whose history group holds the rows (an alt fire's are in its gun's); `history=False`: no
+    "History" link (the game-style weapon panel, owner 2026-10-22)."""
     from .trail import trail_html
-    return (f'<div class="wb-links">{last_change(aid, group)}<a class="ac-hist" href="#ab-{esc(group)}">History</a>'
+    hist = f'<a class="ac-hist" href="#ab-{esc(group)}">History</a>' if history else ''
+    return (f'<div class="wb-links">{last_change(aid, group)}{hist}'
             f'{trail_html("abilities.vdata:" + aid, None, rel, local=True)}</div>')
 
 

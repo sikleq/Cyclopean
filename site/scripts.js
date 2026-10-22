@@ -2437,25 +2437,34 @@
     window.addEventListener('hashchange', function () { apply(parse()); });
   });
 
-  /* ---------- hero page: the Advanced switch over the game's stat panels (builders/hero_panels.py) ---------- */
-  // on: each panel shows its extra tiles from the files (.gp-adv); remembered for every hero page (a per-viewer
-  // convenience)
-  safe('adv-stats', function () {
-    var btn = document.querySelector('.adv-toggle'), box = document.getElementById('gpanels');
-    if (!btn || !box) return;
-    var KEY = 'cyclopean.advStats';
-    function set(on) {
-      box.classList.toggle('adv', on);
-      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
-      btn.classList.toggle('on', on);
-    }
-    var was = null;
-    try { was = localStorage.getItem(KEY); } catch (e) { /* private mode: off */ }
-    set(was === 'on' || location.hash === '#advanced');
-    btn.addEventListener('click', function () {
-      var on = !box.classList.contains('adv');
-      set(on);
-      try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (e) { /* not remembered */ }
+  /* ---------- Hero Stats opened from a hero page's "Advanced" (builders/hero_panels.adv_link):
+     "#details&hero=warden" presses Details (the files' columns live there) and brings that hero's row into view ---- */
+  safe('stats-link', function () {
+    var table = document.getElementById('hero-stats');
+    if (!table || location.hash.length < 2) return;
+    var s = {};
+    location.hash.slice(1).split('&').forEach(function (kv) {
+      var i = kv.indexOf('=');
+      s[i < 0 ? kv : kv.slice(0, i)] = i < 0 ? '' : kv.slice(i + 1);
     });
+    var box = table.closest('.table-scroll');
+    var btn = document.querySelector('[data-toggle-class="show-details"]');
+    if ('details' in s && btn && box && !box.classList.contains('show-details')) btn.click();
+    if (!s.hero || !/^[a-z0-9_]+$/.test(s.hero)) return;
+    var a = table.querySelector('td.name a[href$="heroes/' + s.hero + '.html"]');
+    var tr = a && a.closest('tr');
+    if (!tr) return;
+    tr.classList.add('hl');
+    // after the table's own setup (its sticky widths settle a frame later and moved an early scroll): the page to
+    // the table, the table's box to the row, centred
+    setTimeout(function () {
+      if (box) {
+        box.scrollIntoView({ block: 'start' });
+        var r = tr.getBoundingClientRect(), b = box.getBoundingClientRect();
+        box.scrollTop += r.top - b.top - (b.height - r.height) / 2;
+      } else {
+        tr.scrollIntoView({ block: 'center' });
+      }
+    }, 120);
   });
 })();

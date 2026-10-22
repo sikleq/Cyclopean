@@ -144,16 +144,19 @@ def test_advanced_names_read_as_words_and_have_history():
     assert bp.adv_label('g.m_flCritBonusAgainstNPCs') == 'Crit Bonus Against NPCs'
     assert bp.adv_label('g.m_flZoomFOV') == 'Zoom FOV' and bp.adv_label('g.m_bCanZoom') == 'Can Zoom'
     assert bp.adv_label('h.EAirDashDistanceInMeters') == 'Air Dash Distance'
-    row, cols = _warden_row()
-    by_key = {c['key']: c for c in cols}
-    gun, vit, spirit = (''.join(bp.adv_tiles(row, by_key, 'Warden', p)) for p in ('weapon', 'vitality', 'spirit'))
-    # the switch extends the panels in their style (owner 2026-10-22): the gun's numbers in Weapon, the hero's in
-    # Vitality / Spirit, each a tile with its history; nothing a panel or the boon card already shows
-    assert 'class="gp-tile adv' in gun and 'Shoot Move Speed Percent' in gun and 'Max DPS' in gun
-    assert 'Headshot' in gun and 'data-hist' in gun and 'm_fl' not in gun
-    assert 'Move Acceleration' in vit and 'Air Dash Distance' in vit and 'Shoot Move' not in vit
-    assert 'Ability Resource Max' in spirit
-    assert '>Bullet Damage<' not in gun and '+Bullet DMG / boon' not in gun and '>DPS<' not in gun
+    # owner 2026-10-22: every characteristic is in the Hero Stats tab, the files' ones hidden with Details; the hero
+    # page's "Advanced" is a link there (Details open, the hero's row in view)
+    t = json.loads((ROOT / 'data' / 'tables' / 'heroes.json').read_text(encoding='utf-8'))
+    cols = {c['key']: c for c in bp.adv_columns(t['heroes'])}
+    assert cols['g.m_flShootMoveSpeedPercent']['group'] == 'Gun files'
+    assert cols['h.EMoveAcceleration']['group'] == 'Hero files'
+    assert cols['g.m_flCritBonusEndRange']['label'] == 'Crit Bonus End Range (m)'
+    from builders.tables_pages import DETAIL_GROUPS, heroes_table
+    assert {'Gun files', 'Hero files'} <= DETAIL_GROUPS
+    html = heroes_table()
+    assert 'data-col="g.m_flShootMoveSpeedPercent"' in html and 'm_fl' not in html.split('data-col=')[0]
+    row, _ = _warden_row()
+    assert 'tables/heroes.html#details&amp;hero=warden' in bp.adv_link(row, '../')
 
 
 def test_boon_card_says_its_own_builds_count():

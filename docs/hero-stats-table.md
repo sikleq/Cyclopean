@@ -39,7 +39,8 @@ localization).
 
 Advanced switch (`pipeline/hero_panels.advanced`): every build also records the hero's starting stats (`values.h.<EStat>`)
 and the gun's numeric fields (`values.g.<field>`, engine distances ÷ 39.37) that no column reads and no panel lists, with
-their history like a column's; the hero page shows them behind its Advanced switch (no table column).
+their history like a column's; the Hero Stats table shows them as the "Gun files" / "Hero files" column groups,
+hidden with Details (`builders/hero_panels.adv_columns`); a hero page's "Advanced" links there.
 
 Heroes shown: `m_eHeroDevelopmentState` = Release or PreRelease (the latter marked PRE).
 

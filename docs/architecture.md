@@ -842,13 +842,14 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   head: the gun's name, last change, History, tags, DPS, falloff range (no gun picture: owner 2026-10-22); the alt fire's row under
   the gun's tiles. Spirit Power Impact: the gun's spirit-scaled stats, then every ability property scaling with Spirit
   (`scale` without `scale_by`). Boon Rewards: the non-zero per-boon gains and "Stat Rewards max at Boon N" — that
-  build's boon count, with its history. A tile a Hero Stats column holds keeps its history on hover. An Advanced switch over the panels
-  (`hero_panels.adv_tiles`, scripts.js `adv-stats` toggles `.adv` on `#gpanels`, off by default, remembered per viewer)
-  extends each panel with more tiles in its own style, each with its history on hover: every Hero Stats column the
-  panels and the Boon Rewards card do not show (Max DPS, headshot, spread, dashes… by the column's group:
-  `ADV_PANEL`) and the files' own numbers no column holds — the gun's numeric fields in Weapon (no sounds, particles,
-  seeds; engine distances in metres), the hero's starting stats in Vitality or Spirit (`values` keys `g.*` / `h.*`,
-  `pipeline/hero_panels.advanced`). A hero with a borrowed gun keeps the old head tiles
+  build's boon count, with its history. A tile a Hero Stats column holds keeps its history on hover. The hero page shows only what the
+  game's panels show (owner 2026-10-22: extra tiles made them too tall); its "Advanced" button is a link to Hero Stats
+  (`hero_panels.adv_link` → `tables/heroes.html#details&hero=<slug>`; scripts.js `stats-link` presses Details and
+  centres that hero's row). Hero Stats holds every characteristic: its columns, then, hidden with Details
+  (`tables_pages.DETAIL_GROUPS`), "Gun files" and "Hero files" — the files' numbers no column holds
+  (`hero_panels.adv_columns`; values `g.*` / `h.*` from `pipeline/hero_panels.advanced`, with history; no sounds,
+  particles, seeds; engine distances in metres). The weapon panel has no "History" link (`_gun_links(history=False)`);
+  Boon Rewards is a band as wide as the panels. A hero with a borrowed gun keeps the old head tiles
   (`hero_page.KEY_STATS`) and weapon block.
 - Hero page guns and sub-abilities: the ability grid holds the four Signature slots only and skips a card with nothing to read
   (`hero_page.has_content`). The gun is always the weapon block (`hero_page.weapon_block`): with a

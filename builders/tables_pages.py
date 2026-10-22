@@ -13,6 +13,9 @@ from .common import entity_icon, esc, hero_icon, json_attr, load_json, page, pre
 # Compared with the user's sheet (docs/reference/hero-stats-sheet.md): its core columns
 # are all here; the sheet's derived ones (per-level tables) live on the hero pages.
 DETAILS = 'Details'
+# hidden with Details too: the game files' numbers no column holds (the hero page's "Advanced" opens them here,
+# builders/hero_panels.adv_columns)
+DETAIL_GROUPS = frozenset({DETAILS, 'Gun files', 'Hero files'})
 HERO_LAYOUT = (
     ('Weapon', (('dps', 'DPS'), ('dps_max', 'Max DPS'), ('bullet_dmg', 'Bullet'), ('bullet_dmg_lvl', '+/boon'),
                 ('bullet_dmg_max', 'Max bullet'), ('pellets', 'Pellets'), ('bps', 'Shots/s'), ('clip', 'Ammo'),
@@ -180,7 +183,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
     group_cls = group_cls or {}
 
     def gcls(group: str) -> str:
-        return (' g-details' if group == DETAILS else '') + (f' {group_cls[group]}' if group_cls.get(group) else '')
+        return ((' g-details' if group in DETAIL_GROUPS else '')
+                + (f' {group_cls[group]}' if group_cls.get(group) else ''))
     # the group's name in a span of its own: sticky inside its header, it stays in sight while the group runs off
     # either edge (a phone showed an empty band over Weapon's 14 columns; review 2026-10-17)
     cat_row = ('<tr class="cats"><th class="name"></th>' + ''.join(
@@ -188,7 +192,8 @@ def render_table(cols: list[dict], rows: list[dict], name_cell: Callable[[dict],
         for g, n in groups) + '</tr>')
 
     def cell_cls(c: dict) -> list[str]:
-        return ((['grp-start'] if c['key'] in first_of_group else []) + (['g-details'] if c['group'] == DETAILS else [])
+        return ((['grp-start'] if c['key'] in first_of_group else [])
+                + (['g-details'] if c['group'] in DETAIL_GROUPS else [])
                 + (['g-odd'] if c['group'] in odd_groups else []) + ([c['cls']] if c.get('cls') else []))
 
     def head(c: dict) -> str:
@@ -312,6 +317,9 @@ def heroes_table() -> str:
     # read "—" 44 times, Coll. height too); one with zeros stays, its zeros dimmed (.zero)
     cols = sorted(({**c, 'group': DETAILS} if all(h['values'].get(c['key']) is None for h in t['heroes']) else c
                    for c in cols), key=lambda c: c['group'] == DETAILS)
+    # every other characteristic in the files, after Details (owner 2026-10-22: all of a hero's numbers in this tab)
+    from .hero_panels import adv_columns
+    cols += adv_columns(t['heroes'])
     table = render_table(cols, t['heroes'], name_cell, 'Hero',
                          lambda r, c: ['spirit'] if c['key'] in r.get('spirit_scaled', []) else [], as_of=t.get('date'),
                          row_cls=lambda h: 'pre' if h['state'] == 'prerelease' else '', table_id='hero-stats',
