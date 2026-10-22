@@ -687,14 +687,14 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   at 13-15px): every font size is a step of ONE scale, the `--fs-*` tokens in `:root` (`--fs-2xs` 10, `--fs-xs` 11,
   `--fs-sm` 13, `--fs-base` 14, `--fs-md` 16, `--fs-lg` 18, `--fs-xl` 20, `--fs-2xl` 26, `--fs-3xl` 34, `--fs-4xl` 40,
   `--fs-brand` 28 / `--fs-brand-xl` 58). Each family keeps to its own steps: IBM Plex Sans — 11 tags, caps labels and
-  dense column heads, 13 secondary text / tables / tips / buttons / meta, 14 body (history rows, values, names), 10
-  only for a count inside a 14-30px tile, 16 a text field (a phone does not zoom in on it), 18 a band's date, 34 a date
-  that is a page's whole title; VT323 (labels, chips, counters) — 16 and 18 only, smaller small caps go to the UI
-  font's 11px caps; Jersey 20 (headings, names, big numbers, weight 400, unambiguous pixel digits) — 20 / 26 / 34 /
+  caps chips, dense column heads, 13 secondary text / tables / tips / buttons / meta, bigger caps labels, counters and
+  units, 14 body (history rows, values, names), 10 only for a count inside a 14-30px tile, 16 a text field (a phone
+  does not zoom in on it), 18 a band's date, 34 a date that is a page's whole title. VT323 is gone (owner 2026-10-22):
+  its labels, chips and counters became the UI font — 16px caps → 600 11px, 18px caps → 600 13px, lowercase → 500
+  13px. Jersey 20 (headings, names, big numbers, weight 400, unambiguous pixel digits) — 20 / 26 / 34 /
   40, a name that must be smaller is IBM Plex 600 (Hero Stats, a phone's hero grid). Jacquard 24 is the wordmark only.
   The shop draws the game's panel at the game's sizes in design px (`.gs-price`, `.gc-nm`, `.gc-imb`, `.gt-name`,
-  `.gt-cost`; docs/shop.md) — the only sizes that are not steps. A VT323 chip's `<b>` keeps the chip's weight (no
-  faked bold). Key-stat and weapon-tile values are one Jersey step, 20px; the six headline weapon values 34px. The
+  `.gt-cost`; docs/shop.md) — the only sizes that are not steps. A chip's `<b>` keeps the chip's weight. Key-stat and weapon-tile values are one Jersey step, 20px; the six headline weapon values 34px. The
   change matrix's column row sticks at `calc(var(--fs-sm) + 13px)`, the month row's height. `tests/test_vis_type.py`
   keeps all of this: no px font size in rules, builders or scripts.js (AGENTS.md has the rule).
 - One entity-card component for every change list (`builders/cards.py`): one header height everywhere

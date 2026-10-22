@@ -3,9 +3,10 @@ combinations — VT323 at 13-19px, IBM Plex at 10-17px in half steps, Jersey 20 
 legible: "SHARED ×17 ABILITIES & ITEMS", the patch strip's units, the Item Stats "Active" tags).
 
 One type scale as `:root` tokens (`--fs-*`), each family on its own steps: the UI font 10-18px (+ one title date),
-VT323 16 and 18px only, Jersey 20 from 20px, Jacquard 24 the wordmark. Every font size in styles.css is a step; the
-builders and scripts write none. Checked on the stylesheet, on the site's components in a browser and, when there is a
-dist/, on the built pages with the current stylesheet. `browser` is tests/conftest.py's."""
+Jersey 20 from 20px, Jacquard 24 the wordmark. VT323 is gone (owner 2026-10-22: labels, chips and counters are the UI
+font). Every font size in styles.css is a step; the builders and scripts write none. Checked on the stylesheet, on the
+site's components in a browser and, when there is a dist/, on the built pages with the current stylesheet. `browser` is
+tests/conftest.py's."""
 from __future__ import annotations
 
 import re
@@ -19,7 +20,6 @@ CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
 SCALE = {'2xs': 10, 'xs': 11, 'sm': 13, 'base': 14, 'md': 16, 'lg': 18, 'xl': 20, '2xl': 26, '3xl': 34, '4xl': 40,
          'brand': 28, 'brand-xl': 58}
 UI_STEPS = {'2xs', 'xs', 'sm', 'base', 'md', 'lg', 'xl', '3xl'}   # xl: the back-to-top arrow; 3xl: a title date
-LABEL_STEPS = {'md', 'lg'}                                         # VT323: never under 16px
 PX_STEPS = {'xl', '2xl', '3xl', '4xl'}                             # Jersey 20: never under 20px
 BRAND_STEPS = {'brand', 'brand-xl'}
 
@@ -60,8 +60,7 @@ def _step(value: str) -> str | None:
 
 
 def _family(value: str) -> str | None:
-    for name, fam in (('--font-label', 'label'), ('--font-px-small', 'label'), ('--font-px', 'px'),
-                      ('--font-brand', 'brand'), ('--font-ui', 'ui')):
+    for name, fam in (('--font-px', 'px'), ('--font-brand', 'brand'), ('--font-ui', 'ui')):
         if f'var({name})' in value:
             return fam
     return None
@@ -97,8 +96,8 @@ def test_every_font_size_outside_root_is_a_step_of_the_scale():
 
 
 def test_each_family_keeps_to_its_own_steps():
-    """VT323 at 16px and up (13-15px read as a smudge), Jersey 20 at 20px and up (its pixels need the size)."""
-    allowed = {'label': LABEL_STEPS, 'px': PX_STEPS, 'brand': BRAND_STEPS, 'ui': UI_STEPS}
+    """Jersey 20 at 20px and up (its pixels need the size)."""
+    allowed = {'px': PX_STEPS, 'brand': BRAND_STEPS, 'ui': UI_STEPS}
     bad = []
     for sel, body, is_root in _rules(CSS):
         if is_root:
@@ -117,6 +116,15 @@ def test_each_family_keeps_to_its_own_steps():
         if step not in allowed[fam]:
             bad.append((sel, fam, step))
     assert not bad, bad
+
+
+def test_no_vt323_anywhere():
+    """Owner 2026-10-22: VT323 off the whole site — no family token, no rule, no Google Fonts request for it."""
+    from builders.common import fonts_url
+    assert 'VT323' not in fonts_url()
+    for f in [ROOT / 'site' / 'styles.css', ROOT / 'site' / 'scripts.js', *sorted((ROOT / 'builders').glob('*.py'))]:
+        text = f.read_text(encoding='utf-8')
+        assert 'VT323' not in text and '--font-label' not in text and '--font-px-small' not in text, f.name
 
 
 def test_the_tag_badge_is_the_ui_font_at_11px():
@@ -230,8 +238,8 @@ def _check(walked) -> list:
             continue
         if size not in sizes:
             bad.append((cls, txt, fam, size, 'not a step'))
-        elif fam == 'VT323' and size < 16:
-            bad.append((cls, txt, fam, size, 'VT323 under 16px'))
+        elif fam == 'VT323':
+            bad.append((cls, txt, fam, size, 'VT323'))
         elif fam == 'Jersey 20' and size < 20:
             bad.append((cls, txt, fam, size, 'Jersey under 20px'))
     return bad
@@ -245,8 +253,8 @@ def test_the_components_resolve_to_the_scale(browser, width):
     assert len(walked) > 60
     assert not _check(walked)
     got = {cls: (fam, size) for cls, _, fam, size in walked}
-    assert got['chip shr'] == ('VT323', 16)                   # was 14px: "SHARED ×17 ABILITIES & ITEMS"
-    assert got['u'] == ('VT323', 16)                          # a unit beside a number: was 13-15px
+    assert got['chip shr'] == ('IBM Plex Sans', 11)           # caps chip, the tags' size: "SHARED ×17 ABILITIES & ITEMS"
+    assert got['u'] == ('IBM Plex Sans', 13)                  # a unit beside a number
     assert got['it-act'] == ('IBM Plex Sans', 11) and got['fx-tag'] == ('IBM Plex Sans', 11)   # VT323 14 / 13px
     assert got['tag changed'] == ('IBM Plex Sans', 11) and got['tag nerf'] == ('IBM Plex Sans', 11)
     assert got['ht-n'] == ('Jersey 20', 20) and got['wb-name unnamed'] == ('IBM Plex Sans', 14)

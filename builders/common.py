@@ -15,9 +15,9 @@ SITE = ROOT / 'site'
 ICONS = ROOT / 'icons'
 DIST = ROOT / 'dist'
 
-# Jersey 20: headings, names, big numbers (unambiguous pixel digits); VT323: labels and
-# badges at 16px+; IBM Plex Sans: body text and table numbers (design review 2026-10-01)
-FONT_FAMILIES = ('Jacquard+24', 'Jersey+20', 'VT323', 'IBM+Plex+Sans:wght@400;500;600;700')
+# Jersey 20: headings, names, big numbers (unambiguous pixel digits); IBM Plex Sans: body text,
+# labels, chips and table numbers (owner 2026-10-22: no small pixel font)
+FONT_FAMILIES = ('Jacquard+24', 'Jersey+20', 'IBM+Plex+Sans:wght@400;500;600;700')
 
 
 def fonts_url(extra: tuple[str, ...] = ()) -> str:

@@ -137,20 +137,17 @@
   --gs-tip-bar: rgba(16, 19, 13, 0.6);
   --gs-outline: #ffffff;
 
-  /* type: Jersey 20 headings / names / big numbers (weight 400 only, 20px+), VT323 labels and
-     chips (16px+), IBM Plex Sans body, badges and table numbers */
+  /* type: Jersey 20 headings / names / big numbers (weight 400 only, 20px+), IBM Plex Sans everything else: body,
+     labels, chips, counters, badges and table numbers (owner 2026-10-22: no small pixel font) */
   --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   --font-px: "Jersey 20", "IBM Plex Sans", sans-serif;
-  --font-label: "VT323", "Consolas", monospace;
-  --font-px-small: var(--font-label);
   --font-brand: "Jacquard 24", "Jersey 20", serif;
   /* the type scale: every font-size outside :root is one of these steps (tests/test_vis_type.py). A family keeps to
      its own steps — 2-5 sizes each, 31 family / size / weight mixes on one hero page had grown (critic 2026-10-17):
-     - UI font (IBM Plex Sans): --fs-xs tags, caps labels, dense column heads · --fs-sm secondary text, tables, tips,
-       buttons, meta, dates in lists · --fs-base body: rows, names, values · --fs-2xs only a count inside a 14-30px
-       tile or square · --fs-md a text field (16px: a phone does not zoom in on it) · --fs-lg a date heading a band ·
-       --fs-3xl a date that is a page's whole title
-     - VT323 (labels, chips, counters): --fs-md and --fs-lg only — under 16px its pixel letters blur
+     - UI font (IBM Plex Sans): --fs-xs tags, caps labels and chips · --fs-sm secondary text, tables, tips, buttons,
+       meta, dates in lists, bigger caps labels, counters, units · --fs-base body: rows, names, values · --fs-2xs only
+       a count inside a 14-30px tile or square · --fs-md a text field (16px: a phone does not zoom in on it) ·
+       --fs-lg a date heading a band · --fs-3xl a date that is a page's whole title
      - Jersey 20 (headings, names, big numbers): --fs-xl and up; 34px puts its pixels on whole device pixels
      - Jacquard 24: the wordmark only (--fs-brand, --fs-brand-xl) */
   --fs-2xs: 10px;
@@ -267,8 +264,8 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(
 .pname { color: var(--gold); }
 .pdate:not(.solo) { margin-left: 12px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
 .pdate.solo { font: 700 var(--fs-lg)/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0; }
-.pkind { margin-left: 10px; font: var(--fs-lg)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
-.pfu { margin-left: 10px; font: var(--fs-md)/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.pkind { margin-left: 10px; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.pfu { margin-left: 10px; font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
 .ixt .t > :first-child { margin-left: 0; }
 .banner.named { box-shadow: inset 4px 0 0 var(--tag-new), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
 .ptitle h1 .pdate:not(.solo) { font-size: var(--fs-lg); }
@@ -279,7 +276,7 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(
 .ptitle h1 { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
 .ptitle h1 > *, .ptitle h1 > .pdate:not(.solo) { margin-left: 0; }
 .banner .bc { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 8px; min-width: 0;
-  align-items: center; font: var(--fs-lg)/1 var(--font-label); color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
+  align-items: center; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
 .banner.sub { min-height: 36px; margin: 16px 0 8px; }
 .banner.sub .bt { font-size: var(--fs-xl); }
 
@@ -299,12 +296,12 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(
   color: var(--text-bright);
   box-shadow: inset 0 -3px 0 var(--patina-deep), 0 -2px 0 var(--patina), 0 2px 0 var(--patina), -2px 0 0 var(--patina), 2px 0 0 var(--patina);
 }
-.px-btn .count { font: var(--fs-md)/1 var(--font-label); color: var(--text-dim); margin-left: 6px; }
+.px-btn .count { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); margin-left: 6px; }
 .px-btn.on .count { color: var(--text-bright); }
 
 .chip {
   display: inline-flex; align-items: center; gap: 5px;
-  font: var(--fs-md)/1 var(--font-label);
+  font: 600 var(--fs-xs)/1 var(--font-ui);
   text-transform: uppercase; letter-spacing: .06em;
   padding: 3px 8px 2px;
   background: var(--bg-panel-3);
@@ -329,7 +326,7 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(
 .nav-brand { display: flex; align-items: center; gap: 10px; color: var(--text-bright); }
 .nav-brand .eye-logo { width: 30px; height: 30px; filter: drop-shadow(0 0 4px var(--eye-glow)) drop-shadow(0 0 8px var(--eye-53)); }
 .nav-brand-text { font: var(--fs-brand)/1 var(--font-brand); letter-spacing: 1px; }
-.nav-brand-text small { font: var(--fs-md)/1 var(--font-label); color: var(--text-dimmer); margin-left: 8px; letter-spacing: .1em; }
+.nav-brand-text small { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dimmer); margin-left: 8px; letter-spacing: .1em; }
 .nav-tabs { display: flex; gap: 4px; flex-wrap: wrap; height: 100%; }
 .nav-tab {
   display: flex; align-items: center;
@@ -341,7 +338,7 @@ code, .mono { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(
 .nav-tab:hover { color: var(--text-bright); box-shadow: inset 0 -3px 0 var(--frame-hi); }
 /* active = bone text on a copper underline, not a filled block */
 .nav-tab.active { color: var(--text-bright); box-shadow: inset 0 -3px 0 var(--patina); }
-.nav-build { justify-self: end; font: var(--fs-lg)/1 var(--font-label); color: var(--label); letter-spacing: .06em;
+.nav-build { justify-self: end; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); letter-spacing: .06em;
   padding: 4px 10px 3px; box-shadow: inset 0 0 0 1px var(--frame-line); white-space: nowrap; }
 /* the newest game build in the data, on every page: it opens that build's page (common.build_badge) */
 a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-shadow: inset 0 0 0 1px var(--patina); }
@@ -366,7 +363,7 @@ a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-sh
 .page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
 .page-head .meta { color: var(--text-dim); font-size: var(--fs-sm); }
 .page-head .meta b { color: var(--text-main); font-weight: 600; }
-.crumbs { font: var(--fs-md)/1 var(--font-label); color: var(--text-dimmer); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.crumbs { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .08em; }
 .crumbs a { color: var(--text-dim); }
 
 /* flush under the site bar: a 2px gap let the content scroll through between the two */
@@ -395,7 +392,7 @@ a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-sh
 .stat-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 20px; }
 .stat-box { padding: 10px 14px; min-width: 140px; }
 .stat-box .n { font: var(--fs-2xl)/1 var(--font-px); color: var(--text-bright); }
-.stat-box .l { font: var(--fs-md)/1.15 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
+.stat-box .l { font: 600 var(--fs-xs)/1.15 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
 .stat-box.unreleased .n { color: var(--dev); }
 .stat-box.hidden .n { color: var(--eye); text-shadow: 0 0 10px var(--eye-glow); }
 .stat-box.documented .n { color: var(--patina); }
@@ -407,13 +404,13 @@ a.nav-build:hover, a.nav-build:focus-visible { color: var(--text-bright); box-sh
 .section-title .chip { margin-left: auto; }
 .section-title .dimmer { font: 500 var(--fs-sm)/1 var(--font-ui); letter-spacing: 0; }   /* a date: never the pixel font */
 details.collapsible > summary { cursor: pointer; list-style: none; font: 600 var(--fs-base)/1.2 var(--font-ui); color: var(--text-bright); padding: 4px 0; }
-details.collapsible > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--patina); font-family: var(--font-px-small); font-size: var(--fs-md); }
+details.collapsible > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--patina); font: 600 var(--fs-base)/1 var(--font-ui); }
 details.collapsible[open] > summary::before { content: "-"; }
 details.collapsible > summary .chip { margin-left: 8px; }
 
 /* ---------- 06. Badges & markers ---------- */
 /* Tag (render.tag_badge — the only markup): the tag's pixel icon and its word in the UI font, 600 11px
-   uppercase (Silkscreen and VT323 read poorly at badge size; Sloppy's badges are 11px UI font too), a muted
+   uppercase (pixel fonts read poorly at badge size; Sloppy's badges are 11px UI font too), a muted
    tint of its colour with a 2px bar on the left, ONE width for every tag (--tag-w) and one fill — the size
    of a change is the % beside it, never the badge (owner 2026-10-04: two shaded chips per row). No
    clip-path: it cut the focus ring and the "chosen" ring of the filter buttons. */
@@ -483,14 +480,14 @@ button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 10
 /* "▲3 ▼1 ✦2": coloured glyph counts, no boxes (same grammar as the patches index) */
 .pip {
   --c: var(--tag-changed);
-  font: var(--fs-lg)/1 var(--font-label); color: var(--c); white-space: nowrap;
+  font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--c); white-space: nowrap;
 }
 .tsum { gap: 9px; }
 
 .mark {
   display: inline-flex; align-items: center; justify-content: center;
   width: 20px; height: 20px; flex: none;
-  font: var(--fs-lg)/1 var(--font-label);
+  font: 500 var(--fs-sm)/1 var(--font-ui);
 }
 /* the mark's pixel shape is a mask (common.MARK_ART; tests/test_perf.py keeps these in sync): a page carries
    no SVG per mark. The eye's glow sits on the mark itself — a filter on the masked ::before is masked away. */
@@ -576,10 +573,10 @@ a.mark.unannounced:hover, a.mark.unannounced:focus-visible { color: var(--text-b
   background: var(--bg-panel-4); box-shadow: 0 0 0 2px var(--frame-line), inset 0 0 0 1px var(--bg-page); }
 .ecard-h .nm { font: var(--fs-xl)/1 var(--font-px); color: var(--name); letter-spacing: .03em; }
 .ecard-h .nm a { color: inherit; }
-.ecard-h .sub { font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
+.ecard-h .sub { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
 .ecard-h .er { display: flex; align-items: center; gap: 12px; }
 .ecard-h .tsum { margin-left: 0; }
-.ecard.dev .ecard-h .nm::after { content: "in development"; margin-left: 10px; font: var(--fs-md)/1 var(--font-label);
+.ecard.dev .ecard-h .nm::after { content: "in development"; margin-left: 10px; font: 600 var(--fs-xs)/1 var(--font-ui);
   color: var(--dev); text-transform: uppercase; letter-spacing: .06em; }
 .eb { padding: 2px 0 4px; }
 /* an ability inside its hero's card */
@@ -646,7 +643,7 @@ a.chip.eye-link:hover, a.chip.eye-link:focus-visible { color: var(--text-bright)
 .only-hidden .pblock:not(.has-hidden) { display: none; }
 
 /* engine plumbing rows fold away */
-details.tech > summary { cursor: pointer; list-style: none; padding: 5px 12px 5px 48px; font: var(--fs-md)/1 var(--font-label);
+details.tech > summary { cursor: pointer; list-style: none; padding: 5px 12px 5px 48px; font: 600 var(--fs-xs)/1 var(--font-ui);
   color: var(--text-dimmer); text-transform: uppercase; letter-spacing: .06em; border-top: 1px solid var(--line-soft); }
 details.tech > summary::-webkit-details-marker { display: none; }
 details.tech > summary::before { content: "+ "; color: var(--patina); }
@@ -677,11 +674,11 @@ details.src > summary:focus-visible { outline: 1px solid var(--patina); outline-
 details.src:target > summary .erow { background: var(--eye-14); box-shadow: inset 3px 0 0 var(--eye), inset 0 0 0 1px var(--eye-53); }
 details.src:target > .src-b { box-shadow: inset 0 0 0 1px var(--eye-53); }
 @media (max-width: 600px) { .src-b { margin-left: 12px; } }
-.vals.fam-span { color: var(--label); font: var(--fs-md)/1 var(--font-label); }
+.vals.fam-span { color: var(--label); font: 500 var(--fs-sm)/1 var(--font-ui); }
 .only-hidden details.fam:not(.has-hidden) { display: none; }
 /* one edit made in several entities at once (builders/shared_rows.py): a chip on the row; a rule for every one of
    a kind is one row "All heroes: N changes · Hero progression ›", a link to the Game page, counted apart */
-.erow .chip.shr { font-size: var(--fs-md); padding: 1px 6px 0; margin-left: 6px; color: var(--text-dimmer); vertical-align: 1px;
+.erow .chip.shr { padding: 1px 6px 0; margin-left: 6px; color: var(--text-dimmer); vertical-align: 1px;
   white-space: normal; }
 .erow .shr-t { color: var(--label); }
 .erow .shr-go { margin-left: 8px; color: var(--patina); white-space: nowrap; }
@@ -772,7 +769,7 @@ details.src:target > .src-b { box-shadow: inset 0 0 0 1px var(--eye-53); }
 .hblocks .pblock > .banner .bt .pdate { margin: 0 12px 0 0; font: 700 var(--fs-lg)/1 var(--font-ui); color: var(--text-bright);
   font-variant-numeric: tabular-nums; }
 .hblocks .pblock > .banner .bt .pname { font: var(--fs-xl)/1 var(--font-px); color: var(--gold); text-transform: uppercase; letter-spacing: .08em; }
-.hblocks .pblock > .banner .bt .pkind { margin: 0; font: var(--fs-lg)/1 var(--font-label); color: var(--label); text-transform: uppercase;
+.hblocks .pblock > .banner .bt .pkind { margin: 0; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase;
   letter-spacing: .08em; }
 .hblocks .pblock[open] { margin-bottom: 18px; }
 /* "patch ↗": the band's patch in the archive, on purpose (the title opens the band in place) */
@@ -899,7 +896,7 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
    the head's whole width */
 .head-strip { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 8px; min-width: 0; }
 /* level with the tiles, not with the strip's box (its bottom padding holds the month labels) */
-.head-strip .hs-l { margin-bottom: 13px; font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.head-strip .hs-l { margin-bottom: 13px; font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
 .head-strip .patch-strip { grid-column: 2; min-width: 0; margin: 0; }
 /* the orange top in words, its own line under the tiles, from their left edge (dynamics_page.cap_key) */
 .hs-key { display: flex; margin: -2px 0 8px; }
@@ -967,7 +964,7 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 .now-open > h2 { margin-top: 22px; }
 /* an item's / a unit's values today: open, the summary line folds them away */
 .now { margin: 0 3px 16px; }
-.now > summary { padding: 10px 14px; cursor: pointer; font: var(--fs-lg)/1 var(--font-label); color: var(--label);
+.now > summary { padding: 10px 14px; cursor: pointer; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label);
   text-transform: uppercase; letter-spacing: .06em; list-style: none; }
 .now > summary::-webkit-details-marker { display: none; }
 .now > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--patina); }
@@ -978,7 +975,7 @@ details.txt[open] > summary .erow .tx::before { content: "\2212"; }
 table.tier-grid { width: 100%; min-width: 420px; border-collapse: collapse; }
 table.tier-grid th, table.tier-grid td { padding: 5px 14px; text-align: center; border: 1px solid var(--grid); }
 table.tier-grid td:first-child { text-align: left; color: var(--label); }
-table.tier-grid thead th { font: var(--fs-lg)/1 var(--font-label); color: var(--text-bright); text-transform: uppercase; }
+table.tier-grid thead th { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-bright); text-transform: uppercase; }
 /* the grid is also a kvt (its values were pushed right under centred headers: Stage Hand's TIER I header at 681,
    its number at 780; review 2026-10-05) — centred values, the table centred in its box */
 table.kvt.tier-grid td.v { text-align: center; }
@@ -1005,7 +1002,7 @@ table.kvt.tier-grid td.v { text-align: center; }
   /* a unit family's tiers fit a phone: the 420px floor pushed 45 neutral pages 67px sideways at 390px */
   table.tier-grid { width: 100%; min-width: 0; }
   table.tier-grid th, table.tier-grid td { padding: 5px 6px; }
-  table.tier-grid thead th { font-size: var(--fs-md); }
+  table.tier-grid thead th { font-size: var(--fs-xs); }
 }
 /* a phone's history rows use the width (visual pass 2026-10-17: the icon column, the eye and the tag started the label
    at x≈188 of 390, so every change wrapped to 2-3 lines): the ability's icon sits in its sub-head, the eye and the tag
@@ -1032,7 +1029,7 @@ table.kvt.tier-grid td.v { text-align: center; }
 .steps { display: flex; gap: 8px; margin-left: auto; }
 /* both steps always, named ("◀ Older", "Newer ▶"); the one past the end dimmed (review 2026-10-17: a lone ◀) */
 .step { display: inline-flex; align-items: center; justify-content: center; height: 34px; padding: 1px 10px 0;
-  font: var(--fs-lg)/1 var(--font-label); color: var(--text-main); background: var(--bg-panel-3); text-transform: uppercase;
+  font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-main); background: var(--bg-panel-3); text-transform: uppercase;
   letter-spacing: .06em; white-space: nowrap; box-shadow: 0 0 0 2px var(--frame-line); }
 a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
 .step.off { color: var(--text-dimmer); background: none; box-shadow: 0 0 0 2px var(--line-soft); }
@@ -1043,7 +1040,7 @@ a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
 .sum-tile { --c: var(--tag-changed); display: flex; align-items: baseline; gap: 8px; padding: 6px 14px 6px 12px;
   background: color-mix(in srgb, var(--c) 12%, var(--bg-panel)); box-shadow: inset 4px 0 0 var(--c); }
 .sum-tile .n { font: var(--fs-3xl)/1 var(--font-px); color: var(--c); }
-.sum-tile .l { font: var(--fs-lg)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
+.sum-tile .l { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
 .sum-tile.t-buff, .sum-bar .b-buff { --c: var(--tag-buff); }
 .sum-tile.t-nerf, .sum-bar .b-nerf { --c: var(--tag-nerf); }
 .sum-tile.t-new, .sum-bar .b-new { --c: var(--tag-new); }
@@ -1058,9 +1055,9 @@ a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
   box-shadow: 0 0 0 2px var(--frame-line); }
 .hchip:hover { box-shadow: 0 0 0 2px var(--patina), 0 0 12px var(--patina-25); }
 .hchip img { width: 50px; height: 50px; object-fit: cover; display: block; background: var(--bg-panel-4); }
-.hchip .hc { display: flex; justify-content: center; gap: 4px; height: 18px; align-items: center; font: var(--fs-md)/1 var(--font-label); }
+.hchip .hc { display: flex; justify-content: center; gap: 4px; height: 18px; align-items: center; font: 500 var(--fs-sm)/1 var(--font-ui); }
 .hchip .hc { gap: 3px; }
-.hchip .hc .pip { font-size: var(--fs-md); gap: 1px; }
+.hchip .hc .pip { gap: 1px; }
 .hchip .hc .pip::before { width: 8px; height: 8px; }
 .hdev { align-self: center; }
 .sum-audit { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 12px; padding-top: 10px;
@@ -1107,12 +1104,11 @@ a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
    its tile edge to edge beside the paintings) */
 .card img[src*="/_mark/"] { padding: 13px; }
 .card .nm { font: 600 var(--fs-base)/1.15 var(--font-ui); }
-.card .sub { font: var(--fs-md)/1 var(--font-label); color: var(--text-dimmer); text-transform: uppercase; }
+.card .sub { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); text-transform: uppercase; }
 .card .sub:empty { display: none; }
 /* what the newest patch did to the hero, under the portrait */
 .card .last { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 7px; margin-top: auto; }
 .card .last .tsum { margin: 0; gap: 6px; }
-.card .last .pip { font-size: var(--fs-md); }
 .card .last .d { font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0; }
 /* a Game card's changes the notes left out: the eye and the count, in the date's quiet type (game_pages) */
 .card .last .gc-hid { display: inline-flex; align-items: center; gap: 2px; font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--eye);
@@ -1142,8 +1138,8 @@ a.step:hover { color: var(--text-bright); box-shadow: 0 0 0 2px var(--patina); }
 .ixd { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; }
 .ixt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .ixt .t { font: var(--fs-xl)/1.05 var(--font-px); color: var(--text-bright); }
-.ixt .b { font: var(--fs-lg)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
-.ixs { display: grid; grid-template-columns: repeat(4, 58px); gap: 2px; font: var(--fs-lg)/1 var(--font-label); }
+.ixt .b { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
+.ixs { display: grid; grid-template-columns: repeat(4, 58px); gap: 2px; font: 500 var(--fs-sm)/1 var(--font-ui); }
 .ixs .ix-buff { color: var(--tag-buff); }
 .ixs .ix-nerf { color: var(--tag-nerf); }
 .ixs .ix-new { color: var(--tag-new); }
@@ -1238,7 +1234,7 @@ table.stats td.name a { display: flex; align-items: center; gap: 8px; color: var
 table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px; object-fit: contain; }
 table.stats tbody td { background-color: var(--bg-panel); }
 table.stats td.g-odd { background-color: var(--cell-odd); }
-table.stats td.name .pre { font: var(--fs-md)/1 var(--font-label); color: var(--eye); margin-left: 4px; }
+table.stats td.name .pre { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--eye); margin-left: 4px; }
 table.stats tbody tr:hover td { background-color: var(--cell-hover); }
 table.stats tbody tr.marked td { box-shadow: inset 0 2px 0 var(--patina), inset 0 -2px 0 var(--patina); }
 table.stats td.grp-start, table.stats th.grp-start { border-left: 1px solid var(--grid-strong); }
@@ -1328,7 +1324,7 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .keystat { position: relative; min-width: 0; min-height: 62px; padding: 8px 6px 7px; background: var(--bg-panel-2); text-align: center; }
 .keystat .si { position: absolute; left: 7px; top: 7px; width: 14px; height: 14px; opacity: .85; }
 .keystat .v { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); }
-.keystat .l, .wcell .l { font: var(--fs-md)/1.1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .04em; }
+.keystat .l, .wcell .l { font: 600 var(--fs-xs)/1.1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .04em; }
 .keystat .l { margin-top: 5px; }
 .keystat.has-hist, .wcell.has-hist { cursor: help; }
 .keystat.has-hist.recent::after, .wcell.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
@@ -1370,7 +1366,7 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .wcell .v { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); font-variant-numeric: tabular-nums; }
 .wcell .l { max-width: 100%; overflow-wrap: break-word; }
 .wcell.spirit .v { color: var(--tag-rework); }
-.wcell .v .u { margin-left: 2px; font: var(--fs-md)/1 var(--font-label); color: var(--label); }
+.wcell .v .u { margin-left: 2px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); }
 .wcell.top { min-height: 72px; gap: 6px; padding: 10px 8px; background: var(--bg-panel-2); outline: 0; box-shadow: inset 0 -2px 0 var(--patina-dim); }
 .wcell.top .si { width: 18px; height: 18px; }
 .wcell.top .v { font-size: var(--fs-3xl); }
@@ -1389,7 +1385,7 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 /* the alt fire: the files give it no name — a line under the gun's numbers, its own numbers as a compact row below */
 .wb-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 10px; background: var(--bg-panel);
   outline: 1px solid var(--line-soft); }
-.wb-alt-l { font: var(--fs-md)/1 var(--font-label); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.wb-alt-l { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
 .wb-alt .wb-links { margin: 0; }
 .wb-alt .wb-links .trail { flex-basis: auto; }
 /* one row on a desktop, however many numbers (Shiv's pellets make nine); three to a row on a phone, like the gun's */
@@ -1399,7 +1395,6 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 @media (max-width: 600px) { .wb-alt-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .wb-alt-cells .wcell { min-height: 44px; padding: 6px 6px 5px; gap: 3px; background: var(--bg-panel-2); }
 .wb-alt-cells .wcell .v { font-size: var(--fs-xl); }
-.wb-alt-cells .wcell .v .u { font-size: var(--fs-md); }
 .wb-none { padding: 10px 12px; font-size: var(--fs-sm); color: var(--text-dimmer); background: var(--bg-panel); outline: 1px solid var(--line-soft); }
 @media (max-width: 1100px) {
   .wb-top { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1423,7 +1418,7 @@ table.stats td .dash, .dash { color: var(--text-dimmer); }
 .stat-flow > .stat-panel.long, .stat-flow > .stat-panel:only-child { break-inside: auto; }
 /* a lone group: its heading and text across the width, its rows in the columns under them */
 .stat-flow > .stat-panel:only-child > h3, .stat-flow > .stat-panel:only-child > .vg-top { column-span: all; }
-.sc-row .v .u, .keystat .v .u, table.kvt td.v .u { margin-left: 2px; font: var(--fs-md)/1 var(--font-label); color: var(--label); }
+.sc-row .v .u, .keystat .v .u, table.kvt td.v .u { margin-left: 2px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); }
 .stat-panel h3 { margin: 0; padding: 7px 10px 6px; font-size: var(--fs-xl); background: var(--bg-panel-3); break-after: avoid; }
 /* a hero's other stats sit on the page, not in a fold's frame: the component's ground of its own */
 .now-open > .stat-flow { padding: 10px 12px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--line-soft); }
@@ -1500,13 +1495,13 @@ table.kvt td.spirit { color: var(--tag-rework); }
    healing green — the colours the game uses for those values */
 .pi { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; object-fit: contain; flex: none; }
 .chip .pi { width: 13px; height: 13px; margin-right: 3px; }
-/* "42s", "20m", not "42S"; the chip's own weight: VT323 has one, a faked bold smeared its pixels */
+/* "42s", "20m", not "42S"; the chip's own weight */
 .chip b { color: var(--text-bright); font-weight: inherit; text-transform: none; }
 .p-tech_damage td.v, .sc-row.p-tech_damage .v, .chip.p-tech_damage b { color: var(--spirit); }
 .p-bullet_damage td.v, .sc-row.p-bullet_damage .v, .chip.p-bullet_damage b { color: var(--weapon); }
 .p-healing td.v, .sc-row.p-healing .v, .chip.p-healing b { color: var(--tag-buff); }
 .tier { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 5px 10px; border-top: 1px solid var(--line-soft); font-size: var(--fs-sm); }
-.tier .tn { font: var(--fs-md)/1 var(--font-label); color: var(--bg-page); background: var(--patina-dim); text-align: center; padding: 4px 0; }
+.tier .tn { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--bg-page); background: var(--patina-dim); text-align: center; padding: 4px 0; }
 .tier .tt { white-space: pre-line; }
 
 /* Patches / Notes vs files: centred, translucent lines both ways; the field and Valve's line read left */
@@ -1557,8 +1552,9 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
 /* patch page tabs */
 .tabs { display: flex; flex-wrap: wrap; gap: 2px; }
 /* one height for every tab, the words on one line: the 20px eye of "Not in patch notes" made its tab taller and its
-   words ~4px lower (review 2026-10-17); the eye is centred like a chip's */
-.tabs .px-btn { display: inline-flex; align-items: baseline; }
+   words ~4px lower (review 2026-10-17); the eye is centred like a chip's. The line is the eye's 14px: with the count in
+   the 13px UI font (the pixel font's 16px held it before) the eye's tab stood 1px taller */
+.tabs .px-btn { display: inline-flex; align-items: baseline; line-height: 14px; }
 .tabs .px-btn .mark { align-self: center; width: 14px; height: 14px; margin-right: 5px; }
 .tabs .px-btn .mark::before { width: 14px; height: 14px; }
 /* a phone: the tabs are ONE row that scrolls sideways, like the history bar's ability chips — wrapped, the sticky bar
@@ -1594,7 +1590,7 @@ table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
   background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel)); box-shadow: inset 4px 0 0 var(--frame-hi),
   0 0 0 2px var(--frame-line); }
 .home-stats .hs .n { font: var(--fs-3xl)/1 var(--font-px); color: var(--text-bright); }
-.home-stats .hs .l { font: var(--fs-md)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
+.home-stats .hs .l { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
 .home-stats .hs.documented { box-shadow: inset 4px 0 0 var(--patina), 0 0 0 2px var(--frame-line); }
 .home-stats .hs.documented .n { color: var(--patina); }
 .home-stats .hs.hidden { box-shadow: inset 4px 0 0 var(--eye), 0 0 0 2px var(--frame-line); }
@@ -1616,7 +1612,7 @@ a.au.au-hidden:hover b { text-decoration: underline; }
   padding: 16px 18px; overflow: hidden; color: var(--text-bright); transition: transform 120ms steps(3); }
 .htile:hover { --frame: var(--patina); transform: translateY(-2px); }
 .htile .ht-t { font: var(--fs-3xl)/1 var(--font-px); }
-/* the count is a number beside a pixel title: Jersey's smallest step (VT323 22px was a fourth size of the label font) */
+/* the count is a number beside a pixel title: Jersey's smallest step */
 .htile .ht-n { font: var(--fs-xl)/1 var(--font-px); color: var(--label); }
 /* what the index shows behind a switch, apart from the number (home_page._tiles: "+5 pre-release") */
 .htile .ht-x { margin-left: 8px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; }
@@ -1648,7 +1644,7 @@ table.game-rules td.nm { text-align: left; color: var(--text-main); }
 table.game-rules td.v { color: var(--text-bright); white-space: nowrap; }
 table.game-rules td.has-hist { cursor: help; text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
 table.game-rules tr.sec td { text-align: left; background: var(--bg-panel-2); border-color: var(--grid-strong);
-  font: var(--fs-lg)/1 var(--font-label); text-transform: uppercase; letter-spacing: .05em; }
+  font: 600 var(--fs-sm)/1 var(--font-ui); text-transform: uppercase; letter-spacing: .05em; }
 table.game-rules tr.sec a { color: var(--label); display: inline-flex; align-items: center; gap: 8px; }
 table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; color: var(--label); }
 table.game-rules .lc-n { display: none; }
@@ -1677,8 +1673,8 @@ table.game-rules .lc-n { display: none; }
    360px of a 1640px card) */
 .lu-groups { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 44px; padding: 10px 16px 0; }
 .lu-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
-.lu-h { font: var(--fs-lg)/1 var(--font-label); color: var(--label); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
-.lu-h b { color: var(--text-bright); font-weight: 400; }
+.lu-h { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.lu-h b { color: var(--text-bright); font-weight: inherit; }
 /* a group whose icons all hold only changes the notes left out: one eye here, none on the icons — the entity pages'
    eye chip (a.chip.eye-link), not amber sans with the eye glued to it (review 2026-10-17) */
 .lu-h .lu-all { display: inline-flex; vertical-align: -2px; margin: -3px 0 -2px 8px; color: var(--eye); }    /* its margin box no taller than the label's line */
@@ -1692,7 +1688,7 @@ table.game-rules .lc-n { display: none; }
 .lu.lu-game img, .lu.lu-game .glyph { object-fit: contain; padding: 7px; color: var(--label); }
 /* the units the game has no picture for, folded into one tile (home_page.fold_bare): "+N", not N grey glyphs */
 .lu-fold-n { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; padding-bottom: 3px;
-  font: var(--fs-lg)/1 var(--font-label); color: var(--text-dim); }
+  font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); }
 .lu.lu-fold:hover .lu-fold-n { color: var(--text-bright); }
 .lu:hover { box-shadow: 0 0 0 2px var(--patina), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
 .lu-n { position: absolute; right: 1px; bottom: 3px; padding: 0 3px; font: 600 var(--fs-xs)/14px var(--font-ui); color: var(--text-bright);
@@ -1813,7 +1809,7 @@ ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
 .vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0);
   white-space: nowrap; border: 0; }
 .vals.flags { display: inline-flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; white-space: normal; max-width: 420px; }
-.flag { font: var(--fs-md)/1 var(--font-label); padding: 3px 5px; background: var(--bg-panel-3); text-transform: uppercase; }
+.flag { font: 600 var(--fs-xs)/1 var(--font-ui); padding: 3px 5px; background: var(--bg-panel-3); text-transform: uppercase; }
 .flag.add { color: var(--tag-buff); }
 .flag.rem { color: var(--tag-nerf); }
 /* a gameplay bit: the side it moved the owner to (render._bits_html), whether added or removed */
@@ -1901,7 +1897,7 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .ga-flow { display: flex; flex-wrap: wrap; padding: calc(8 * var(--u)) calc(23 * var(--u)); }
 /* ours, below the game's page: Street Brawl's T5 and the items no longer sold */
 .ga-title { margin: 22px 0 10px; font-size: var(--fs-xl); }
-.ga-title small { font: var(--fs-md)/1 var(--font-label); color: var(--label); margin-left: 8px; }
+.ga-title small { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); margin-left: 8px; }
 .gs-board.extra { background: var(--bg-panel); content-visibility: auto; contain-intrinsic-size: auto 400px; }
 .gs-board.gone .gcard { opacity: .7; }
 /* a card (CitadelShopMod 76 x 114): paper of its category and tier cut to the torn silhouette, the item's
@@ -1967,7 +1963,6 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
 .gt-stats { margin-top: 8px; }
 .gt-comp, .gt-last { margin-top: 8px; font-size: var(--fs-sm); }
 .gt-comp b, .gt-last b { margin-right: 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--label); }
-.gt-last .pip { font-size: var(--fs-md); }
 /* a narrow board (phones): no page art scaling, the tiers stack at the game's real card size */
 @container gshop (max-width: 820px) {     /* below this the names would drop under 11px */
   .gs-board { --u: 1px; }
@@ -1985,7 +1980,7 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
   .gs-board.all .ga-col.w { background: var(--gs-paper-w); }
   .gs-board.all .ga-col.s { background: var(--gs-paper-s); }
   .gs-board.all .ga-col.v { background: var(--gs-paper-v); }
-  .ga-col::before { content: attr(data-label); flex: 0 0 100%; margin: 2px 3px 4px; font: var(--fs-md)/1 var(--font-label);
+  .ga-col::before { content: attr(data-label); flex: 0 0 100%; margin: 2px 3px 4px; font: 600 var(--fs-xs)/1 var(--font-ui);
     text-transform: uppercase; letter-spacing: .08em; color: var(--gs-ink); }
   .gs-board.extra .ga-col::before { color: var(--label); }     /* no paper under Street Brawl */
 }
@@ -1997,7 +1992,7 @@ table.hist td.ov { white-space: nowrap; min-width: 150px; }
   .gs-sound { margin: 8px 0 0 4px; }
 }
 /* the "Active" chip of the items table (tables_pages.py) */
-/* the UI font's small caps: VT323 at 14px blurred (the tags' type, review 2026-10-17) */
+/* the UI font's small caps (the tags' type) */
 .it-act { margin-top: 3px; padding: 1px 4px; font: 600 var(--fs-xs)/1 var(--font-ui); text-transform: uppercase; letter-spacing: .06em;
   color: var(--text-dim); background: var(--bg-page); }
 
@@ -2209,7 +2204,7 @@ table.dyn th.name { text-align: center; }
 .dt-patch { margin-left: auto; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); }
 .dt-patch.named { color: var(--gold); }
 .dt-counts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
-.dt-counts .pip { font-size: var(--fs-lg); }
+.dt-counts .pip { font-size: var(--fs-base); }
 .dt-counts .pip em { margin-left: 4px; font: 500 var(--fs-sm)/1 var(--font-ui); font-style: normal; color: var(--text-dim); }
 table.dt-rows { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
 table.dt-rows td { padding: 4px 6px; text-align: center; border-top: 1px solid var(--grid); border-right: 1px solid var(--grid); }

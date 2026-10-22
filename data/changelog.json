@@ -1,5 +1,12 @@
 [
   {
+    "date": "2026-10-22",
+    "title": "One text face for labels",
+    "items": [
+      "The small pixel font is gone from the whole site: labels, chips, counters, units and menu captions are set in the site's text face; headings and big numbers keep their pixel font."
+    ]
+  },
+  {
     "date": "2026-10-21",
     "title": "Patch tiles like Sloppy's, full-width tables, a cleaner head",
     "items": [
