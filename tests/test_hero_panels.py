@@ -145,9 +145,15 @@ def test_advanced_names_read_as_words_and_have_history():
     assert bp.adv_label('g.m_flZoomFOV') == 'Zoom FOV' and bp.adv_label('g.m_bCanZoom') == 'Can Zoom'
     assert bp.adv_label('h.EAirDashDistanceInMeters') == 'Air Dash Distance'
     row, cols = _warden_row()
-    html = bp.advanced(row, cols, 'Warden', '../', '')
-    assert html.startswith('<section class="adv-stats" id="advanced" hidden>')
-    assert 'Shoot Move Speed Percent' in html and 'm_fl' not in html and 'data-hist' in html
+    by_key = {c['key']: c for c in cols}
+    gun, vit, spirit = (''.join(bp.adv_tiles(row, by_key, 'Warden', p)) for p in ('weapon', 'vitality', 'spirit'))
+    # the switch extends the panels in their style (owner 2026-10-22): the gun's numbers in Weapon, the hero's in
+    # Vitality / Spirit, each a tile with its history; nothing a panel or the boon card already shows
+    assert 'class="gp-tile adv' in gun and 'Shoot Move Speed Percent' in gun and 'Max DPS' in gun
+    assert 'Headshot' in gun and 'data-hist' in gun and 'm_fl' not in gun
+    assert 'Move Acceleration' in vit and 'Air Dash Distance' in vit and 'Shoot Move' not in vit
+    assert 'Ability Resource Max' in spirit
+    assert '>Bullet Damage<' not in gun and '+Bullet DMG / boon' not in gun and '>DPS<' not in gun
 
 
 def test_boon_card_says_its_own_builds_count():

@@ -634,11 +634,9 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
     game_panels = bool(gun and table_row and table_row.get('panels'))
     if game_panels:
-        # the game's panels show what the game shows; everything else from the files waits behind the Advanced switch
-        # under them (owner 2026-10-22), not in a Stats block under the abilities
-        from .hero_panels import advanced
-        more = stat_tables(table_row, cols, name, rel, skip_keys=in_game_panels() + NOT_ON_HERO)
-        now = weapon + advanced(table_row, cols, name, rel, more) + abil
+        # the game's panels show what the game shows; everything else from the files is in the same panels behind
+        # their Advanced switch (owner 2026-10-22, hero_panels.adv_tiles), not in a Stats block under the abilities
+        now = weapon + abil
     else:
         now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
     parents = sub_parents(hid, mine, ents_by_id)

@@ -13,7 +13,8 @@
     "date": "2026-10-22",
     "title": "Advanced hero stats, the game's Boon Rewards card",
     "items": [
-      "An Advanced switch over a hero's stat panels opens every other number from the game files: the rest of Hero Stats plus the hero's starting stats and the gun's own fields (move speed while shooting, recoil, zoom, falloff floor, headshot falloff, dash distances), each with its history.",
+      "An Advanced switch over a hero's stat panels adds tiles to the same panels with every other number from the game files: the rest of Hero Stats plus the hero's starting stats and the gun's own fields (move speed while shooting, recoil, zoom, falloff floor, headshot falloff, dash distances), each with its history.",
+      "The weapon panel's head is one row: the name and tags beside the DPS and falloff range.",
       "The Boon Rewards card is drawn like the game's: black, the Ability Unlock and AP icons, coloured icons by each stat gain.",
       "The weapon panel no longer shows the gun's picture."
     ]

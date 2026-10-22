@@ -2438,13 +2438,14 @@
   });
 
   /* ---------- hero page: the Advanced switch over the game's stat panels (builders/hero_panels.py) ---------- */
-  // on: the files' other stats show under the panels; remembered for every hero page (a per-viewer convenience)
+  // on: each panel shows its extra tiles from the files (.gp-adv); remembered for every hero page (a per-viewer
+  // convenience)
   safe('adv-stats', function () {
-    var btn = document.querySelector('.adv-toggle'), box = document.getElementById('advanced');
+    var btn = document.querySelector('.adv-toggle'), box = document.getElementById('gpanels');
     if (!btn || !box) return;
     var KEY = 'cyclopean.advStats';
     function set(on) {
-      box.hidden = !on;
+      box.classList.toggle('adv', on);
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
       btn.classList.toggle('on', on);
     }
@@ -2452,7 +2453,7 @@
     try { was = localStorage.getItem(KEY); } catch (e) { /* private mode: off */ }
     set(was === 'on' || location.hash === '#advanced');
     btn.addEventListener('click', function () {
-      var on = box.hidden;
+      var on = !box.classList.contains('adv');
       set(on);
       try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (e) { /* not remembered */ }
     });

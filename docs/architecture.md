@@ -843,10 +843,11 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   the gun's tiles. Spirit Power Impact: the gun's spirit-scaled stats, then every ability property scaling with Spirit
   (`scale` without `scale_by`). Boon Rewards: the non-zero per-boon gains and "Stat Rewards max at Boon N" — that
   build's boon count, with its history. A tile a Hero Stats column holds keeps its history on hover. An Advanced switch over the panels
-  (`hero_panels.advanced`, scripts.js `adv-stats`, off by default, remembered per viewer) opens, under the Boon Rewards
-  card, every Hero Stats column the panels do not show (Max DPS, headshot, spread, dashes…) and the files' own numbers no
-  column holds: "Hero files" (`m_mapStartingStats`) and "Gun files" (the weapon's numeric fields; no sounds, particles,
-  seeds; engine distances in metres), each with its history (`values` keys `h.*` / `g.*`,
+  (`hero_panels.adv_tiles`, scripts.js `adv-stats` toggles `.adv` on `#gpanels`, off by default, remembered per viewer)
+  extends each panel with more tiles in its own style, each with its history on hover: every Hero Stats column the
+  panels and the Boon Rewards card do not show (Max DPS, headshot, spread, dashes… by the column's group:
+  `ADV_PANEL`) and the files' own numbers no column holds — the gun's numeric fields in Weapon (no sounds, particles,
+  seeds; engine distances in metres), the hero's starting stats in Vitality or Spirit (`values` keys `g.*` / `h.*`,
   `pipeline/hero_panels.advanced`). A hero with a borrowed gun keeps the old head tiles
   (`hero_page.KEY_STATS`) and weapon block.
 - Hero page guns and sub-abilities: the ability grid holds the four Signature slots only and skips a card with nothing to read

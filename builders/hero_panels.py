@@ -125,18 +125,21 @@ def _dps(row: dict, cols: dict, name: str) -> str:
 
 def weapon_panel(row: dict, cols: dict, name: str, rel: str, gun_name: str, links: str, alt: str) -> str:
     p = (row.get('panels') or {}).get('weapon') or {}
-    # no gun picture (owner 2026-10-22: "not needed for anyone"): the name, tags, DPS and falloff range
+    # no gun picture (owner 2026-10-22: "not needed for anyone"): the name and tags on the left, DPS over the falloff
+    # range on the right, one row high (the picture's empty space is gone)
     head = (f'<div class="gp-head"><div class="gp-id"><div class="gp-t">{esc(text("CitadelHeroStats_Weapon"))}</div>'
-            f'{gun_name}{links}{_attrs(row)}</div>{_dps(row, cols, name)}{_falloff(row, cols, name)}</div>')
+            f'{gun_name}{links}{_attrs(row)}</div>'
+            f'<div class="gp-side">{_dps(row, cols, name)}{_falloff(row, cols, name)}</div></div>')
     return (f'<section class="gpanel w" id="weapon">{head}'
-            f'<div class="gp-body">{_grid(row, p.get("stats") or [], cols, name, rel)}{alt}</div>'
+            f'<div class="gp-body">{_grid(row, p.get("stats") or [], cols, name, rel)}'
+            f'{_adv_grid(row, cols, name, "weapon")}{alt}</div>'
             f'{_grid(row, p.get("other") or [], cols, name, rel, " other")}</section>')
 
 
 def vitality_panel(row: dict, cols: dict, name: str, rel: str) -> str:
     p = (row.get('panels') or {}).get('vitality') or {}
     return (f'<section class="gpanel v"><div class="gp-body"><div class="gp-t">{esc(text("CitadelHeroStats_Vitality"))}'
-            f'</div>{_grid(row, p.get("stats") or [], cols, name, rel)}</div>'
+            f'</div>{_grid(row, p.get("stats") or [], cols, name, rel)}{_adv_grid(row, cols, name, "vitality")}</div>'
             f'{_grid(row, p.get("other") or [], cols, name, rel, " other")}</section>')
 
 
@@ -174,7 +177,8 @@ def spirit_panel(row: dict, cols: dict, name: str, rel: str, cards: list[dict]) 
           f'<p>{esc(text("CitadelHeroStats_SpiritPower_Desc"))}</p></div>'
           f'<div class="gp-imps">{"".join(imp)}</div></div>') if imp else ''
     return (f'<section class="gpanel s"><div class="gp-body"><div class="gp-t">{esc(text("CitadelHeroStats_Spirit"))}'
-            f'</div>{_grid(row, p.get("stats") or [], cols, name, rel)}</div>{sp}</section>')
+            f'</div>{_grid(row, p.get("stats") or [], cols, name, rel)}{_adv_grid(row, cols, name, "spirit")}</div>'
+            f'{sp}</section>')
 
 
 # Boon Rewards: each gain's icon (icons/shop/boon_*.svg, ability_property_icons.css) — a game-washed one is a CSS mask
@@ -256,32 +260,62 @@ def _adv_value(key: str, v: float) -> str:
     return _fmt(round(v, 6), 3) + (f'<span class="u">{unit}</span>' if unit else '')
 
 
-def advanced(row: dict, cols: list[dict], name: str, rel: str, more: str) -> str:
-    """The Advanced switch's stats (hidden until it is on; scripts.js `adv-stats`): every Hero Stats column the panels
-    do not show (`more`: Max DPS, headshot, spread, dashes…), then the files' own numbers no column holds — the hero's
-    starting stats and the gun's fields (pipeline/hero_panels.advanced), each with its history."""
-    from .hero_page import _hist_attrs
-    from .now_values import Row, flow, group
-    groups: dict[str, list] = {'h': [], 'g': []}
-    for key in sorted(k for k in (row.get('values') or {}) if k[:2] in ('h.', 'g.')):
-        v = row['values'][key]
-        if v is None:
+# which panel an Advanced tile joins: a Hero Stats column by its group, a starting stat by what it is about, every
+# gun field in the weapon panel
+ADV_PANEL = {'Damage': 'weapon', 'Melee': 'weapon', 'Vitality': 'vitality', 'Mobility': 'vitality', 'Spirit': 'spirit'}
+_SPIRIT_STAT = re.compile(r'^E(?:Tech|AbilityResource|ProcBuildUp)')
+
+
+def _start_panel(stat: str) -> str:
+    return 'weapon' if 'Weapon' in stat else 'spirit' if _SPIRIT_STAT.match(stat) else 'vitality'
+
+
+def adv_tiles(row: dict, cols: dict[str, dict], name: str, panel: str) -> list[str]:
+    """The Advanced switch's tiles of one panel (owner 2026-10-22: the switch extends the panels, in their style, each
+    number with its history on hover): the Hero Stats columns the panels and the Boon Rewards card do not show (Max
+    DPS, headshot, spread, dashes…), then the files' numbers no column holds — the hero's starting stats ('h.') and
+    the gun's fields ('g.', pipeline/hero_panels.advanced)."""
+    from .hero_page import NOT_ON_HERO, _hist_attrs, _split_unit, in_game_panels, says_nothing
+    from .tables_pages import _fmt
+    vals, out = row.get('values') or {}, []
+    shown = set(in_game_panels()) | set(NOT_ON_HERO) | {'dps'}
+    for c in cols.values():
+        v = vals.get(c['key'])
+        if c['key'] in shown or ADV_PANEL.get(c['group']) != panel or v is None or says_nothing(row, c):
+            continue
+        hcls, attrs = _hist_attrs(row, c, name)
+        label, unit = _split_unit(c['label'])
+        val = _fmt(v, min(c['digits'], 3)) + (f'<span class="u">{esc(unit)}</span>' if unit else '')
+        out.append(_adv_tile(val, label, hcls, attrs, v == 0))
+    for key in sorted(k for k in vals if k[:2] in ('h.', 'g.')):
+        v = vals[key]
+        where = 'weapon' if key[0] == 'g' else _start_panel(key[2:])
+        if v is None or where != panel:
             continue
         label = adv_label(key)
-        cls, attrs = _hist_attrs(row, {'key': key, 'label': label, 'digits': 3, 'pol': 0}, name)
-        groups[key[0]].append(Row(esc(label), _adv_value(key, v), None, vcls=cls, attrs=attrs))
-    files = flow([group(g, rows) for g, rows in (('Hero files', groups['h']), ('Gun files', groups['g'])) if rows])
-    return (f'<section class="adv-stats" id="advanced" hidden><h2>Advanced</h2>{more}{files}</section>')
+        hcls, attrs = _hist_attrs(row, {'key': key, 'label': label, 'digits': 3, 'pol': 0}, name)
+        out.append(_adv_tile(_adv_value(key, v), label, hcls, attrs, v == 0))
+    return out
+
+
+def _adv_tile(val: str, label: str, hcls: str, attrs: str, zero: bool) -> str:
+    cls = ' '.join(['gp-tile', 'adv'] + (['zero'] if zero else []) + [c for c in hcls.split() if c != 'spirit'])
+    return f'<div class="{cls}"{attrs}><span class="v">{val}</span><span class="l">{esc(label)}</span></div>'
+
+
+def _adv_grid(row: dict, cols: dict[str, dict], name: str, panel: str) -> str:
+    tiles = adv_tiles(row, cols, name, panel)
+    return f'<div class="gp-grid gp-adv">{"".join(tiles)}</div>' if tiles else ''
 
 
 def adv_switch() -> str:
     return ('<div class="gp-bar"><button type="button" class="px-btn adv-toggle" aria-pressed="false" '
-            'aria-controls="advanced">Advanced</button></div>')
+            'aria-controls="gpanels">Advanced</button></div>')
 
 
 def panels(row: dict, cols: list[dict], name: str, rel: str, cards: list[dict], gun_name: str, links: str,
            alt: str) -> str:
     by_key = {c['key']: c for c in cols}
-    return (f'{adv_switch()}<div class="gpanels">{weapon_panel(row, by_key, name, rel, gun_name, links, alt)}'
+    return (f'{adv_switch()}<div class="gpanels" id="gpanels">{weapon_panel(row, by_key, name, rel, gun_name, links, alt)}'
             f'{vitality_panel(row, by_key, name, rel)}{spirit_panel(row, by_key, name, rel, cards)}</div>'
             f'{boon_card(row, by_key, name, rel)}')
