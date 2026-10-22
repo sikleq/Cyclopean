@@ -145,10 +145,20 @@ def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
     return f'<div class="keystats" style="{keystats_vars(len(out))}">' + ''.join(out) + '</div>'
 
 
-def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
+def in_game_panels() -> tuple[str, ...]:
+    """The Hero Stats columns the game's panels and Boon Rewards card already show (builders/hero_panels.py)."""
+    from pipeline.hero_panels import BOON_ROWS, COLUMN
+    return tuple(COLUMN.values()) + tuple(r[2] for r in BOON_ROWS) + ('falloff_start', 'falloff_end')
+
+
+def more_stats(row: dict, cols: list[dict], name: str, rel: str, game_panels: bool = False) -> str:
     """Secondary stats (per-boon growth of resists, dashes, collision…) as open panels below the abilities
-    (owner 2026-10-04: nothing folded by default — they sat two clicks deep)."""
-    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
+    (owner 2026-10-04: nothing folded by default — they sat two clicks deep). Beside the game's panels: every stat
+    they do not show (Max DPS, headshot, spread, dashes…), the gun's too."""
+    if game_panels:
+        panels = stat_tables(row, cols, name, rel, skip_keys=in_game_panels() + NOT_ON_HERO)
+    else:
+        panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
     if not panels:
         return ''
     return f'<h2>Stats</h2>{panels}'
@@ -193,7 +203,7 @@ def _unit_html(unit: str) -> str:
 
 
 def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: str, rel: str,
-                 alt: dict | None = None) -> str:
+                 alt: dict | None = None, cards: list[dict] = ()) -> str:
     """The gun is not an ability: its own block, first, with every Damage-group number. `alt`: the gun's alt fire
     (a Weapon_Secondary card: the files give it no text) as a line in the block — what changed it lately, its
     trail, its history (its rows are in the gun's group: hero_page.fold_alt) — over a compact row of its own numbers
@@ -233,6 +243,10 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
     if alt:
         lines += (f'<div class="wb-alt"><span class="wb-alt-l">Alt fire</span>'
                   f'{_gun_links(alt["id"], wid or alt["id"], rel)}{alt_cells(row, alt["id"], name, rel)}</div>')
+    if row and row.get('panels'):
+        # the game's own Weapon / Vitality / Spirit Stats panels and its Boon Rewards card (owner 2026-10-22)
+        from .hero_panels import panels
+        return panels(row, cols, name, rel, list(cards), name_html, links + desc, lines)
     if top or rest:
         nums = f'<div class="wb-top">{"".join(top)}</div>{_more_weapon(rest)}'
     else:
@@ -614,13 +628,15 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     # the guns are the weapon block (with a stats row its numbers, else its name): the ability grid holds the four
     # ability slots only, so the ultimate never sits alone on a second row (Viscous' empty "Alt weapon" card)
     weapon = (weapon_block(weapon_card, table_row if gun else None, cols, name, rel,
-                           alt_card if alt_card and alt_card['id'] in alts else None) if weapon_card or table_row else '')
+                           alt_card if alt_card and alt_card['id'] in alts else None, mine)
+              if weapon_card or table_row else '')
     abil_cards = [ability_card(c, rel, SLOT_LABEL.get(c.get('slot', ''), c.get('slot', '')))
                   for c in mine if str(c.get('slot', '')).startswith('Signature_') and has_content(c)]
     abil = ('<h2>Abilities</h2><div class="ability-grid">' + ''.join(abil_cards) + '</div>') if abil_cards else ''
     # the page is the history (owner, 2026-10-03), and what the hero is today stands open above it — the gun,
     # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
-    now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
+    game_panels = bool(gun and table_row and table_row.get('panels'))
+    now = weapon + abil + (more_stats(table_row, cols, name, rel, game_panels) if table_row else '')
     parents = sub_parents(hid, mine, ents_by_id)
     templates = gun_templates(hid, ents_by_id)
     keys = _owned_keys(hid, mine, ents_by_id, rel, skip=(set(alts) if gun else set()) | set(templates),
@@ -656,7 +672,9 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             # the patch strip in the head, under the name (history_view.head_strip): the first screen shows what
             # changed (History sat at y=1365-2096); a phone gives it the head's whole width
             f'{head_strip(told)}'
-            f'{key_stats(table_row, cols, name, rel) if table_row else ""}'
+            # the stat tiles gave way to the game's panels under the head (weapon_block, owner 2026-10-22); a hero whose
+            # gun is borrowed or cut keeps them
+            f'{key_stats(table_row, cols, name, rel) if table_row and not game_panels else ""}'
             f'</div>')
     body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',

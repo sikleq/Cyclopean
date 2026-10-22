@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-10-22",
+    "title": "Hero stats as the game shows them",
+    "items": [
+      "A hero's stats are the game's own Weapon, Vitality and Spirit Stats panels: the same stats in the same order and words, the gun's picture, tags, DPS and falloff range; a stat that grows with Spirit Power is framed with its gain per point.",
+      "Spirit Power Impact lists what Spirit Power raises: the gun's stats and every ability value that scales with it.",
+      "A Boon Rewards card shows what one boon adds and the boon the rewards stop at, with its history: the count of boons changed seven times since 2024 (11 to 35).",
+      "Every other number (Max DPS, headshot, spread, dashes) is in the Stats panels under the abilities."
+    ]
+  },
+  {
+    "date": "2026-10-22",
     "title": "One text face for labels",
     "items": [
       "The small pixel font is gone from the whole site: labels, chips, counters, units and menu captions are set in the site's text face; headings and big numbers keep their pixel font."

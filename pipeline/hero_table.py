@@ -16,7 +16,7 @@ import time
 from dataclasses import dataclass
 from typing import Callable
 
-from . import cache, loc, tracker
+from . import cache, hero_panels, loc, tracker
 from .semantics import UNITS_PER_METER
 
 OUT = tracker.ROOT / 'data' / 'tables' / 'heroes.json'
@@ -411,6 +411,9 @@ def build() -> dict:
             if not hid.startswith('hero_') or not isinstance(hero, dict) or hero.get('_not_pickable'):
                 continue
             vals = evaluate(hero, abilities, b.build, hid in borrowed)
+            # the boons of THAT build (Haze: 11 in 2024-08, 35 today): the Boon Rewards card's "max at Boon N" and
+            # every per-boon sum in the history are of their own build, not today's count
+            vals['boons'] = boons(hero) or None
             first_seen.setdefault(hid, [b.build, b.date[:10]])
             _add_point(series.setdefault(hid, {}), vals, b)
             alt = evaluate_alt(hero, abilities, b.build, hid in borrowed)
@@ -448,6 +451,11 @@ def build() -> dict:
             'history': history,
             'spirit_scaled': spirit_scaled(hero),
             'scaling': scaling_detail(hero),
+            # the game's Weapon / Vitality / Spirit Stats panels (pipeline/hero_panels.py): the stats each lists, the
+            # gun's tags and picture, and today's value of every listed stat no column holds
+            'panels': hero_panels.panels(hero),
+            'gun': hero_panels.gun(hero),
+            'panel_values': {k: _round(v, 4) for k, v in hero_panels.own_values(hero).items()},
             # the alt fire's numbers today and their history (ALT_COLUMNS); only a hero that binds one has it
             **({'alt': {'weapon': alt_id, 'values': _now(alt_hs), 'history': _history(alt_hs)}} if alt_hs else {}),
         })
@@ -467,6 +475,8 @@ def build() -> dict:
             for c in ALT_COLUMNS
         ],
         'heroes': sorted(rows, key=lambda r: r['name'].lower()),
+        # the panels' words from the newest hero build's localization (pipeline/hero_panels.labels)
+        'panel_labels': hero_panels.labels(tok, last_heroes),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(data, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')

@@ -25,6 +25,18 @@ cell's history is the list of `[build, date, old, new]` where the value moved. C
 
 Purple cells: the stat is in the hero's `m_mapScalingStats` (scales with Spirit Power).
 
+**Boons are counted per build** (owner 2026-10-22): every per-boon sum (Max Bullet DMG, Max DPS) uses the boon count
+of its own build, and a row's `values.boons` / `history.boons` is that count (no table column): Haze 11 → 14 (2024-09-26)
+→ 15 → 19 → 20 → 32 → 33 → 35 (2025-11-21). A Max DPS step on a build where neither the bullet nor its per-boon gain
+moved is a change of the boon count.
+
+Game panels (`pipeline/hero_panels.py`, the hero page's Weapon / Vitality / Spirit Stats and Boon Rewards): a row also
+carries `panels` (each panel's stat lists from `m_ShopStatDisplay`), `gun` (`m_eWeaponAttributes` tags, the
+`m_strWeaponImage` picture) and `panel_values` (today's value of every listed stat no column holds, read from
+`m_mapStartingStats` the game's way: a 1.0 scale is 0%, Stamina Cooldown = 1 / `EStaminaRegenPerSecond`); the data
+has `panel_labels` (stat names `StatDesc_*`, tags `Attribute_EWeaponAttribute_*`, the cards' words, one build's
+localization).
+
 Heroes shown: `m_eHeroDevelopmentState` = Release or PreRelease (the latter marked PRE).
 
 Alt fire (`ESlot_Weapon_Secondary`: Viscous, Shiv, Yamato): a hero row's `alt` = `{weapon, values, history}`

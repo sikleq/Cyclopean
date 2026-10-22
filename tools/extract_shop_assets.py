@@ -23,6 +23,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 from extract_icons import RAW, VPK, VRF, _vrf  # noqa: E402
 
 OUT = ROOT / 'icons' / 'shop'
+GUNS = ROOT / 'icons' / 'guns'
 SFX = ROOT / 'sounds' / 'shop'
 SHOP = RAW / 'panorama' / 'images' / 'shop'
 CATALOG = SHOP / 'catalog'
@@ -59,6 +60,7 @@ def extract() -> None:
     sounds += [f'sounds/ui/ui_shop_panel_{p}' for p in PANELS]
     sounds += [f'sounds/ui/ui_shop_panel_page_{i:02d}' for i in range(1, PAGES + 1)]
     _vrf('panorama/images/shop/')
+    _vrf('panorama/images/heroes/guns/')
     _vrf(','.join(sounds))
 
 
@@ -108,6 +110,18 @@ def convert() -> list[str]:
         src = CATALOG / f'catalog_shop_tab_icon_{tab}_psd.png'
         if need(src):
             _webp(src, OUT / f'tab_{tab}.webp')
+    # the hero page's stat panels (citadel_hero_stats_panels_shared.css #BackgroundContainer): the paper behind
+    # Weapon / Vitality / Spirit Stats, the spirit arrow of a stat that grows with Spirit Power
+    # (citadel_stat_scaling_label.css), and each hero's gun picture (m_strWeaponImage)
+    for name, key in CATS.items():
+        src = CATALOG / f'catalog_tooltip_bg_modifies_{name}_psd.png'
+        if need(src):
+            _webp(src, OUT / f'panel_{key}.webp', quality=80)
+    if need(SHOP / 'keystat_spirit_arrow_png.png'):
+        _webp(SHOP / 'keystat_spirit_arrow_png.png', OUT / 'scale_spirit.webp')
+    guns = RAW / 'panorama' / 'images' / 'heroes' / 'guns'
+    for src in sorted(guns.glob('*_psd.png')) if need(guns) else ():
+        _webp(src, GUNS / f'{src.name.removesuffix("_psd.png")}.webp', (480, 240), quality=82)
 
     SFX.mkdir(parents=True, exist_ok=True)
     ui = RAW / 'sounds' / 'ui'

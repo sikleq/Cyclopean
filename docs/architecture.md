@@ -834,9 +834,18 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
 - Weight: only the newest `EAGER_PATCHES` (6) bands are in the DOM; older panels are a
   `<template class="hp-t">` stamped when opened, filtered or named by `#p-<patch>` (Nano: 12k → 1.5k
   elements at load).
-- Hero page head: every main non-gun stat as a tile (`hero_page.KEY_STATS`: health, regen, resists,
-  movement, melee, spirit growth), values centred. Weapon panel (open, first under the head): six
-  headline tiles (`hero_page.WEAPON_TOP`: DPS, Max DPS, Bullet dmg, Bullets/s, Ammo, Reload) and every other weapon number in an even grid below (units ride on the number). "Changed lately" is a corner notch.
+- Hero page stats = the game's own panels (owner 2026-10-22, `builders/hero_panels.py`, data from
+  `pipeline/hero_panels.py`): Weapon / Vitality / Spirit Stats side by side under the head (one under another below
+  1180px / 700px) and the Boon Rewards card under them. Each panel lists the hero's `m_ShopStatDisplay` stats in its
+  order, named by the game's `StatDesc_*` words, two tiles a row on the category's paper (`icons/shop/panel_{w,v,s}`);
+  a stat at 0 is at half opacity, one that grows with Spirit Power is framed with the game's "× 0.008" badge. The weapon
+  head: the gun's picture (`icons/guns/`), name, last change, History, tags, DPS, falloff range; the alt fire's row under
+  the gun's tiles. Spirit Power Impact: the gun's spirit-scaled stats, then every ability property scaling with Spirit
+  (`scale` without `scale_by`). Boon Rewards: the non-zero per-boon gains and "Stat Rewards max at Boon N" — that
+  build's boon count, with its history. A tile a Hero Stats column holds keeps its history on hover; every stat the
+  panels do not show (Max DPS, headshot, spread, dashes…) is in the Stats panels under the abilities
+  (`hero_page.more_stats(game_panels=True)`). A hero with a borrowed gun keeps the old head tiles
+  (`hero_page.KEY_STATS`) and weapon block.
 - Hero page guns and sub-abilities: the ability grid holds the four Signature slots only and skips a card with nothing to read
   (`hero_page.has_content`). The gun is always the weapon block (`hero_page.weapon_block`): with a
   stats row its numbers, without one its name, last change, History link and trail plus "Gun numbers
