@@ -5,11 +5,12 @@ Weapon / Vitality / Spirit Stats — the hero card of the shop (panorama citadel
 
 The look follows the game's stylesheets (citadel_hero_stats_panels_shared.css): the category paper behind each panel,
 a two-column grid of dark tiles, a stat at its neutral value at half opacity (.isZeroValue), a stat that grows with
-Spirit Power in a spirit frame with its "× scale" badge (citadel_stat_scaling_label.css), the gun's picture,
-tags, DPS and falloff range in the weapon panel's head."""
+Spirit Power in a spirit frame with its "× scale" badge (citadel_stat_scaling_label.css), the gun's name, tags, DPS
+and falloff range in the weapon panel's head (no gun picture: owner 2026-10-22)."""
 from __future__ import annotations
 
 from functools import lru_cache
+import re
 
 from .common import esc, icon, load_json
 
@@ -124,9 +125,8 @@ def _dps(row: dict, cols: dict, name: str) -> str:
 
 def weapon_panel(row: dict, cols: dict, name: str, rel: str, gun_name: str, links: str, alt: str) -> str:
     p = (row.get('panels') or {}).get('weapon') or {}
-    image = (row.get('gun') or {}).get('image')
-    pic = (f'<img class="gp-gun" src="{rel}icons/guns/{esc(image)}.webp" alt="" loading="lazy">' if image else '')
-    head = (f'<div class="gp-head">{pic}<div class="gp-id"><div class="gp-t">{esc(text("CitadelHeroStats_Weapon"))}</div>'
+    # no gun picture (owner 2026-10-22: "not needed for anyone"): the name, tags, DPS and falloff range
+    head = (f'<div class="gp-head"><div class="gp-id"><div class="gp-t">{esc(text("CitadelHeroStats_Weapon"))}</div>'
             f'{gun_name}{links}{_attrs(row)}</div>{_dps(row, cols, name)}{_falloff(row, cols, name)}</div>')
     return (f'<section class="gpanel w" id="weapon">{head}'
             f'<div class="gp-body">{_grid(row, p.get("stats") or [], cols, name, rel)}{alt}</div>'
@@ -177,11 +177,32 @@ def spirit_panel(row: dict, cols: dict, name: str, rel: str, cards: list[dict]) 
             f'</div>{_grid(row, p.get("stats") or [], cols, name, rel)}</div>{sp}</section>')
 
 
+# Boon Rewards: each gain's icon (icons/shop/boon_*.svg, ability_property_icons.css) — a game-washed one is a CSS mask
+# in its wash colour (.gb-ic.<name>), the others keep their own colours
+BOON_ICON = {'bullet_dmg_lvl': 'bullet', 'melee_lvl': 'melee', 'spirit_lvl': 'spirit', 'hp_lvl': 'health',
+             'bullet_resist_lvl': 'bullet_resist', 'spirit_resist_lvl': 'spirit_resist', 'range_lvl': 'range'}
+WASHED = {'melee', 'health', 'unlock', 'ap'}
+
+
+def _boon_icon(name: str, rel: str) -> str:
+    if name in WASHED:
+        return f'<span class="gb-ic {name}"></span>'
+    return f'<img class="gb-ic" src="{rel}icons/shop/boon_{name}.svg" alt="" loading="lazy">'
+
+
+def _ap_line() -> str:
+    """"Ability Unlock or AP" with its two names bold, as the game's .boldText spans set them."""
+    parts = text('Citadel_Player_Level_AP_Rewards').split(' or ')
+    return ' or '.join(f'<b>{esc(p)}</b>' for p in parts)
+
+
 def boon_card(row: dict, cols: dict, name: str, rel: str) -> str:
-    """Boon Rewards: what one boon adds to this hero (m_mapStandardLevelUpUpgrades, the gains that are not 0) and
-    the boon its stat rewards stop at — that build's boon count, with its history (Haze 11 in 2024-08, 35 today)."""
+    """Boon Rewards (citadel_ui_player_level_bonus_display.xml #RewardsContainer, the tooltip of the game's boon bar):
+    what a threshold grants, then what one boon adds to this hero (m_mapStandardLevelUpUpgrades, the gains that are
+    not 0) and the boon its stat rewards stop at — the game's text says a fixed "35"; here it is that build's boon
+    count, with its history (Haze 11 in 2024-08, 35 today)."""
     from pipeline.hero_panels import BOON_ROWS
-    from .hero_page import _hist_attrs, _stat_icon
+    from .hero_page import _hist_attrs
     from .tables_pages import _fmt
     vals = row.get('values') or {}
     gains = []
@@ -191,22 +212,76 @@ def boon_card(row: dict, cols: dict, name: str, rel: str) -> str:
             continue
         hcls, attrs = _hist_attrs(row, c, name)
         unit = 'm' if key == 'range_lvl' else '%' if key.endswith('resist_lvl') else ''
-        gains.append(f'<div class="gb-gain {hcls}"{attrs}>{_stat_icon(key, rel)}'
-                     f'<b>+{_fmt(v, 2)}{esc(unit)}</b><span>{esc(text(label_key))}</span></div>')
+        # one decimal at most for the small gains, like the game's "+1.6 Base Melee Damage" for 1.58
+        digits = 2 if abs(v) < 1 else 1
+        gains.append(f'<div class="gb-gain {hcls}"{attrs}><div class="gb-gv">{_boon_icon(BOON_ICON[key], rel)}'
+                     f'<b>+{_fmt(v, digits)}{esc(unit)}</b></div><span>{esc(text(label_key))}</span></div>')
     n = vals.get('boons')
     hcls, attrs = _hist_attrs(row, BOONS_COL, name)
-    most = text('Citadel_Player_Level_Stat_RewardsMax').replace('{#}', f'<b class="{hcls}"{attrs}>{n}</b>') if n else ''
-    sub = text('Citadel_Player_Level_RewardsSubhead').replace('{s:hero_name}', esc(name))
+    most = (re.sub(r'\d+\s*$', f'<b class="{hcls}"{attrs}>{n}</b>', esc(text('Citadel_Player_Level_StatMax')))
+            if n else '')
+    sub = esc(text('Citadel_Player_Level_RewardsSubhead')).replace('{s:hero_name}', esc(name))
     return (f'<section class="gboons"><div class="gb-top"><div class="gb-t">{esc(text("Citadel_Player_Level_RewardsTitle"))}'
-            f'</div><div class="gb-sub">{sub}</div><div class="gb-ap">{esc(text("Citadel_Player_Level_AP_Rewards"))}'
-            f'</div><div class="gb-note">{esc(text("Citadel_Player_Level_AP_Rewards_UnlockNote"))}</div></div>'
-            f'<div class="gb-stats"><div class="gb-t2">{esc(text("Citadel_Player_Level_Stat_Rewards"))}</div>'
-            f'<div class="gb-sub">{most}</div><div class="gb-gains">{"".join(gains)}</div></div></section>')
+            f'</div><div class="gb-sub">{sub}</div><div class="gb-ap"><div class="gb-icons">{_boon_icon("unlock", rel)}'
+            f'<span class="gb-or">or</span>{_boon_icon("ap", rel)}</div><div><div class="gb-name">{_ap_line()}</div>'
+            f'<div class="gb-note">{esc(text("Citadel_Player_Level_AP_Rewards_UnlockNote"))}</div></div></div></div>'
+            f'<div class="gb-stats"><div class="gb-t2">{esc(text("Citadel_Player_Level_StatIncreases"))}</div>'
+            f'<div class="gb-max">{most}</div><div class="gb-gains">{"".join(gains)}</div></div></section>')
+
+
+_FIELD = re.compile(r'^m_(?:fl|i|n|b|f|e|v|un)?(?=[A-Z])')
+_CAMEL = re.compile(r'(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])')
+
+
+def adv_label(key: str) -> str:
+    """'h.EMoveAcceleration' -> the game's StatDesc name when it has one, else "Move Acceleration";
+    'g.m_flShootMoveSpeedPercent' -> "Shoot Move Speed Percent" (a field name read as words, never shown raw)."""
+    kind, field = key.split('.', 1)
+    if kind == 'h':
+        named = (_labels().get('stats') or {}).get(field)
+        if named:
+            return named
+        field = field[1:]
+    words = _CAMEL.sub(' ', _FIELD.sub('', field)).replace('_', ' ')
+    words = re.sub(r'\bFov\b', 'FOV', words.strip()).replace('NP Cs', 'NPCs')
+    return words.replace('In Meters', '').strip()
+
+
+def _adv_value(key: str, v: float) -> str:
+    from .tables_pages import _fmt
+    field = key.split('.', 1)[1]
+    if field.startswith('m_b'):
+        return 'yes' if v else 'no'
+    unit = 'm' if re.search(r'(?:Range|Distance|InMeters)$', field) else ''
+    return _fmt(round(v, 6), 3) + (f'<span class="u">{unit}</span>' if unit else '')
+
+
+def advanced(row: dict, cols: list[dict], name: str, rel: str, more: str) -> str:
+    """The Advanced switch's stats (hidden until it is on; scripts.js `adv-stats`): every Hero Stats column the panels
+    do not show (`more`: Max DPS, headshot, spread, dashes…), then the files' own numbers no column holds — the hero's
+    starting stats and the gun's fields (pipeline/hero_panels.advanced), each with its history."""
+    from .hero_page import _hist_attrs
+    from .now_values import Row, flow, group
+    groups: dict[str, list] = {'h': [], 'g': []}
+    for key in sorted(k for k in (row.get('values') or {}) if k[:2] in ('h.', 'g.')):
+        v = row['values'][key]
+        if v is None:
+            continue
+        label = adv_label(key)
+        cls, attrs = _hist_attrs(row, {'key': key, 'label': label, 'digits': 3, 'pol': 0}, name)
+        groups[key[0]].append(Row(esc(label), _adv_value(key, v), None, vcls=cls, attrs=attrs))
+    files = flow([group(g, rows) for g, rows in (('Hero files', groups['h']), ('Gun files', groups['g'])) if rows])
+    return (f'<section class="adv-stats" id="advanced" hidden><h2>Advanced</h2>{more}{files}</section>')
+
+
+def adv_switch() -> str:
+    return ('<div class="gp-bar"><button type="button" class="px-btn adv-toggle" aria-pressed="false" '
+            'aria-controls="advanced">Advanced</button></div>')
 
 
 def panels(row: dict, cols: list[dict], name: str, rel: str, cards: list[dict], gun_name: str, links: str,
            alt: str) -> str:
     by_key = {c['key']: c for c in cols}
-    return (f'<div class="gpanels">{weapon_panel(row, by_key, name, rel, gun_name, links, alt)}'
+    return (f'{adv_switch()}<div class="gpanels">{weapon_panel(row, by_key, name, rel, gun_name, links, alt)}'
             f'{vitality_panel(row, by_key, name, rel)}{spirit_panel(row, by_key, name, rel, cards)}</div>'
             f'{boon_card(row, by_key, name, rel)}')

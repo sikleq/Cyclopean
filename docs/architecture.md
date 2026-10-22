@@ -839,12 +839,15 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   1180px / 700px) and the Boon Rewards card under them. Each panel lists the hero's `m_ShopStatDisplay` stats in its
   order, named by the game's `StatDesc_*` words, two tiles a row on the category's paper (`icons/shop/panel_{w,v,s}`);
   a stat at 0 is at half opacity, one that grows with Spirit Power is framed with the game's "× 0.008" badge. The weapon
-  head: the gun's picture (`icons/guns/`), name, last change, History, tags, DPS, falloff range; the alt fire's row under
+  head: the gun's name, last change, History, tags, DPS, falloff range (no gun picture: owner 2026-10-22); the alt fire's row under
   the gun's tiles. Spirit Power Impact: the gun's spirit-scaled stats, then every ability property scaling with Spirit
   (`scale` without `scale_by`). Boon Rewards: the non-zero per-boon gains and "Stat Rewards max at Boon N" — that
-  build's boon count, with its history. A tile a Hero Stats column holds keeps its history on hover; every stat the
-  panels do not show (Max DPS, headshot, spread, dashes…) is in the Stats panels under the abilities
-  (`hero_page.more_stats(game_panels=True)`). A hero with a borrowed gun keeps the old head tiles
+  build's boon count, with its history. A tile a Hero Stats column holds keeps its history on hover. An Advanced switch over the panels
+  (`hero_panels.advanced`, scripts.js `adv-stats`, off by default, remembered per viewer) opens, under the Boon Rewards
+  card, every Hero Stats column the panels do not show (Max DPS, headshot, spread, dashes…) and the files' own numbers no
+  column holds: "Hero files" (`m_mapStartingStats`) and "Gun files" (the weapon's numeric fields; no sounds, particles,
+  seeds; engine distances in metres), each with its history (`values` keys `h.*` / `g.*`,
+  `pipeline/hero_panels.advanced`). A hero with a borrowed gun keeps the old head tiles
   (`hero_page.KEY_STATS`) and weapon block.
 - Hero page guns and sub-abilities: the ability grid holds the four Signature slots only and skips a card with nothing to read
   (`hero_page.has_content`). The gun is always the weapon block (`hero_page.weapon_block`): with a

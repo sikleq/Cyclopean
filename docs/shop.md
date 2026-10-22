@@ -96,5 +96,6 @@ masks and `fetch` there, so the tabs and cards lose their shapes and the sounds 
 `tools/extract_icons.py`) writes `icons/shop/*.webp` and `sounds/shop/*.mp3`. Re-run it when the shop's
 look changes; the fonts (VALVEOracle, VALVEPulp) are not in the VPK — Archivo Narrow and Fredoka stand in.
 It also writes the hero page's stat-panel art: `icons/shop/panel_{w,v,s}.webp` (catalog_tooltip_bg_modifies_*),
-`icons/shop/scale_spirit.webp` (keystat_spirit_arrow) and `icons/guns/<gun>.webp` (panorama/images/heroes/guns, the
-picture each hero's `m_strWeaponImage` names; docs/architecture.md, hero page stats). Re-run it when a hero is added.
+`icons/shop/scale_spirit.webp` (keystat_spirit_arrow) and the Boon Rewards card's icons `icons/shop/boon_*.svg`
+(hud/unlock_icon, hud/ap_icon and the property icons of ability_property_icons.css; docs/architecture.md, hero page
+stats).

@@ -40,6 +40,10 @@ PERCENT = {'EBaseWeaponDamageIncrease', 'EFireRate', 'EClipSizeIncrease', 'ERelo
 # reduction under 1 ("Crit Reduction 0%", "Reload Reduction 0%" for 1.0), or the whole scale ("Lifesteal
 # Effectiveness 100%")
 OVER_ONE = {'ECritDamageBonusScale', 'ETechDuration', 'ETechRange'}
+# every stat today's panels list (the same 36 for all 68 heroes in build 6813)
+PANEL_STATS = frozenset(set(COLUMN) | PERCENT | set(UNIT) | {
+    'EOOCHealthRegen', 'EMaxChargesIncrease', 'EStamina', 'ELightMeleeDamage', 'EHeavyMeleeDamage', 'EClipSize',
+    'EBulletDamage', 'ERoundsPerSecond', 'EMaxHealth', 'EBaseHealthRegen'})
 UNDER_ONE = {'ECritDamageReceivedScale', 'EReloadSpeed'}
 WHOLE = {'EHeroSpiritLifestealEffectiveness'}
 
@@ -58,9 +62,9 @@ TEXT = ('CitadelHeroStats_Weapon', 'CitadelHeroStats_Vitality', 'CitadelHeroStat
         'CitadelHeroStats_SpiritPower_Impact', 'CitadelHeroStats_SpiritPower_Desc', 'CitadelHeroStats_Weapon_Falloff',
         'Citadel_Player_Level_RewardsTitle', 'Citadel_Player_Level_RewardsSubhead', 'Citadel_Player_Level_AP_Rewards',
         'Citadel_Player_Level_AP_Rewards_UnlockNote', 'Citadel_Player_Level_Stat_Rewards',
-        'Citadel_Player_Level_Stat_RewardsMax', 'StatDesc_TechPower') + tuple(r[1] for r in BOON_ROWS)
+        'Citadel_Player_Level_Stat_RewardsMax', 'Citadel_Player_Level_StatIncreases', 'Citadel_Player_Level_StatMax',
+        'StatDesc_TechPower') + tuple(r[1] for r in BOON_ROWS)
 
-_IMAGE = re.compile(r'/heroes/guns/(\w+)\.psd')
 _HTML = re.compile(r'<[^>]+>')
 
 
@@ -80,12 +84,10 @@ def panels(hero: dict) -> dict[str, dict[str, list[str]]]:
 
 
 def gun(hero: dict) -> dict:
-    """The gun's tags (m_eWeaponAttributes "EWeaponAttribute_MediumRange | EWeaponAttribute_Projectile") and the
-    picture the panel draws (m_strWeaponImage -> 'warden_gun', icons/guns/ by tools/extract_shop_assets.py)."""
+    """The gun's tags (m_eWeaponAttributes "EWeaponAttribute_MediumRange | EWeaponAttribute_Projectile"); the game's
+    gun picture (m_strWeaponImage) is left out (owner 2026-10-22)."""
     w = ((hero.get('m_ShopStatDisplay') or {}).get('m_eWeaponStatsDisplay') or {})
-    attrs = [a.strip() for a in str(w.get('m_eWeaponAttributes') or '').split('|') if a.strip()]
-    m = _IMAGE.search(str(w.get('m_strWeaponImage') or ''))
-    return {'attrs': attrs, 'image': m.group(1) if m else None}
+    return {'attrs': [a.strip() for a in str(w.get('m_eWeaponAttributes') or '').split('|') if a.strip()]}
 
 
 def _num(v) -> float | None:
@@ -125,6 +127,43 @@ def own_values(hero: dict) -> dict[str, float | None]:
     return out
 
 
+# Advanced stats (the hero page's switch, owner 2026-10-22: "more of the files' stats than my table"): every numeric
+# starting stat and gun field no Hero Stats column or game panel already shows. Sounds, particles and tracers are
+# not stats; a seed is not a number a player reads.
+_NOT_A_STAT = re.compile(r'^m_(?:sz|str)|Sound|Particle|Effect|Tracer|Seed$|^m_vec|^_')
+# fields the columns read through a computation (their paths name only the primary field)
+COLUMN_READS = {'m_reloadDuration', 'm_flIntraBurstCycleTime', 'm_flBulletSpeed', 'm_BulletSpeedCurve',
+                'm_bReloadSingleBullets', 'm_flReloadSingleBulletsInitialDelay', 'm_iAmmoConsumedPerShot'}
+_ENGINE_DISTANCE = re.compile(r'(?:Range|Distance)$')      # engine units: shown in metres (AGENTS.md rule 6)
+UNITS_PER_METER = 39.37
+
+
+def _scalar(v) -> float | None:
+    if isinstance(v, bool):
+        return 1.0 if v else 0.0
+    if isinstance(v, str) and v.lower() in ('true', 'false'):
+        return 1.0 if v.lower() == 'true' else 0.0
+    return _num(v) if not isinstance(v, (dict, list)) else None
+
+
+def advanced(hero: dict, gun_info: dict, covered: set[str]) -> dict[str, float]:
+    """{'h.EMoveAcceleration': 4, 'g.m_flShootMoveSpeedPercent': 0.75, …}: the hero's starting stats ('h.') and the
+    gun's fields ('g.') a column (`covered`: the fields its paths read) or a panel does not show, at one build."""
+    # a build before the panels' lists existed lists none: the stats today's panels show are left out there too
+    shown = {s for p in panels(hero).values() for s in p['stats'] + p['other']} | set(COLUMN) | PANEL_STATS
+    out: dict[str, float] = {}
+    for k, v in (hero.get('m_mapStartingStats') or {}).items():
+        n = _scalar(v)
+        if n is not None and k not in covered and k not in shown:
+            out[f'h.{k}'] = n
+    for k, v in (gun_info or {}).items():
+        n = _scalar(v)
+        if n is None or k in covered or k in COLUMN_READS or _NOT_A_STAT.search(k):
+            continue
+        out[f'g.{k}'] = n / UNITS_PER_METER if _ENGINE_DISTANCE.search(k) else n
+    return out
+
+
 def labels(tok: dict[str, str], heroes: dict) -> dict:
     """The words of every panel: stat names, the guns' tags, the cards' titles (one build's localization)."""
     stats, attrs = set(COLUMN), set()
@@ -134,6 +173,7 @@ def labels(tok: dict[str, str], heroes: dict) -> dict:
         for p in panels(hero).values():
             stats.update(p['stats'] + p['other'])
         stats.update(hero.get('m_mapScalingStats') or {})
+        stats.update(hero.get('m_mapStartingStats') or {})          # the Advanced switch's hero stats
         attrs.update(gun(hero)['attrs'])
     return {
         'stats': {s: tok.get(loc_key(s).lower()) for s in sorted(stats)},

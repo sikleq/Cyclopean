@@ -31,11 +31,15 @@ of its own build, and a row's `values.boons` / `history.boons` is that count (no
 moved is a change of the boon count.
 
 Game panels (`pipeline/hero_panels.py`, the hero page's Weapon / Vitality / Spirit Stats and Boon Rewards): a row also
-carries `panels` (each panel's stat lists from `m_ShopStatDisplay`), `gun` (`m_eWeaponAttributes` tags, the
-`m_strWeaponImage` picture) and `panel_values` (today's value of every listed stat no column holds, read from
+carries `panels` (each panel's stat lists from `m_ShopStatDisplay`), `gun` (`m_eWeaponAttributes` tags; the game's
+`m_strWeaponImage` picture is not used) and `panel_values` (today's value of every listed stat no column holds, read from
 `m_mapStartingStats` the game's way: a 1.0 scale is 0%, Stamina Cooldown = 1 / `EStaminaRegenPerSecond`); the data
 has `panel_labels` (stat names `StatDesc_*`, tags `Attribute_EWeaponAttribute_*`, the cards' words, one build's
 localization).
+
+Advanced switch (`pipeline/hero_panels.advanced`): every build also records the hero's starting stats (`values.h.<EStat>`)
+and the gun's numeric fields (`values.g.<field>`, engine distances ÷ 39.37) that no column reads and no panel lists, with
+their history like a column's; the hero page shows them behind its Advanced switch (no table column).
 
 Heroes shown: `m_eHeroDevelopmentState` = Release or PreRelease (the latter marked PRE).
 

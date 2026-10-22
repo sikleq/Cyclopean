@@ -2436,4 +2436,25 @@
     if (search) search.addEventListener('searched', write);
     window.addEventListener('hashchange', function () { apply(parse()); });
   });
+
+  /* ---------- hero page: the Advanced switch over the game's stat panels (builders/hero_panels.py) ---------- */
+  // on: the files' other stats show under the panels; remembered for every hero page (a per-viewer convenience)
+  safe('adv-stats', function () {
+    var btn = document.querySelector('.adv-toggle'), box = document.getElementById('advanced');
+    if (!btn || !box) return;
+    var KEY = 'cyclopean.advStats';
+    function set(on) {
+      box.hidden = !on;
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.classList.toggle('on', on);
+    }
+    var was = null;
+    try { was = localStorage.getItem(KEY); } catch (e) { /* private mode: off */ }
+    set(was === 'on' || location.hash === '#advanced');
+    btn.addEventListener('click', function () {
+      var on = box.hidden;
+      set(on);
+      try { localStorage.setItem(KEY, on ? 'on' : 'off'); } catch (e) { /* not remembered */ }
+    });
+  });
 })();

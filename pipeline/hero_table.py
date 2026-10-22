@@ -397,6 +397,9 @@ def snapshots():
         yield b, cache.vdata_blob(blobs[0]), cache.vdata_blob(blobs[1])
 
 
+COLUMN_FIELDS = {c.path.rsplit('.', 1)[-1] for c in COLUMNS if c.path}   # the last key of every column's field
+
+
 def build() -> dict:
     t0 = time.time()
     series: dict[str, dict[str, list]] = {}    # hero -> col -> [[build, date, value], ...]
@@ -414,6 +417,9 @@ def build() -> dict:
             # the boons of THAT build (Haze: 11 in 2024-08, 35 today): the Boon Rewards card's "max at Boon N" and
             # every per-boon sum in the history are of their own build, not today's count
             vals['boons'] = boons(hero) or None
+            # the Advanced switch's file stats, with their own history (a borrowed or cut gun's fields are not the hero's)
+            gun_fields = {} if hid in borrowed else weapon_info(hero, abilities)
+            vals.update(hero_panels.advanced(hero, gun_fields, COLUMN_FIELDS))
             first_seen.setdefault(hid, [b.build, b.date[:10]])
             _add_point(series.setdefault(hid, {}), vals, b)
             alt = evaluate_alt(hero, abilities, b.build, hid in borrowed)

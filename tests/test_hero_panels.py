@@ -39,10 +39,10 @@ def test_panels_are_the_heros_own_lists_in_order():
     assert p['spirit'] == {'stats': ['ETechCooldown', 'ETechDuration', 'ETechRange'], 'other': []}
 
 
-def test_gun_tags_and_picture():
-    assert hp.gun(WARDEN) == {'attrs': ['EWeaponAttribute_MediumRange', 'EWeaponAttribute_Projectile'],
-                              'image': 'warden_gun'}
-    assert hp.gun({}) == {'attrs': [], 'image': None}
+def test_gun_tags_and_no_picture():
+    """Owner 2026-10-22: the game's gun picture is not shown — only the gun's tags are kept."""
+    assert hp.gun(WARDEN) == {'attrs': ['EWeaponAttribute_MediumRange', 'EWeaponAttribute_Projectile']}
+    assert hp.gun({}) == {'attrs': []}
 
 
 def test_values_read_the_games_way():
@@ -67,7 +67,9 @@ def test_a_scale_stat_the_hero_lacks_reads_neutral():
 def test_every_stat_name_comes_from_the_games_words():
     t = json.loads((ROOT / 'data' / 'tables' / 'heroes.json').read_text(encoding='utf-8'))
     labels = t['panel_labels']
-    assert all(labels['stats'].values()), [k for k, v in labels['stats'].items() if not v]
+    # every stat a panel lists (an Advanced starting stat may have no StatDesc word: it is read from its name)
+    listed = {s for h in t['heroes'] for p in h['panels'].values() for s in p['stats'] + p['other']}
+    assert listed and all(labels['stats'].get(s) for s in listed), [s for s in listed if not labels['stats'].get(s)]
     assert all(labels['attrs'].values()) and all(labels['text'].values())
     assert labels['stats']['EFireRate'] == 'Fire Rate' and labels['stats']['ERoundsPerSecond'] == 'Bullets per sec'
     assert labels['stats']['EClipSize'] == 'Ammo' and labels['stats']['EStaminaCooldown'] == 'Stamina Cooldown'
@@ -115,6 +117,37 @@ def test_spirit_power_impact_lists_the_gun_then_the_abilities():
     rows = bp.impact_rows(row, cards, '../')
     names = [r.split('class="l">')[1].split('<')[0] for r in rows]
     assert names == ['Bullets per sec', 'Fire Rate', 'Damage', 'Barrier']
+
+
+def test_advanced_keeps_the_files_numbers_no_column_or_panel_shows():
+    """Owner 2026-10-22: an Advanced switch with more of the files' stats than the Hero Stats table — every numeric
+    starting stat and gun field no column or panel shows; sounds, particles and seeds are not stats; engine distances
+    are metres."""
+    gun_info = {'m_flBulletDamage': 17.34, 'm_reloadDuration': 2.9, 'm_flShootMoveSpeedPercent': 0.75,
+                'm_flCritBonusEndRange': 1500.0, 'm_bCanZoom': True, 'm_strShootSound': 'Warden.Wpn.Fire',
+                'm_szMuzzleFlashEffectName': 'x.vpcf', 'm_nRecoilSeed': 1234, 'm_flZoomFOV': 35.0}
+    hero = {**WARDEN, 'm_mapStartingStats': {**WARDEN['m_mapStartingStats'], 'EMoveAcceleration': 4,
+                                            'EAirDashDistanceInMeters': 8.0}}
+    adv = hp.advanced(hero, gun_info, {'m_flBulletDamage', 'EMaxMoveSpeed', 'EStaminaRegenPerSecond'})
+    assert adv['g.m_flShootMoveSpeedPercent'] == 0.75 and adv['g.m_bCanZoom'] == 1 and adv['g.m_flZoomFOV'] == 35
+    assert round(adv['g.m_flCritBonusEndRange'], 2) == 38.1                       # 1500 units = 38.1 m
+    assert adv['h.EMoveAcceleration'] == 4 and adv['h.EAirDashDistanceInMeters'] == 8
+    for gone in ('g.m_flBulletDamage', 'g.m_reloadDuration', 'g.m_strShootSound', 'g.m_szMuzzleFlashEffectName',
+                 'g.m_nRecoilSeed', 'h.EMaxMoveSpeed', 'h.EReloadSpeed', 'h.ECritDamageBonusScale',
+                 'h.EHeroSpiritLifestealEffectiveness', 'h.EStaminaRegenPerSecond'):
+        assert gone not in adv, gone
+
+
+def test_advanced_names_read_as_words_and_have_history():
+    from builders import hero_panels as bp
+    assert bp.adv_label('g.m_flShootMoveSpeedPercent') == 'Shoot Move Speed Percent'
+    assert bp.adv_label('g.m_flCritBonusAgainstNPCs') == 'Crit Bonus Against NPCs'
+    assert bp.adv_label('g.m_flZoomFOV') == 'Zoom FOV' and bp.adv_label('g.m_bCanZoom') == 'Can Zoom'
+    assert bp.adv_label('h.EAirDashDistanceInMeters') == 'Air Dash Distance'
+    row, cols = _warden_row()
+    html = bp.advanced(row, cols, 'Warden', '../', '')
+    assert html.startswith('<section class="adv-stats" id="advanced" hidden>')
+    assert 'Shoot Move Speed Percent' in html and 'm_fl' not in html and 'data-hist' in html
 
 
 def test_boon_card_says_its_own_builds_count():

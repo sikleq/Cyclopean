@@ -151,14 +151,11 @@ def in_game_panels() -> tuple[str, ...]:
     return tuple(COLUMN.values()) + tuple(r[2] for r in BOON_ROWS) + ('falloff_start', 'falloff_end')
 
 
-def more_stats(row: dict, cols: list[dict], name: str, rel: str, game_panels: bool = False) -> str:
+def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
     """Secondary stats (per-boon growth of resists, dashes, collision…) as open panels below the abilities
-    (owner 2026-10-04: nothing folded by default — they sat two clicks deep). Beside the game's panels: every stat
-    they do not show (Max DPS, headshot, spread, dashes…), the gun's too."""
-    if game_panels:
-        panels = stat_tables(row, cols, name, rel, skip_keys=in_game_panels() + NOT_ON_HERO)
-    else:
-        panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
+    (owner 2026-10-04: nothing folded by default — they sat two clicks deep); a hero with the game's panels has them
+    behind the Advanced switch instead (hero_panels.advanced)."""
+    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
     if not panels:
         return ''
     return f'<h2>Stats</h2>{panels}'
@@ -636,7 +633,14 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     # the page is the history (owner, 2026-10-03), and what the hero is today stands open above it — the gun,
     # the abilities, every stat; nothing folded (owner 2026-10-04: it hid three levels deep)
     game_panels = bool(gun and table_row and table_row.get('panels'))
-    now = weapon + abil + (more_stats(table_row, cols, name, rel, game_panels) if table_row else '')
+    if game_panels:
+        # the game's panels show what the game shows; everything else from the files waits behind the Advanced switch
+        # under them (owner 2026-10-22), not in a Stats block under the abilities
+        from .hero_panels import advanced
+        more = stat_tables(table_row, cols, name, rel, skip_keys=in_game_panels() + NOT_ON_HERO)
+        now = weapon + advanced(table_row, cols, name, rel, more) + abil
+    else:
+        now = weapon + abil + (more_stats(table_row, cols, name, rel) if table_row else '')
     parents = sub_parents(hid, mine, ents_by_id)
     templates = gun_templates(hid, ents_by_id)
     keys = _owned_keys(hid, mine, ents_by_id, rel, skip=(set(alts) if gun else set()) | set(templates),

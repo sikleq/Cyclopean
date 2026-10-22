@@ -11,6 +11,15 @@
   },
   {
     "date": "2026-10-22",
+    "title": "Advanced hero stats, the game's Boon Rewards card",
+    "items": [
+      "An Advanced switch over a hero's stat panels opens every other number from the game files: the rest of Hero Stats plus the hero's starting stats and the gun's own fields (move speed while shooting, recoil, zoom, falloff floor, headshot falloff, dash distances), each with its history.",
+      "The Boon Rewards card is drawn like the game's: black, the Ability Unlock and AP icons, coloured icons by each stat gain.",
+      "The weapon panel no longer shows the gun's picture."
+    ]
+  },
+  {
+    "date": "2026-10-22",
     "title": "One text face for labels",
     "items": [
       "The small pixel font is gone from the whole site: labels, chips, counters, units and menu captions are set in the site's text face; headings and big numbers keep their pixel font."

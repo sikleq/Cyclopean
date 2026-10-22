@@ -23,7 +23,6 @@ sys.path.insert(0, str(ROOT / 'tools'))
 from extract_icons import RAW, VPK, VRF, _vrf  # noqa: E402
 
 OUT = ROOT / 'icons' / 'shop'
-GUNS = ROOT / 'icons' / 'guns'
 SFX = ROOT / 'sounds' / 'shop'
 SHOP = RAW / 'panorama' / 'images' / 'shop'
 CATALOG = SHOP / 'catalog'
@@ -33,6 +32,11 @@ CARD = (160, 229)           # 2x the 80 x 114 tile
 # sound file stem -> how many variants the event picks from at random
 HOVER = {'weapon': 11, 'vitality': 10, 'spirit': 11}
 PANELS = ('starred', 'weapon', 'magic', 'vitality')
+BOON_ICONS = {'hud/unlock_icon.svg': 'unlock', 'hud/ap_icon.svg': 'ap',
+              'icons/properties/damage_bullet_color.svg': 'bullet', 'icons/properties/melee.svg': 'melee',
+              'icons/properties/damage_magic_color.svg': 'spirit', 'icons/properties/health.svg': 'health',
+              'icons/properties/armor_bullet_color.svg': 'bullet_resist',
+              'icons/properties/armor_spirit_color.svg': 'spirit_resist', 'upgrades/property_range.svg': 'range'}
 PAGES = 6
 
 
@@ -60,7 +64,7 @@ def extract() -> None:
     sounds += [f'sounds/ui/ui_shop_panel_{p}' for p in PANELS]
     sounds += [f'sounds/ui/ui_shop_panel_page_{i:02d}' for i in range(1, PAGES + 1)]
     _vrf('panorama/images/shop/')
-    _vrf('panorama/images/heroes/guns/')
+    _vrf('panorama/images/hud/ap_icon,panorama/images/hud/unlock_icon')
     _vrf(','.join(sounds))
 
 
@@ -112,16 +116,18 @@ def convert() -> list[str]:
             _webp(src, OUT / f'tab_{tab}.webp')
     # the hero page's stat panels (citadel_hero_stats_panels_shared.css #BackgroundContainer): the paper behind
     # Weapon / Vitality / Spirit Stats, the spirit arrow of a stat that grows with Spirit Power
-    # (citadel_stat_scaling_label.css), and each hero's gun picture (m_strWeaponImage)
+    # (citadel_stat_scaling_label.css)
     for name, key in CATS.items():
         src = CATALOG / f'catalog_tooltip_bg_modifies_{name}_psd.png'
         if need(src):
             _webp(src, OUT / f'panel_{key}.webp', quality=80)
     if need(SHOP / 'keystat_spirit_arrow_png.png'):
         _webp(SHOP / 'keystat_spirit_arrow_png.png', OUT / 'scale_spirit.webp')
-    guns = RAW / 'panorama' / 'images' / 'heroes' / 'guns'
-    for src in sorted(guns.glob('*_psd.png')) if need(guns) else ():
-        _webp(src, GUNS / f'{src.name.removesuffix("_psd.png")}.webp', (480, 240), quality=82)
+    # the Boon Rewards card (citadel_ui_player_level_bonus_display.css .rewardIcon, ability_property_icons.css): the
+    # Ability Unlock / AP icons and each stat gain's property icon, kept as SVG (tinted by CSS where the game washes)
+    for src, dst in BOON_ICONS.items():
+        if need(RAW / 'panorama' / 'images' / src):
+            shutil.copyfile(RAW / 'panorama' / 'images' / src, OUT / f'boon_{dst}.svg')
 
     SFX.mkdir(parents=True, exist_ok=True)
     ui = RAW / 'sounds' / 'ui'
