@@ -84,7 +84,7 @@ def asset_diff(prev: str, cur: str) -> dict | None:
     counts: dict[str, dict[str, int]] = defaultdict(lambda: {'added': 0, 'removed': 0, 'modified': 0})
     notable: dict[str, list] = defaultdict(list)
     heroes_touched: dict[str, set] = defaultdict(set)
-    for path in added.keys() | removed.keys():
+    for path in sorted(added.keys() | removed.keys()):   # in order: the NOTABLE_LIMIT cap took a different 60 each run
         if path in added and path in removed:
             op = 'modified'
         elif path in added:

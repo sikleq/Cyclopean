@@ -16,6 +16,14 @@ def test_size_jump_found_only_for_hero_models_moved_several_times():
     assert extras.size_jumps(added, removed) == [{'path': TROLLEY, 'old': 1676401, 'new': 167501}]
 
 
+def test_notable_files_capped_in_path_order(monkeypatch):
+    paths = [f'models/npc/m{i:03d}/m.vmdl_c' for i in range(extras.NOTABLE_LIMIT + 20)]
+    changes = ({p: ('a', 1) for p in reversed(paths)}, {p: ('b', 1) for p in paths})
+    monkeypatch.setattr(extras, '_asset_changes', lambda prev, cur: changes)
+    out = extras.asset_diff('p', 'c')
+    assert [x[1] for x in out['notable']['npc_model']] == paths[:extras.NOTABLE_LIMIT]
+
+
 def test_model_folder_maps_to_its_hero_through_a_redo_folder():
     vdata = ('\thero_base = \n\t{\n\t\tm_strModelName = resource_name:"models/heroes_wip/gen_man/gen_man.vmdl"\n\t}\n'
              '\thero_doorman = \n\t{\n'

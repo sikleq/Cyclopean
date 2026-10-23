@@ -839,7 +839,7 @@
   "date": "2024-10-24",
   "builds": 13,
   "counts": {
-   "documented": 156,
+   "documented": 158,
    "described": 51,
    "hidden": 78,
    "unannounced": 0,
@@ -920,7 +920,7 @@
   "counts": {
    "documented": 115,
    "described": 32,
-   "hidden": 37,
+   "hidden": 39,
    "unannounced": 0,
    "unreleased": 45
   },
@@ -1535,7 +1535,7 @@
   "counts": {
    "documented": 0,
    "described": 14,
-   "hidden": 539,
+   "hidden": 541,
    "unannounced": 0,
    "unreleased": 167
   },

@@ -598,9 +598,9 @@ Name and description changes (`pipeline/entity_texts.py`, `builders/text_rows.py
 A hero's model rebuilt (`pipeline/extras.size_jumps`, `builders/model_rows.py`; owner 2026-10-23):
 - the asset diff keeps each file's size; a `models/heroes*/*.vmdl_c` whose size moved `SIZE_JUMP` (3) times or more is
   in the build record's `assets.model_sizes` with its hero (`extras.model_owners`: the folder heroes.vdata names for the
-  hero's model or WIP model, "_v2" off — hero_doorman wears doorman_v2/, its trolley sits in doorman/). The records
-  written before 2026-10-23 got the field once in place, not by a rebuild (FORMAT_VERSION stays 7: a full rebuild
-  that day also changed 35 old builds' entity changes, see docs/todo.md).
+  hero's model or WIP model, "_v2" off — hero_doorman wears doorman_v2/, its trolley sits in doorman/). All records were rebuilt
+  on 2026-10-23 (they had not been since 2026-10-17's classifier changes: 35 builds' new entities lost sound / look /
+  plumbing rows and gained melee attack rows).
 - `match.slim_extras` gives the patch `extras.models`; `entities_pages._history` files them under `model:<key>`;
   `history_table` adds a row "Model luggagetrolley: file size  1.68 MB → 168 KB · 10× smaller" to the hero's group,
   a MODEL badge and the eye (no patch note says it), one row for a model and its "_friendly" copy.

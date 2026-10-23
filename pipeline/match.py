@@ -1967,10 +1967,13 @@ def sentence(name: str, c: dict) -> str:
         return f'{name}: back in the game files'
     if c.get('path') == '@remove':
         return f'{name}: removed from the game'
+    # a sound, look or interface field keeps no value (diff.VALUELESS_CATS): "removed", not "removed (was —)"
     if c['op'] == 'add':
-        return f'{name}: {label} added ({c.get("new_s", "")})'
+        new = c.get('new_s')
+        return f'{name}: {label} added ({new})' if new not in (None, '', '—') else f'{name}: {label} added'
     if c['op'] == 'remove':
-        return f'{name}: {label} removed (was {c.get("old_s", "")})'
+        old = c.get('old_s')
+        return f'{name}: {label} removed (was {old})' if old not in (None, '', '—') else f'{name}: {label} removed'
     try:
         up = float(str(c.get('new_s')).rstrip('m%s')) > float(str(c.get('old_s')).rstrip('m%s'))
         verb = 'increased' if up else 'reduced'

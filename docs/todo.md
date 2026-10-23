@@ -50,7 +50,12 @@ do it with or after that, not before.
 real browser), so a plain fetch in CI will not work. A link is a claim: show it only with evidence (report date,
 fixed build, matching field), never a guess.
 
-## A full record rebuild no longer gives the committed records (found 2026-10-23, not started)
+## ~~A full record rebuild no longer gives the committed records (found 2026-10-23)~~ — DONE 2026-10-23
+
+Cause: the classifier changes of 2026-10-17 (2e1b35d2, cab798e5) were never followed by a record rebuild; a new
+entity keeps gameplay rows only (history.entity_changes), so its sound / look / plumbing rows went and melee attack
+rows came; sound / look rows keep no values (diff.VALUELESS_CATS), "removed (was —)" now reads "removed"
+(match.sentence). `notable` sorted before the cap. Records rebuilt and committed; audit unchanged. Original note:
 
 `python -m pipeline.history --rebuild` with today's code changed 35 of 646 build records' entity changes and 13
 patches (e.g. Hat Trick's "Speed To Pitch Remap removed (was 590, 1180, 1, 1.5)" on 2024-08-01 lost its old value:
