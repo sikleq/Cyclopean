@@ -2641,11 +2641,11 @@
   "id": "2026-10-14",
   "title": "Minor Update - 10-14-2026",
   "date": "2026-10-14",
-  "builds": 11,
+  "builds": 12,
   "counts": {
    "documented": 24,
    "described": 5,
-   "hidden": 11,
+   "hidden": 12,
    "unannounced": 0,
    "unreleased": 0
   },
