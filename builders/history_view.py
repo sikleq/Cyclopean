@@ -22,6 +22,7 @@ import re
 
 from .common import EYE_MARK, band_title_html, esc, glyph_for, mark, patch_name, patch_title_text, visual
 from .notes_view import _highlight, text_tag
+from .model_rows import MODEL_PREFIX, model_rows, model_window
 from .text_rows import TEXT_PREFIX, text_rows
 
 YEAR_BANNERS_MIN = 8      # a history longer than this gets a year banner where the year changes
@@ -129,6 +130,10 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         for row, ts in by_ent.get(TEXT_PREFIX + key, []):
             slot = per_patch.setdefault(row['id'], {'row': row, 'ch': {}, 'lines': {}})
             slot.setdefault('texts', {}).setdefault(key, []).extend(ts)
+        # its model rebuilt (model_rows): a row of its group, never counted
+        for row, ms in by_ent.get(MODEL_PREFIX + key, []):
+            slot = per_patch.setdefault(row['id'], {'row': row, 'ch': {}, 'lines': {}})
+            slot.setdefault('models', {}).setdefault(key, []).extend(ms)
     seen: set[tuple[str, str]] = set()
     for n in subjects:
         for row, ln in by_subject.get(n.lower(), []):
@@ -160,7 +165,8 @@ def history_table(keys: list[tuple[str, str, str | None]], names: list[str], by_
         # folded band waits in a <template> (an open one is in the page: Ctrl+F finds it, #p- jumps land true)
         shown = [c for ch in slot['ch'].values() for c in ch
                  if (in_dev or c.get('status') != 'unreleased') and not is_every(c)]
-        real = bool(slot['lines']) or bool(slot.get('texts')) or bool(player_facing(shown))
+        real = (bool(slot['lines']) or bool(slot.get('texts'))
+                or any(model_window(ms) for ms in slot.get('models', {}).values()) or bool(player_facing(shown)))
         block = _patch_block(pid, slot, order, meta, names, rel, real, not real, areas, in_dev,
                              facts, merge, headless_own=enhanced, hints=hints, ults=ults, entity_id=link_id,
                              gone=gone)
@@ -452,7 +458,8 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
     texts = slot.get('texts', {})
     # a hero page fills "[Hero name]" in its texts with the hero's name
     hero = names[0] if names and order and next(iter(order)).startswith('heroes.vdata:') else None
-    for key in sorted(set(slot['ch']) | set(slot['lines']) | set(texts), key=lambda k: order.get(k, 999)):
+    models = slot.get('models', {})
+    for key in sorted(set(slot['ch']) | set(slot['lines']) | set(texts) | set(models), key=lambda k: order.get(k, 999)):
         nm, _ = meta[key]
         changes = slot['ch'].get(key, [])
         lines = slot['lines'].get(key, [])
@@ -462,6 +469,7 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
             # a line whose wording names no kind gets the neutral NOTE (its tag column was blank)
             rows += row(ln['status'], text_tag(text, ln.get('topic')) or note_badge('NOTE'), _highlight(text, 'changed'))
         rows += text_rows(texts.get(key, []), hero, changes)
+        rows += model_rows(models.get(key, []))
         if not rows:
             continue
         cv = next((g for g in groups if g['keys'][0].endswith(CONVARS_KEY)), None) if key.endswith(CONVARS_KEY) else None

@@ -24,6 +24,7 @@ def _history() -> tuple[dict, dict]:
     from .game_pages import RAW_CONVARS
     from .game_systems import ALL_PREFIX, CONVAR_PREFIX, convar_changes, convar_start
     from .shared_rows import FOLD_FILES, catalog, entities as spread_all, noun
+    from .model_rows import MODEL_PREFIX
     from .text_rows import TEXT_PREFIX
     from . import archive
     by_ent: dict[str, list] = defaultdict(list)
@@ -58,6 +59,12 @@ def _history() -> tuple[dict, dict]:
             texts[TEXT_PREFIX + t['ent']].append(t)
         for k, ts in texts.items():
             by_ent[k].append((row, ts))
+        # a hero's model rebuilt (model_rows)
+        models: dict[str, list] = defaultdict(list)
+        for m in p.get('extras', {}).get('models') or []:
+            models[MODEL_PREFIX + m['ent']].append(m)
+        for k, ms in models.items():
+            by_ent[k].append((row, ms))
         for s in p['sections']:
             for ln in s['lines']:
                 # a heading is a bare name, a repeated line lives on its later patch

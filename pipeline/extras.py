@@ -34,6 +34,16 @@ NOTABLE_EXT = ('.vmdl_c', '.vpk', '.vmap_c', '.vwrld_c')
 
 _ASSET_LINE = re.compile(r'^([+-])(\S+) CRC:(\S+) size:(\d+)')
 _HERO_DIR = re.compile(r'models/heroes[^/]*/([^/]+)/')
+# a hero model whose file grew or shrank this many times over was rebuilt, not touched up: Doorman's luggage trolley
+# went 1.68 MB -> 0.17 MB in build 6815 (2026-10-22), the fix of a cart drawn twice (97,000 -> ~9,000 polygons by the
+# community's count; no patch note). The hero's history shows it (builders/model_rows.py)
+SIZE_JUMP = 3.0
+MODEL_EXT = '.vmdl_c'
+# the hero a model folder belongs to: heroes.vdata names each hero's model (and its work-in-progress one); a folder's
+# "_v2" is a redo of the same hero (hero_doorman wears doorman_v2/, its trolley sits in doorman/)
+_HERO_BLOCK = re.compile(r'^\t(hero_\w+) =')
+_HERO_MODEL = re.compile(r'm_str(?:WIP)?ModelName = resource_name:"models/heroes[^/]*/([^/"]+)/')
+_REDO = re.compile(r'_v\d+$')
 
 
 def asset_category(path: str) -> str:
@@ -46,20 +56,22 @@ def asset_category(path: str) -> str:
 _LIST_LINE = re.compile(r'^(\S+) CRC:(\S+) size:(\d+)')
 
 
-def _asset_changes(prev: str, cur: str) -> tuple[dict[str, str], dict[str, str]]:
-    """(added, removed) asset lines. Within one tracker clone git diffs the
+def _asset_changes(prev: str, cur: str) -> tuple[dict[str, tuple], dict[str, tuple]]:
+    """(added, removed) asset lines as {path: (crc, size)}. Within one tracker clone git diffs the
     list; across the two clones (predecessor -> main) both lists are compared."""
     if tracker._repo_of(prev) == tracker._repo_of(cur):
         out = tracker.git('diff', '-U0', '--no-color', prev, cur, '--', tracker.ASSET_LIST, repo=tracker._repo_of(cur))
-        added: dict[str, str] = {}
-        removed: dict[str, str] = {}
+        added: dict[str, tuple] = {}
+        removed: dict[str, tuple] = {}
         for line in out.splitlines():
             m = _ASSET_LINE.match(line)
             if m:
-                (added if m.group(1) == '+' else removed)[m.group(2)] = m.group(3)
+                (added if m.group(1) == '+' else removed)[m.group(2)] = (m.group(3), int(m.group(4)))
         return added, removed
-    a = {m.group(1): m.group(2) for m in map(_LIST_LINE.match, (tracker.read(prev, tracker.ASSET_LIST) or '').splitlines()) if m}
-    b = {m.group(1): m.group(2) for m in map(_LIST_LINE.match, (tracker.read(cur, tracker.ASSET_LIST) or '').splitlines()) if m}
+    a = {m.group(1): (m.group(2), int(m.group(3)))
+         for m in map(_LIST_LINE.match, (tracker.read(prev, tracker.ASSET_LIST) or '').splitlines()) if m}
+    b = {m.group(1): (m.group(2), int(m.group(3)))
+         for m in map(_LIST_LINE.match, (tracker.read(cur, tracker.ASSET_LIST) or '').splitlines()) if m}
     added = {p: c for p, c in b.items() if a.get(p) != c}
     removed = {p: c for p, c in a.items() if b.get(p) != c}
     return added, removed
@@ -86,11 +98,46 @@ def asset_diff(prev: str, cur: str) -> dict | None:
             heroes_touched[m.group(1)].add(op)
         if cat in NOTABLE_CATS and path.endswith(NOTABLE_EXT) and len(notable[cat]) < NOTABLE_LIMIT:
             notable[cat].append([op, path])
-    return {
+    out = {
         'counts': dict(sorted(counts.items())),
         'notable': {k: sorted(v, key=lambda x: x[1]) for k, v in notable.items()},
         'hero_models': {k: sorted(v) for k, v in sorted(heroes_touched.items())},
     }
+    jumps = size_jumps(added, removed)
+    if jumps:
+        owners = model_owners(tracker.read(cur, tracker.SCRIPTS + 'heroes.vdata') or '')
+        for j in jumps:
+            m = _HERO_DIR.match(j['path'])
+            j['hero'] = owners.get(_REDO.sub('', m.group(1))) if m else None
+        out['model_sizes'] = jumps
+    return out
+
+
+def size_jumps(added: dict[str, tuple], removed: dict[str, tuple]) -> list[dict]:
+    """Hero model files whose size moved SIZE_JUMP times or more: [{'path', 'old', 'new'}] (bytes)."""
+    out = []
+    for path in sorted(added.keys() & removed.keys()):
+        if not (path.startswith('models/heroes') and path.endswith(MODEL_EXT)):
+            continue
+        old, new = removed[path][1], added[path][1]
+        if old > 0 and new > 0 and max(old, new) / min(old, new) >= SIZE_JUMP:
+            out.append({'path': path, 'old': old, 'new': new})
+    return out
+
+
+def model_owners(heroes_vdata: str) -> dict[str, str]:
+    """model folder (without a "_v2") -> the hero whose model lives there; the first hero to name a folder keeps it."""
+    out: dict[str, str] = {}
+    hero = None
+    for line in heroes_vdata.splitlines():
+        m = _HERO_BLOCK.match(line)
+        if m:
+            hero = m.group(1)
+            continue
+        m = _HERO_MODEL.search(line)
+        if m and hero:
+            out.setdefault(_REDO.sub('', m.group(1)), hero)
+    return out
 
 
 _CONVAR_HEAD = re.compile(r'^(\S+) (.*?) \(([^)]*)\)\s*$')

@@ -241,6 +241,18 @@ def row_evidence(c: dict, link: bool = True) -> tuple[str | None, str | None, bo
     return f'{_lead([c])} — in the game files of {_words(builds, ctx["dates"])}{open_}', href, False
 
 
+def build_evidence(build: int) -> tuple[str | None, str | None, bool]:
+    """row_evidence for a row that is no field change, only its build (a model rebuilt: model_rows)."""
+    ctx = _PATCH.get()
+    if ctx is None or build not in ctx['dates']:
+        return None, None, False
+    href = _href(build, ctx, None)
+    open_ = OPEN_WORDS if href else ''
+    if _late(build, ctx):
+        return f'{HIDDEN_WORDS} — came in build {build} ({ctx["dates"][build]}), after the patch{open_}', href, True
+    return f'{HIDDEN_WORDS} — in the game files of {_words([build], ctx["dates"])}{open_}', href, False
+
+
 def band_evidence(rows: list[dict], anchor: str | None = None) -> tuple[str | None, str | None]:
     """(the banner chip's words, the build page it opens) for a band's rows not in the notes: the builds they came in;
     the first one opens, at the page's entity (`anchor`). Inside `patch_builds` only."""

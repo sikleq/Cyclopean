@@ -2072,6 +2072,10 @@ def slim_extras(extras: dict, cat: dict[str, dict] | None = None,
             for k in t:
                 t[k] += n.get(k, 0)
         hero_models |= set(a.get('hero_models', {}))
+    # a hero's model rebuilt (its file several times bigger or smaller): a row of the hero's history (model_rows)
+    models = [{'ent': f"heroes.vdata:{m['hero']}", 'path': m['path'], 'old': m['old'], 'new': m['new'],
+               'build': a['build']}
+              for a in extras['assets'] for m in a.get('model_sizes') or () if m.get('hero')]
     return {
         'loc': loc_rows[:LOC_LIMIT], 'loc_total': len(loc_rows),
         'texts': texts_with_values(entity_texts(extras['loc'], cat or {}), states),
@@ -2079,6 +2083,7 @@ def slim_extras(extras: dict, cat: dict[str, dict] | None = None,
                                                             _CONVAR_OP.get(x.get('op'), 4), x.get('build') or 0)),
         'convars_total': len(extras['convars']),
         'assets': {'counts': dict(sorted(totals.items())), 'hero_models': sorted(hero_models)},
+        'models': models,
     }
 
 

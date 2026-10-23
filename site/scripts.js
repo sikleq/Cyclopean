@@ -1795,6 +1795,7 @@
       var counts = {}, hidden = 0;
       rows.forEach(function (r) {
         if (r.classList.contains('f-out') || r.classList.contains('st-code') || r.classList.contains('st-text') ||
+            r.classList.contains('model-row') ||
             r.parentNode.tagName === 'SUMMARY' || inAll(r)) return;
         var bs = behind(r);
         if (bs) {

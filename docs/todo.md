@@ -50,6 +50,29 @@ do it with or after that, not before.
 real browser), so a plain fetch in CI will not work. A link is a claim: show it only with evidence (report date,
 fixed build, matching field), never a guess.
 
+## A full record rebuild no longer gives the committed records (found 2026-10-23, not started)
+
+`python -m pipeline.history --rebuild` with today's code changed 35 of 646 build records' entity changes and 13
+patches (e.g. Hat Trick's "Speed To Pitch Remap removed (was 590, 1180, 1, 1.5)" on 2024-08-01 lost its old value:
+the "added" row of build 4354 is no longer produced; counts moved by 2 on 2024-10-24, 2024-11-07, 2025-08-18).
+Find which code change since the last full rebuild did it, decide which output is right, then rebuild and commit.
+Also: `extras.asset_diff`'s `notable` list (60 files max) is picked in set order, so it differs from run to run —
+sort before capping. The model-size field was added without a rebuild for this reason (architecture.md).
+
+## Follow developers' own messages (written 2026-10-23, not started)
+
+Owner: developers often say what changed and why outside the patch notes. Watch them and tie a message to the
+build / change it explains (like the bug-report links above: a link only with evidence, never a guess).
+
+- Discord: a developer, **yoshideadlock** (Yoshi), sits on the Deadlock Discord server and writes often (bug-fix
+  rounds, "fixed X"). How to read it without breaking Discord's rules is open (no self-bot).
+- Forum: developers' posts on https://forums.playdeadlock.com/ (replies in bug reports, announcements); the forum
+  copy is already made by deadlock-ida-researcher (tools/forum_crawl.js, state/forum_bugs) — staff posts are not
+  marked there yet.
+- The Telegram channel ZIPLINE (t.me/zipline) was a one-off check on 2026-10-23, not a source to follow: of its
+  finds, the Doorman cart (model file 10× smaller, build 6815) is now caught by Cyclopean itself (`model_rows`), the
+  Russia + Europe matchmaking merge is server-side and not in the files.
+
 ## Fuller build pages (written 2026-10-21, not started, after DL-ida-researcher)
 
 Build 6810's page read as empty: no gameplay, text or convar change, only "Game files" counts (+2 / −0 / ~11) for

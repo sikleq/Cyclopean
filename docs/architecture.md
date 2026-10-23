@@ -594,6 +594,18 @@ Name and description changes (`pipeline/entity_texts.py`, `builders/text_rows.py
 - Never counted (no tag, no eye, no counter, no strip tile); a tag or the eye filter hides them; a group of texts only is
   "Before release" when every other group of its band is. A hero renamed in development carries "was Slork" in its head
   (`text_rows.former_names`). 1,084 such rows over all patches.
+
+A hero's model rebuilt (`pipeline/extras.size_jumps`, `builders/model_rows.py`; owner 2026-10-23):
+- the asset diff keeps each file's size; a `models/heroes*/*.vmdl_c` whose size moved `SIZE_JUMP` (3) times or more is
+  in the build record's `assets.model_sizes` with its hero (`extras.model_owners`: the folder heroes.vdata names for the
+  hero's model or WIP model, "_v2" off — hero_doorman wears doorman_v2/, its trolley sits in doorman/). The records
+  written before 2026-10-23 got the field once in place, not by a rebuild (FORMAT_VERSION stays 7: a full rebuild
+  that day also changed 35 old builds' entity changes, see docs/todo.md).
+- `match.slim_extras` gives the patch `extras.models`; `entities_pages._history` files them under `model:<key>`;
+  `history_table` adds a row "Model luggagetrolley: file size  1.68 MB → 168 KB · 10× smaller" to the hero's group,
+  a MODEL badge and the eye (no patch note says it), one row for a model and its "_friendly" copy.
+- Never counted (scripts.js `countRows` skips `.model-row`). First case: Doorman's luggage trolley, build 6815
+  (2026-10-22), a cart drawn twice (97,000 → ~9,000 polygons by the community's count).
 - "Icons without per-entity art" table, new row: "Game systems | a game-file icon per system in
   data/overrides/game_systems.json (souls, timer, Drop Soul Urn, the powerup ping icon, the trooper class portrait, a
   lantern neutral, the shop tab, the dash stat icon) or a site glyph (breakables, hero progression, modes, other)".
@@ -1033,6 +1045,7 @@ mirror, and the tracker's own `.gitattributes` (`* text eol=lf`) makes git see b
   JSON (`common.json_attr`, no `&quot;`). Boons redraw once per frame and re-rank the heat; the search
   waits for a pause in typing and takes comma-separated names ("haze, abrams").
 - Low items (`render.note_badge`): a neutral badge (`.tag.note-tag`, no icon) — TEXT on a name / description change (`text_rows`),
+  MODEL on a hero model whose file size moved several times over (`model_rows`),
   NOTE on a patch-note line the files cannot back whose wording names no kind (`history_view._groups`); no tag filter
   or counter takes it. Every section tab page is `wide` (the index pages too; Game rules' search and table share one column
   at the left, under its title and tabs): the title and the tabs no longer jump between tabs. Home tiles: a
