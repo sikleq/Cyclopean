@@ -44,6 +44,20 @@ MODEL_EXT = '.vmdl_c'
 _HERO_BLOCK = re.compile(r'^\t(hero_\w+) =')
 _HERO_MODEL = re.compile(r'm_str(?:WIP)?ModelName = resource_name:"models/heroes[^/]*/([^/"]+)/')
 _REDO = re.compile(r'_v\d+$')
+# whose a changed file is: (folder pattern, kind). A build page lists changes per hero / unit ("Nurse: model ~1,
+# particles ~11") instead of thousands of paths; files without an owner (shared materials, UI) stay counts only
+OWNER_RULES = (
+    (re.compile(r'models/heroes[^/]*/([^/]+)/'), 'model'),
+    (re.compile(r'models/npc[^/]*/([^/]+)/'), 'model'),
+    (re.compile(r'particles/(?:abilities|weapon_fx|heroes)/([^/]+)/'), 'particles'),
+    (re.compile(r'sounds/vo/([^/]+)/'), 'voice'),
+    (re.compile(r'sounds/(?:abilities|weapons|heroes)/([^/]+)/'), 'sounds'),
+    (re.compile(r'animgraphs/animgraph2/hero/([^+/]+)\+([^./]+)\.'), 'animgraph'),   # one shared graph, a copy per hero
+)
+# a shared graph changed in this many heroes' copies at once is one change (6810: `hero_leans` in all 52 heroes)
+SHARED_GRAPH = 8
+_ANIM_EXT = ('.vanim_c', '.vnmclip_c', '.vseq_c', '.vagrp_c')
+_OPS = ('added', 'removed', 'modified')
 
 
 def asset_category(path: str) -> str:
@@ -103,14 +117,61 @@ def asset_diff(prev: str, cur: str) -> dict | None:
         'notable': {k: sorted(v, key=lambda x: x[1]) for k, v in notable.items()},
         'hero_models': {k: sorted(v) for k, v in sorted(heroes_touched.items())},
     }
+    owners = model_owners(tracker.read(cur, tracker.SCRIPTS + 'heroes.vdata') or '')
+    by_owner = asset_owners({p: _op(p, added, removed) for p in added.keys() | removed.keys()}, owners)
+    if by_owner:
+        out['owners'] = by_owner
     jumps = size_jumps(added, removed)
     if jumps:
-        owners = model_owners(tracker.read(cur, tracker.SCRIPTS + 'heroes.vdata') or '')
         for j in jumps:
             m = _HERO_DIR.match(j['path'])
             j['hero'] = owners.get(_REDO.sub('', m.group(1))) if m else None
         out['model_sizes'] = jumps
     return out
+
+
+def _op(path: str, added: dict, removed: dict) -> str:
+    return 'modified' if path in added and path in removed else 'added' if path in added else 'removed'
+
+
+def owner_of(folder: str, owners: dict[str, str]) -> str:
+    """A folder's hero (heroes.vdata names the model folder; `haze_wip`, `drifter_out_of_combat`, `doorman_v2`
+    are the same hero), else the folder itself."""
+    name = _REDO.sub('', folder)
+    while True:
+        if name in owners:
+            return owners[name]
+        if '_' not in name:
+            return folder
+        name = name.rsplit('_', 1)[0]
+
+
+def asset_owners(ops: dict[str, str], owners: dict[str, str]) -> dict[str, dict[str, list[int]]]:
+    """{owner: {kind: [added, removed, modified]}} for the files that belong to a hero or unit folder; a shared
+    animation graph changed for many heroes at once sits under '*' as {'graph <name>': counts}."""
+    out: dict[str, dict[str, list[int]]] = {}
+    graphs: dict[str, list[tuple[str, str]]] = {}
+    for path in sorted(ops):
+        for rx, kind in OWNER_RULES:
+            m = rx.match(path)
+            if not m:
+                continue
+            if kind == 'animgraph':
+                graphs.setdefault(m.group(1).removesuffix('.vnmgraph'), []).append((owner_of(m.group(2), owners), ops[path]))
+                break
+            if kind == 'model' and not path.endswith(MODEL_EXT):
+                kind = 'animation' if path.endswith(_ANIM_EXT) else 'model parts'
+            _count(out, owner_of(m.group(1), owners), kind, ops[path])
+            break
+    for graph, hits in graphs.items():
+        shared = len({o for o, _ in hits}) >= SHARED_GRAPH
+        for owner, op in hits:
+            _count(out, '*', f'graph {graph}', op) if shared else _count(out, owner, 'animgraph', op)
+    return {k: dict(sorted(v.items())) for k, v in sorted(out.items())}
+
+
+def _count(out: dict, owner: str, kind: str, op: str) -> None:
+    out.setdefault(owner, {}).setdefault(kind, [0, 0, 0])[_OPS.index(op)] += 1
 
 
 def size_jumps(added: dict[str, tuple], removed: dict[str, tuple]) -> list[dict]:
@@ -126,18 +187,21 @@ def size_jumps(added: dict[str, tuple], removed: dict[str, tuple]) -> list[dict]
 
 
 def model_owners(heroes_vdata: str) -> dict[str, str]:
-    """model folder (without a "_v2") -> the hero whose model lives there; the first hero to name a folder keeps it."""
+    """model folder (without a "_v2") -> the hero whose model lives there; the first hero to name a folder keeps it.
+    A hero's code name maps to it too (`nurse` -> hero_nurse): particle and sound folders use it."""
     out: dict[str, str] = {}
+    names: dict[str, str] = {}
     hero = None
     for line in heroes_vdata.splitlines():
         m = _HERO_BLOCK.match(line)
         if m:
             hero = m.group(1)
+            names.setdefault(hero[len('hero_'):], hero)
             continue
         m = _HERO_MODEL.search(line)
         if m and hero:
             out.setdefault(_REDO.sub('', m.group(1)), hero)
-    return out
+    return {**names, **out}       # a model folder named after another hero's code name stays the model's
 
 
 _CONVAR_HEAD = re.compile(r'^(\S+) (.*?) \(([^)]*)\)\s*$')

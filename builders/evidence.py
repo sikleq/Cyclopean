@@ -23,7 +23,7 @@ from functools import lru_cache
 
 from pipeline.tracker import SCRIPTS        # where the data files sit (the same layout in both trackers)
 
-from .common import build_pages, esc
+from .common import build_pages, esc, tech_only_files
 
 # the trackers the builds come from (pipeline.tracker): GameTracking-Deadlock from its first build on, its archived
 # predecessor (Lifeismana/Deadlocked) before it — checked against both clones for all 622 builds on 2026-10-06
@@ -45,7 +45,12 @@ def commit_url(build: int | None, commit: str) -> str:
 
 def diff_url(build: int | None, commit: str, file: str) -> str:
     """That commit's diff of one data file: GitHub's file anchor is '#diff-' + the sha256 of the file's path."""
-    return f'{commit_url(build, commit)}#diff-{hashlib.sha256((SCRIPTS + file).encode()).hexdigest()}'
+    return path_diff_url(build, commit, SCRIPTS + file)
+
+
+def path_diff_url(build: int | None, commit: str, path: str) -> str:
+    """That commit's diff of any tracker file, by its full path (a .proto, a DLL's strings)."""
+    return f'{commit_url(build, commit)}#diff-{hashlib.sha256(path.encode()).hexdigest()}'
 
 
 def row_key(file: str, eid: str, path: str) -> str:
@@ -101,9 +106,11 @@ def notes_window(pid: str) -> tuple[int | None, frozenset[int], str]:
 def patch_builds(builds: list[dict], rel: str = '../', pid: str | None = None):
     """While a patch's rows are written: its builds ([{build, date, file}], its window), the pages' depth and the
     patch (`pid`: what its notes announced, `notes_window`; without it nothing reads as a silent hotfix)."""
-    got = sorted((b for b in builds or () if b.get('build')), key=lambda b: b['build'])
     # a build number the tracker committed twice keeps its last commit here (sorted is stable): the first of such pairs
-    # holds no gameplay rows (2024-12-06's build 5433: 0 entities, then 268), so the eye opens the one that has them
+    # holds no gameplay rows (2024-12-06's build 5433: 0 entities, then 268), so the eye opens the one that has them;
+    # a commit of strings / protocol only goes first so it never wins (6785's second commit, 2026-10-24)
+    tech = tech_only_files()
+    got = sorted((b for b in builds or () if b.get('build')), key=lambda b: (b['build'], b.get('file') not in tech))
     notes_build, noted, notes_date = notes_window(pid) if pid else (None, frozenset(), '')
     tok = _PATCH.set({'first': got[0]['build'], 'rel': rel, 'notes_build': notes_build, 'noted': noted,
                       'notes_date': notes_date,

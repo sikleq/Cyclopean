@@ -13,11 +13,12 @@ import argparse
 import time
 from pathlib import Path
 
-from . import cache, extras, jsonio, loc, tracker
+from . import cache, extras, jsonio, loc, protobuf_diff, strings_diff, tracker
 from .diff import EntityChange, diff_entity, diff_file
 
 OUT = tracker.ROOT / 'data' / 'builds'
-FORMAT_VERSION = 7        # 7: identifying fields matched whatever their capitals (m_StrPropertyNAme), no upkeep records
+FORMAT_VERSION = 8        # 8: protobuf and binary-string changes, changed files per hero / unit (assets.owners)
+#                           7: identifying fields matched whatever their capitals (m_StrPropertyNAme), no upkeep records
 #                           6: table rows keyed by souls threshold / tier, speed curve wins only before 5747,
 #                           the spirit-resist-per-boon key rename; 5: numbers in lists keep their order
 SUFFIX = '.json.gz'
@@ -115,7 +116,17 @@ def touches(cur: tracker.Build, prev: tracker.Build) -> dict[str, bool]:
                                 for f in cur.files),
         '@convars': boundary or tracker.CONVARS in cur.files,
         '@assets': boundary or tracker.ASSET_LIST in cur.files,
+        '@proto': boundary or any(f.startswith(protobuf_diff.PREFIX) for f in cur.files),
+        '@strings': boundary or any(f in strings_diff.MODULES.values() for f in cur.files),
     }
+
+
+def _has_proto(commit: str) -> bool:
+    return bool(tracker.tree_blobs(commit, protobuf_diff.PREFIX))
+
+
+def _has_strings(commit: str) -> bool:
+    return tracker.blob_id(commit, strings_diff.MODULES['client']) is not None
 
 
 def build_record(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, str] | None = None) -> dict | None:
@@ -130,7 +141,13 @@ def build_record(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, 
     has_assets = t['@assets'] and tracker.blob_id(cur.commit, tracker.ASSET_LIST) is not None
     base = _source_base(last_known, '@assets', prev, cur, has_assets)
     assets = extras.asset_diff(base, cur.commit) if base else None
-    if not (entities or loc_changes or convars or assets):
+    has_proto = t['@proto'] and _has_proto(cur.commit)
+    base = _source_base(last_known, '@proto', prev, cur, has_proto)
+    proto = protobuf_diff.protobuf_diff(base, cur.commit) if base else []
+    has_str = t['@strings'] and _has_strings(cur.commit)
+    base = _source_base(last_known, '@strings', prev, cur, has_str)
+    strings = strings_diff.strings_diff(base, cur.commit) if base else {}
+    if not (entities or loc_changes or convars or assets or proto or strings):
         return None
     info = extras.steam_inf(cur.commit)
     return {
@@ -145,6 +162,8 @@ def build_record(prev: tracker.Build, cur: tracker.Build, last_known: dict[str, 
         'loc': loc_changes,
         'convars': convars,
         'assets': assets,
+        'protobuf': proto,
+        'strings': strings,
     }
 
 
@@ -181,6 +200,8 @@ def summary(rec: dict, file_name: str) -> dict:
         'loc': len(rec['loc']),
         'convars': len(rec['convars']),
         'assets': {k: sum(v.values()) for k, v in (rec['assets'] or {}).get('counts', {}).items()},
+        'protobuf': len(rec.get('protobuf') or ()),
+        'strings': sum(s['n_added'] + s['n_removed'] for s in (rec.get('strings') or {}).values()),
     }
     released = released_heroes(rec)
     if released:
@@ -256,6 +277,10 @@ def remember(last_known: dict, prev: tracker.Build, cur: tracker.Build, rec: dic
         last_known['@convars'] = cur.commit
     if t['@assets'] and tracker.blob_id(cur.commit, tracker.ASSET_LIST):
         last_known['@assets'] = cur.commit
+    if t['@proto'] and _has_proto(cur.commit):
+        last_known['@proto'] = cur.commit
+    if t['@strings'] and _has_strings(cur.commit):
+        last_known['@strings'] = cur.commit
 
 
 def reindex() -> None:

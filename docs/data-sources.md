@@ -30,6 +30,13 @@
     "<parent> · trigger".
 - Assets: `game/citadel/pak01_dir.txt` (every packed file with CRC) → model / VFX / sound / UI changes.
 - Console variables: `DumpSource2/convars.txt` → `citadel_*` defaults (respawn times, bounties, new toggles).
+- Protocol: `Protobufs/*.proto` → network and game-coordinator message fields (6810 removed
+  `is_high_skill_range_party` from the party message).
+- Binary strings: `game/citadel/bin/win64/{client,server,host}_strings.txt`, `game/bin/win64/engine2_strings.txt`
+  → text strings that came into / left the binaries (class names, keys, log texts).
+- Functions of the binaries: not in the tracker. `data/dll_changes.json` is a copy of a per-build function diff of
+  client.dll / server.dll (downloaded by Steam manifest, compared function by function), imported by hand with
+  `tools/import_dll_summary.py`.
 
 Units: Source units → metres ÷ 39.37 (hero stats in `m_mapStartingStats` are already in m, m/s).
 

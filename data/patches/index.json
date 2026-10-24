@@ -288,7 +288,7 @@
   "id": "2024-06-23",
   "title": "06-23-2024 Update",
   "date": "2024-06-23",
-  "builds": 2,
+  "builds": 7,
   "counts": {
    "documented": 4,
    "described": 1,
@@ -307,7 +307,7 @@
   "id": "2024-06-27",
   "title": "06-27-2024 Update",
   "date": "2024-06-27",
-  "builds": 4,
+  "builds": 10,
   "counts": {
    "documented": 88,
    "described": 58,
@@ -330,7 +330,7 @@
   "id": "2024-07-04",
   "title": "07-04-2024 Update",
   "date": "2024-07-04",
-  "builds": 9,
+  "builds": 13,
   "counts": {
    "documented": 89,
    "described": 47,
@@ -353,7 +353,7 @@
   "id": "2024-07-11",
   "title": "07-11-2024 Update",
   "date": "2024-07-11",
-  "builds": 9,
+  "builds": 13,
   "counts": {
    "documented": 100,
    "described": 37,
@@ -375,7 +375,7 @@
   "id": "2024-07-18",
   "title": "07-18-2024 Update",
   "date": "2024-07-18",
-  "builds": 4,
+  "builds": 8,
   "counts": {
    "documented": 138,
    "described": 55,
@@ -397,7 +397,7 @@
   "id": "2024-07-23",
   "title": "07-23-2024 Update",
   "date": "2024-07-23",
-  "builds": 5,
+  "builds": 8,
   "counts": {
    "documented": 2,
    "described": 0,
@@ -416,7 +416,7 @@
   "id": "2024-08-01",
   "title": "08-01-2024 Update",
   "date": "2024-08-01",
-  "builds": 10,
+  "builds": 15,
   "counts": {
    "documented": 96,
    "described": 24,
@@ -439,7 +439,7 @@
   "id": "2024-08-06",
   "title": "08-06-2024 Update",
   "date": "2024-08-06",
-  "builds": 8,
+  "builds": 9,
   "counts": {
    "documented": 2,
    "described": 3,
@@ -484,7 +484,7 @@
   "id": "2024-08-16",
   "title": "08-16-2024 Update",
   "date": "2024-08-16",
-  "builds": 7,
+  "builds": 12,
   "counts": {
    "documented": 13,
    "described": 2,
@@ -504,7 +504,7 @@
   "id": "2024-08-18",
   "title": "08-18-2024 Update",
   "date": "2024-08-18",
-  "builds": 5,
+  "builds": 6,
   "counts": {
    "documented": 3,
    "described": 0,
@@ -522,7 +522,7 @@
   "id": "2024-08-22",
   "title": "08-22-2024 Update",
   "date": "2024-08-22",
-  "builds": 2,
+  "builds": 5,
   "counts": {
    "documented": 7,
    "described": 4,
@@ -541,7 +541,7 @@
   "id": "2024-08-29",
   "title": "08-29-2024 Update",
   "date": "2024-08-29",
-  "builds": 9,
+  "builds": 10,
   "counts": {
    "documented": 150,
    "described": 35,
@@ -563,7 +563,7 @@
   "id": "2024-09-01",
   "title": "09-01-2024 Update",
   "date": "2024-09-01",
-  "builds": 8,
+  "builds": 10,
   "counts": {
    "documented": 8,
    "described": 0,
@@ -605,7 +605,7 @@
   "id": "2024-09-14",
   "title": "09-14-2024 Update",
   "date": "2024-09-14",
-  "builds": 5,
+  "builds": 7,
   "counts": {
    "documented": 8,
    "described": 0,
@@ -622,7 +622,7 @@
   "id": "2024-09-17",
   "title": "09-17-2024 Update",
   "date": "2024-09-17",
-  "builds": 2,
+  "builds": 3,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -639,7 +639,7 @@
   "id": "2024-09-19",
   "title": "09-19-2024 Update",
   "date": "2024-09-19",
-  "builds": 3,
+  "builds": 13,
   "counts": {
    "documented": 1,
    "described": 0,
@@ -658,7 +658,7 @@
   "id": "2024-09-26",
   "title": "09-26-2024 Update",
   "date": "2024-09-26",
-  "builds": 1,
+  "builds": 2,
   "counts": {
    "documented": 109,
    "described": 53,
@@ -718,7 +718,7 @@
   "id": "2024-10-02",
   "title": "10-02-2024 Update",
   "date": "2024-10-02",
-  "builds": 3,
+  "builds": 4,
   "counts": {
    "documented": 6,
    "described": 0,
@@ -779,7 +779,7 @@
   "id": "2024-10-11",
   "title": "10-11-2024 Update",
   "date": "2024-10-11",
-  "builds": 7,
+  "builds": 9,
   "counts": {
    "documented": 4,
    "described": 4,
@@ -799,7 +799,7 @@
   "id": "2024-10-15",
   "title": "10-15-2024 Update",
   "date": "2024-10-15",
-  "builds": 4,
+  "builds": 5,
   "counts": {
    "documented": 9,
    "described": 1,
@@ -818,7 +818,7 @@
   "id": "2024-10-18",
   "title": "10-18-2024 Update 2",
   "date": "2024-10-18",
-  "builds": 6,
+  "builds": 8,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -897,7 +897,7 @@
   "id": "2024-11-01",
   "title": "11-01-2024 Update",
   "date": "2024-11-01",
-  "builds": 4,
+  "builds": 6,
   "counts": {
    "documented": 8,
    "described": 0,
@@ -916,7 +916,7 @@
   "id": "2024-11-07",
   "title": "11-07-2024 Update",
   "date": "2024-11-07",
-  "builds": 8,
+  "builds": 10,
   "counts": {
    "documented": 115,
    "described": 32,
@@ -958,7 +958,7 @@
   "id": "2024-11-13",
   "title": "11-13-2024 Update",
   "date": "2024-11-13",
-  "builds": 4,
+  "builds": 7,
   "counts": {
    "documented": 13,
    "described": 0,
@@ -976,7 +976,7 @@
   "id": "2024-11-21",
   "title": "11-21-2024 Update",
   "date": "2024-11-21",
-  "builds": 15,
+  "builds": 21,
   "counts": {
    "documented": 171,
    "described": 123,
@@ -1018,7 +1018,7 @@
   "id": "2024-12-06",
   "title": "12-06-2024 Update",
   "date": "2024-12-06",
-  "builds": 9,
+  "builds": 12,
   "counts": {
    "documented": 139,
    "described": 98,
@@ -1042,7 +1042,7 @@
   "id": "2024-12-17",
   "title": "12-17-2024 Update",
   "date": "2024-12-17",
-  "builds": 3,
+  "builds": 5,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -1059,7 +1059,7 @@
   "id": "2024-12-21",
   "title": "12-21-2024 Update",
   "date": "2024-12-21",
-  "builds": 1,
+  "builds": 2,
   "counts": {
    "documented": 16,
    "described": 5,
@@ -1097,7 +1097,7 @@
   "id": "2025-01-12",
   "title": "01-12-2025 Update",
   "date": "2025-01-12",
-  "builds": 1,
+  "builds": 2,
   "counts": {
    "documented": 9,
    "described": 0,
@@ -1115,7 +1115,7 @@
   "id": "2025-01-17",
   "title": "01-17-2025 Update",
   "date": "2025-01-17",
-  "builds": 6,
+  "builds": 8,
   "counts": {
    "documented": 0,
    "described": 7,
@@ -1156,7 +1156,7 @@
   "id": "2025-01-27",
   "title": "01-27-2025 Update",
   "date": "2025-01-27",
-  "builds": 5,
+  "builds": 9,
   "counts": {
    "documented": 33,
    "described": 38,
@@ -1197,7 +1197,7 @@
   "id": "2025-02-25",
   "title": "02-25-2025 Update",
   "date": "2025-02-25",
-  "builds": 8,
+  "builds": 10,
   "counts": {
    "documented": 22,
    "described": 43,
@@ -1257,7 +1257,7 @@
   "id": "2025-03-19",
   "title": "03-19-2025 Update",
   "date": "2025-03-19",
-  "builds": 3,
+  "builds": 5,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -1295,7 +1295,7 @@
   "id": "2025-04-17",
   "title": "04-17-2025 Update",
   "date": "2025-04-17",
-  "builds": 3,
+  "builds": 7,
   "counts": {
    "documented": 80,
    "described": 8,
@@ -1318,7 +1318,7 @@
   "id": "2025-05-08",
   "title": "05-08-2025 Update",
   "date": "2025-05-08",
-  "builds": 12,
+  "builds": 13,
   "counts": {
    "documented": 95,
    "described": 277,
@@ -1342,7 +1342,7 @@
   "id": "2025-05-11",
   "title": "05-11-2025 Update",
   "date": "2025-05-11",
-  "builds": 10,
+  "builds": 16,
   "counts": {
    "documented": 28,
    "described": 219,
@@ -1405,7 +1405,7 @@
   "id": "2025-05-27",
   "title": "05-27-2025 Update",
   "date": "2025-05-27",
-  "builds": 12,
+  "builds": 13,
   "counts": {
    "documented": 67,
    "described": 16,
@@ -1428,7 +1428,7 @@
   "id": "2025-06-17",
   "title": "06-17-2025 Update",
   "date": "2025-06-17",
-  "builds": 5,
+  "builds": 6,
   "counts": {
    "documented": 39,
    "described": 150,
@@ -1451,7 +1451,7 @@
   "id": "2025-07-04",
   "title": "07-04-2025 Update",
   "date": "2025-07-04",
-  "builds": 6,
+  "builds": 11,
   "counts": {
    "documented": 108,
    "described": 59,
@@ -1473,7 +1473,7 @@
   "id": "2025-07-29",
   "title": "07-29-2025 Update",
   "date": "2025-07-29",
-  "builds": 3,
+  "builds": 5,
   "counts": {
    "documented": 114,
    "described": 71,
@@ -1494,7 +1494,7 @@
   "id": "2025-08-01",
   "title": "07-29-2025 Update · follow-up 2025-08-01",
   "date": "2025-08-01",
-  "builds": 2,
+  "builds": 3,
   "counts": {
    "documented": 2,
    "described": 0,
@@ -1512,7 +1512,7 @@
   "id": "2025-08-08",
   "title": "07-29-2025 Update · follow-up 2025-08-08",
   "date": "2025-08-08",
-  "builds": 1,
+  "builds": 2,
   "counts": {
    "documented": 15,
    "described": 0,
@@ -1531,7 +1531,7 @@
   "id": "2025-08-18",
   "title": "08-18-2025 Update",
   "date": "2025-08-18",
-  "builds": 14,
+  "builds": 15,
   "counts": {
    "documented": 0,
    "described": 14,
@@ -1550,7 +1550,7 @@
   "id": "2025-08-22",
   "title": "08-18-2025 Update · follow-up 2025-08-22",
   "date": "2025-08-22",
-  "builds": 12,
+  "builds": 15,
   "counts": {
    "documented": 9,
    "described": 2,
@@ -1589,7 +1589,7 @@
   "id": "2025-08-29",
   "title": "08-18-2025 Update · follow-up 2025-08-29",
   "date": "2025-08-29",
-  "builds": 7,
+  "builds": 10,
   "counts": {
    "documented": 12,
    "described": 24,
@@ -1607,7 +1607,7 @@
   "id": "2025-09-04",
   "title": "09-04-2025 Update",
   "date": "2025-09-04",
-  "builds": 9,
+  "builds": 10,
   "counts": {
    "documented": 139,
    "described": 17,
@@ -1651,7 +1651,7 @@
   "id": "2025-10-03",
   "title": "10-02-2025 Update · follow-up 2025-10-03",
   "date": "2025-10-03",
-  "builds": 6,
+  "builds": 8,
   "counts": {
    "documented": 3,
    "described": 0,
@@ -1670,7 +1670,7 @@
   "id": "2025-10-05",
   "title": "10-02-2025 Update · follow-up 2025-10-05",
   "date": "2025-10-05",
-  "builds": 6,
+  "builds": 11,
   "counts": {
    "documented": 4,
    "described": 2,
@@ -1688,7 +1688,7 @@
   "id": "2025-10-24",
   "title": "10-24-2025 Update",
   "date": "2025-10-24",
-  "builds": 4,
+  "builds": 16,
   "counts": {
    "documented": 52,
    "described": 8,
@@ -1733,7 +1733,7 @@
   "id": "2025-11-22",
   "title": "11-21-2025 Update · follow-up 2025-11-22",
   "date": "2025-11-22",
-  "builds": 7,
+  "builds": 11,
   "counts": {
    "documented": 8,
    "described": 0,
@@ -1751,7 +1751,7 @@
   "id": "2025-11-23",
   "title": "11-21-2025 Update · follow-up 2025-11-23",
   "date": "2025-11-23",
-  "builds": 2,
+  "builds": 7,
   "counts": {
    "documented": 5,
    "described": 19,
@@ -1789,7 +1789,7 @@
   "id": "2025-12-03",
   "title": "11-21-2025 Update · follow-up 2025-12-03",
   "date": "2025-12-03",
-  "builds": 4,
+  "builds": 6,
   "counts": {
    "documented": 21,
    "described": 12,
@@ -1810,7 +1810,7 @@
   "id": "2025-12-16",
   "title": "12-16-2025 Update",
   "date": "2025-12-16",
-  "builds": 5,
+  "builds": 7,
   "counts": {
    "documented": 91,
    "described": 49,
@@ -1830,7 +1830,7 @@
   "id": "2025-12-17",
   "title": "12-16-2025 Update · follow-up 2025-12-17",
   "date": "2025-12-17",
-  "builds": 2,
+  "builds": 6,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -1868,7 +1868,7 @@
   "id": "2025-12-30",
   "title": "12-29-2025 Update · follow-up 2025-12-30",
   "date": "2025-12-30",
-  "builds": 9,
+  "builds": 18,
   "counts": {
    "documented": 10,
    "described": 6,
@@ -1888,7 +1888,7 @@
   "id": "2026-01-20",
   "title": "12-29-2025 Update · follow-up 2026-01-20",
   "date": "2026-01-20",
-  "builds": 4,
+  "builds": 5,
   "counts": {
    "documented": 12,
    "described": 1,
@@ -1907,7 +1907,7 @@
   "id": "2026-01-22",
   "title": "Old Gods, New Blood",
   "date": "2026-01-22",
-  "builds": 13,
+  "builds": 17,
   "counts": {
    "documented": 0,
    "described": 478,
@@ -1927,7 +1927,7 @@
   "id": "build-6169",
   "title": "Rem Enters The City That Never Sleeps",
   "date": "2026-01-26",
-  "builds": 8,
+  "builds": 9,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -1942,7 +1942,7 @@
   "id": "2026-01-30",
   "title": "01-30-2026 Update",
   "date": "2026-01-30",
-  "builds": 8,
+  "builds": 9,
   "counts": {
    "documented": 98,
    "described": 42,
@@ -2025,7 +2025,7 @@
   "id": "2026-02-13",
   "title": "01-30-2026 Update · follow-up 2026-02-13",
   "date": "2026-02-13",
-  "builds": 11,
+  "builds": 17,
   "counts": {
    "documented": 5,
    "described": 8,
@@ -2044,7 +2044,7 @@
   "id": "2026-02-17",
   "title": "01-30-2026 Update · follow-up 2026-02-17",
   "date": "2026-02-17",
-  "builds": 11,
+  "builds": 15,
   "counts": {
    "documented": 13,
    "described": 0,
@@ -2088,7 +2088,7 @@
   "id": "2026-03-07",
   "title": "03-06-2026 Update · follow-up 2026-03-07",
   "date": "2026-03-07",
-  "builds": 6,
+  "builds": 7,
   "counts": {
    "documented": 18,
    "described": 5,
@@ -2107,7 +2107,7 @@
   "id": "2026-03-10",
   "title": "03-06-2026 Update · follow-up 2026-03-10",
   "date": "2026-03-10",
-  "builds": 5,
+  "builds": 9,
   "counts": {
    "documented": 61,
    "described": 108,
@@ -2128,7 +2128,7 @@
   "id": "2026-03-21",
   "title": "03-21-2026 Update",
   "date": "2026-03-21",
-  "builds": 3,
+  "builds": 5,
   "counts": {
    "documented": 167,
    "described": 115,
@@ -2150,7 +2150,7 @@
   "id": "2026-03-25",
   "title": "03-25-2026 Update",
   "date": "2026-03-25",
-  "builds": 7,
+  "builds": 8,
   "counts": {
    "documented": 43,
    "described": 7,
@@ -2170,7 +2170,7 @@
   "id": "2026-03-30",
   "title": "03-25-2026 Update · follow-up 2026-03-30",
   "date": "2026-03-30",
-  "builds": 7,
+  "builds": 8,
   "counts": {
    "documented": 1,
    "described": 8,
@@ -2188,7 +2188,7 @@
   "id": "2026-04-10",
   "title": "04-10-2026 Update",
   "date": "2026-04-10",
-  "builds": 7,
+  "builds": 8,
   "counts": {
    "documented": 97,
    "described": 24,
@@ -2231,7 +2231,7 @@
   "id": "2026-05-01",
   "title": "04-30-2026 Update · follow-up 2026-05-01",
   "date": "2026-05-01",
-  "builds": 8,
+  "builds": 12,
   "counts": {
    "documented": 1,
    "described": 0,
@@ -2248,7 +2248,7 @@
   "id": "2026-05-22",
   "title": "05-22-2026 Update",
   "date": "2026-05-22",
-  "builds": 3,
+  "builds": 5,
   "counts": {
    "documented": 196,
    "described": 171,
@@ -2272,7 +2272,7 @@
   "id": "2026-05-25",
   "title": "Minor Update - 05-25-2026",
   "date": "2026-05-25",
-  "builds": 4,
+  "builds": 5,
   "counts": {
    "documented": 6,
    "described": 7,
@@ -2330,7 +2330,7 @@
   "id": "2026-06-04",
   "title": "Minor Update - 06-04-2026",
   "date": "2026-06-04",
-  "builds": 5,
+  "builds": 8,
   "counts": {
    "documented": 1,
    "described": 12,
@@ -2349,7 +2349,7 @@
   "id": "2026-06-11",
   "title": "Minor Update - 06-11-2026",
   "date": "2026-06-11",
-  "builds": 9,
+  "builds": 10,
   "counts": {
    "documented": 59,
    "described": 37,
@@ -2392,7 +2392,7 @@
   "id": "2026-07-01",
   "title": "Minor Update - 07-01-2026",
   "date": "2026-07-01",
-  "builds": 6,
+  "builds": 10,
   "counts": {
    "documented": 2,
    "described": 5,
@@ -2410,7 +2410,7 @@
   "id": "2026-07-09",
   "title": "Minor Update - 07-09-2026",
   "date": "2026-07-09",
-  "builds": 5,
+  "builds": 11,
   "counts": {
    "documented": 42,
    "described": 8,
@@ -2451,7 +2451,7 @@
   "id": "2026-07-30",
   "title": "Matchmaking Update",
   "date": "2026-07-30",
-  "builds": 14,
+  "builds": 16,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -2469,7 +2469,7 @@
   "id": "2026-08-12",
   "title": "08-12-2026 Update",
   "date": "2026-08-12",
-  "builds": 2,
+  "builds": 3,
   "counts": {
    "documented": 25,
    "described": 16,
@@ -2489,7 +2489,7 @@
   "id": "2026-08-22",
   "title": "08-22-2026 Update",
   "date": "2026-08-22",
-  "builds": 4,
+  "builds": 5,
   "counts": {
    "documented": 13,
    "described": 0,
@@ -2507,7 +2507,7 @@
   "id": "2026-09-16",
   "title": "09-16-2026 Update",
   "date": "2026-09-16",
-  "builds": 4,
+  "builds": 6,
   "counts": {
    "documented": 93,
    "described": 125,
@@ -2529,7 +2529,7 @@
   "id": "2026-09-29",
   "title": "City Never Sleeps",
   "date": "2026-09-29",
-  "builds": 8,
+  "builds": 13,
   "counts": {
    "documented": 1,
    "described": 629,
@@ -2550,7 +2550,7 @@
   "id": "build-6736",
   "title": "Listen up, Crumbums! Your King is here.",
   "date": "2026-10-02",
-  "builds": 4,
+  "builds": 5,
   "counts": {
    "documented": 1,
    "described": 19,
@@ -2568,7 +2568,7 @@
   "id": "2026-10-05",
   "title": "Minor Update - 10-05-2026",
   "date": "2026-10-05",
-  "builds": 3,
+  "builds": 6,
   "counts": {
    "documented": 23,
    "described": 7,
@@ -2641,7 +2641,7 @@
   "id": "2026-10-14",
   "title": "Minor Update - 10-14-2026",
   "date": "2026-10-14",
-  "builds": 12,
+  "builds": 13,
   "counts": {
    "documented": 24,
    "described": 5,

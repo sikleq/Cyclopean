@@ -9,7 +9,9 @@ pipeline/cache.py      parsed-file cache keyed by git blob sha  (.cache/kv3, not
 pipeline/flatten.py    entity -> {path: scalar}; schema aliases; noise exclusion
 pipeline/diff.py       entity diff; identical changes in ≥6 entities -> '@shared' record with targets
 pipeline/classify.py   field category (balance/mechanic/availability/meta/ui/visual/audio), entity kind
-pipeline/extras.py     asset list diff (pak01_dir.txt CRCs), convars diff, steam.inf
+pipeline/extras.py     asset list diff (pak01_dir.txt CRCs), changed files per hero/unit, convars diff, steam.inf
+pipeline/protobuf_diff.py  Protobufs/*.proto: fields / enum values / messages added, removed, changed
+pipeline/strings_diff.py   text strings of client/server/host/engine2 (*_strings.txt), byte noise dropped
 pipeline/loc.py        english localization per build (names, labels, text diffs)
 pipeline/history.py    -> data/builds/<build>_<commit8>.json.gz  (one record per tracker commit)
 pipeline/enrich.py     adds labels / display values / BUFF-NERF direction using THAT build's loc
@@ -594,6 +596,29 @@ Name and description changes (`pipeline/entity_texts.py`, `builders/text_rows.py
 - Never counted (no tag, no eye, no counter, no strip tile); a tag or the eye filter hides them; a group of texts only is
   "Before release" when every other group of its band is. A hero renamed in development carries "was Slork" in its head
   (`text_rows.former_names`). 1,084 such rows over all patches.
+
+Fuller build pages (`builders/build_tech.py`; owner 2026-10-24: "only what tells something", no datavpk-style path
+dumps, no steam.inf / manifests). Record format 8 (`pipeline/history.py`) adds:
+- `assets.owners` — {hero or unit: {kind: [added, removed, modified]}} (`extras.asset_owners`, `OWNER_RULES`: model,
+  model parts, animation, particles, sounds, voice lines, animation graph). A folder's hero by heroes.vdata (model
+  folder, or code name: `nurse` → hero_nurse; `_v2`, `_wip`, `_out_of_combat` stripped). A shared animation graph
+  changed in `SHARED_GRAPH` (8) or more heroes' copies at once is one row under `'*'` (6810: `hero_leans`, 51 heroes).
+  Files without an owner (shared materials, UI) stay in `assets.counts`; map paths are written (`assets.notable.map`).
+- `protobuf` — rows {file, scope, op, item, old, new}: each .proto read into {Message.Nested: {field or enum value:
+  definition}}, so a moved or re-spaced line is no change; a whole message added / removed is one row; cap 300.
+- `strings` — {client|server|host|engine2: {added, removed (60 each), n_added, n_removed}}. Dropped: lines with
+  dump escapes, under 6 characters, byte runs (8+ repeats), the engine's build date; a leading length byte (`?`, `:`,
+  `@`) is cut; MSVC type names spelled out (`.?AV?$CModifierFactory@VCCitadel_Modifier_X@@…` →
+  `CModifierFactory<CCitadel_Modifier_X>`). Engine tools (resourcecompiler, vconsole2, Qt…) are not read.
+- Functions of client/server.dll come from outside the tracker: `data/dll_changes.json`, written by hand with
+  `python tools/import_dll_summary.py <summary.json>` from the per-build DLL diff summary (no code, addresses or
+  paths; two Steam builds under one tracker build merged; type names spelled out). CI cannot refresh it. The page
+  shows only functions whose code changed: "added / removed" are mostly functions the linker moved (6810's client.dll:
+  +1473 −1473). Strings and functions are one per row, left (a comma run read as a wall).
+- Page stems (`common.build_pages`): a strings / protocol-only record (`common.tech_only_files`) is numbered after
+  the records of its build number with game data or files, and the eye (`evidence.patch_builds`) never opens it — no
+  page that existed before moved (6785's notes build is still 6785.html).
+The builds list shows a build whose only changes are files, protocol, strings or code (6810 was missing).
 
 A hero's model rebuilt (`pipeline/extras.size_jumps`, `builders/model_rows.py`; owner 2026-10-23):
 - the asset diff keeps each file's size; a `models/heroes*/*.vmdl_c` whose size moved `SIZE_JUMP` (3) times or more is

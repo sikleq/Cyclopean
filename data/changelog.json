@@ -1,5 +1,14 @@
 [
   {
+    "date": "2026-10-24",
+    "title": "Fuller build pages",
+    "items": [
+      "A build page lists which heroes' and units' files changed (model, animations, particles, sounds, voice lines) instead of bare file counts; an animation graph changed for every hero at once is one row.",
+      "New sections: protocol messages whose fields came, went or changed; text strings that came into or left the game's binaries; functions of client.dll and server.dll whose code changed, by the name their strings or class give them.",
+      "Builds whose only changes are files, protocol, strings or code are in the builds list too."
+    ]
+  },
+  {
     "date": "2026-10-23",
     "title": "Old builds re-read with today's rules",
     "items": [

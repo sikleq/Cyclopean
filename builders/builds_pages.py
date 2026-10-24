@@ -1,6 +1,7 @@
 """Build pages: every tracked game build and exactly what its files changed."""
 from __future__ import annotations
 
+from . import build_tech
 from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
                      patch_title_text, pretty_id, slug, write)
 from .cards import GAMEPLAY, facing_scope
@@ -199,15 +200,10 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     cos = cosmetics_section(rec.get('build'), rel)
     if cos:
         body.append(cos)
-    if rec.get('assets'):
-        a = rec['assets']
-        rows = ''.join(f'<li><span class="lbl">{esc(cat)}</span><span class="vals">+{t["added"]} / −{t["removed"]} / ~{t["modified"]}</span></li>'
-                       for cat, t in a.get('counts', {}).items())
-        hm = ''
-        if a.get('hero_models'):
-            hm = '<p class="muted">Hero model folders: ' + esc(', '.join(f'{k} ({"/".join(v)})' for k, v in a['hero_models'].items())) + '</p>'
-        body.append(f'<details class="collapsible section px-frame"><summary>Game files<span class="chip">{sum(sum(t.values()) for t in a.get("counts", {}).values())}</span></summary>'
-                    f'<ul class="change-list">{rows}</ul>{hm}</details>')
+    body.append(build_tech.files_section(rec.get('assets'), rel))
+    body.append(build_tech.protobuf_section(rec.get('protobuf'), rec.get('build'), rec.get('commit')))
+    body.append(build_tech.strings_section(rec.get('strings'), rec.get('build'), rec.get('commit')))
+    body.append(build_tech.dll_section(rec.get('build')))
     body.append('</div>')
     nav = []
     if prev_b:
@@ -224,7 +220,10 @@ def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
     for r in reversed(index):
         f = r.get('fields', {})
         gp = f.get('balance', 0) + f.get('mechanic', 0) + f.get('availability', 0)
-        if not (gp or r.get('loc') or r.get('convars') or r.get('added') or r.get('removed')):
+        code = sum(s['changed'] for s in (build_tech.dll_changes().get(str(r['build'])) or {}).get('dlls', {}).values())
+        # a build whose only changes are files, protocol, strings or code is listed too (6810 was missing)
+        if not (gp or r.get('loc') or r.get('convars') or r.get('added') or r.get('removed') or r.get('protobuf')
+                or r.get('strings') or code or any(r.get('assets', {}).values())):
             continue
         patch = patch_of.get(r['file'])
         ptxt = f'<small>{esc(patch_title_text(patch))}</small>' if patch else ''
@@ -239,6 +238,10 @@ def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
             chips.append(f'<span class="chip">{r["loc"]} text</span>')
         if r.get('convars'):
             chips.append(f'<span class="chip">{plural(r["convars"], "cvar")}</span>')
+        if r.get('protobuf'):
+            chips.append(f'<span class="chip">{r["protobuf"]} protobuf</span>')
+        if code:
+            chips.append(f'<span class="chip">{plural(code, "function")}</span>')
         rows.append(f'<li data-search="{r["build"]} {esc(r["date"][:10])}"><span class="date">{esc(r["date"][:10])}</span>'
                     f'<span><a class="ttl" href="{esc(stems[r["file"]])}.html">{esc(_row_label(r, stems))}</a>{ptxt}</span>'
                     f'<span class="nums">{"".join(chips)}</span></li>')

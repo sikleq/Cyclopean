@@ -526,12 +526,24 @@ COSMETIC_KINDS = {'base body': 'Base body (what a skin is put on)', 'cosmetic an
 
 
 @lru_cache(maxsize=1)
+@lru_cache(maxsize=None)
+def tech_only_files() -> frozenset[str]:
+    """Build records with no game data, text, convar or file change: only the binaries' strings or the protocol."""
+    return frozenset(r['file'] for r in load_json('builds/index.json')
+                     if not (r.get('entities') or r.get('loc') or r.get('convars')
+                             or any((r.get('assets') or {}).values())))
+
+
 def build_pages() -> dict[str, str]:
     """{build record file name: page stem}. Stem = build number, '-2' etc. when a
-    build number was committed more than once by the tracker."""
+    build number was committed more than once by the tracker. A commit that changed only the binaries' strings or
+    protocol (records since 2026-10-24) is numbered after the ones with game data or files, so no page that existed
+    before moved (6785's notes build stayed 6785.html, its strings-only commit is 6785-2)."""
     seen: dict[int, int] = {}
     out = {}
-    for r in load_json('builds/index.json'):
+    rows = load_json('builds/index.json')
+    tech_only = tech_only_files()
+    for r in sorted(rows, key=lambda r: r['file'] in tech_only):     # stable: commit order inside each group
         if r['build'] is None:               # a tracker commit without a build number (texts only)
             out[r['file']] = 'text-' + r['file'].split('_', 1)[1].split('.', 1)[0]
             continue
