@@ -5,3 +5,6 @@ __pycache__/
 *.pyc
 *.tmp
 /Deadlocked/
+
+# owner's deferred tasks: local only, never in the public repo (2026-10-24)
+docs/todo.md
