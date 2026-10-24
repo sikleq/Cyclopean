@@ -78,6 +78,13 @@ build / change it explains (like the bug-report links above: a link only with ev
   finds, the Doorman cart (model file 10× smaller, build 6815) is now caught by Cyclopean itself (`model_rows`), the
   Russia + Europe matchmaking merge is server-side and not in the files.
 
+## DLL change summary: not on the site yet (written 2026-10-24, owner: "пока не выводить")
+
+The Deadlock research project now has a short per-build summary of the binaries (539 builds since 2025-04,
+up to 6819): counts of changed / new / removed functions in client and server, up to 30 named functions per
+DLL, other DLLs whose hash changed. No code, addresses or paths. It lives in that project's private history
+repository, not here. When the owner decides to show it, it belongs with the fuller build pages below.
+
 ## Fuller build pages (written 2026-10-21, not started, after DL-ida-researcher)
 
 Build 6810's page read as empty: no gameplay, text or convar change, only "Game files" counts (+2 / −0 / ~11) for
