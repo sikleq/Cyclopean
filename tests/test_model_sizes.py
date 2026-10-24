@@ -20,6 +20,7 @@ def test_notable_files_capped_in_path_order(monkeypatch):
     paths = [f'models/npc/m{i:03d}/m.vmdl_c' for i in range(extras.NOTABLE_LIMIT + 20)]
     changes = ({p: ('a', 1) for p in reversed(paths)}, {p: ('b', 1) for p in paths})
     monkeypatch.setattr(extras, '_asset_changes', lambda prev, cur: changes)
+    monkeypatch.setattr(extras, 'hero_owners', lambda commit: {})        # CI has no tracker clone
     out = extras.asset_diff('p', 'c')
     assert [x[1] for x in out['notable']['npc_model']] == paths[:extras.NOTABLE_LIMIT]
 

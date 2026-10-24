@@ -117,8 +117,8 @@ def asset_diff(prev: str, cur: str) -> dict | None:
         'notable': {k: sorted(v, key=lambda x: x[1]) for k, v in notable.items()},
         'hero_models': {k: sorted(v) for k, v in sorted(heroes_touched.items())},
     }
-    owners = model_owners(tracker.read(cur, tracker.SCRIPTS + 'heroes.vdata') or '')
-    by_owner = asset_owners({p: _op(p, added, removed) for p in added.keys() | removed.keys()}, owners)
+    owners = hero_owners(cur)
+    by_owner =asset_owners({p: _op(p, added, removed) for p in added.keys() | removed.keys()}, owners)
     if by_owner:
         out['owners'] = by_owner
     jumps = size_jumps(added, removed)
@@ -128,6 +128,11 @@ def asset_diff(prev: str, cur: str) -> dict | None:
             j['hero'] = owners.get(_REDO.sub('', m.group(1))) if m else None
         out['model_sizes'] = jumps
     return out
+
+
+def hero_owners(commit: str) -> dict[str, str]:
+    """model_owners of that build's heroes.vdata (its own function: a test without the tracker replaces it)."""
+    return model_owners(tracker.read(commit, tracker.SCRIPTS + 'heroes.vdata') or '')
 
 
 def _op(path: str, added: dict, removed: dict) -> str:
