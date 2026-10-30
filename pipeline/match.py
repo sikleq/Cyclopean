@@ -57,12 +57,14 @@ SYNONYMS = {
     'respawn': {'spawn', 'respawn'},
     'breakables': {'breakable', 'spawn'},
     'urn': {'idol', 'urn'},
-    'rejuvenator': {'rejuv', 'rejuvenator'},
+    'rejuvenator': {'rejuv', 'rejuvenator', 'rejuvinator'},     # the files spell it 'Rejuvinator' (m_RejuvParams)
+    'faster': {'faster', 'speed'},             # "Now travels 40% faster" is the projectile's Speed (2026-10-30)
+    'slower': {'slower', 'speed'},
 }
 _SYNONYMS = rules.stemmed_synonyms(SYNONYMS)       # as words() writes them ('breakables' -> 'breakable')
 _ARROW_RE = re.compile(rf'(?P<a>{_NUM})\s*[a-z%]*\s*(?:->|→)\s*(?P<b>{_NUM})', re.I)
 _BY_RE = re.compile(rf'(increased|reduced|decreased|lowered|raised)\s+by\s+~?(?P<p>{_NUM})\s*%', re.I)
-_PCT_LESS = re.compile(rf'(?P<p>{_NUM})\s*%\s+(?:less|more|shorter|longer|lower|higher)\b', re.I)
+_PCT_LESS = re.compile(rf'(?P<p>{_NUM})\s*%\s+(?:less|more|shorter|longer|lower|higher|faster|slower)\b', re.I)
 _HALF_DAMAGE = re.compile(r'\bhalf\s+(?:the\s+)?damage\s+(?:to|against|on|vs\.?)\s+(?:the\s+)?(?:objectives?|bosse?s?)\b',
                           re.I)
 _WORD_RE = re.compile(r'[a-z]{3,}')
@@ -879,7 +881,10 @@ def resolve_subject(prefix: str, idx: dict[str, list[str]], cat: dict[str, dict]
         hid = heroes[0].split(':', 1)[1]
         ids = {heroes[0]} | {k for k, e in cat.items() if e.get('owner') == hid}
         return Subject(ids, prefix, 'hero')
-    return Subject(set(keys), prefix, cat[keys[0]].get('kind', ''))
+    # a name that is also an alias brings the alias's entries: "Mid-Boss" is the unit and the Rejuvenator it drops
+    # ("Mid-Boss: Rejuvenator crystal drop time increased from 6s to 7.5s" was unmatched, 2026-10-30)
+    same = {f'{f}:{i}' for f, i in rules.ALIASES.get(prefix.strip().lower(), ())}
+    return Subject(set(keys) | same, prefix, cat[keys[0]].get('kind', ''))
 
 
 def ent_key(c: MChange) -> str:
@@ -895,8 +900,8 @@ _MINUTES = re.compile(r'\b(minutes?|mins?)\b', re.I)
 _BASE_DAMAGE = re.compile(r'^\s*(base|gun)\s+damage\b', re.I)
 _SPAWN_TIMER = re.compile(r'\b(spawns?|respawns?|spawn time|interval)\b', re.I)
 _SECONDS = re.compile(r'\d\s*(s|sec|secs|seconds?)\b', re.I)
-_UP_VERB = re.compile(r'\b(increas\w*|rais\w*|more|higher|boost\w*)\b', re.I)
-_DOWN_VERB = re.compile(r'\b(reduc\w*|decreas\w*|lower\w*|less|cut)\b', re.I)
+_UP_VERB = re.compile(r'\b(increas\w*|rais\w*|more|higher|faster|boost\w*)\b', re.I)
+_DOWN_VERB = re.compile(r'\b(reduc\w*|decreas\w*|lower\w*|less|slower|cut)\b', re.I)
 _TIME_LIKE = re.compile(r'(time|cooldown|interval|delay|cost|duration)', re.I)
 
 
@@ -1096,6 +1101,13 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
         head = None
         mode_sec = bool(_STREET_BRAWL.search(sec.title or ''))
         for text in sec.lines:
+            if _SUBHEAD.match(text) and not heading(text, idx):       # not a bare "Sinclair:" (heading)
+                # "Items:" / "Street Brawl:" inside one post (2026-10-30): a heading of the lines below it, and the
+                # mode's lines answer with its Street Brawl numbers ("Scrap Grenade - Radius reduced from 8m to 6m")
+                mode_sec = bool(_STREET_BRAWL.search(text) or _STREET_BRAWL.search(sec.title or ''))
+                head = None
+                out_lines.append({'text': text, 'subject': None, 'status': 'heading', 'changes': []})
+                continue
             mode = mode_sec or bool(_STREET_BRAWL.search(text))
             cs, be = (changes, by_ent) if mode else (plain, plain_by_ent)
             h = heading(text, idx)
@@ -1122,6 +1134,8 @@ def annotate(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[s
 
 _HEADING_MAX = 40
 _STREET_BRAWL = re.compile(r'street\s*brawl', re.I)
+# a sub-heading line of a post: a few words and a colon, nothing after it ("General:", "Street Brawl:")
+_SUBHEAD = re.compile(r'^\s*[A-Z][\w&\'\- ]{1,30}:\s*$')
 
 
 def heading(text: str, idx: dict[str, list[str]]) -> str | None:
@@ -1130,6 +1144,9 @@ def heading(text: str, idx: dict[str, list[str]]) -> str | None:
     if not t or len(t) > _HEADING_MAX or ':' in t or re.search(r'\d', t):
         return None
     return t if idx.get(t.lower()) else None
+
+
+_NO_LONGER = re.compile(r'\b(no longer|removed)\b', re.I)
 
 
 def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
@@ -1147,6 +1164,18 @@ def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
                     and (mode or not classify_mod.STREET_BRAWL_VALUE.search(sib.path)):
                 sib.status = 'described'
                 sib.lines.append(line)
+        # a line that tells a rework in words is about every field of that entity that came or went with it:
+        # "Baba's Brew - No longer has an initial brew time" took its Brew Time 1.5s → 0s, and its Barrier / Fire /
+        # Silence Lock Time removed kept the eye (owner 2026-10-30: "described another way, not hidden"). Tuned
+        # numbers stay hidden; a field that came or went with a number of its own only when the line says something
+        # went away (the audit's real finds: Walker's new 30% trooper factor, Kinetic Pulse's new T2 +8s)
+        if c.status == 'described':
+            gone = bool(_NO_LONGER.search(line))
+            for sib in by_ent.get(ent_key(c), []):
+                if sib.status == 'hidden' and sib.cat in GAMEPLAY_CATS and sib.op in ('add', 'remove') \
+                        and (num(sib.old if sib.op == 'remove' else sib.new) is None or gone and sib.op == 'remove'):
+                    sib.status = 'described'
+                    sib.lines.append(line)
         # 2: "(affects upgrades)": items built from this one moved the same way
         if c.status == 'documented' and rules.AFFECTS_UPGRADES_RE.search(line):
             for other in changes:
@@ -1439,7 +1468,9 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
                  and re.match(rf'T{tier}:', c.label)]
         topical = [c for c in scope if on_topic(c)]
         whole_tier = re.search(r'changed from|reworked|replaced|swapped', text, re.I)
-        chosen = topical or (scope if whole_tier else [])
+        # "T3 no longer has 'Ink is no longer destroyed'": what that tier lost (its Destroy On Damage, 2026-10-30)
+        gone = [c for c in scope if c.op == 'remove'] if _NO_LONGER.search(text) else []
+        chosen = topical or (scope if whole_tier else gone)
         if chosen:
             return _link(result, chosen, text, 'described')
     # 2: "Now builds from Sprint Boots": component list of the item

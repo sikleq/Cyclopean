@@ -8,6 +8,15 @@
     ]
   },
   {
+    "date": "2026-10-30",
+    "title": "Fewer false \"not in the patch notes\"",
+    "items": [
+      "A note that tells a rework in words now covers the fields that came or went with it: \"Baba's Brew - No longer has an initial brew time\" is also its removed Lock Times.",
+      "Street Brawl lines under a \"Street Brawl:\" heading match that mode's numbers; \"40% faster\" matches a speed; Mid-Boss lines reach its Rejuvenator; \"Damage output\" covers damage per second.",
+      "The Halloween 2026 update went from 136 to 88 changes not in the notes; the whole archive from 8,139 to 7,840."
+    ]
+  },
+  {
     "date": "2026-10-24",
     "title": "Fuller build pages",
     "items": [

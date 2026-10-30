@@ -31,7 +31,9 @@ _alias(('base guardian', 'base guardians'), [('npc_units.vdata', 'npc_barrack_bo
                                               ('npc_units.vdata', 'npc_barrack_boss_amber'),
                                               ('npc_units.vdata', 'npc_barrack_boss_sapphire')])
 _alias(('shrine', 'shrines'), [('npc_units.vdata', 'destroyable_building'), ('generic_data.vdata', 'm_ObjectiveParams')])
-_alias(('mid boss', 'midboss', 'mid-boss'), [('npc_units.vdata', 'npc_super_neutral')])
+# … and the Rejuvenator it drops ("Mid-Boss: Rejuvenator crystal drop time increased from 6s to 7.5s", 2026-10-30)
+_alias(('mid boss', 'midboss', 'mid-boss'), [('npc_units.vdata', 'npc_super_neutral'),
+                                             ('generic_data.vdata', 'm_RejuvParams')])
 # the vault is a unit, its spawn timers live on the camp ("Sinner's Sacrifice spawn/respawn time 8/4 -> 10/5")
 _alias(("sinner's sacrifice", 'sinners sacrifice', 'sinner sacrifice', 'vault', 'vaults'),
        [('npc_units.vdata', 'neutral_sinners_sacrifice'), ('npc_units.vdata', 'neutral_vault'),
@@ -143,6 +145,9 @@ LABEL_SYNONYMS = {
     # the notes' "objectives" are the bosses a damage scale names ("Vexing Bolt - Now does half damage to objectives"
     # is its Boss Damage Scale 100% → 50%, review 2026-10-17)
     'boss': {'objective', 'objectives'},
+    # damage per second is damage: "Haunts HP and Damage output increased by 10%" is their Beam DPS 25 → 27.5 too
+    # (2026-10-30)
+    'dps': {'damage'},
 }
 
 

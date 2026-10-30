@@ -455,6 +455,15 @@ Data-quality audit, part 2 (2026-10-04, enrich 30):
   ("Spirit Damage" → "Base Damage") stays DEL + NEW. A flat number and a percent are one value only at 0 or when
   the bare field's name says percent (`cards._same_value`: Blood Bomb's "Self Damage 30" → "Health Cost 30%" is
   two rows).
+- "described another way" (owner 2026-10-30, the Halloween 2026 update: 136 hidden, 88 after; whole archive 8,139 →
+  7,840): a line that tells a rework in words claims the fields of that entity that came or went in the window
+  (`match.post_pass`; one with a number of its own only on a "no longer / removed" line — "Baba's Brew - No longer
+  has an initial brew time" is its three Lock Times; a new number stays hidden: Walker's 30% trooper factor); a tier
+  line "T3 no longer has …" what that tier lost; a sub-heading line inside a post ("Street Brawl:", `match._SUBHEAD`)
+  heads the lines below it, so that mode's lines answer with its Street Brawl numbers; "N% faster / slower" is a
+  speed by that percent; a name that is also an alias brings the alias's entries ("Mid-Boss" + its Rejuvenator,
+  `m_RejuvParams`, spelt "Rejuvinator" in the files); a DPS field is damage ("Haunts … Damage output increased by
+  10%"). Audit: coverage 86 → 87%, real hidden kept 92 → 91%.
 - matcher: `match.twin_hits` — a matched line also claims, in the entities it matched, a changed field of
   the line's tier that it names by a word and that moved by its exact numbers ("Ability Range" range AND
   radius multiplier, "damage and debuff resistance" bullet AND spirit resist); `match._aligned_pairs` —
