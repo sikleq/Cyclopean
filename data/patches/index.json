@@ -2691,5 +2691,28 @@
   "release": [
    "hero_nurse"
   ]
+ },
+ {
+  "id": "2026-10-30",
+  "title": "Halloween 2026 + Gameplay Update",
+  "date": "2026-10-30",
+  "builds": 1,
+  "counts": {
+   "documented": 183,
+   "described": 48,
+   "hidden": 136,
+   "unannounced": 0,
+   "unreleased": 1
+  },
+  "line_counts": {
+   "unmatched": 48,
+   "documented": 151,
+   "described": 50,
+   "fix": 5,
+   "rounded": 2,
+   "untracked": 3,
+   "code": 10
+  },
+  "has_notes": true
  }
 ]

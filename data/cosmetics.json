@@ -218,6 +218,17 @@
     "hero_nurse"
    ],
    "files": 1
+  },
+  {
+   "build": 6826,
+   "date": "2026-10-30",
+   "commit": "fd21313e",
+   "kind": "cosmetic animation",
+   "op": "modified",
+   "subjects": [
+    "hero_kelvin"
+   ],
+   "files": 1
   }
  ],
  "heroes": {
