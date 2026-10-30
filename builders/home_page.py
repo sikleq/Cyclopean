@@ -135,10 +135,15 @@ def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dic
         if not rows:
             continue
         # the same change on several members of a family counts once; so does one edit spread over a system's
-        # entries (twelve breakable props)
+        # entries (twelve breakable props) — and inside one entry: a neutral's aura and the modifier it provides carry
+        # one "Ground Aura › DPS 60 → 66" twice, the change matrix counted it once (build 6826, 2026-10-30)
         if section in ('units', 'game'):
-            rows = [c for c in rows if (key, *same_change(c)) not in once]
-            once |= {(key, *same_change(c)) for c in rows}
+            fresh = []
+            for c in rows:
+                if (key, *same_change(c)) not in once:
+                    once.add((key, *same_change(c)))
+                    fresh.append(c)
+            rows = fresh
             if not rows:
                 continue
         slot = out.setdefault(section, {}).setdefault(key, {'n': 0, 'hidden': 0, 'buff': 0, 'nerf': 0,
