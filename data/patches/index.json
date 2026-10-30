@@ -2711,22 +2711,21 @@
   "date": "2026-10-30",
   "builds": 2,
   "counts": {
-   "documented": 209,
-   "described": 59,
-   "hidden": 99,
+   "documented": 219,
+   "described": 60,
+   "hidden": 88,
    "unannounced": 0,
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 40,
+   "unmatched": 26,
    "heading": 4,
-   "described": 51,
-   "documented": 154,
+   "described": 52,
+   "documented": 155,
    "fix": 5,
+   "rounded": 14,
    "untracked": 3,
-   "mismatch": 1,
-   "rounded": 8,
-   "code": 3
+   "code": 10
   },
   "has_notes": true
  }
