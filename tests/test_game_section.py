@@ -47,6 +47,14 @@ ROW = {'id': '2026-06-04', 'date': '2026-06-04', 'title': 'Minor Update - 06-04-
     ('convar:citadel_trooper_gold_reward', ('souls', 'rewards')),
     ('convar:citadel_tick_gold_period_duration_s', ('souls', 'rewards')),
     ('misc.vdata:something_new#global', ('other', 'objects')),           # nothing is lost
+    # Halloween 2026 (build 6826): a cauldron is the event's, not a crate; the candy is no hero's move
+    ('misc.vdata:citadel_breakable_prop_candy_cauldron#global', ('events', 'halloween')),
+    ('misc.vdata:citadel_breakable_prop_punchable_troll#global', ('events', 'halloween')),
+    ('abilities.vdata:seasonal_ability_eat_halloween_candy#shared', ('events', 'halloween')),
+    ('modifiers.vdata:modifier_citadel_halloween_mask#modifier', ('events', 'halloween')),
+    ('convar:citadel_halloween_candy_heavy_melee_drop_percent', ('events', 'halloween')),
+    ('abilities.vdata:cosmetic_ability_snowball#shared', ('events', 'winter')),
+    ('misc.vdata:citadel_breakable_prop_tough_crate#global', ('breakables', 'crates')),
 ])
 def test_every_subject_has_a_system(subject, where):
     from builders.game_systems import place

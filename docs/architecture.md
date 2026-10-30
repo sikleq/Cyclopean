@@ -566,8 +566,10 @@ Game section (2026-10-05, part 2; owner: "I want to see ALL changes to everythin
   (`game_systems.place_entity(key, e, pages)`): map objects, game rules, effects, loot tables, abilities no hero owns,
   templates. Scenery (`classify.decor_entity`) is no page's.
 - Systems: Souls & economy, Respawn, Hero progression, Urn & Unstable Rift, Pickups & powerups, Breakables & crates,
-  Troopers & lanes, Neutral camps & Mid-Boss, Shop & item rules, Movement & combat, Modes, Other rules & objects.
-  Each has parts (the page's filters). A rule is a regex tried from the start of a subject, systems and parts in config
+  Troopers & lanes, Neutral camps & Mid-Boss, Shop & item rules, Movement & combat, Modes, Seasonal events, Other rules
+  & objects. Seasonal events (2026-10-30) is first in precedence: Halloween's cauldrons, troll, candy, masks, pumpkins
+  and `citadel_halloween_*` variables, Winter's snowball and presents — otherwise a cauldron reads as a crate and the
+  candy every hero carries as a hero move. Each has parts (the page's filters). A rule is a regex tried from the start of a subject, systems and parts in config
   order, first match wins; subjects are an entry `file:id#kind`, a row of a rule for every hero / ability `file:@all:path`,
   a console variable `convar:name`. Names: the config's (the files give these entries no text), else the catalog's, else
   `pretty_id` without `modifier_` — never an id; templates say "(template)", loot tables "Loot table: …". Icons: a path

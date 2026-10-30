@@ -1,6 +1,14 @@
 [
   {
     "date": "2026-10-30",
+    "title": "Seasonal events on the Game section",
+    "items": [
+      "A new Game page, Seasonal events, keeps Halloween together: Candy Cauldrons, the Troll Trick or Treat, Eat Candy and its Sugar Rush, Halloween masks, pumpkins and the candy console variables (how much candy a heavy melee knocks out, Street Brawl's candy per round).",
+      "Winter's Snowball and presents moved there from Crates and hero moves."
+    ]
+  },
+  {
+    "date": "2026-10-30",
     "title": "Halloween 2026 update counted right",
     "items": [
       "The new air-drag-under-slow console variable is on the Game section's Combat rules page.",
