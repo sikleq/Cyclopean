@@ -463,7 +463,14 @@ Data-quality audit, part 2 (2026-10-04, enrich 30):
   heads the lines below it, so that mode's lines answer with its Street Brawl numbers; "N% faster / slower" is a
   speed by that percent; a name that is also an alias brings the alias's entries ("Mid-Boss" + its Rejuvenator,
   `m_RejuvParams`, spelt "Rejuvinator" in the files); a DPS field is damage ("Haunts … Damage output increased by
-  10%"). Audit: coverage 86 → 87%, real hidden kept 92 → 91%.
+  10%"). Audit: coverage 86 → 87%, real hidden kept 92 → 91%. Round 2 (same day, every version): a percent over
+  many values ("all abilities", "every", "~8%": `match._LOOSE_PCT`) accepts round values Valve put on a step of 5
+  (`match._rounded_to_five`; a line about one property stays exact — "Neutral bounty +5%" is not a trooper's 65 → 70),
+  and such a line takes every field that moved by it and names its property, tiers too (Mo & Krill's Combo 40 → 35);
+  "the old T2 … in the base" takes the base's fields that came from nothing (`match._OLD_TIER`); a words line naming an
+  ability takes the field whose value is the line's one number, in its unit and the line's tier (none: the base) —
+  "previously launched at least 45° upward" is Guided Owl's Arrow Initial Pitch -45 → 89. Archive 7,851 → 7,714 hidden,
+  1,570 → 1,538 unmatched lines; 2025-07-04's "~8%" alone 206 → 105.
 - matcher: `match.twin_hits` — a matched line also claims, in the entities it matched, a changed field of
   the line's tier that it names by a word and that moved by its exact numbers ("Ability Range" range AND
   radius multiplier, "damage and debuff resistance" bullet AND spirit resist); `match._aligned_pairs` —

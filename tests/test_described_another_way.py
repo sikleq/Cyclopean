@@ -83,3 +83,42 @@ def test_faster_is_speed_and_mid_boss_lines_reach_its_rejuvenator(patch):
 def test_haunts_damage_output_is_their_dps_too(patch):
     beam = _rows(patch, 'citadel_neutral_laser_beam_theater')
     assert beam['Beam DPS']['status'] != 'hidden'
+
+
+# ---- round 2 (owner 2026-10-30: "дальше", in every version) ----------------------------------------------------------
+
+def test_a_percent_over_all_abilities_allows_rounding_to_five_one_property_does_not():
+    from pipeline.match import pct_close
+    c = _mc('m_mapAbilityProperties.DPS.m_strValue', '40', '35', 'change', 'Damage Per Second')
+    assert pct_close(c, 10, -1, loose=True)            # 40 × 0.9 = 36, Valve wrote 35
+    assert not pct_close(c, 10, -1)                    # a line about one property is exact
+    cd = _mc('m_mapAbilityProperties.AbilityCooldown.m_strValue', '30', '25', 'change', 'Cooldown')
+    assert not pct_close(cd, 15, -1)                   # "Slow effectiveness reduced by 15%" is not this cooldown
+
+
+@needs_patch
+def test_mo_and_krills_ten_percent_takes_every_rounded_damage(patch):
+    for end, label in (('ability_ult_combo', 'Damage Per Second'), ('ability_burrow', 'T1: Damage Per Second'),
+                       ('ability_throw_sand', 'Damage'), ('ability_intimidate', 'T1: Damage')):
+        assert _rows(patch, end)[label]['status'] == 'documented', (end, label)
+
+
+@needs_patch
+def test_the_old_t2_barrier_in_the_base_and_a_words_lines_one_number(patch):
+    traveler = [e for e in patch['entities'] if e.get('name') == 'Traveler']
+    rows = {c['label']: c for e in traveler for c in e['changes']}
+    assert rows['Barrier']['status'] != 'hidden' and rows['Buff Duration']['status'] != 'hidden'
+    owl = [c for e in patch['entities'] if e.get('name') == 'Guided Owl' for c in e['changes']
+           if c['label'] == 'Arrow Initial Pitch']
+    assert owl and owl[0]['status'] != 'hidden'          # "(previously always launched at least 45° upward)"
+
+
+def test_a_words_lines_number_reads_its_unit_and_tier():
+    """"Traveler T1 is now '+2 m/s' (was -20s cd)" is no T3 Fire Rate 20% (2024-10-10); a line without a tier is about
+    the base ("Afterburn (20% for light melee …)" is no T1 Spirit Damage -20%, 2026-03-06)."""
+    p = json.load(gzip.open(PATCH.parent / '2024-10-10.json.gz')) if (PATCH.parent / '2024-10-10.json.gz').exists() \
+        else None
+    if p is None:
+        pytest.skip('no 2024-10-10 patch record')
+    line = next(ln for s in p['sections'] for ln in s['lines'] if ln['text'].startswith('Mirage: Traveler T1 is now'))
+    assert not any('m_vecAbilityUpgrades[2]' in k for k in line['changes'])

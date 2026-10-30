@@ -13,7 +13,10 @@
     "items": [
       "A note that tells a rework in words now covers the fields that came or went with it: \"Baba's Brew - No longer has an initial brew time\" is also its removed Lock Times.",
       "Street Brawl lines under a \"Street Brawl:\" heading match that mode's numbers; \"40% faster\" matches a speed; Mid-Boss lines reach its Rejuvenator; \"Damage output\" covers damage per second.",
-      "The Halloween 2026 update's first build went from 136 to 88 changes not in the notes; the whole archive from 8,139 to 7,840."
+      "The Halloween 2026 update's first build went from 136 to 88 changes not in the notes; the whole archive from 8,139 to 7,840.",
+      "A percent over all abilities matches values Valve rounded to a step of 5 (\"Ability base damage reduced by ~8%\" of 2025-07-04: 65 → 60, 180 → 165; Mo & Krill's \"Spirit damage on all abilities reduced by 10%\": 40 → 35, 75 → 65).",
+      "\"Now grants the old T2 barrier in the base ability\" covers the base's new barrier; a words line's one number finds the field it names (\"previously launched at least 45° upward\" is Guided Owl's pitch -45 → 89; \"Card Trick T3 now also applies a 25% Slow for 1s\").",
+      "The whole archive now has 7,714 changes not in the notes (7,851 before this round) and 1,538 note lines no change was found for (1,570)."
     ]
   },
   {

@@ -911,13 +911,32 @@ def verb_sign(text: str) -> int:
     return 1 if up and not down else -1 if down and not up else 0
 
 
-def pct_close(c: MChange, by_pct: float, sign: int = 0, rate_line: bool = False) -> bool:
+def _rounded_to_five(o: float, n: float, by_pct: float) -> bool:
+    """Valve rounds a percent cut of round numbers to a step of 5: "Spirit damage on all abilities reduced by 10%"
+    made Mo & Krill's Combo 40 → 35 and Burrow 75 → 65 (2026-10-30). Both values on that step, the new one within
+    half a step of the exact result, and the field moved by some percent near the line's."""
+    if o % 5 or n % 5 or abs(o) < 20 or o == n:
+        return False
+    exact = [o * (1 + by_pct / 100), o * (1 - by_pct / 100)]
+    return any(abs(n - x) <= 2.5 for x in exact) and abs(abs(n / o - 1) * 100 - by_pct) <= max(5.0, 0.5 * by_pct)
+
+
+# a percent over many values at once ("on all abilities", "by ~8%"): each one was rounded on its own. A line about one
+# property is exact ("Slow effectiveness in air reduced by 15%" is not a cooldown 30s → 25s; "Neutral bounty increased by
+# 5%" not a trooper's 65 → 70)
+_LOOSE_PCT = re.compile(r'~|\b(all|every|abilities)\b', re.I)
+
+
+def pct_close(c: MChange, by_pct: float, sign: int = 0, rate_line: bool = False, loose: bool = False) -> bool:
     """The field moved by the line's percent — the same way the line says: "Walker HP increased by
     40%" is not a cooldown cut by 40% (audit 2026-10-01: 115 links ran the wrong way). A rate on the
     line may move a time field the other way (fire rate up = interval down)."""
     for o, n in c.steps():
         o, n = num(o), num(n)
-        if not o or n is None or abs(abs(n / o - 1) * 100 - by_pct) > max(1.0, 0.1 * by_pct):
+        if not o or n is None:
+            continue
+        if abs(abs(n / o - 1) * 100 - by_pct) > max(1.0, 0.1 * by_pct) \
+                and not (loose and _rounded_to_five(o, n, by_pct)):
             continue
         moved = 1 if abs(n) > abs(o) else -1
         if sign and moved != sign and not (rate_line and _TIME_LIKE.search(c.label or c.path)):
@@ -966,7 +985,7 @@ def list_hits(head: str, pool: list[MChange], by_pct: float, text: str, ability_
     if not parts:
         return []
     sign, rate = verb_sign(text), bool(re.search(r'rate|speed', text, re.I))
-    moved = [c for c in pool if pct_close(c, by_pct, sign, rate)]
+    moved = [c for c in pool if pct_close(c, by_pct, sign, rate, bool(_LOOSE_PCT.search(text)))]
     named = [c for c in moved if ent_key(c) in ability_hits]
     if named and len(ability_hits) < len({ent_key(c) for c in pool}):
         moved = named                   # the ability the line names, when it is not the whole pool
@@ -1066,7 +1085,8 @@ def score(c: MChange, text: str, pairs, by_pct, lw: set[str], tier: int | None, 
             s += 8
         elif granted and not a and c.op == 'change' and value_matches(c.new, b, c):
             s += 8          # "Now has a 8s cooldown" while it was 3s: the line states the new value
-    if by_pct is not None and pct_close(c, by_pct, verb_sign(text), bool(re.search(r'rate|speed', text, re.I))):
+    if by_pct is not None and pct_close(c, by_pct, verb_sign(text), bool(re.search(r'rate|speed', text, re.I)),
+                                        bool(_LOOSE_PCT.search(text))):
         s += 6
     overlap = len(label_words(c) & lw)
     s += min(overlap, 3)
@@ -1147,6 +1167,7 @@ def heading(text: str, idx: dict[str, list[str]]) -> str | None:
 
 
 _NO_LONGER = re.compile(r'\b(no longer|removed)\b', re.I)
+_OLD_TIER = re.compile(r'\b(old|previous|former)\s+T[1-3]\b.*\bbase\b', re.I)
 
 
 def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
@@ -1376,6 +1397,16 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             if by_pct is not None and not pairs:
                 # "respawn times, hp, and bounty reduced by 30%": the best field of EACH property listed
                 hits += [c for c in list_hits(rest[:by_at], pool, by_pct, text, ability_hits) if c not in hits]
+                if re.search(r'\b(all|every)\b', rest, re.I):
+                    # "Mo & Krill: Spirit damage on all abilities reduced by 10%": every damage that moved by it
+                    # (Combo 40 → 35, Burrow 75 → 65, rounded), not the best-scored field alone (2026-10-30)
+                    sign, rate = verb_sign(text), bool(re.search(r'rate|speed', text, re.I))
+                    # (a tier's own value too: "all abilities" is base and upgrades, T1 Burrow 50 → 45)
+                    # (the line's own words: words() drops "damage" as too common, and it is the property here)
+                    said = set(re.findall(r'[a-z]+', rest.lower())) - {'spirit', 'ability', 'abilities', 'all', 'base'}
+                    hits += [c for s, c in scored if s >= 5 + need and c not in hits
+                             and set(re.findall(r'[a-z]+', (c.label or '').lower())) & said
+                             and pct_close(c, by_pct, sign, rate, True)]
             if pairs and not granted:
                 hits += twin_hits(scored, hits, pairs, lw, tier)
             for c in hits:
@@ -1471,6 +1502,12 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         # "T3 no longer has 'Ink is no longer destroyed'": what that tier lost (its Destroy On Damage, 2026-10-30)
         gone = [c for c in scope if c.op == 'remove'] if _NO_LONGER.search(text) else []
         chosen = topical or (scope if whole_tier else gone)
+        if chosen and _OLD_TIER.search(text):
+            # "Now grants the old T2 barrier in the base ability": the base took what the tier had — its fields that
+            # came from nothing (Traveler's Barrier 0 → 400, Buff Duration 0s → 12s, 2026-10-30)
+            abil = {ent_key(c) for c in chosen}
+            chosen = chosen + [c for c in pool if ent_key(c) in abil and not re.match(r'T[1-3]:', c.label)
+                               and (c.op == 'add' or num(c.old) == 0) and c not in chosen]
         if chosen:
             return _link(result, chosen, text, 'described')
     # 2: "Now builds from Sprint Boots": component list of the item
@@ -1529,6 +1566,23 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         # only the named ability's flags spoke: its other mechanics stay described as before
         linked = linked + [c for c in fallback if c not in linked]
     linked = linked or fallback
+    if not linked and by_name and not pairs:
+        # a words line whose one number is a value the named ability's field had or took: "Guided Owl - Now launches in
+        # the exact direction you're aiming (previously always launched at least 45° upward)" is its Arrow Initial
+        # Pitch -45 → 89 (2026-10-30)
+        # (in the field's unit — "-20s cd" is no Fire Rate 20% — and of the tier the line names, if it names one)
+        said = {(abs(float(m.group('v'))), m.group('u') or '')
+                for m in re.finditer(rf'(?P<v>{_NUM})\s*(?P<u>%|s\b|m\b)?', _TIER_NAME.sub(' ', rest))}
+        tiers = set(re.findall(r'\bT([1-3])\b', rest))
+
+        def says(c: MChange) -> bool:
+            t = re.match(r'T([1-3]):', c.label)
+            if (t.group(1) if t else None) not in (tiers or {None}):
+                return False            # a line without a tier is about the base ("Afterburn (20% for light melee)")
+            vals = {abs(v) for v in (num(c.old), num(c.new)) if v}
+            unit = (c.unit or '')[:1]
+            return any(v in vals and (not u or not unit or u == unit) for v, u in said)
+        linked = [c for c in pool if ent_key(c) in by_name and not _STATE_MASK.search(c.path) and says(c)]
     if linked:
         return _link(result, linked, text, 'described')
     return result
