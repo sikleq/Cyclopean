@@ -211,16 +211,16 @@
   "builds": 1,
   "counts": {
    "documented": 61,
-   "described": 34,
-   "hidden": 39,
+   "described": 38,
+   "hidden": 35,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
    "untracked": 22,
-   "unmatched": 33,
+   "unmatched": 32,
    "fix": 17,
-   "described": 7,
+   "described": 8,
    "rounded": 1,
    "documented": 57,
    "mismatch": 1
@@ -268,18 +268,18 @@
   "builds": 10,
   "counts": {
    "documented": 84,
-   "described": 25,
-   "hidden": 25,
+   "described": 26,
+   "hidden": 24,
    "unannounced": 0,
    "unreleased": 3
   },
   "line_counts": {
-   "unmatched": 32,
+   "unmatched": 31,
    "untracked": 15,
    "fix": 11,
    "documented": 80,
    "rounded": 1,
-   "described": 11,
+   "described": 12,
    "code": 1
   },
   "has_notes": true
@@ -339,12 +339,12 @@
    "unreleased": 16
   },
   "line_counts": {
-   "unmatched": 42,
+   "unmatched": 41,
    "untracked": 16,
    "fix": 13,
    "rounded": 2,
    "documented": 88,
-   "described": 22,
+   "described": 23,
    "code": 1
   },
   "has_notes": true
@@ -356,17 +356,17 @@
   "builds": 13,
   "counts": {
    "documented": 100,
-   "described": 37,
-   "hidden": 35,
+   "described": 39,
+   "hidden": 33,
    "unannounced": 0,
    "unreleased": 2
   },
   "line_counts": {
-   "unmatched": 30,
+   "unmatched": 28,
    "untracked": 25,
    "fix": 18,
    "documented": 86,
-   "described": 21,
+   "described": 23,
    "rounded": 2
   },
   "has_notes": true
@@ -765,10 +765,10 @@
    "unreleased": 56
   },
   "line_counts": {
-   "unmatched": 75,
+   "unmatched": 73,
    "untracked": 39,
    "fix": 30,
-   "described": 35,
+   "described": 37,
    "rounded": 5,
    "documented": 136,
    "mismatch": 2,
@@ -981,18 +981,18 @@
   "builds": 21,
   "counts": {
    "documented": 171,
-   "described": 134,
-   "hidden": 102,
+   "described": 135,
+   "hidden": 101,
    "unannounced": 0,
    "unreleased": 97
   },
   "line_counts": {
    "untracked": 52,
-   "unmatched": 68,
+   "unmatched": 67,
    "heading": 5,
    "fix": 28,
    "documented": 151,
-   "described": 45,
+   "described": 46,
    "rounded": 2,
    "mismatch": 1,
    "code": 5
@@ -1024,18 +1024,18 @@
   "builds": 12,
   "counts": {
    "documented": 139,
-   "described": 108,
-   "hidden": 104,
+   "described": 106,
+   "hidden": 106,
    "unannounced": 0,
    "unreleased": 31
   },
   "line_counts": {
    "untracked": 23,
-   "unmatched": 45,
+   "unmatched": 44,
    "fix": 22,
    "heading": 1,
    "documented": 131,
-   "described": 45,
+   "described": 46,
    "rounded": 2,
    "mismatch": 2,
    "code": 4
@@ -1436,17 +1436,17 @@
   "builds": 6,
   "counts": {
    "documented": 39,
-   "described": 150,
-   "hidden": 33,
+   "described": 152,
+   "hidden": 31,
    "unannounced": 0,
    "unreleased": 4
   },
   "line_counts": {
    "untracked": 14,
    "heading": 1,
-   "described": 8,
+   "described": 9,
    "documented": 36,
-   "unmatched": 10,
+   "unmatched": 9,
    "rounded": 1,
    "fix": 2,
    "code": 1
@@ -1459,16 +1459,16 @@
   "date": "2025-07-04",
   "builds": 11,
   "counts": {
-   "documented": 106,
+   "documented": 207,
    "described": 60,
-   "hidden": 206,
+   "hidden": 105,
    "unannounced": 0,
    "unreleased": 8
   },
   "line_counts": {
    "described": 20,
-   "documented": 80,
-   "unmatched": 20,
+   "documented": 81,
+   "unmatched": 19,
    "rounded": 3,
    "fix": 13
   },
@@ -1856,16 +1856,16 @@
   "builds": 1,
   "counts": {
    "documented": 35,
-   "described": 5,
-   "hidden": 5,
+   "described": 6,
+   "hidden": 4,
    "unannounced": 0,
    "unreleased": 1
   },
   "line_counts": {
    "documented": 34,
-   "described": 5,
+   "described": 6,
    "fix": 1,
-   "unmatched": 2,
+   "unmatched": 1,
    "code": 1
   },
   "has_notes": true
@@ -1951,15 +1951,15 @@
   "builds": 9,
   "counts": {
    "documented": 118,
-   "described": 43,
-   "hidden": 120,
+   "described": 44,
+   "hidden": 119,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 23,
+   "unmatched": 22,
    "documented": 99,
-   "described": 23,
+   "described": 24,
    "rounded": 12,
    "fix": 4,
    "heading": 1,
@@ -1994,16 +1994,16 @@
   "builds": 14,
   "counts": {
    "documented": 33,
-   "described": 5,
-   "hidden": 164,
+   "described": 7,
+   "hidden": 162,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
    "documented": 27,
    "fix": 4,
-   "unmatched": 7,
-   "described": 3,
+   "unmatched": 6,
+   "described": 4,
    "rounded": 3
   },
   "has_notes": true
@@ -2075,15 +2075,15 @@
   "builds": 1,
   "counts": {
    "documented": 546,
-   "described": 753,
-   "hidden": 169,
+   "described": 754,
+   "hidden": 168,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 51,
+   "unmatched": 49,
    "documented": 472,
-   "described": 308,
+   "described": 310,
    "untracked": 2,
    "fix": 9,
    "rounded": 27,
@@ -2146,9 +2146,9 @@
    "unreleased": 1
   },
   "line_counts": {
-   "described": 33,
+   "described": 34,
    "documented": 146,
-   "unmatched": 9,
+   "unmatched": 8,
    "fix": 5,
    "rounded": 2,
    "code": 3
@@ -2711,16 +2711,16 @@
   "date": "2026-10-30",
   "builds": 2,
   "counts": {
-   "documented": 219,
-   "described": 60,
-   "hidden": 88,
+   "documented": 228,
+   "described": 63,
+   "hidden": 76,
    "unannounced": 0,
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 26,
+   "unmatched": 25,
    "heading": 4,
-   "described": 52,
+   "described": 53,
    "documented": 155,
    "fix": 5,
    "rounded": 14,
