@@ -1281,6 +1281,7 @@
  "misc:pickup_artist_drawing_assassin": "game/artist_portrait.webp",
  "misc:pickup_artist_drawing_base": "game/artist_portrait.webp",
  "misc:pickup_artist_drawing_brawler": "game/artist_portrait.webp",
+ "misc:pickup_artist_drawing_healer": "game/artist_portrait.webp",
  "misc:pickup_artist_drawing_marksman": "game/artist_portrait.webp",
  "misc:pickup_artist_drawing_mystic": "game/artist_portrait.webp",
  "misc:small_gold_pickup": "units/_mark/gold.webp",
