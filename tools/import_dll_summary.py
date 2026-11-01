@@ -48,13 +48,14 @@ def _merge_dll(a: dict | None, b: dict) -> dict:
 
 
 def convert(rows: list[dict]) -> dict[str, dict]:
-    """{build: {'dlls': {module: {...}}, 'other': [module, ...]}}; builds without any change are left out."""
+    """{build: {'seen': first Steam build's time, 'dlls': {module: {...}}, 'other': [module, ...]}}; builds without
+    any change are left out. `seen` dates the page of a build that changed only code (the tracker keeps no record)."""
     out: dict[str, dict] = {}
     for r in rows:
         build = str(r.get('build', ''))
         if not build.isdigit():
             continue
-        cur = out.setdefault(build, {'dlls': {}, 'other': []})
+        cur = out.setdefault(build, {'seen': r.get('seen', ''), 'dlls': {}, 'other': []})
         for mod, d in sorted((r.get('dlls') or {}).items()):
             cur['dlls'][mod] = _merge_dll(cur['dlls'].get(mod), d)
         cur['other'] = sorted(set(cur['other']) | set(r.get('other_dlls_changed') or ()))

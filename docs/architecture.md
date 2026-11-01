@@ -632,7 +632,9 @@ dumps, no steam.inf / manifests). Record format 8 (`pipeline/history.py`) adds:
   `python tools/import_dll_summary.py <summary.json>` from the per-build DLL diff summary (no code, addresses or
   paths; two Steam builds under one tracker build merged; type names spelled out). CI cannot refresh it. The page
   shows only functions whose code changed: "added / removed" are mostly functions the linker moved (6810's client.dll:
-  +1473 −1473). Strings and functions are one per row, left (a comma run read as a wall).
+  +1473 −1473). Strings and functions are one per row, left (a comma run read as a wall). A build that changed only
+  code has no record (the tracker's commit is a version bump): `builds_pages.code_only_rows` makes its page and list
+  row from the summary, dated by the Steam build's `seen`; stems of the records do not move.
 - Page stems (`common.build_pages`): a strings / protocol-only record (`common.tech_only_files`) is numbered after
   the records of its build number with game data or files, and the eye (`evidence.patch_builds`) never opens it — no
   page that existed before moved (6785's notes build is still 6785.html).

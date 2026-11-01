@@ -214,8 +214,18 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     return page(build_label(rec['build']), ''.join(body), rel, 'builds', cls='column')     # its cards: one column
 
 
-def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
-    stems = build_pages()
+def code_only_rows(index: list[dict]) -> list[dict]:
+    """Index rows of the builds that changed only code: the tracker's commit holds a version bump, so no record, but
+    the binaries' functions changed (6828: 11 in server.dll; 48 builds had no page, 2026-11-01). Each page is its
+    number, which no record has."""
+    known = {r['build'] for r in index}
+    return [{'build': int(b), 'commit': None, 'date': d['seen'], 'file': f'code-{b}', 'entities': []}
+            for b, d in build_tech.dll_changes().items()
+            if int(b) not in known and d.get('seen') and any(s['changed'] for s in d['dlls'].values())]
+
+
+def index_page(index: list[dict], patch_of: dict[str, dict], stems: dict[str, str] | None = None) -> str:
+    stems = stems or build_pages()
     rows = []
     for r in reversed(index):
         f = r.get('fields', {})
@@ -254,15 +264,17 @@ def index_page(index: list[dict], patch_of: dict[str, dict]) -> str:
 def build_all() -> int:
     index = load_json('builds/index.json')
     patch_of = _patch_of_build()
-    stems = build_pages()
-    pages = [stems[r['file']] for r in index]
+    code_only = code_only_rows(index)
+    stems = {**build_pages(), **{r['file']: str(r['build']) for r in code_only}}
+    rows = sorted(index + code_only, key=lambda r: r['date'])
+    pages = [stems[r['file']] for r in rows]
     n = 0
-    for i, r in enumerate(index):
-        rec = load_json(f'builds/{r["file"]}')
+    for i, r in enumerate(rows):
+        rec = r if r['file'].startswith('code-') else load_json(f'builds/{r["file"]}')
         prev_b = pages[i - 1] if i > 0 else None
         next_b = pages[i + 1] if i + 1 < len(pages) else None
         with facing_scope():                 # a record is read once: its rows leave the memo with the page
             write(f'builds/{pages[i]}.html', build_page(rec, patch_of.get(r['file']), prev_b, next_b))
         n += 1
-    write('builds/index.html', index_page(index, patch_of))
+    write('builds/index.html', index_page(rows, patch_of, stems))
     return n

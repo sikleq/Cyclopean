@@ -86,6 +86,21 @@ def test_dll_summary_merges_two_steam_builds_and_spells_names():
     assert out['6815']['other'] == ['engine2', 'particles']
 
 
+def test_a_build_that_changed_only_code_gets_a_row_dated_by_the_steam_build(monkeypatch):
+    from builders import builds_pages
+    fn = {'changed': 11, 'added': 0, 'removed': 0, 'unnamed': 0, 'functions': []}
+    moved = {**fn, 'changed': 0, 'added': 5, 'removed': 5}
+    monkeypatch.setattr(build_tech, 'dll_changes', lambda: {
+        '6826': {'seen': '2026-10-30T20:44:19Z', 'dlls': {'server': fn}, 'other': []},          # has its record
+        '6828': {'seen': '2026-10-30T21:15:51Z', 'dlls': {'server': fn}, 'other': []},
+        '6827': {'seen': '2026-10-30T21:00:04Z', 'dlls': {'server': moved}, 'other': []}})      # only moved: no page
+    rows = builds_pages.code_only_rows([{'build': 6826, 'file': '6826_x.json.gz'}])
+    assert [(r['build'], r['date'], r['file']) for r in rows] == [(6828, '2026-10-30T21:15:51Z', 'code-6828')]
+    html = builds_pages.build_page(rows[0], None, None, None)
+    assert '11 changed' in html and 'tracker commit' not in html
+    assert ids.convert([{'build': '6828', 'seen': 'T', 'dlls': {'server': fn}}])['6828']['seen'] == 'T'
+
+
 def test_build_page_sections_show_the_change_and_no_noise(monkeypatch):
     monkeypatch.setattr(build_tech, 'names_by_id', lambda: {'hero_nurse': 'Nurse'})
     assets = {'counts': {'hero_model': {'added': 2, 'removed': 0, 'modified': 9}},

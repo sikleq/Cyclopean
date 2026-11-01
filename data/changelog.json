@@ -1,5 +1,13 @@
 [
   {
+    "date": "2026-11-01",
+    "title": "Builds that changed only code",
+    "items": [
+      "Changed functions of client.dll and server.dll are now listed up to build 6839, including the Halloween update.",
+      "48 builds whose only change was the code of the game's binaries (6828, 6837, 6839 and older ones) now have a build page and a row in the builds list."
+    ]
+  },
+  {
     "date": "2026-10-31",
     "title": "Portraits from build 6829",
     "items": [
