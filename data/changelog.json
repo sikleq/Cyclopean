@@ -1,6 +1,16 @@
 [
   {
     "date": "2026-11-01",
+    "title": "Numbers of new entries, event dates, reverts",
+    "items": [
+      "A Game entry that never moved since it came now shows the numbers it came with: the Candy Cauldron's 40s respawn, the Troll Trick or Treat's 30% steal chance and its four buffs, Eat Candy's heal and Sugar Rush.",
+      "Seasonal events has Halloween 2026's dates from the game's own definition: starts 2026-10-30 16:00 UTC, Valve's test from 2026-10-15, no end in the files, not owned.",
+      "A row that puts a value back says so: \"reverts 2026-06-30\" names the update it undoes. Exact, from the files.",
+      "Restorative Shot: \"Can target +allied heroes (its shots proc on them)\"."
+    ]
+  },
+  {
+    "date": "2026-11-01",
     "title": "Builds that changed only code",
     "items": [
       "Changed functions of client.dll and server.dll are now listed up to build 6839, including the Halloween update.",

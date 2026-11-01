@@ -2088,7 +2088,7 @@ def key_changes(ents: list[dict]) -> list[dict]:
     return rows[:KEY_LIMIT]
 
 
-LOC_GROUPS = ('citadel_heroes', 'citadel_mods', 'citadel_attributes', 'citadel_main',
+LOC_GROUPS = ('citadel_heroes', 'citadel_mods', 'citadel_attributes', 'citadel_main', 'citadel_seasonal',
               'citadel_gc_mod_names', 'citadel_gc_hero_names')
 LOC_LIMIT = 400
 # console variables are kept whole (coverage audit 2026-10-05: the list stopped at 300 of City Never Sleeps' 510

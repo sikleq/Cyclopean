@@ -86,6 +86,29 @@ def test_dll_summary_merges_two_steam_builds_and_spells_names():
     assert out['6815']['other'] == ['engine2', 'particles']
 
 
+def test_a_row_that_puts_a_field_back_says_which_update_it_undoes():
+    from builders import reverts
+    k = 'abilities.vdata:x:m_flCooldown'
+    up = {'key': k, 'old_s': '95s', 'new_s': '110s', 'builds': [1]}
+    other = {'key': 'other', 'old_s': '110s', 'new_s': '95s', 'builds': [2]}
+    back = {'key': k, 'old_s': '110s', 'new_s': '95s', 'builds': [2]}
+    again = {'key': k, 'old_s': '95s', 'new_s': '100s', 'builds': [3]}
+    got = reverts.reverted([('2026-06-30', up), ('2026-10-30', other), ('2026-10-30', back), ('2026-11-01', again)])
+    assert got == {(k, '110s', '95s', (2,)): '2026-06-30'}        # another field's move and a new value are no revert
+    # two moves inside one update are not an update undoing another
+    assert reverts.reverted([('2026-06-30', up), ('2026-06-30', back)]) == {}
+
+
+def test_restorative_shot_says_what_an_allied_target_means():
+    from builders.render import shown_pair
+    t = 'CITADEL_UNIT_TARGET_'
+    row = {'path': 'm_nAbilityTargetTypes', 'op': 'change', 'cat': 'mechanic', 'old_s': t + 'ALL_ENEMY',
+           'new_s': f'{t}ALL_ENEMY | {t}HERO_FRIENDLY'}
+    medic = {**row, 'key': 'abilities.vdata:upgrade_medic_bullets:m_nAbilityTargetTypes'}
+    assert shown_pair(medic)[1][0][0] == '+allied heroes (its shots proc on them)'
+    assert shown_pair({**row, 'key': 'abilities.vdata:other:m_nAbilityTargetTypes'})[1][0][0] == '+allied heroes'
+
+
 def test_a_build_that_changed_only_code_gets_a_row_dated_by_the_steam_build(monkeypatch):
     from builders import builds_pages
     fn = {'changed': 11, 'added': 0, 'removed': 0, 'unnamed': 0, 'functions': []}

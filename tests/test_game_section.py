@@ -316,6 +316,47 @@ def test_an_entrys_numbers_today_are_the_newest_values_of_its_history():
     assert [v[0] for v in entry_values(hist + [later])] == ['Bounty']
 
 
+def test_an_event_reads_its_dates_from_the_games_definition():
+    from pipeline.events import parse
+    text = ('{ generic_data_type = "CCitadelEventDefinition"\n EVENT_ID_HALLOWEEN_2026 = {\n m_bMustBeOwned = false\n'
+            ' m_rtEventStartTimeDev = 1792102156\n m_rtEventStartTime = 1793376000\n m_rtEventEndTime = "none"\n } }')
+    assert parse(text) == [{'id': 'EVENT_ID_HALLOWEEN_2026', 'name': 'Halloween 2026', 'start': '2026-10-30 16:00',
+                            'test_start': '2026-10-15 22:09', 'end': None, 'must_be_owned': False}]
+
+
+def test_the_seasonal_events_page_has_the_events_dates(monkeypatch):
+    from builders import game_now
+    monkeypatch.setattr(game_now, 'load_json', lambda rel: [{
+        'id': 'E', 'name': 'Halloween 2026', 'start': '2026-10-30 16:00', 'test_start': None, 'end': None,
+        'must_be_owned': False}])
+    html = game_now.now_block('events', {}, {}, {}, {})
+    assert 'Halloween 2026' in html and '2026-10-30 16:00 UTC' in html and 'not set in the files' in html
+    assert 'Halloween 2026' not in game_now.now_block('urn', {}, {}, {}, {})
+
+
+def test_an_entry_that_never_moved_shows_the_numbers_it_came_with(monkeypatch):
+    """Halloween's Candy Cauldron read only "Added to the game files" (owner 2026-11-01): a patch folds a new entry into
+    that row, the build record keeps its numbers."""
+    from builders import game_now
+    key = 'misc.vdata:cauldron'
+    row = {'id': '2026-10-30', 'date': '2026-10-30'}
+    came = [ch(op='add', cat='balance', label=lbl, old_s='', new_s=v, path=p) for lbl, v, p in (
+        ('Buff Duration', '160s', 'm_Buff{x}.m_flDuration'), ('Respawn Time', '40s', 'm_flRespawnTime'),
+        ('Model Scale', '1', 'm_flModelScale'), ('Channel Move Speed', '-1', 'm_x'),
+        ('Candy Drops citadel_x', '1', 'm_map.citadel_x'))]
+    came.append(ch(op='add', cat='mechanic', label='Heavy Melee Only', old_s='', new_s='yes', path='m_b'))
+    rec = {'entities': [{'file': 'misc.vdata', 'id': 'cauldron', 'changes': came}]}
+    monkeypatch.setattr(game_now.archive, 'patch', lambda pid: {'builds': [{'file': 'b.json.gz'}]})
+    monkeypatch.setattr(game_now, '_record', lambda file: rec)
+    added = (row, [ch(op='add', path='@add', label='Added to the game files', old_s='', new_s='')])
+    assert game_now.added_values(key, [added]) == [('Respawn Time', '40s', '2026-10-30'),
+                                                   ('Buff Duration', '160s', '2026-10-30')]
+    # one that moved since shows its moves, not the numbers it came with
+    moved = ({'id': '2026-11-01', 'date': '2026-11-01'}, [ch(label='Respawn Time', old_s='40s', new_s='30s')])
+    assert game_now.added_values(key, [moved, added]) == []
+    assert [p[1][0][1] for p in game_now.entry_panels([[(key, 'Cauldron', '')]], {key: [added]}, {})] == ['40s']
+
+
 def test_entries_with_the_same_numbers_share_one_panel_whenever_they_moved():
     from builders.game_now import entry_panels
     r1, r2 = {'id': '2026-03-01', 'date': '2026-03-01'}, {'id': '2026-06-04', 'date': '2026-06-04'}

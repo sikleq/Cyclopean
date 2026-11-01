@@ -569,7 +569,9 @@ Game section (2026-10-05, part 2; owner: "I want to see ALL changes to everythin
   Troopers & lanes, Neutral camps & Mid-Boss, Shop & item rules, Movement & combat, Modes, Seasonal events, Other rules
   & objects. Seasonal events (2026-10-30) is first in precedence: Halloween's cauldrons, troll, candy, masks, pumpkins
   and `citadel_halloween_*` variables, Winter's snowball and presents — otherwise a cauldron reads as a crate and the
-  candy every hero carries as a hero move. Each has parts (the page's filters). A rule is a regex tried from the start of a subject, systems and parts in config
+  candy every hero carries as a hero move. Its dates come from `pipeline/events.py` (events.vdata → data/events.json).
+  An entry that never moved shows the numbers it came with, read from the build record (`game_now.added_values`). A
+  row that undoes the field's previous move in another update carries "reverts <date>" (`builders/reverts.py`). Each has parts (the page's filters). A rule is a regex tried from the start of a subject, systems and parts in config
   order, first match wins; subjects are an entry `file:id#kind`, a row of a rule for every hero / ability `file:@all:path`,
   a console variable `convar:name`. Names: the config's (the files give these entries no text), else the catalog's, else
   `pretty_id` without `modifier_` — never an id; templates say "(template)", loot tables "Loot table: …". Icons: a path

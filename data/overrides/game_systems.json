@@ -2,7 +2,7 @@
   "_why": "Coverage audit 2026-10-05 (owner: 'I want to see ALL changes to everything in the game'): 2,040 gameplay changes (1,340 not in the patch notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04, crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables). They are the Game section (builders/game_systems.py): a system is a page like a unit family's, its parts are groups of entries. Every rule is a regex tried from the start of a subject, systems and parts in this order, the first match wins. Subjects: an entry 'file:id#kind' ('misc.vdata:citadel_breakable_item_container#global'), a row of a rule for every hero or ability 'file:@all:path' ('heroes.vdata:@all:m_mapLevelInfo.10…'), a console variable 'convar:name'. Whatever no system names falls to 'other' (nothing is lost); a console variable only shows when a part names it (UI, bots and debug switches stay in the patch archive). Names: the game's files give most of these entries no text, so the site names them here (never their ids); icons come from the game files (icons/…; art a system has no field for is picked in game_icons.json and stored under icons/game/) or the site's pixel glyphs ('glyph:…'), never invented art.",
   "_why_display": "The order the pages list the systems in (the 'systems' order below is the regexes' precedence: the Urn's soul orbs before every soul orb).",
   "display": ["souls", "respawn", "progression", "urn", "pickups", "breakables", "troopers", "camps", "shop", "combat", "modes", "events", "other"],
-  "_why_events": "Halloween 2026 (build 6826, owner 2026-10-30: 'add it'): the event's candy, cauldrons, trick-or-treat troll, masks and pumpkins were spread over Every hero's abilities (the candy is a cosmetic slot every hero carries), Crates and Effects, and its console variables were on no page. Seasonal events go first so a cauldron is not a crate. Winter: the 2025 Holiday Challenge's snowball and presents. Icon: the 2026 candy the Eat Candy slot shows (items/seasonal/2026_candy, game_icons.json 'systems'). 'Eat Candy' below is the game's text from citadel_seasonal_english.txt, a localization file new in 6826 the pipeline does not read yet.",
+  "_why_events": "Halloween 2026 (build 6826, owner 2026-10-30: 'add it'): the event's candy, cauldrons, trick-or-treat troll, masks and pumpkins were spread over Every hero's abilities (the candy is a cosmetic slot every hero carries), Crates and Effects, and its console variables were on no page. Seasonal events go first so a cauldron is not a crate. Winter: the 2025 Holiday Challenge's snowball and presents. Icon: the 2026 candy the Eat Candy slot shows (items/seasonal/2026_candy, game_icons.json 'systems').",
   "systems": [
     {
       "id": "events",
@@ -236,7 +236,6 @@
     "misc.vdata:citadel_breakable_prop_punchable_troll": "Troll Trick or Treat",
     "misc.vdata:halloween_candy_pickup": "Candy",
     "modifiers.vdata:modifier_citadel_halloween_mask": "Halloween mask",
-    "abilities.vdata:seasonal_ability_eat_halloween_candy": "Eat Candy",
     "misc.vdata:pickup_artist_drawing_base": "Sketch template",
     "abilities.vdata:citadel_ability_zip_line": "Zip Line",
     "abilities.vdata:ability_golden_idol": "Drop Soul Urn",

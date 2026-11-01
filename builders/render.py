@@ -342,6 +342,10 @@ def _short_flag(f: str) -> str:
 
 
 _SIDE_CLASS = {1: 'good', -1: 'bad', 0: 'even'}
+# what a target means for an item that is no aimed ability: Restorative Shot's modifier has m_bProcOnFriendlyBulletHits
+# (6711) and the item gained allied heroes in 6790, read raw as "Can target +allied heroes" (leftover of 2026-10-17)
+ALLY_PROC_WORDS = {'abilities.vdata:upgrade_medic_bullets:m_nAbilityTargetTypes':
+                   {'allied heroes': 'allied heroes (its shots proc on them)'}}
 
 
 def _bits_html(added: list[tuple[str, int]], removed: list[tuple[str, int]]) -> str:
@@ -571,7 +575,8 @@ def shown_pair(c: dict) -> tuple:
         old_s, new_s = (penalty_words(v) if v not in (None, '', '—') else v for v in (old_s, new_s))
     d = flag_rules.diff(path, old_s, new_s) if path else None
     if d is not None and (d[0] or d[1]):
-        return ('flags', [(f'+{w}', _SIDE_CLASS[s]) for w, s in d[0]] + [(f'−{w}', _SIDE_CLASS[-s]) for w, s in d[1]])
+        return ('flags', [(f'+{ALLY_PROC_WORDS.get(c.get("key"), {}).get(w, w)}', _SIDE_CLASS[s]) for w, s in d[0]]
+                + [(f'−{w}', _SIDE_CLASS[-s]) for w, s in d[1]])
     a, b = _flags(old_s), _flags(new_s)
     if a is not None or b is not None:
         none = ('', '—', None)                    # an absent side is no flag ("−—" on 41 rows)

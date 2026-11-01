@@ -525,14 +525,21 @@ def change_row(c: dict, source: bool = True) -> str:
     extra = 'rw' if c.get('op') == 'rework' or c.get('bonus_list') else ''
     tip, href, late = row_evidence(c)        # the eye names the build it came in and opens it
     # a long console variable's name breaks after its underscores, not mid-word (common.wbr_ids)
-    html = row(c.get('status', 'hidden'), tag_html(c), wbr_ids(esc(c.get('label'))) + shared_chip(c), vals_html(c),
-               extra, tip=tip, href=href, late=late)
+    html = row(c.get('status', 'hidden'), tag_html(c), wbr_ids(esc(c.get('label'))) + shared_chip(c) + revert_chip(c),
+               vals_html(c), extra, tip=tip, href=href, late=late)
     # a build page's row: its source a click away and its anchor (the eye on an entity page lands here)
     aid, src = row_source(c) if source else (None, '')
     if not src:
         return html
     ident = f' id="{aid}"' if aid else ''
     return f'<details class="src"{ident}><summary>{html}</summary>{src}</details>'
+
+
+def revert_chip(c: dict) -> str:
+    """'reverts 2026-06-30' after a row that puts its field back where that update took it from (builders/reverts.py)."""
+    from .reverts import revert_date             # it reads the archive, which reads this module
+    date = revert_date(c)
+    return f' <span class="chip shr">reverts {esc(date)}</span>' if date else ''
 
 
 def shared_chip(c: dict) -> str:

@@ -37,8 +37,8 @@ STEP_DIRS = {'patches': ('patches',), 'builds': ('builds',), 'entities': ('heroe
 
 
 def refresh_data(sync: bool) -> None:
-    from pipeline import (abilities, catalog, cosmetics, enrich, hero_table, history, item_table, match, news, tracker,
-                          unit_table)
+    from pipeline import (abilities, catalog, cosmetics, enrich, events, hero_table, history, item_table, match, news,
+                          tracker, unit_table)
     if sync:
         print('tracker ->', tracker.sync()[:8])
     # the last processed tracker commit: update-data.yml compares it with
@@ -49,6 +49,7 @@ def refresh_data(sync: bool) -> None:
     enrich.run()
     catalog.build()
     cosmetics.build()
+    events.build()
     abilities.build()
     hero_table.build()
     unit_table.build()
