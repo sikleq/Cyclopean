@@ -1495,6 +1495,10 @@ tiered unit table (`table.kvt.tier-grid`) is unchanged. Every table box hugs its
 `.github/workflows/build.yml` installs Playwright + Chromium (cached) and runs `pytest -rs`;
 `tests/conftest.py` has the one `browser` fixture; with `CI` set a missing browser fails.
 
+The `alert` job (`tools/build_alert.py`) keeps one open issue, "Site build is failing", while the build on main is
+broken: a failure opens it and mentions the owner, so GitHub notifies them, and the next good build closes it. Running
+the workflow by hand with `alert_drill` fails on purpose, to check the whole path; the site stays as it is.
+
 ## Entity page head and history updates
 
 "patch ↗" (`history_view.patch_href(pid, rel, id, also)`): the notes' card (`#n-`) or the All changes place

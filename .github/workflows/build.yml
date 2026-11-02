@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      alert_drill:
+        description: Fail on purpose, to see the alert issue open (the next good build closes it)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -20,6 +25,9 @@ jobs:
     # ubuntu-latest became Ubuntu 26 (2026-10-30): Playwright 1.57 cannot install Chromium there
     runs-on: ubuntu-24.04
     steps:
+      - name: Alert drill
+        if: inputs.alert_drill
+        run: exit 1
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
@@ -63,3 +71,20 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  # one open issue while the build is broken, tools/build_alert.py
+  alert:
+    if: always() && github.ref == 'refs/heads/main'
+    needs: [build, deploy]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v7
+      - run: python3 tools/build_alert.py ${{ join(needs.*.result, ' ') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          OWNER: ${{ github.repository_owner }}
