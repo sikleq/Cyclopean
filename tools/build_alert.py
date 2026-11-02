@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 TITLE = 'Site build is failing'
-BOT = 'app/github-actions'
+BOT = 'github-actions[bot]'     # the name gh's --author finds; its own output says app/github-actions, which finds nothing
 
 
 def decide(results: list[str], is_open: bool) -> str | None:

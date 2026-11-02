@@ -6,7 +6,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'tools'))
 
+import build_alert  # noqa: E402
 from build_alert import decide  # noqa: E402
+
+
+def test_the_open_issue_is_looked_up_by_the_name_that_finds_it(monkeypatch):
+    """The drill of 2026-11-02: --author app/github-actions found nothing, so a good build left the issue open."""
+    calls = []
+    monkeypatch.setattr(build_alert, 'gh', lambda *a: calls.append(a) or '[{"number": 1, "title": "Site build is failing"}]')
+    assert build_alert.open_issue() == '1'
+    assert calls[0][calls[0].index('--author') + 1] == 'github-actions[bot]'
 
 
 def test_a_failed_build_opens_the_issue_once():
