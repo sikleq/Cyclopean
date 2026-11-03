@@ -83,10 +83,11 @@
 "Phantom Strike: Fixed it sometimes malfunctioning and not teleporting to the target": 47
 },
 "2024-07-18": {
-"Ethereal Shift: Fixed a bug that could prevent you from shooting when you came out": 18,
+"Ethereal Shift: Fixed a bug that could prevent you from shooting when you came out": 21,
 "Fixed a bug that allowed you to shoot through walls": 5,
-"Fixed a bug where Infernus could get stuck in his Flame Dash pose": 18,
-"Fixed a speed exploit with Infernus Flame Dash": 8
+"Fixed a bug where Infernus could get stuck in his Flame Dash pose": 84,
+"Fixed a speed exploit with Infernus Flame Dash": 8,
+"Removed voice lines / fixed text that referenced the urn being delivered to the temple": 6
 },
 "2024-07-23": {
 "Fixed a rare case where you could abandon a match accidentally when accepting a friend invite": 52,
@@ -99,7 +100,7 @@
 "Fixed Paradox Swap sometimes putting players behind walls": 66,
 "Fixed Pocket's Cloak being able to tunnel through some ceilings and out of the world": 64,
 "Fixed Shrines not having collision": 2,
-"Fixed Spectral Wall forcing itself into the first ability slot if its cooldown is refreshed": 12,
+"Fixed Spectral Wall forcing itself into the first ability slot if its cooldown is refreshed": 46,
 "Fixed a bug with Urn that could cause you to be permanently silenced": 4,
 "Fixed crosshair sometimes being stuck hidden for Yamato after Flying Strike was interrupted": 42,
 "Fixed taking damage not interrupting teleporters": 9,
@@ -120,7 +121,7 @@
 "Fixed Candle Troopers sometimes instantly disappearing on death rather than going into their death flash state": 31,
 "Fixed Mimic options in sandbox not working properly": 23,
 "Fixed Ricochet sometimes shooting the extra bullet from your gun rather than the target": 11,
-"Fixed some cases where Lash's Ground Strike would cause your hero to be stuck": 5,
+"Fixed some cases where Lash's Ground Strike would cause your hero to be stuck": 57,
 "Ivy: Fixed melee still going through when casting Stone Form after initiating a melee attack": 62,
 "Pocket: Fixed the camera moving too slowly after teleporting with Cloak": 71,
 "Wraith: Fixed being able to melee and parry while stunned by Wraith's Telekinesis": 63
@@ -151,8 +152,10 @@
 "Fixed Alt Fires not working with conditional bonuses (like Close Range)": 29,
 "Fixed enemy team from being able to enter the base side passages": 28,
 "Fixed rooftop details not aligned to the new height of the rooftops": 14,
+"Fixed your gun reloading down to a smaller magazine when reloading with higher ammo than your max": 89,
 "Grey Talon: Fixed issues with Charged Shot hitting targets behind walls": 27,
 "Haze: Fixed issues with Sleep Dagger hitting targets behind walls": 18,
+"Shiv: Fixed issues with Serrated Knives hitting targets behind walls": 28,
 "Unstoppable: Fixed not preventing Disarm properly": 11,
 "Yamato: Alt fire now fixed to work with conditional damage sources (point blank, pristine emblem, etc)": 29
 },
@@ -189,8 +192,9 @@
 "Fixed Pausing not working when using hero specific key binds": 13,
 "Fixed Shiv's Killing Blow sometimes sending him into orbit": 56,
 "Fixed Streamer mode not persisting between game relaunches": 41,
-"Fixed more instances of the wrong name for a hero being called out": 36,
+"Fixed more instances of the wrong name for a hero being called out": 164,
 "Fixed some cases where Grey Talon's trap effects would be stuck in the world": 37,
+"Fixed troopers being unreliable to shoot while on the zipline": 26,
 "Grey Talon: Fixed Guided Owl colliding with nearby objects during cast": 123,
 "Grey Talon: Fixed Guided Owl grace period still requiring that he gets the kill, rather than the target just die": 13,
 "McGinnis: Fixed Ricochet not bouncing off of Mini Turrets": 91,
@@ -201,7 +205,7 @@
 "Abrams: Fixed some cases where Shoulder Charge would do a 180/360 on spell cast": 13,
 "Fixed Steam Input \"Melee\" Action not resetting the camera vertically": 139,
 "Fixed issue in several languages where team net worth number shrunk to an unreadable size": 18,
-"Kelvin: Fixed Frozen Shelter not freezing weakened patron": 25,
+"Kelvin: Fixed Frozen Shelter not freezing weakened patron": 26,
 "Yamato: Fixed Crimson Slash following in the direction of dash instead of cross hair": 10,
 "Yamato: Fixed being able to cast an ability while casting Flying Strike": 14
 },
@@ -213,14 +217,16 @@
 "Fixed some issues with Quantum Entanglement not moving units with it correctly when there is nearby geometry": 147,
 "Fixed the 'x' button in the shop search not clearing the search box": 80,
 "Fixed using melee to secure orbs being a little unresponsive": 140,
-"Fixed various bugs with Duplicate Hero not working properly in private lobbies": 26,
+"Fixed various bugs with Duplicate Hero not working properly in private lobbies": 28,
+"Lash: Fixed interaction between Mirage's tornado and Death Slam": 42,
 "Lucky Shot: Fixed it causing proc effects to roll twice whenever it procced": 65
 },
 "2024-11-21": {
+"Fixed Mo & Krill's Burrow traveling/underground sound not looping correctly": 39,
 "Fixed a bug where you would be prompted to sell an item if the component wasn't in the same category as the component you were buying (i.e. you go to buy slowing hex with your item slots full and you already own the component)": 13,
 "Fixed not being able to ping enemy items": 12,
 "Fixed right-clicking on an item in the shop in build editing mode causing it to be added to your Quickbuy queue": 14,
-"Haze: Fixed Bullet Dance sometimes freezing your client": 32,
+"Haze: Fixed Bullet Dance sometimes freezing your client": 49,
 "Mirage: Fixed Tornado being usable while immobilized": 54,
 "Paradox: Fixed Kinetic Carbine not proccing Headshot effects (Headshot booster, Headhunter, Crippling Headshot)": 82,
 "Vindicta: Fixed Assassinate being stuck if you zoom in and get silenced": 46
@@ -228,6 +234,7 @@
 "2024-12-06": {
 "Dynamo: Fixed Magic Carpet + Dynamo heal interaction": 94,
 "Dynamo: Singularity fixed tooltip referencing knock-up that it doesn't do": 15,
+"Fix to Yamato Shadow Transformation visuals when duration is extended after killing an enemy": 4,
 "Fixed Bebop's bomb damage growth not being reflected in the tooltip": 29,
 "Fixed bug preventing purchase sound from playing when buying/quickbuying Active or Imbued items": 1,
 "Fixed melee damage audio playing despite no damage dealt": 14,
@@ -246,15 +253,18 @@
 "Vyper: Fixed Lethal Venom T2 anti-heal not working properly": 3
 },
 "2025-02-25": {
-"Fixed 'Unstick Hero' and 'Suicide' buttons not working properly.": 110,
+"Fixed 'Unstick Hero' and 'Suicide' buttons not working properly.": 152,
+"Fixed Pause not working while you're dead.": 127,
 "Fixed a bug that allowed you to kill your teammates coming out of The Cube.": 196,
 "Fixed a bug where abilities could mispredict a successful cast if the target is an ally.": 94,
 "Fixed a bug where dragging and dropping items while editing a build would remove the annotation from the item.": 149,
 "Fixed a few cases of the camera getting stuck zoomed out.": 120,
-"Fixed active items sometimes not showing correct cooldown.": 178,
+"Fixed active items sometimes not showing correct cooldown.": 260,
+"Fixed an exploit that allowed players to 'secure' their souls by buying and refunding an item.": 250,
 "Fixed aoe abilities going through Frozen Shelter.": 140,
 "Fixed casting errors that would sometimes happen with Soul Exchange": 120,
-"Fixed getting stuck zoomed in if you tried to use Assassinate while getting stunned or silenced.": 133,
+"Fixed death replay not working if you try to play it right after you die.": 244,
+"Fixed getting stuck zoomed in if you tried to use Assassinate while getting stunned or silenced.": 178,
 "Fixed heroes sometimes getting dropped to the ground while under the effect of Rescue Beam.": 140,
 "Fixed long outstanding bug where sometimes you couldn't drag an item to an active item slot.": 248,
 "Fixed players getting killed by Bosses showing \"Unknown\" in the kill feed.": 189,
@@ -279,10 +289,14 @@
 "Fixed a bug where using Melee on the ground triggered Wall Jump fatigue.": 31,
 "Fixed a regression where Abrams' Siphon Life and Shoulder Charge ping VO were swapped.": 344,
 "Fixed bug causing nearby other players to appear jittery while on a zipline.": 161,
+"Fixed hero stats on dashboard page getting updated from the stats in your previous game.": 203,
 "Fixed items like Suppressor showing fire rate slow deltas for yourself when it's actually applied to the enemy.": 256,
 "Fixed several bugs that would cause Quickbuy purchases to fail.": 67,
 "Fixed some cases of self damage putting zipline usage on Cooldown and/or knocking the player off the zipline.": 205,
 "Fixed the base healing sound sometimes getting stuck on.": 193,
+"Fixed various Bullet Velocity tooltip issues.": 182,
+"Goo Ball: Fixed it knocking back heroes with Unstoppable state.": 174,
+"Hook: Fixed the hook sometimes not breaking when the target is stuck.": 223,
 "Leaping Slash: Fixed animation getting stuck when stunned during the ability cast.": 110,
 "Puddle Punch: Fix a bug where Puddle Punch would sometimes not deal damage when the target was very close to a wall.": 253,
 "Stone Form: Fixed interaction with air vents and small geo.": 212,
@@ -292,6 +306,8 @@
 "Spirit Rend: Fixed being able to get 2 stacks without using the cooldown": 5
 },
 "2025-05-27": {
+"Express Shot: Fixed shotguns with express shot instantly applying buildups": 18,
+"Fixed Neutrals near the base gaining the \"near base\" trooper resist": 3,
 "Lightning Scroll: Fixed bugs when used with Refresher": 18,
 "Mercurial Magnum: Fixed an interaction bug with Split Shot": 14,
 "Sinclair: Vexing Bolt radius fixed to scale with radius increase now": 130,
@@ -303,7 +319,7 @@
 "Fixed some AoE abilities not hitting midboss (Kelvin Frost Grenade, Lady Geist Blood Bomb, Holliday Barrel)": 89,
 "McGinnis: Fixed Mini Turrets missing targets that are on the ground from Stun or Sliding": 407,
 "Mirage: Fixed Cases where Mirage's Tornado would get Stuck and/or Go through Walls": 281,
-"Pocket: Fixed Cloak sliding up walls very quickly": 285,
+"Pocket: Fixed Cloak sliding up walls very quickly": 299,
 "Wraith: Project Mind fixed going no where if the player is on uneven ground": 104
 },
 "2025-07-29": {
@@ -334,7 +350,7 @@
 },
 "2026-02-04": {
 "Graves: Fixed her weapon not working with Close Quarters & Point Blank": 6,
-"Silver: Fixed her weapon not working with Close Quarters & Point Blank when in Lycan Curse": 1
+"Silver: Fixed her weapon not working with Close Quarters & Point Blank when in Lycan Curse": 2
 },
 "2026-03-06": {
 "Calico: Ava fixed camera not being centered around Ava": 104,
@@ -366,7 +382,7 @@
 "2026-04-30": {
 "Doorman: Fixed a bug that could allow you to bring the Urn through a doorway": 99,
 "Fixed Alt Fire scaling for Yamato and Viscous not working recently": 238,
-"Holliday: Fixed Rising Ram interrupting Lasso": 24,
+"Holliday: Fixed Rising Ram interrupting Lasso": 160,
 "McGinnis: Fixed Mini Turrets being locked on objectives when they were invulnerable": 685,
 "Silver: Fixed Tail Whack applying -12% Bullet Resist for the Disarm duration": 65,
 "Viscous: Fixed various locations where Splatter didn't bounce properly": 26,
@@ -377,7 +393,7 @@
 "Fixed the following items and abilities not working through veils: Heroic Aura, Healing Rite, Healing Nova, Rescue Beam, Divine Barrier, Kudzu Connection, Cube, Tag Along, Lil Helpers, Guardian Ward, Scourge, Plot Armor": 2,
 "Fixed various item barrier durations not scaling with duration increases": 344,
 "Graves: Fixed certain projectiles (i.e Gray Talon's Bird) colliding with Deadheads": 37,
-"Healing Booster: Fixed various abilities and items not being boosted correctly": 53,
+"Healing Booster: Fixed various abilities and items not being boosted correctly": 112,
 "McGinnis: Fixed Heavy Barrage not triggering Diviner's Kevlar": 62,
 "Rem: Tag Along fixed specific abilities/items that could kill Rem while he's napping": 94,
 "Yamato: Fixed Crimson Slash not being able to hit anything if the player is aimed too high or low": 465
@@ -386,7 +402,9 @@
 "Arcane Surge: Fixed various cases with the bonuses not working": 40,
 "Bebop: Fixed Sticky Bomb T3 duration ending once the bomb went off rather than the 5s duration": 108,
 "Infernus: Fixed Afterburn Max duration refreshing not properly accounting for both Debuff Resist and +Ability Duration": 189,
-"Ivy: Fixed a bug where Stone Form could sometimes do significantly more damage than intended": 4
+"Infernus: Fixed Concussive Combustion cooldown not updating when getting the T2 or other CD reducing items when the ability is on cooldown": 552,
+"Ivy: Fixed a bug where Stone Form could sometimes do significantly more damage than intended": 4,
+"McGinnis: Fixed some rare cases where Heavy Barrage would stop working": 88
 },
 "2026-07-28": {
 "Fixed the party member / team mate audio volume slider for voice communications": 182,
