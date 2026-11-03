@@ -8,6 +8,7 @@ import re
 from functools import lru_cache
 
 from .common import entity_icon, esc, plural, glyph_for, hero_icon, load_json, mark
+from .fix_reports import reported_chip
 from .render import shown_value, tag_badge, tag_html, tag_of, vals_text
 
 _FILE_ORDER = {'heroes.vdata': 0, 'abilities.vdata': 1, 'npc_units.vdata': 2}
@@ -282,7 +283,7 @@ def split_sections(sections: list[dict]) -> tuple[list[dict], list[dict]]:
     return play, iface
 
 
-def interface_table(sections: list[dict]) -> str:
+def interface_table(sections: list[dict], pid: str = '') -> str:
     """Interface / sound / settings lines as a feature grid: the feature's name bold, what it does
     below; no tags (they would all say UI), a status mark only when the files back the line."""
     out = []
@@ -293,7 +294,8 @@ def interface_table(sections: list[dict]) -> str:
             title, body = (m.group(1), m.group(2)) if m else ('', ln['text'])
             mk = mark(ln['status']) if ln['status'] in ('documented', 'described', 'rounded', 'mismatch', 'fix') else ''
             head = f'<b>{esc(title)}</b>' if title else ''
-            items.append(f'<li class="feat st-{esc(ln["status"])}">{mk}<span>{head}{esc(body)}</span></li>')
+            items.append(f'<li class="feat st-{esc(ln["status"])}">{mk}<span>{head}{esc(body)}'
+                         f'{reported_chip(pid, ln["text"])}</span></li>')
         out.append(f'<div class="banner sub"><span class="bt">{esc(s["title"])}</span>'
                    f'<span class="bc">{len(items)}</span></div><ul class="feats">{"".join(items)}</ul>')
     return ''.join(out)
@@ -352,7 +354,8 @@ def notes_table(p: dict, change_by_key: dict, rel: str) -> str:
                         text = _strip_name(text, ab[1])
                     if not tag:
                         tag = text_tag(text, ln.get('topic'))
-                    rows.append(row(ln['status'], tag, _feature_html(text, d, rel) if not subject else _highlight(text, d),
+                    words = _feature_html(text, d, rel) if not subject else _highlight(text, d)
+                    rows.append(row(ln['status'], tag, words + reported_chip(p['id'], ln['text']),
                                     _files_cell(ln, changes, ent)))
             if not subject:
                 cards.append(f'<article class="ecard plain"><div class="eb">{"".join(rows)}</div></article>')

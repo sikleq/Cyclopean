@@ -958,7 +958,7 @@ def test_entity_history_rows_marks_filters_and_lazy_blocks():
                              (r2, {'text': 'Abrams: Fixed a bug', 'status': 'fix', 'subject': 'Abrams'})]}
     areas = {'heroes.vdata:hero_atlas': 'stats', 'abilities.vdata:ab_charge': 'abil'}
     html = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas)
-    assert 'Can now cancel Shoulder Charge' in html and 'Fixed a bug' not in html
+    assert 'Can now cancel Shoulder Charge' in html and 'Fixed a bug' in html
     assert 'Technical' not in html and 'data-ab="ab_charge" data-area="abil"' in html
     # the toolbar: tags present, the eye, parts; the newest block in the page, the older one lazy
     assert 'data-f-tag="buff"' in html and 'data-f-tag="nerf"' in html and 'data-f-area="stats"' in html

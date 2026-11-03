@@ -37,6 +37,11 @@
 - Functions of the binaries: not in the tracker. `data/dll_changes.json` is a copy of a per-build function diff of
   client.dll / server.dll (downloaded by Steam manifest, compared function by function), imported by hand with
   `tools/import_dll_summary.py`.
+- How long before a Fixed note line the bug was first reported: `data/fix_reports.json`, {update: {line: days}}, imported
+  by hand with `tools/import_fix_reports.py` from a private reading of the game's forum (two readers must both be sure
+  that the report and the line are one misbehaviour, in the replies too, with no limit on how old the report is; a report
+  of the update's own day does not count). The site keeps the number only: no link, thread or player's words (owner
+  2026-11-03).
 - Seasonal events: `game/citadel/pak01_dir/events/events.vdata` → `data/events.json` (`pipeline/events.py`): start,
   Valve's test start, end, must be owned. The event's reward list (`events/halloween_2026.vdata_inc`) is not dumped by
   the tracker.

@@ -382,7 +382,7 @@ def patch_page(p: dict, prev: dict | None, nxt: dict | None) -> str:
                      notes_table({**p, 'sections': play}, change_by_key, rel)))
         if iface:
             # interface, sound and settings lines: their own tab, a compact grid of features
-            tabs.append(('interface', 'Interface & sound', sum(len(s['lines']) for s in iface), interface_table(iface)))
+            tabs.append(('interface', 'Interface & sound', sum(len(s['lines']) for s in iface), interface_table(iface, p['id'])))
         # what the notes left out, as readable lines next to Valve's (review 2026-10-05: the tab repeated All changes
         # and a "#hidden" link pressed a raw filter whose first rows were engine words); 'generated', not 'files':
         # the asset tab "Game files" already uses id="files"

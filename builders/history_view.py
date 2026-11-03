@@ -1,8 +1,9 @@
 """Entity history (hero, item and unit pages) — the heart of the site (owner, 2026-10-03: "closer to
 Sloppy"): patch by patch, newest first, one group per part of the entity (base stats, the gun, each
 ability), the rows = what the files changed (tag, field, old → new) with the eye on what the notes left
-out, plus the changes the notes name that live in the game's code (status 'code'). Bug fixes, sound /
-look lines, engine plumbing ("Technical") and unmatched note lines stay in data/, off the page.
+out, plus the changes the notes name that live in the game's code (status 'code') and the bug fixes they name
+(status 'fix', owner 2026-11-03). Sound / look lines, engine plumbing ("Technical") and unmatched note lines stay
+in data/, off the page.
 
 A toolbar filters by tag, by "hidden", by part (Stats / Weapon / Abilities) and by ability (scripts.js
 `hist-filter`). Work on a hero still in development hides behind "Before release" once the hero is out, a
@@ -22,11 +23,12 @@ import re
 
 from .common import EYE_MARK, band_title_html, esc, glyph_for, mark, patch_name, patch_title_text, visual
 from .notes_view import _highlight, text_tag
+from .fix_reports import reported_chip
 from .model_rows import MODEL_PREFIX, model_rows, model_window
 from .text_rows import TEXT_PREFIX, text_rows
 
 YEAR_BANNERS_MIN = 8      # a history longer than this gets a year banner where the year changes
-TEXT_STATUSES = ('code',)  # note lines shown as rows: changes in the game's code (the files did not move)
+TEXT_STATUSES = ('code', 'fix')  # note lines shown as rows: changes in the game's code (the files did not move), bug fixes
 TAG_FILTERS = ('new', 'rework', 'buff', 'nerf', 'del', 'mech', 'up', 'down')
 AREAS = (('stats', 'Stats'), ('weapon', 'Weapon'), ('abil', 'Abilities'))
 CONVARS_KEY = ':convars'  # a Game system part's console variables (game_pages: 'game:<system>:<part>:convars')
@@ -467,7 +469,8 @@ def _groups(slot: dict, order: dict, meta: dict, names: list[str], hints: dict |
         for ln in lines:
             text = _drop_prefix(ln['text'], names + [nm])
             # a line whose wording names no kind gets the neutral NOTE (its tag column was blank)
-            rows += row(ln['status'], text_tag(text, ln.get('topic')) or note_badge('NOTE'), _highlight(text, 'changed'))
+            rows += row(ln['status'], text_tag(text, ln.get('topic')) or note_badge('NOTE'),
+                        _highlight(text, 'changed') + reported_chip(slot['row']['id'], ln['text']))
         rows += text_rows(texts.get(key, []), hero, changes)
         rows += model_rows(models.get(key, []))
         if not rows:

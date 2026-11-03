@@ -1,5 +1,13 @@
 [
   {
+    "date": "2026-11-03",
+    "title": "How long a bug waited",
+    "items": [
+      "A bug fix in the patch notes says how long before it the bug was first reported: \"was first reported 18 days before\". 299 lines so far.",
+      "Hero, item and unit pages list the bug fixes the patch notes name for them, under the update that made them."
+    ]
+  },
+  {
     "date": "2026-11-01",
     "title": "Numbers of new entries, event dates, reverts",
     "items": [

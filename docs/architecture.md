@@ -81,7 +81,7 @@ icons/                 WebP/SVG from the game VPK (tools/extract_icons.py), keye
 | described | a note line talks about it without exact numbers (e.g. "All slows reduced by ~20%") |
 | hidden | nothing in the notes covers it — the eye marker; in a hero's release window: what its announcement left out |
 | mismatch (line) | the line names a property of the entity but the files say other numbers |
-| fix (line) | a bug-fix line ("Fixed …") — usually no data change |
+| fix (line) | a bug-fix line ("Fixed …") — usually no data change; where a report of it is known it says "was first reported 18 days before" (`builders/fix_reports.py`), with no link; a line with a subject is also a row of that entity's page (`history_view.TEXT_STATUSES`), not counted by the band |
 | rounded (line) | the notes round a value (0.54 → "0.5"); exact values shown |
 | unannounced | a window with no changelog and no hero release (build-6169, "Rem Enters The City That Never Sleeps"): nothing can be "hidden"; the page shows
   the biggest changes and patch notes written from the files |
