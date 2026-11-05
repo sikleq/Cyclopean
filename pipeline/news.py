@@ -93,8 +93,13 @@ def bbcode_lines(text: str) -> list[str]:
     t = re.sub(r'\[/p\]|\[br\]|\[/h\d\]|\[/list\]|\[/olist\]', '\n', t, flags=re.I)
     t = _TAG_RE.sub('', t)
     t = html.unescape(t).replace('\x00', '[').replace('\x01', ']')
-    # '{STEAM_CLAN_IMAGE}/…/x.jpg' is an inline picture left after the [img] tag is stripped
-    return [ln.strip() for ln in t.splitlines() if ln.strip() and not _IMAGE_LINE.match(ln.strip())]
+    # '{STEAM_CLAN_IMAGE}/…/x.jpg' is an inline picture left after the [img] tag is stripped; a line of dashes is a
+    # rule: Steam's feed writes [hr] as "------" since 2026-11-05 (two "-----" lines on the Ranked post)
+    return [ln.strip() for ln in t.splitlines() if ln.strip() and not _IMAGE_LINE.match(ln.strip())
+            and not _RULE_LINE.match(ln.strip())]
+
+
+_RULE_LINE = re.compile(r'^[-_=*]{3,}$')
 
 
 def parse_lines(lines: list[str]) -> list[Section]:

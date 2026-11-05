@@ -317,9 +317,9 @@
   },
   "line_counts": {
    "untracked": 17,
-   "unmatched": 27,
+   "unmatched": 26,
    "fix": 15,
-   "described": 11,
+   "described": 12,
    "documented": 80,
    "rounded": 1,
    "code": 4
@@ -1488,8 +1488,8 @@
   },
   "line_counts": {
    "documented": 105,
-   "described": 18,
-   "unmatched": 20,
+   "described": 19,
+   "unmatched": 19,
    "untracked": 4,
    "code": 5
   },
@@ -1951,15 +1951,15 @@
   "builds": 9,
   "counts": {
    "documented": 118,
-   "described": 44,
-   "hidden": 119,
+   "described": 45,
+   "hidden": 118,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 22,
+   "unmatched": 21,
    "documented": 99,
-   "described": 24,
+   "described": 25,
    "rounded": 12,
    "fix": 4,
    "heading": 1,
@@ -1974,9 +1974,9 @@
   "date": "2026-02-02",
   "builds": 4,
   "counts": {
-   "documented": 18,
+   "documented": 19,
    "described": 1,
-   "hidden": 53,
+   "hidden": 52,
    "unannounced": 0,
    "unreleased": 3
   },
@@ -2199,8 +2199,8 @@
   "date": "2026-04-10",
   "builds": 8,
   "counts": {
-   "documented": 97,
-   "described": 26,
+   "documented": 98,
+   "described": 25,
    "hidden": 75,
    "unannounced": 0,
    "unreleased": 0
@@ -2220,9 +2220,9 @@
   "date": "2026-04-30",
   "builds": 1,
   "counts": {
-   "documented": 129,
+   "documented": 130,
    "described": 106,
-   "hidden": 122,
+   "hidden": 121,
    "unannounced": 0,
    "unreleased": 18
   },
@@ -2391,9 +2391,9 @@
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 23,
+   "unmatched": 22,
    "documented": 91,
-   "described": 26,
+   "described": 27,
    "untracked": 2,
    "fix": 1,
    "rounded": 1
@@ -2735,17 +2735,17 @@
   "date": "2026-11-04",
   "builds": 2,
   "counts": {
-   "documented": 32,
-   "described": 5,
-   "hidden": 5,
+   "documented": 36,
+   "described": 6,
+   "hidden": 0,
    "unannounced": 0,
    "unreleased": 0
   },
   "line_counts": {
-   "unmatched": 2,
    "described": 5,
-   "documented": 28,
-   "rounded": 1
+   "documented": 29,
+   "rounded": 1,
+   "unmatched": 1
   },
   "has_notes": true
  },
@@ -2753,7 +2753,7 @@
   "id": "2026-11-05",
   "title": "Ranked - Beta Season 2",
   "date": "2026-11-05",
-  "builds": 5,
+  "builds": 6,
   "counts": {
    "documented": 0,
    "described": 0,
@@ -2763,8 +2763,8 @@
   },
   "line_counts": {
    "unmatched": 19,
-   "untracked": 5,
-   "heading": 5
+   "heading": 5,
+   "untracked": 3
   },
   "has_notes": true
  }

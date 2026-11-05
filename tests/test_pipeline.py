@@ -167,6 +167,9 @@ def test_bbcode_sections_and_bullets():
     secs = parse_lines(bbcode_lines(text))
     assert secs[-1].title == 'Heroes'
     assert secs[-1].lines == ['Lash: Flog heal reduced from 50% to 40%']
+    # a rule is no line: Steam's feed writes [hr] as "------" (Ranked - Beta Season 2, 2026-11-05)
+    assert bbcode_lines('[p]A ranked change.[/p]\n\n------\n\n[p]Beta Season 2 begins today![/p]') \
+        == ['A ranked change.', 'Beta Season 2 begins today!']
 
 
 def test_parse_pairs_simple_and_ranges():
@@ -1318,3 +1321,67 @@ def test_the_blanket_file_is_valid():
             for k in ('path', 'id'):
                 if k in sc:
                     re.compile(sc[k])
+
+
+def test_minor_update_2026_11_04_lines_find_their_fields():
+    """Four lines of the 11-04 notes: a hero's resistance stat (not an ability's spirit scaling), two values to one
+    "for both", a cut by N% that is the tier bonus too, an item's new field named by a word's stem."""
+    from pipeline.match import annotate_line, pair_hits
+
+    def run(text, changes, idx, cat):
+        by_ent = {}
+        for c in changes:
+            by_ent.setdefault(f'{c.file}:{c.eid}', []).append(c)
+        return annotate_line(text, changes, by_ent, idx, cat, {})
+
+    # Baba's Spirit Resist per Spirit 0.07 -> 0.05, not Baba's Brew's burn scaling 0.15 -> 0.13
+    resist = MChange('heroes.vdata', 'hero_baba', 'm_mapScalingStats.ETechArmorDamageReduction.flScale', 'change',
+                     0.07, 0.05, 'balance', 'hero', None, 'Spirit Resist per Spirit', False)
+    burn = MChange('abilities.vdata', 'ability_baba_hexing_brew',
+                   'm_mapAbilityProperties.DamagePerSecond.m_subclassScaleFunction.m_flStatScale', 'change',
+                   0.15, 0.13, 'balance', 'ability', 'hero_baba', 'Damage Per Second (spirit scaling)', False)
+    idx = {'baba': ['heroes.vdata:hero_baba']}
+    cat = {'heroes.vdata:hero_baba': {'id': 'hero_baba', 'kind': 'hero'},
+           'abilities.vdata:ability_baba_hexing_brew': {'id': 'ability_baba_hexing_brew', 'kind': 'ability',
+                                                         'owner': 'hero_baba'}}
+    res = run('Baba: Spirit Resistance scaling reduced from 0.7 to 0.5', [resist, burn], idx, cat)
+    assert res['changes'] == [resist.key]
+
+    # "from A and B to C for both": both pairs, and each to the field with its exact numbers
+    assert parse_pairs('T2 slow from -24% Slow and -26% Dash distance to -28% for both') == [(-24, -28), (-26, -28)]
+    up = 'm_vecAbilityUpgrades[1].m_vecPropertyUpgrades{%s}.m_strBonus'
+    dash = MChange('abilities.vdata', 'sand', up % 'GroundDashReductionPercent', 'change', '-26', '-28', 'balance',
+                   'ability', None, 'T2: Dash Distance', False)
+    slow = MChange('abilities.vdata', 'sand', up % 'SlowPercent', 'change', '24', '28', 'balance', 'ability', None,
+                   'T2: Move Speed', False)
+    assert sorted(c.key for c in pair_hits([(23, dash), (21, slow)], [(-24, -28), (-26, -28)], 9)) \
+        == sorted([dash.key, slow.key])
+
+    # "Spirit scaling reduced by 8%": the base scaling and the T3 bonus that moved by as much
+    base = MChange('abilities.vdata', 'strix', 'm_mapAbilityProperties.Damage.m_subclassScaleFunction.m_flStatScale',
+                   'change', 1.0, 0.92, 'balance', 'item', None, 'Damage (spirit scaling)', False)
+    t3 = MChange('abilities.vdata', 'strix', 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{Damage}.m_strBonus',
+                 'change', '0.35', '0.322', 'balance', 'item', None, 'T3: Damage (spirit scaling)', False)
+    other = MChange('abilities.vdata', 'strix', 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{Radius}.m_strBonus',
+                    'change', '2', '3', 'balance', 'item', None, 'T1: Radius', False)
+    idx = {'strix salvo': ['abilities.vdata:strix'], 'healbane': ['abilities.vdata:healbane']}
+    cat = {'abilities.vdata:strix': {'id': 'strix', 'kind': 'item'},
+           'abilities.vdata:healbane': {'id': 'healbane', 'kind': 'item'}}
+    res = run('Strix Salvo: Spirit scaling reduced by 8%', [base, t3, other], idx, cat)
+    assert set(res['changes']) == {base.key, t3.key}
+
+    # an item's field that came, by the stem of a word: "Stacks … diminish" is Stacking Penalty Anchor
+    anchor = MChange('abilities.vdata', 'healbane', 'm_mapAbilityProperties.StackingPenaltyAnchorPercent.m_strValue',
+                     'add', None, '80', 'balance', 'item', None, 'Stacking Penalty Anchor', False)
+    res = run('Healbane: Stacks now diminish 20% more aggressively (at 2 stacks 57.8%->54.7%, at 4 stacks 82.2% to 72%)',
+              [anchor], idx, cat)
+    assert res['changes'] == [anchor.key] and res['status'] == 'described'
+    # … only when no field shares a word: Headhunter's heal line is its heal scaling, not the bonus damage's too
+    sc = 'm_mapAbilityProperties.%s.m_subclassScaleFunction.m_flStatScale'
+    heal = MChange('abilities.vdata', 'hh', sc % 'HealPercentPerHeadshot', 'add', None, 0.014, 'balance', 'item', None,
+                   'Heal Percent Per Headshot (spirit scaling)', False)
+    bonus = MChange('abilities.vdata', 'hh', sc % 'HeadShotBonusDamage', 'add', None, 0.3, 'balance', 'item', None,
+                    'Head Shot Bonus Damage (spirit scaling)', False)
+    idx['headhunter'], cat['abilities.vdata:hh'] = ['abilities.vdata:hh'], {'id': 'hh', 'kind': 'item'}
+    assert run('Headhunter: Heal now scales with spirit power (0.014)', [heal, bonus], idx, cat)['changes'] == [heal.key]
+    assert run('Headhunter: Toxic now scales with spirit power (0.3)', [bonus], idx, cat)['changes'] == [bonus.key]

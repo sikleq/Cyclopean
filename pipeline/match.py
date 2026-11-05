@@ -79,7 +79,8 @@ GENERIC_WORDS = {'damage', 'bounty', 'soul', 'souls', 'gold', 'health', 'value',
                  'player', 'enemy', 'nearby', 'max', 'min', 'resist', 'resistance', 'bullet', 'spirit', 'weapon',
                  'ability', 'abilitie', 'also', 'longer', 'more', 'less', 'able', 'will', 'when', 'target', 'unit'}
 SYNONYM_ONLY = {'armor', 'resistance', 'healing', 'time', 'cd'}
-HERO_STAT_WORDS = {'health', 'regen', 'move', 'sprint', 'stamina', 'boon', 'melee', 'resist', 'dash', 'speed'}
+HERO_STAT_WORDS = {'health', 'regen', 'move', 'sprint', 'stamina', 'boon', 'melee', 'resist', 'resistance', 'dash',
+                   'speed'}
 GENERAL_KEYWORDS = {
     'slow': re.compile(r'slow', re.I),
     'ground dash': re.compile(r'GroundDash', re.I),
@@ -349,6 +350,12 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
         # only "described")
         for m in _TIER_TO.finditer(text):
             pairs.append((float(m.group('a')), float(m.group('b'))))
+    if not pairs:
+        # "T2 slow from -24% Slow and -26% Dash distance to -28% for both": two values to one (Sand Blast, 2026-11-04:
+        # its Movement Slow 24 → 28 stayed hidden)
+        m = _FOR_BOTH.search(text)
+        if m:
+            pairs = [(float(m.group('a')), float(m.group('c'))), (float(m.group('b')), float(m.group('c')))]
     if not pairs and not _SWAP_LINE.search(text):
         # (not 'T1 changed from "-15s Cooldown" to "+50 Max Health Steal"': two properties, no pair)
         pairs = _aligned_pairs(text)
@@ -356,6 +363,8 @@ def parse_pairs(text: str) -> list[tuple[float, float]]:
 
 
 _INSTEAD_RE = re.compile(rf'(?P<b>{_NUM})\s*[a-z%]*\s+instead of\s+(?P<a>{_NUM})', re.I)
+_FOR_BOTH = re.compile(rf'\bfrom\s+(?P<a>{_NUM})[^\d]{{0,30}}?\band\s+(?P<b>{_NUM})[^\d]{{0,30}}?\bto\s+(?P<c>{_NUM})'
+                       rf'[^\d]{{0,10}}\bfor\s+both\b', re.I)
 _TIER_TO = re.compile(rf'\bT[1-4]\s+(?P<a>{_NUM})\s*[a-z%/]*(?:\s+[a-z]+){{0,4}}\s+to\s+(?P<b>{_NUM})', re.I)
 # "Cooldown increased from 25s to 27s (moved to T2)": the tier's bonus to the same property moved with it
 _MOVED_TO_TIER = re.compile(r'\(\s*moved\s+to\s+T([1-3])\s*\)', re.I)
@@ -1060,6 +1069,10 @@ def pair_hits(scored: list[tuple[int, MChange]], pairs, least: int) -> list[MCha
     for a, b in pairs:
         cands = [(s, c) for s, c in scored if s >= least
                  and any(value_matches(o, a, c, APPROX) and value_matches(n, b, c, APPROX) for o, n in c.steps())]
+        # a field with the pair's exact numbers before one within the notes' rounding: "from -24% Slow and -26% Dash
+        # distance to -28%" is Slow 24 → 28, though Dash -26 → -28 is within 10% of it and scores more (2026-11-04)
+        exact = [(s, c) for s, c in cands if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in c.steps())]
+        cands = exact or cands
         top = max((s for s, _ in cands), default=None)
         out += [c for s, c in cands if s == top and c not in out]
     return out
@@ -1397,6 +1410,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             if by_pct is not None and not pairs:
                 # "respawn times, hp, and bounty reduced by 30%": the best field of EACH property listed
                 hits += [c for c in list_hits(rest[:by_at], pool, by_pct, text, ability_hits) if c not in hits]
+                if tier is None and subject and subject.kind not in ('alias_inline', 'name_inline'):
+                    # a cut to a property without a tier is its tier bonuses too, where they moved by as much: "Strix
+                    # Salvo - Spirit scaling reduced by 8%" is the base scaling and T3's +0.35 → +0.322 (2026-11-04);
+                    # a line with a subject only ("Breakables growth values reduced by 10%" is no Burrow's T1)
+                    props = {(ent_key(h), semantics.property_name(h.path)) for h in hits}
+                    sign, rate = verb_sign(text), bool(re.search(r'rate|speed', text, re.I))
+                    hits += [c for c in pool if c not in hits and re.match(r'T[1-3]:', c.label or '')
+                             and (ent_key(c), semantics.property_name(c.path)) in props
+                             and pct_close(c, by_pct, sign, rate, bool(_LOOSE_PCT.search(text)))]
                 if re.search(r'\b(all|every)\b', rest, re.I):
                     # "Mo & Krill: Spirit damage on all abilities reduced by 10%": every damage that moved by it
                     # (Combo 40 → 35, Burrow 75 → 65, rounded), not the best-scored field alone (2026-10-30)
@@ -1475,6 +1497,14 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         wide = label_words(c) if '›' not in (c.label or '') else rules.expand_label_words(own)
         return bool(own & specific) or bool(wide & specific - SYNONYM_ONLY) or bool(flags)
 
+    def came(c: MChange) -> bool:
+        """An item's field that came, by a word's stem — only when no field shares a word (`on_topic`): "Healbane:
+        Stacks now diminish 20% more aggressively" is its new Stacking Penalty Anchor 80%, "Toxic Bullets: Now scales
+        with Spirit Power (0.005%)" its new spirit scaling (2026-11-04); "Headhunter: Heal now scales with spirit power"
+        has its heal field and is not the bonus damage's new scaling."""
+        return (subject.kind == 'item' and c.op == 'add' and not _STATE_MASK.search(c.path)
+                and bool((_stems(topic_words(c)) - GENERIC_WORDS) & (_stems(specific) - GENERIC_WORDS)))
+
     def named_whole(c: MChange) -> bool:
         """Every word of the label is in the line, common ones too: "Fury Trance: Active Bullet Resistance
         changed to Spirit Resistance" names Bullet Resist and Spirit Resist. The subject's own fields only
@@ -1536,7 +1566,7 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
                 and (subject.kind != 'hero' or not ability_hits or ent_key(c) in ability_hits)]
         if gone:
             return _link(result, gone, text, 'described')
-    linked = [c for c in pool if on_topic(c) or named_whole(c)]
+    linked = [c for c in pool if on_topic(c) or named_whole(c)] or [c for c in pool if came(c)]
     # the ability the line names, when it has such a field: "Siphon Life range now scales…" is not
     # Seismic Impact's collide radius
     named = [c for c in linked if ent_key(c) in ability_hits]
