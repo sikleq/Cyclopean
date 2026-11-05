@@ -2733,7 +2733,7 @@
   "id": "2026-11-04",
   "title": "Minor Update - 11-04-2026",
   "date": "2026-11-04",
-  "builds": 3,
+  "builds": 2,
   "counts": {
    "documented": 32,
    "described": 5,
@@ -2746,6 +2746,25 @@
    "described": 5,
    "documented": 28,
    "rounded": 1
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-11-05",
+  "title": "Ranked - Beta Season 2",
+  "date": "2026-11-05",
+  "builds": 2,
+  "counts": {
+   "documented": 0,
+   "described": 0,
+   "hidden": 0,
+   "unannounced": 0,
+   "unreleased": 0
+  },
+  "line_counts": {
+   "unmatched": 19,
+   "heading": 5,
+   "untracked": 3
   },
   "has_notes": true
  }
