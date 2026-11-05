@@ -2709,7 +2709,7 @@
   "id": "2026-10-30",
   "title": "Halloween 2026 + Gameplay Update",
   "date": "2026-10-30",
-  "builds": 11,
+  "builds": 9,
   "counts": {
    "documented": 228,
    "described": 63,
@@ -2718,14 +2718,34 @@
    "unreleased": 1
   },
   "line_counts": {
-   "unmatched": 25,
+   "unmatched": 26,
    "heading": 4,
    "described": 53,
    "documented": 155,
    "fix": 5,
    "rounded": 14,
    "untracked": 3,
-   "code": 10
+   "code": 9
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-11-04",
+  "title": "Minor Update - 11-04-2026",
+  "date": "2026-11-04",
+  "builds": 3,
+  "counts": {
+   "documented": 32,
+   "described": 5,
+   "hidden": 5,
+   "unannounced": 0,
+   "unreleased": 0
+  },
+  "line_counts": {
+   "unmatched": 2,
+   "described": 5,
+   "documented": 28,
+   "rounded": 1
   },
   "has_notes": true
  }
