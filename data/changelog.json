@@ -3,6 +3,7 @@
     "date": "2026-11-13",
     "title": "Ranked, bigger patch tiles, a build picker",
     "items": [
+      "Build pages list changed DLL functions up to build 6861 (was 6839).",
       "Game has a Ranked page: each ranked season's rules from the game files (points per match, rank-up XP, shields, hero unlock, calibration cap) and how they changed.",
       "The patch tiles under a name are much bigger: the number of changes shows without hovering, the tags are a wide bar under it.",
       "In a change list the % stands at the row's right edge; hovering a row draws a dashed line to it.",
