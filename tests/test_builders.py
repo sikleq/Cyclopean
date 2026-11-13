@@ -1,103 +1,7 @@
-"""Rendering helpers: tags, order, escaping."""
+"""The other builders: notes, patch, build, home, shop and search pages, names and icons."""
 import re
 
-from builders.render import fold_tier_swaps, sort_changes, tag_of
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29',
-            'dir': 'nerf', 'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x'}
-    base.update(kw)
-    return base
-
-
-def test_tags():
-    # no percentage in the badge: the value cell already shows it
-    assert tag_of(ch()) == ('nerf', 'NERF')
-    assert tag_of(ch(op='add'))[0] == 'new'
-    assert tag_of(ch(op='remove'))[0] == 'del'
-    assert tag_of(ch(cat='mechanic', dir='changed', pct=None)) == ('mech', 'MECH')
-    assert tag_of(ch(dir='changed', pct=None)) == ('changed', 'CHANGED')
-
-
-def test_a_corrupted_version_is_one_row():
-    from builders.render import fold_corrupted
-    p = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
-    rows = [{'op': 'add', 'path': p % 'AbilityCooldown', 'label': 'Corrupted: Cooldown', 'new_s': '-4', 'status': 'hidden'},
-            {'op': 'add', 'path': p % 'BonusHealth', 'label': 'Corrupted: Base Health', 'new_s': '10', 'status': 'hidden'},
-            {'op': 'add', 'path': p % 'X' + '.m_bFixedCorruptedBonus', 'label': 'Corrupted: X › Fixed Corrupted Bonus',
-             'new_s': 'yes', 'status': 'hidden'},
-            {'op': 'change', 'path': 'm_mapAbilityProperties.Radius.m_strValue', 'label': 'Radius', 'old_s': '5', 'new_s': '6'}]
-    out = fold_corrupted(rows)
-    assert len(out) == 2 and out[1]['label'] == 'Radius'
-    # Broker's trade (City Never Sleeps): one NEW row, the bonuses listed, how they roll left out
-    assert (out[0]['op'], out[0]['label'], out[0]['new_s']) == ('add', 'Corrupted version', 'Cooldown -4, Base Health +10')
-    assert tag_of(out[0])[0] == 'new'
-    # a later tweak of one or two bonuses stays row by row
-    assert fold_corrupted(rows[:2]) == rows[:2]
-
-
-def test_a_corrupted_version_names_its_penalties_and_tells_namesakes_apart(monkeypatch):
-    """Review 2026-10-05: Unstoppable 'Excluded Penalties TechDuration, Bonus Health +175…'; Toxic Bullets
-    'Incoming Healing -25%, Incoming Healing -25%'; one shared bonus made the row 'shared ×10 items'."""
-    from builders import render
-    monkeypatch.setattr(render, '_penalty_names', lambda: {'TechDuration': 'Ability Duration', 'FireRate': 'Fire Rate'})
-    p = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
-    rows = [{'op': 'add', 'path': 'm_CorruptedItemInfo.m_vecExcludedPenalties', 'label': 'Corrupted: Excluded Penalties',
-             'new_s': 'TechDuration, FireRate'},
-            {'op': 'add', 'path': p % 'BonusHealth', 'label': 'Corrupted: Bonus Health', 'new_s': '175',
-             'shared': True, 'shared_n': 10, 'shared_what': 'items'},
-            {'op': 'add', 'path': p % 'HealAmpReceivePenaltyPercent', 'label': 'Corrupted: Incoming Healing', 'new_s': '-25%'},
-            {'op': 'add', 'path': p % 'HealAmpRegenPenaltyPercent', 'label': 'Corrupted: Incoming Healing', 'new_s': '-25%'}]
-    [row] = render.fold_corrupted(rows)
-    assert row['new_s'] == ('Bonus Health +175, Incoming Healing · receive -25%, Incoming Healing · regen -25%'
-                            ' · never rolls: Ability Duration, Fire Rate')
-    assert 'shared_n' not in row and not row['shared']
-    # the row of a later tweak reads the game's names too
-    one = {'op': 'add', 'cat': 'balance', 'path': 'm_CorruptedItemInfo.m_vecExcludedPenalties', 'new_s': 'TechDuration'}
-    assert render.vals_text(one) == ('', 'Ability Duration')
-
-
-def test_rows_cards_and_matrix_cards_print_values_alike():
-    """Review 2026-10-05: vals_text and the matrices' _sample_values were hand copies of vals_html (840 rows apart)."""
-    from builders.dynamics_page import _sample_values
-    from builders.render import vals_html, vals_text
-    cases = [ch(path='m_mapAbilityProperties.AbilityCooldownBetweenCharge.m_strValue', old_s='0s', new_s='-1',
-                pct=None, dir='changed'),
-             ch(path='m_vecAbilityUpgrades[0].m_vecPropertyUpgrades{AbilityCooldown}.m_strBonus', old_s='-1s',
-                new_s='-20s'),
-             ch(path='x.m_strValue', old_s='-0.5m/s', new_s='-1m/s'),
-             ch(path='y', old_s='30%', new_s='2', unit_switch=True, pct=None, dir='changed')]
-    for c in cases:
-        old, new = vals_text(c)
-        html = vals_html(c)
-        assert f'>{old}<' in html and f'>{new}<' in html, (c, old, new, html)
-        assert _sample_values(c) == (old, new)
-    assert vals_text(cases[0]) == ('0s', 'default')
-    assert vals_text(cases[1]) == ('-1s', '-20s')
-    assert vals_text(cases[3]) == ('30%', '2')
-
-
-def test_an_enhanced_version_is_one_row():
-    """Old Gods, New Blood: an item's Enhanced version that appears whole is ONE row and one change (452 NEW rows
-    under one line of the notes); on the item page, inside its "Enhanced version" group, the row is "Bonuses"."""
-    from builders.render import fold_versions
-    p = 'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{%s}.m_strBonus'
-    key = 'abilities.vdata:upgrade_active_reload:'
-    rows = [{'op': 'add', 'path': p % x, 'key': key + p % x, 'label': f'Enhanced: {lab}', 'new_s': v, 'status': 'described'}
-            for x, lab, v in (('BonusClipSizePercent', 'Max Ammo', '10%'), ('BonusFireRate', 'Fire Rate', '15%'),
-                              ('BonusMoveSpeed', 'Move Speed', '3m/s'))]
-    out = fold_versions(rows + [ch(label='Cooldown', key=key + 'cd')])
-    assert len(out) == 2
-    assert (out[0]['label'], out[0]['new_s'], out[0]['folded']) == ('Enhanced version',
-                                                                     'Max Ammo +10%, Fire Rate +15%, Move Speed +3m/s', 3)
-    stripped = [{**c, 'label': c['label'].removeprefix('Enhanced: ')} for c in rows]
-    assert fold_versions(stripped)[0]['label'] == 'Bonuses'
-    # a hero's T1 bonuses sit on the same path, but are no Enhanced version
-    t1 = [{**c, 'key': 'abilities.vdata:ability_x:' + c['path'], 'label': 'T1: ' + c['label'][10:]} for c in rows]
-    assert fold_versions(t1) == t1
-    # a later tweak of a few Enhanced bonuses stays row by row
-    assert fold_versions(rows[:2]) == rows[:2]
+from tests.helpers import ch, site_css, site_js
 
 
 def test_unit_families_tiers_and_variants():
@@ -126,83 +30,6 @@ def test_unit_families_tiers_and_variants():
     assert merged_label(['Walker', 'alt'], 4) == 'Walker · alt'
 
 
-def test_zero_added_or_removed_is_no_change():
-    from builders.cards import is_noop
-    assert is_noop({'op': 'add', 'path': 'p', 'new_s': '0'})            # Sleep Dagger's Explosion Radius 0
-    assert is_noop({'op': 'remove', 'path': 'p', 'old_s': '0m'})
-    assert is_noop({'op': 'change', 'old_s': '1.5', 'new_s': '1.5'})
-    assert not is_noop({'op': 'add', 'path': 'p', 'new_s': '5'})
-    assert not is_noop({'op': 'change', 'old_s': '20', 'new_s': '0'})   # tuned TO zero is a change
-    assert not is_noop({'op': 'add', 'path': '@add', 'new_s': ''})       # an entity added to the game
-    # the same value spelled two ways is not a change ("LOS Check: Bounds → Bounds")
-    assert is_noop({'op': 'change', 'old_s': 'ELOSCheck_Bounds', 'new_s': 'Bounds'})
-    assert is_noop({'op': 'change', 'old_s': 'Head Ignore Obscure Blockers', 'new_s': 'Head_IgnoreObscureBlockers'})
-    assert not is_noop({'op': 'change', 'old_s': '1.5', 'new_s': '15'})
-
-
-def test_availability_tags_follow_field_meaning():
-    # 'Disabled: no -> yes' switches OFF, 'Player Selectable: no -> yes' switches ON
-    assert tag_of(ch(cat='availability', label='Disabled', new_s='yes')) == ('off', 'OFF')
-    assert tag_of(ch(cat='availability', label='In Development', new_s='no')) == ('on', 'ON')
-    assert tag_of(ch(cat='availability', label='Player Selectable', new_s='yes')) == ('on', 'ON')
-    assert tag_of(ch(cat='availability', label='State', new_s='EHeroDevState_PreRelease')) == ('off', 'OFF')
-    assert tag_of(ch(cat='availability', label='State', new_s='EHeroDevState_Release')) == ('on', 'ON')
-
-
-def test_order_new_buff_nerf_del_changed():
-    order = [tag_of(c)[0] for c in sort_changes([
-        ch(cat='mechanic', dir='changed', label='a'), ch(op='remove', label='b'), ch(dir='nerf', label='c'),
-        ch(dir='buff', label='d'), ch(op='add', label='e'), ch(dir='changed', label='f')])]
-    assert order == ['new', 'buff', 'nerf', 'del', 'mech', 'changed']
-
-
-def test_tier_swap_folds_into_one_rework_row():
-    rows = fold_tier_swaps([
-        ch(op='remove', label='T2: Buff Duration', old_s='25', new_s=None, status='described'),
-        ch(op='remove', label='T2: Fire Rate', old_s='14', new_s=None, status='described'),
-        ch(op='add', label='T2: Stun Duration', old_s=None, new_s='0.6', status='hidden'),
-        ch(op='add', label='T3: Impact Radius', old_s=None, new_s='6', status='documented'),
-        ch(label='Damage', old_s='75', new_s='100', dir='buff', status='documented'),
-    ])
-    rework = [r for r in rows if r['op'] == 'rework']
-    assert len(rework) == 1 and rework[0]['label'] == 'T2 upgrade'
-    assert rework[0]['old_s'] == 'Buff Duration 25, Fire Rate 14' and rework[0]['new_s'] == 'Stun Duration 0.6'
-    assert rework[0]['status'] == 'hidden'          # the least documented part decides
-    assert {r['label'] for r in rows} == {'T2 upgrade', 'T3: Impact Radius', 'Damage'}   # T3 only added: kept
-
-
-def test_entity_rows_name_once_with_counters():
-    """The ability's header (cards.sub_head) names it once with its counters; its rows do not repeat it.
-    (render.entity_rows, the table version, had no caller left besides these tests.)"""
-    from builders.cards import entity_rows, sub_head
-    rows = [ch(label='a', key='abilities.vdata:x:a'), ch(label='b', dir='buff', key='abilities.vdata:x:b'),
-            ch(label='c', key='abilities.vdata:x:c')]
-    html = sub_head('Seismic Impact', None, 'abilities', rows, hidden=True) + entity_rows(rows)
-    assert html.count('Seismic Impact') == 1
-    assert '<span class="pip nerf">2</span>' in html and '<span class="pip buff">1</span>' in html
-    assert 'esub has-hidden' in html
-
-
-def test_unreleased_rows_marked_but_not_counted_as_not_in_notes():
-    """Work on a hero in development keeps its mark; it is not "not in patch notes" (render.NOT_IN_NOTES)."""
-    from builders.cards import change_row
-    html = change_row(ch(status='unreleased'))
-    assert 'mark unreleased' in html and 'st-unreleased' in html and 'is-hidden' not in html
-
-
-def test_change_row_escapes_and_marks_hidden():
-    from builders.cards import change_row
-    html = change_row(ch(label='<b>x</b>'))
-    assert '&lt;b&gt;' in html and 'mark hidden' in html and 'st-hidden' in html
-
-
-def test_flag_lists_show_only_the_difference():
-    from builders.render import vals_html
-    html = vals_html(ch(cat='mechanic', old_s='CITADEL_ABILITY_BEHAVIOR_A | CITADEL_ABILITY_BEHAVIOR_B',
-                        new_s='CITADEL_ABILITY_BEHAVIOR_B | CITADEL_ABILITY_BEHAVIOR_MOVEMENT', dir='changed', pct=None))
-    assert '+movement' in html and '−a' in html and 'CITADEL' not in html
-
-
 def test_text_change_keys_read_as_names(monkeypatch):
     from builders import patches_pages
     monkeypatch.setattr(patches_pages, 'names_by_id', lambda: {'ability_afterburn': 'Afterburn', 'hero_atlas': 'Abrams'})
@@ -227,30 +54,6 @@ def test_id_lists_in_values_show_names(monkeypatch):
     monkeypatch.setattr(common, 'names_by_id', lambda: {'ability_blood_bomb': 'Blood Bomb'})
     assert common.ids_to_names('ability_blood_bomb, ability_blood_bomb') == 'Blood Bomb, Blood Bomb'
     assert common.ids_to_names('CITADEL_ABILITY_BEHAVIOR_CLEAVE') == 'CITADEL_ABILITY_BEHAVIOR_CLEAVE'
-
-
-def test_hero_table_layout_keeps_every_column_and_hides_details():
-    from builders.tables_pages import DETAILS, HERO_LAYOUT, laid_out
-    cols = [{'key': 'dps', 'label': 'DPS', 'group': 'Damage'}, {'key': 'spread', 'label': 'Spread', 'group': 'Damage'},
-            {'key': 'brand_new', 'label': 'Brand new stat', 'group': 'Damage'}]
-    out = laid_out(cols, HERO_LAYOUT)
-    assert [c['key'] for c in out] == ['dps', 'spread', 'brand_new']          # nothing dropped, details last
-    assert out[0]['group'] == 'Weapon' and out[1]['group'] == DETAILS and out[2]['group'] == DETAILS
-    assert all(len(short) <= 13 for _, entries in HERO_LAYOUT for _, short in entries)   # one-line headers
-
-
-def test_a_hero_stats_column_nobody_has_today_waits_under_details(monkeypatch):
-    """Review 2026-10-05: "Bullet res" read "—" for all 44 heroes; it goes under Details with its history."""
-    from builders import tables_pages
-    cols = [{'key': 'hp', 'label': 'Health', 'group': 'Vitality', 'pol': 1, 'digits': 0},
-            {'key': 'bullet_resist', 'label': 'Bullet Resist', 'group': 'Vitality', 'pol': 1, 'digits': 0}]
-    heroes = [{'id': 'hero_atlas', 'name': 'Abrams', 'state': 'release', 'type': 'x_Brawler',
-               'values': {'hp': 800, 'bullet_resist': None}, 'history': {}, 'spirit_scaled': []}]
-    monkeypatch.setattr(tables_pages, 'heroes_data', lambda: {'columns': cols, 'heroes': heroes, 'build': 1,
-                                                              'date': '2026-10-01'})
-    html = tables_pages.heroes_table()
-    head = html.split('<thead>')[1].split('</thead>')[0]
-    assert re.search(r'g-details[^>]*>[^<]*Bullet', head) and not re.search(r'g-details[^>]*>[^<]*Health', head)
 
 
 def test_rows_without_game_art_get_a_category_glyph():
@@ -285,26 +88,6 @@ def test_patch_notes_grouped_by_entity_with_tags_and_numbers(monkeypatch):
     notes_view._abilities_of.cache_clear()
 
 
-def test_hero_page_lines_drop_the_hero_name():
-    from builders.history_view import _drop_prefix          # (hero_page._strip_subject had no caller left)
-    assert _drop_prefix('Abrams: Melee damage per boon increased by 10%', ['Abrams']) == \
-        'Melee damage per boon increased by 10%'
-    # another subject stays: the line is about the ability, not the hero
-    assert _drop_prefix('Seismic Impact: Damage increased', ['Abrams']) == 'Seismic Impact: Damage increased'
-
-
-def test_ability_card_leaves_out_an_empty_tier(monkeypatch):
-    """97 bare "T1 / T2 / T3" lines (no text, no bonuses) sat on the cards of heroes in development."""
-    from builders import hero_page, trail
-    monkeypatch.setattr(trail, 'last_counts', lambda key: None)
-    monkeypatch.setattr(trail, 'trail_html', lambda *a, **k: '')
-    card = {'id': 'ability_zzz_x', 'kind': 'ability', 'name': 'Zap', 'owner': 'hero_zzz', 'slot': 'Signature_1',
-            'tiers': [{'tier': 1, 'text': '', 'bonuses': []}, {'tier': 2, 'text': '+1 Charge', 'bonuses': []},
-                      {'tier': 3, 'text': '', 'bonuses': [{'label': 'Damage', 'value': '+20'}]}]}
-    html = hero_page.ability_card(card, '../')
-    assert '>T1<' not in html and '>T2<' in html and 'Damage +20' in html
-
-
 def test_notes_name_without_leading_the(monkeypatch):
     from builders import notes_view
     monkeypatch.setattr(notes_view, '_catalog', lambda: [
@@ -312,215 +95,6 @@ def test_notes_name_without_leading_the(monkeypatch):
     notes_view._by_name.cache_clear()
     assert notes_view._by_name()['doorman']['id'] == 'hero_doorman'
     notes_view._by_name.cache_clear()
-
-
-def test_history_is_one_panel_per_patch_with_sub_headers():
-    from builders.history_view import history_table
-    row = {'id': '2026-09-16', 'date': '2026-09-16', 'title': '09-16-2026 Update'}
-    keys = [('heroes.vdata:hero_atlas', 'Base stats', None), ('abilities.vdata:ab_charge', 'Shoulder Charge', None)]
-    by_ent = {'abilities.vdata:ab_charge': [(row, [ch(key='c1', label='T1: Move Speed')])],
-              'heroes.vdata:hero_atlas': [(row, [ch(key='c2', label='Health per boon')])]}
-    html = history_table(keys, ['Abrams'], by_ent, {}, '../')
-    assert html.count('class="hpanel') == 1 and html.count('class="hgroup') == 2
-    assert 'ecard' not in html and html.count('class="esub') == 2
-    # a page about one entity repeats no sub-header with its own name
-    one = history_table(keys[1:], ['Shoulder Charge'], {'abilities.vdata:ab_charge': by_ent['abilities.vdata:ab_charge']},
-                        {}, '../')
-    assert 'esub' not in one and 'T1: Move Speed' in one
-
-
-def test_replaced_tier_row_gets_full_width_line():
-    from builders.cards import change_rows
-    html = change_rows([ch(op='remove', label='T2: Fire Rate', old_s='14', new_s=None),
-                        ch(op='add', label='T2: Stun Duration', old_s=None, new_s='0.6')])
-    assert 'erow st-hidden is-hidden rw' in html and 'T2 upgrade' in html
-
-
-def test_player_facing_is_the_one_counting_rule():
-    from builders.cards import player_facing
-    engine = ch(key='heroes.vdata:hero_atlas:m_x', label='Roster Background Layout', old_s='A', new_s='B')
-    swap = [ch(key='abilities.vdata:a:t2a', op='remove', label='T2: Fire Rate', old_s='14', new_s=None),
-            ch(key='abilities.vdata:a:t2b', op='add', label='T2: Stun Duration', old_s=None, new_s='0.6')]
-    other = [ch(key='abilities.vdata:b:t2c', op='add', label='T2: Range', old_s=None, new_s='3')]
-    out = player_facing([engine] + swap + other)
-    # engine plumbing out; ability a's swapped tier is one REWORK; ability b's T2 is not folded into a's
-    assert [c['op'] for c in out] == ['rework', 'add']
-
-
-def test_weapon_panel_six_tiles_and_units_on_the_number():
-    from builders import hero_page
-    cols = [{'key': k, 'label': lbl, 'group': 'Damage', 'digits': 2, 'pol': 1}
-            for k, lbl in [('dps', 'DPS'), ('dps_max', 'Max DPS'), ('bullet_dmg', 'Bullet DMG'), ('bps', 'Bullets / s'),
-                           ('clip', 'Ammo'), ('reload', 'Reload (s)'), ('bullet_speed', 'Bullet Speed (m/s)')]]
-    row = {'values': {c['key']: 1.5 for c in cols}, 'history': {}, 'spirit_scaled': []}
-    html = hero_page.weapon_block({'name': 'Case Closed', 'id': 'w'}, row, cols, 'Abrams', '../')
-    # review 2026-10-05: every tile's unit rides on its number ("RELOAD S" beside "Full Reload 3.88 s")
-    assert html.count('wcell top') == 6 and '>Reload<' in html and '<span class="u">s</span>' in html
-    assert '<span class="u">m/s</span>' in html and '>Bullet Speed<' in html
-
-
-def test_a_description_diff_marks_words_not_confetti():
-    """Review 2026-10-05: Active Reload 2025-05-19 struck "Rate, Bullet Lifesteal." and re-added the same words when
-    only "Move Speed" came; Unstoppable's "Immune" → "immune" was a change; a band of a text change only read empty;
-    "infront" → "in front" looked like no change at all."""
-    from builders.text_rows import _marked, cosmetic, text_kind, text_rows
-    old, new = _marked('Grants Fire Rate, Bullet Lifesteal.', 'Grants Fire Rate, Bullet Lifesteal and Move Speed.')
-    assert '<del>' not in old and new.count('<ins>') == 1 and 'Move Speed' in new.split('<ins>')[1]
-    old, new = _marked('Immune to stuns', 'immune to stuns')
-    assert '<del>' not in old and '<ins>' not in new
-    assert cosmetic('Press [[Iv attack]] to fire', 'Press [Attack] to fire') and not cosmetic('infront', 'in front')
-    assert not cosmetic('+20 Damage', '+20% Damage')
-    html = text_rows([{'part': 'desc', 'old': 'Hits [[Iv attack]] twice', 'new': 'Hits [Attack] twice.'}])
-    assert 'Wording fixed' in html and '<details class="txt" open>' in html
-    assert text_kind([{'part': 'desc', 'old': 'A b', 'new': 'A c'}]) == 'description changed'
-    assert text_kind([{'part': 'name', 'old': 'A', 'new': 'B'}]) == 'renamed'
-    assert text_kind([{'part': 'desc', 'old': 'A b', 'new': 'a b.'}]) is None
-    filled = text_rows([{'part': 'desc', 'old': '[Hero name] hits once', 'new': '[Hero name] hits twice'}], 'Abrams')
-    assert 'Abrams hits' in filled and '[Hero name]' not in filled
-
-
-def test_a_description_with_values_no_build_record_knows_stays_folded():
-    """Review 2026-10-05: opened, 552 of 980 description rows showed "[Ability Cooldown]s Cooldown · Applies [Fixation
-    Stacks] Fixation Stacks". A value the pipeline could not read is a neutral gap, never the token, and such a row
-    stays folded. The hero's own name and a key binding are no such value."""
-    from builders.text_rows import GAP, text_rows
-    tok = text_rows([{'part': 'desc', 'old': '{s:AbilityCooldown}s Cooldown', 'new': '{s:AbilityCooldown}s Cooldown, '
-                      'applies {s:FixationStacks} stacks'}], 'Haze')
-    assert '<details class="txt">' in tok and '<details class="txt" open>' not in tok
-    assert '[Ability Cooldown]' not in tok and '[Fixation Stacks]' not in tok and f'{GAP}s Cooldown' in tok
-    hero = text_rows([{'part': 'desc', 'old': '{s:hero_name} jumps', 'new': '{s:hero_name} jumps high'}], 'Haze')
-    assert '<details class="txt" open>' in hero and 'Haze jumps' in hero
-    key = text_rows([{'part': 'desc', 'old': 'Press {s:iv_attack} to fire', 'new': 'Hold {s:ability_key} to fire'}])
-    assert '<details class="txt" open>' in key and GAP not in key and '[Ability key]' in re.sub(r'<[^>]+>', '', key)
-
-
-def test_a_description_change_prints_each_builds_values():
-    """Review 2026-10-05: ~550 description rows (Haze's Sleep Dagger T2 2026-07-28) showed Valve's unfilled tokens.
-    The old text reads with the values at the window's start, the new one with those at its end, the text's unit
-    once, as the game's tooltip prints them."""
-    from builders.text_rows import text_kind, text_rows
-    t = {'part': 't2', 'old': '<span class="highlight">{s:AbilityCooldown}s</span> Cooldown<br>Applies '
-                              '{s:FixationStacks} Fixation Stacks',
-         'new': '<span class="highlight">+{s:SleepDuration}s</span> Sleep Duration<br>Applies {s:FixationStacks} '
-                'Fixation Stacks',
-         'vals': {'old': {'AbilityCooldown': '-4', 'FixationStacks': '1'},
-                  'new': {'SleepDuration': '0.5', 'FixationStacks': '2'}}}
-    html = text_rows([t], 'Haze')
-    assert '<details class="txt" open>' in html and '[' not in re.sub(r'<[^>]+>', '', html)
-    plain = re.sub(r'<[^>]+>', '', html)
-    assert '-4s Cooldown · Applies 1 Fixation Stacks' in plain and '+0.5s Sleep Duration · Applies 2 Fixation' in plain
-    assert text_kind([t]) == 'description changed'
-    # a value that carries the text's unit: "+{s:AbilityCastRange}m" with "3m" is "+3m", not "+3mm"
-    rng = text_rows([{'part': 't3', 'old': '+{s:AbilityCastRange}m Cast Range', 'new': '+{s:AbilityCastRange}m Range',
-                      'vals': {'old': {'AbilityCastRange': '3m'}, 'new': {'AbilityCastRange': '4m'}}}])
-    rng = re.sub(r'<[^>]+>', '', rng)
-    assert '+3m Cast Range' in rng and '+4m Range' in rng and 'mm' not in rng
-
-
-def test_a_description_that_only_moves_numbers_its_rows_say_stays_folded():
-    """A text that differs only in numbers the patch's own rows already show ("30s Cooldown" → "28s Cooldown" beside
-    "Cooldown 30s → 28s") says nothing more: it stays folded. A number no row shows opens it."""
-    from builders.text_rows import numbers_only, text_rows
-    t = {'part': 'desc', 'old': 'Every {s:AbilityCooldown}s', 'new': 'Every {s:AbilityCooldown}s',
-         'vals': {'old': {'AbilityCooldown': '30'}, 'new': {'AbilityCooldown': '28'}}}
-    row = {'label': 'Cooldown', 'old_s': '30s', 'new_s': '28s'}
-    assert '<details class="txt">' in text_rows([t], None, [row])
-    assert '<details class="txt" open>' in text_rows([t], None, [])
-    assert numbers_only('Every 30s', 'Every 28s', [row]) and not numbers_only('Every 30s', 'Each 28s', [row])
-    assert not numbers_only('Every 30s', 'Every 30s', [row])
-
-
-def test_a_borrowed_stand_in_gun_is_no_gun(monkeypatch):
-    """Review 2026-10-05: five heroes in development showed Infernus' Incendiary Remarks as their weapon, with its last
-    change linking to a band their page does not have and a "History" link to nothing."""
-    from builders import hero_page
-    ents = {'citadel_weapon_inferno_set': {'id': 'citadel_weapon_inferno_set', 'owner': 'hero_inferno'},
-            'citadel_weapon_nurse': {'id': 'citadel_weapon_nurse', 'owner': 'hero_nurse'}}
-    assert hero_page.borrowed_gun('hero_nurse', 'citadel_weapon_inferno_set', ents)
-    assert not hero_page.borrowed_gun('hero_inferno', 'citadel_weapon_inferno_set', ents)
-    assert not hero_page.borrowed_gun('hero_nurse', 'citadel_weapon_nurse', ents)
-    assert not hero_page.borrowed_gun('hero_nurse', None, ents)
-    html = hero_page.weapon_block(None, None, [], 'Nurse', '../')
-    assert 'No gun of its own yet' in html and 'ac-hist' not in html and 'ac-last' not in html
-
-
-def test_one_band_never_shows_two_groups_of_one_name():
-    """Review 2026-10-05: two "Weapon (shotgun)" groups with the same rows, Kelvin's "Frozen Shelter" for the ability
-    and its trigger, Wrecker's old and new "Wrecking Ball": identical rows under one name are one group, other ones
-    say which is which."""
-    from builders.history_view import history_table
-    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    keys = [('heroes.vdata:h', 'Base stats', None), ('abilities.vdata:gun', 'Weapon (shotgun)', None),
-            ('abilities.vdata:gun_shared_base', 'Weapon (shotgun)', None), ('abilities.vdata:dome', 'Frozen Shelter', None),
-            ('abilities.vdata:dome_trigger', 'Frozen Shelter', None), ('abilities.vdata:ball', 'Wrecking Ball', None),
-            ('abilities.vdata:ball2', 'Wrecking Ball', None)]
-    same = [ch(key='x', path='falloff', label='Falloff Start', old_s='22m', new_s='19.99m')]
-    by_ent = {'abilities.vdata:gun': [(r1, same)], 'abilities.vdata:gun_shared_base': [(r1, [dict(c) for c in same])],
-              'abilities.vdata:dome': [(r1, [ch(key='d', path='r', label='Radius')])],
-              'abilities.vdata:dome_trigger': [(r1, [ch(key='t', path='w', label='Width')])],
-              'abilities.vdata:ball': [(r1, [ch(key='b', path='r', label='Radius')])],
-              'abilities.vdata:ball2': [(r1, [ch(key='b2', path='s', label='Speed')])]}
-    html = history_table(keys, ['Hero'], by_ent, {}, '../', gone={'abilities.vdata:ball'})
-    names = re.findall(r'<span class="nm">([^<]*)</span>', html)
-    assert names.count('Weapon (shotgun)') == 1 and 'data-ab="gun gun_shared_base"' in html
-    assert 'Frozen Shelter' in names and 'Frozen Shelter · trigger' in names
-    assert names.count('Wrecking Ball') == 1 and 'Wrecking Ball (old version)' in names
-
-
-def test_the_alt_fire_shows_its_numbers_under_its_line(monkeypatch):
-    """Review 2026-10-05: the weapon block had only a slim "Alt fire" line. Its numbers (Hero Stats' `alt`) are a
-    compact row of cells under it, each with its history on hover; a default (1 pellet, 1 ammo a shot) says nothing;
-    no row for an alt fire Hero Stats does not describe."""
-    from builders import hero_page
-    alt_cols = {k: {'key': k, 'label': lbl, 'group': 'Damage', 'digits': d, 'pol': p} for k, lbl, d, p in [
-        ('dps', 'DPS', 1, 1), ('bullet_dmg', 'Bullet DMG', 2, 1), ('pellets', 'Pellets', 0, 1),
-        ('bps', 'Bullets / s', 2, 1), ('clip', 'Ammo', 0, 1), ('ammo_shot', 'Ammo / Shot', 0, -1),
-        ('reload', 'Reload (s)', 2, -1), ('bullet_speed', 'Bullet Speed (m/s)', 0, 1), ('range', 'Max Range (m)', 1, 1)]}
-    monkeypatch.setattr(hero_page, '_alt_columns', lambda: alt_cols)
-    row = {'values': {'dps': 50}, 'history': {}, 'spirit_scaled': [],
-           'alt': {'weapon': 'gun_alt', 'values': {'dps': 33.3333, 'bullet_dmg': 42.0, 'pellets': 1.0, 'bps': 0.7937,
-                                                   'clip': 10.0, 'ammo_shot': 5.0, 'reload': 2.1, 'bullet_speed': 38.1001,
-                                                   'range': 25.4001},
-                   # the old five-pellet alt fire's steps do not make "Pellets 1" news
-                   'history': {'bullet_dmg': [[5920, '2025-10-02', 48.0, 42.0]],
-                               'pellets': [[5017, '2024-08-01', 5.0, None], [5100, '2024-08-30', None, 1.0]]}}}
-    cols = [{'key': 'dps', 'label': 'DPS', 'group': 'Damage', 'digits': 1, 'pol': 1}]
-    html = hero_page.weapon_block({'name': 'Gun', 'id': 'gun'}, row, cols, 'Viscous', '../', {'id': 'gun_alt'})
-    cells = html[html.index('wb-alt-cells'):]
-    text = re.sub(r'<[^>]+>', ' ', cells)
-    assert re.search(r'42\s+Bullet dmg', text) and re.search(r'5\s+Ammo/shot', text) and re.search(r'38\s+m/s', text)
-    assert 'Pellets' not in text and cells.count('class="wcell') == 8
-    assert 'data-title="Viscous · Alt fire · Bullet DMG"' in cells
-    # another alt fire than the one Hero Stats describes: the line alone
-    other = hero_page.weapon_block({'name': 'Gun', 'id': 'gun'}, row, cols, 'Viscous', '../', {'id': 'other_alt'})
-    assert 'wb-alt-cells' not in other and 'Alt fire' in other
-
-
-def test_a_stat_at_its_default_says_nothing_unless_it_moved():
-    """Review 2026-10-05: "+Range / boon 0m" on 38 of 39 heroes, "Burst Interval 0s" on 32, "Pellets 1",
-    "Headshot Taken × 1"; hidden unless the value ever really changed (Mirage's pellets, Bookworm's burst)."""
-    from builders import hero_page
-    cols = [{'key': k, 'label': lbl, 'group': 'Damage', 'digits': 2, 'pol': 1} for k, lbl in [
-        ('dps', 'DPS'), ('range_lvl', '+Range / boon (m)'), ('pellets', 'Pellets'), ('pellet_spread', 'Pellet Spread'),
-        ('burst', 'Burst'), ('burst_cycle', 'Burst Interval (s)'), ('gravity', 'Bullet Gravity')]]
-    row = {'values': {'dps': 50, 'range_lvl': 0, 'pellets': 1, 'pellet_spread': 0, 'burst': 1, 'burst_cycle': 0,
-                      'gravity': 0}, 'history': {'burst': [[1, '2025-01-01', 3, 1]], 'range_lvl': [[1, '2025-01-01', None, 0]]},
-           'spirit_scaled': []}
-    html = hero_page.weapon_block({'name': 'Gun', 'id': 'w'}, row, cols, 'X', '../')
-    assert '+Range' not in html and 'Pellet' not in html and 'Burst Interval' not in html
-    assert '>Burst<' in html                     # it went 3 -> 1: a real step keeps it
-    assert 'Bullet Gravity' in html              # a real property: its zero means something
-
-
-def test_hero_page_cards_only_what_the_hero_binds_now():
-    """2026-10-03: Calico's page showed Catform pounce, Nekomata Ward and five more abilities she no
-    longer binds; Infernus's showed the shared Jump / Mantle / Zipline."""
-    from builders.hero_page import current_cards
-    cards = {i: {'id': i, 'owner': o, 'slot': s} for i, o, s in [
-        ('ult', 'hero_nano', 'Signature_4'), ('gun', 'hero_nano', 'Weapon_Primary'),
-        ('a1', 'hero_nano', 'Signature_1'), ('catform_pounce', 'hero_nano', ''),
-        ('ritual', 'hero_nano', None), ('jump', 'hero_nano', 'Ability_Jump'), ('x', 'hero_atlas', 'Signature_1')]}
-    assert [c['id'] for c in current_cards(cards, 'hero_nano')] == ['gun', 'a1', 'ult']
 
 
 def test_hero_chip_shows_two_counters_tooltip_has_all():
@@ -567,12 +141,6 @@ def test_patch_titles_show_the_date_once():
     assert patch_title_text({'title': 'City Never Sleeps · 09-29-2026', 'date': '2026-09-29'}) == 'City Never Sleeps · 2026-09-29'
 
 
-def test_pct_pill_strength_follows_size():
-    from builders.render import pct_grade, vals_html
-    assert [pct_grade(x) for x in (2, -7, 20, -45, 122)] == [1, 2, 3, 4, 5]
-    assert 'data-g="3"' in vals_html(ch(old_s='40', new_s='32', pct=-20.0))
-
-
 def test_pixel_icons_are_10x10_without_lone_pixels():
     from builders.pixel_icons import GRID, TAG_ART, art_path, svg_mask, tag_mask
     for tag, rows in TAG_ART.items():
@@ -587,60 +155,6 @@ def test_pixel_icons_are_10x10_without_lone_pixels():
     assert art_path(('#.#', '###')) == 'M0 0h1v1h-1zM2 0h1v1h-1zM0 1h3v1h-3z'
     assert tag_mask('buff') == svg_mask(art_path(TAG_ART['buff']), GRID)
     assert "viewBox='0 0 10 10'" in tag_mask('buff') and "fill-rule='evenodd'" in svg_mask('M0 0h1v1H0z', evenodd=True)
-
-
-def test_added_entity_shows_a_summary_not_every_field():
-    from builders.cards import change_rows
-    rows = [ch(op='add', path='m_mapStartingStats.EMaxHealth', label='Max Health', old_s=None, new_s='780'),
-            ch(op='add', path='m_mapBoundAbilities.ESlot_Signature_1', label='Bound Abilities › Signature 1', old_s=None,
-               new_s='Splatter')]
-    rows += [ch(op='add', path=f'm_mapLevelInfo.{i}.m_unRequiredGold', label=f'{i} › Required Gold', old_s=None,
-                new_s=str(i * 100)) for i in range(1, 30)]
-    html = change_rows(rows, added=True)
-    assert 'Added to the game files · 31 fields' in html and 'Max Health' in html and 'Splatter' in html
-    assert 'All fields (29)' in html
-
-
-def test_engine_values_read_as_words():
-    from builders.render import readable_value
-    assert readable_value('EHeroDevState_PreRelease') == 'Pre Release'
-    assert readable_value('CITADEL_UNIT_TARGET_NEUTRAL') == 'Neutral'
-    assert readable_value('file://{images}/events/voting_sept2026/sticker_baba.psd') == 'sticker_baba'
-    assert readable_value('12.5') == '12.5' and readable_value('Splatter') == 'Splatter'
-
-
-def test_renamed_field_is_judged_and_unit_only_renames_drop():
-    from builders.cards import merge_renames
-    rows = merge_renames([ch(op='remove', label='Weapon Damage', old_s='45', new_s=None, dir='changed',
-                             path='m_mapAbilityProperties.WeaponDamage.m_strValue'),
-                          ch(op='add', label='Weapon Damage', old_s=None, new_s='40', dir='changed',
-                             path='m_mapAbilityProperties.BonusWeaponDamage.m_strValue')])
-    assert len(rows) == 1 and rows[0]['op'] == 'change' and rows[0]['dir'] == 'nerf'
-    same = merge_renames([ch(op='remove', label='Radius', old_s='100', new_s=None),
-                          ch(op='add', label='Radius', old_s=None, new_s='2.54m')])
-    assert same == []
-
-
-def test_table_edited_row_by_row_folds_into_one_summary():
-    from builders.cards import change_rows
-    rows = [ch(label=f'Level {n}: souls needed', old_s=str(n * 1000), new_s=str(n * 950), dir='buff', pct=-5.0)
-            for n in range(19, 25)]
-    html = change_rows(rows)
-    assert 'details class="fam' in html and 'Level 19–24: souls needed' in html and '6 rows' in html
-    assert html.count('class="erow') == 7          # the summary + the 6 rows behind it
-    few = change_rows([ch(label='T1: Cooldown'), ch(label='T2: Cooldown')])
-    assert 'fam' not in few
-
-
-def test_whole_level_added_is_one_row_and_moved_fields_drop():
-    from builders.cards import change_rows, merge_renames
-    rows = [ch(op='add', label='Level 35: souls needed', old_s=None, new_s='47000'),
-            ch(op='add', label='Level 35: gives a boon', old_s=None, new_s='yes'),
-            ch(op='add', label='Level 35: ability points', old_s=None, new_s='1')]
-    html = change_rows(rows)
-    assert html.count('class="erow') == 1 and 'Level 35 added' in html and '47000 souls' in html
-    assert merge_renames([ch(op='remove', label='Pickup Radius', old_s='85', new_s=None),
-                          ch(op='add', label='Pickup Radius › Base', old_s=None, new_s='85')]) == []
 
 
 def test_items_index_is_the_game_shop_matrix(monkeypatch):
@@ -718,45 +232,6 @@ def test_interface_lines_get_their_own_tab_and_lists_become_chips():
     assert notes_view._list_chips('a long sentence, not a list', '../') is None
 
 
-def test_change_matrix_rows_cells_and_switches(monkeypatch):
-    from builders import dynamics_page
-    rows = [{'id': 'p1', 'date': '2024-01-01', 'title': '01-01-2024 Update'},
-            {'id': 'p2', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}]
-    cells = {'hero:hero_atlas': {'p2': {'buff': 2, 'nerf': 1}}, 'hero:hero_x': {'p1': {'new': 1}}}
-    samples = {'hero:hero_atlas': {'p2': [['Siphon Life', 'T3: Radius', '3', '2', 'nerf', 'abil', 1]]}}
-    parts = {'hero:hero_atlas': {'p2': {'abil': {'nerf': 1}, 'stats': {'buff': 2}}}}
-    monkeypatch.setattr(dynamics_page, '_collect', lambda: {'rows': rows, 'cells': cells, 'parts': parts,
-                                                            'samples': samples, 'hidden': {'hero:hero_atlas': {'p2': 1}}})
-    html = dynamics_page.matrix_html([('hero:hero_atlas', 'Abrams', None, 'hero_atlas.html', ''),
-                                      ('hero:hero_x', 'Old', None, 'hero_x.html', 'extra'),
-                                      ('hero:hero_none', 'Nothing', None, 'n.html', '')], 'hero')
-    assert 'Nothing' not in html                                   # a row with no changes is not listed
-    # stripes as one gradient in tag order (buff before nerf), the nerf held at its 12% minimum share
-    assert 'var(--tag-buff) 0% 66.7%,var(--tag-nerf) 66.7% 100%' in html and 'net-buff' in html
-    # review 2026-10-05: the eye in a tile's corner when the notes left something out, its count in the card's data
-    assert '<a class="dsq net-buff hid" style="background:' in html and '"eye":' in html
-    # a tile of one tag is a class (.dsq.s-new), no inline gradient
-    assert '<a class="dsq net-buff s-new" href="hero_x.html#p-p1" data-k="1">' in html
-    from pathlib import Path
-    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    for t in ('new', 'rework', 'buff', 'nerf', 'del', 'on', 'off', 'mech', 'changed'):
-        assert f'.dsq.s-{t} {{ background: var(--tag-{t}); }}' in css, t
-    # >1 year old column: hidden with its colgroup column; a run of empty cells is one cell
-    assert '<col class="old">' in html and '<td class=old></td>' in html and 'dd named' in html
-    assert '--n-all:2;--n-new:1' in html
-    # a tile opens the row's own page at that patch, not the patch page (off the bar since 10-03)
-    # (`nh nhn`: nothing of it left out of the notes, out of sight under "Not in patch notes")
-    assert 'href="hero_atlas.html#p-p2"' in html and 'tr class="extra nh nhn"' in html
-    # the hover card's data: the cell's counts and its biggest changes, the number on the tile
-    assert 'class="dyn-data"' in html and 'Siphon Life' in html and '<span class="dn">3</span>' in html
-    # one tile per cell (no split, owner 10-01); the part counts ride in the data for the filter
-    assert 'dsq split' not in html and 'tr class="sub' not in html and '{"abil":{"nerf":1}' in html
-    bar = dynamics_page.toolbar('hero', 1, 'Pre-release')
-    # tag chips select (only these tags), as on an entity page — not "hide this tag"
-    assert 'show-old' in bar and 'bvn' in bar and 'data-dyn-tag="buff"' in bar and 'show-extra' in bar
-    assert 'data-part="weapon"' in bar and 'data-part="all"' in bar
-
-
 def test_an_unnamed_ability_in_a_value_reads_like_its_group_header(monkeypatch):
     """Review 2026-10-05: "Kit: Ability 1  Boho bouncyprojectile → …" while the group header read "Bouncyprojectile"."""
     from builders import common
@@ -766,67 +241,6 @@ def test_an_unnamed_ability_in_a_value_reads_like_its_group_header(monkeypatch):
     assert common.ids_to_names('ability_boho_bouncyprojectile') == 'Bouncyprojectile'
 
 
-def test_number_lists_read_as_ranges_and_moved_positions():
-    """Review 2026-10-05: 229 rows of bare number lists ("Aiming Move Spread Penalty 0, 0.15 → —", "Horizontal
-    Recoil -0.4, 0.4 → 0, 0", item prices by tier)."""
-    from builders.render import vals_html, vals_text
-    row = lambda path, a, b: {'op': 'change', 'cat': 'balance', 'path': path, 'old_s': a, 'new_s': b}  # noqa: E731
-    assert vals_text(row('m_AimingMoveSpreadPenalty', '0, 0.15', '—')) == ('0–0.15', '—')
-    assert vals_text(row('m_mapAbilityProperties.x.m_HorizontalRecoil', '-0.4, 0.4', '0, 0')) == ('±0.4', 'none')
-    html = vals_html(row('m_nItemPricePerTier', '0, 500, 1250, 3000', '0, 800, 1250, 3200'))
-    assert '#2 500 → 800 · #4 3000 → 3200' in html and '#1' not in html
-    assert vals_text(row('m_flRadius', '5m', '6m')) == ('5m', '6m')          # a plain value is no list
-    # an enum's "none" is no value, not "Ability Targeting Location None"
-    loc = row('m_eAbilityTargetingLocation', 'CITADEL_ABILITY_TARGETING_LOCATION_NONE',
-              'CITADEL_ABILITY_TARGETING_LOCATION_UNIT')
-    assert vals_text(loc) == ('—', 'unit')
-
-
-def test_the_item_matrix_reads_in_shop_order_with_slot_and_tier_filters():
-    """Review 2026-10-05: 238 rows alphabetically, Weapon / Spirit / Vitality of every tier mixed, no filters; the
-    hero matrix had no role filter (Hero Stats has one)."""
-    from builders import dynamics_page
-    items = [{'file': 'abilities.vdata', 'id': i, 'name': n, 'slot': s, 'tier': t, 'alive': True}
-             for i, n, s, t in [('upgrade_b', 'Beta', 'EItemSlotType_Tech', 'EModTier_1'),
-                                ('upgrade_a', 'Alpha', 'EItemSlotType_WeaponMod', 'EModTier_3'),
-                                ('upgrade_c', 'Gamma', 'EItemSlotType_WeaponMod', 'EModTier_1'),
-                                ('upgrade_d', 'Delta', 'EItemSlotType_Armor', 'EModTier_5')]]
-    entries = dynamics_page.item_entries(items, {}, '../')
-    # the game's shop order, Weapon / Spirit / Vitality (it read Weapon / Vitality / Spirit; 2026-10-17)
-    assert [e[1] for e in entries] == ['Gamma', 'Alpha', 'Beta', 'Delta']
-    assert entries[3][5] == {'data-cat': 'v', 'data-tier': '5'}
-    bar = dynamics_page.toolbar('item', 0, 'Removed')
-    assert 'data-rowf="cat" data-v="w"' in bar and 'data-rowf="tier" data-v="5"' in bar and '>Tier 5</button>' in bar
-    hero_bar = dynamics_page.toolbar('hero', 0, 'Pre-release', ('Assassin', 'Brawler'))
-    assert 'data-rowf="role" data-v="brawler"' in hero_bar
-    heroes = dynamics_page.hero_entries([{'file': 'heroes.vdata', 'id': 'hero_atlas', 'name': 'Abrams',
-                                          'state': 'EHeroDevState_Release'}], '../',
-                                        {'hero_atlas': {'type': 'ECitadelHeroType_Brawler'}})
-    assert heroes[0][5] == {'data-role': 'brawler'}
-
-
-def test_matrix_merges_empty_runs_but_not_across_the_old_line():
-    """2026-10-03: the item matrix had 29k cells, 27k of them empty — a run of empty cells is one cell."""
-    from builders.dynamics_page import _gap, stripes
-    assert _gap(1, False) == '<td></td>' and _gap(5, True) == '<td class=old colspan=5></td>'
-    # a lone tag fills the tile; a tiny share still shows (12% minimum)
-    assert stripes({'new': 1}) == 'linear-gradient(var(--tag-new) 0% 100%)'
-    assert 'var(--tag-changed)' in stripes({'up': 1, 'buff': 30})
-
-
-def test_unit_table_names_and_copies():
-    from builders.tables_pages import merge_copies, non_empty, unit_label
-    assert unit_label({'id': 'npc_neutral_bug', 'name': 'npc_neutral_bug'}) == 'Bug'
-    assert unit_label({'id': 'trooper_zipline_container', 'name': 'trooper_zipline_container'}) == 'Trooper Zipline Container'
-    assert unit_label({'id': 'npc_boss_tier2', 'name': 'Walker'}) == 'Walker'
-    rows = [{'id': f'w{i}', 'name': 'Walker', 'values': {'hp': 6000, 'x': None}} for i in range(4)]
-    rows.append({'id': 'g', 'name': 'Guardian', 'values': {'hp': 5500, 'x': None}})
-    merged = merge_copies(rows)
-    assert [(r['name'], r.get('copies')) for r in merged] == [('Walker', 4), ('Guardian', None)]
-    cols = [{'key': 'hp'}, {'key': 'x'}]
-    assert [c['key'] for c in non_empty(cols, merged)] == ['hp']
-
-
 def test_calendar_shades_and_gaps():
     from builders.calendar_page import _gaps, _shade
     assert [_shade(n) for n in (0, 1, 3, 6, 10)] == [0, 1, 2, 3, 4]
@@ -834,47 +248,11 @@ def test_calendar_shades_and_gaps():
     assert [g[0] for g in _gaps(ps)] == [10, 2]
 
 
-def test_hero_stats_boons_and_roles():
-    from builders.tables_pages import boon_attrs
-    r = {'values': {'hp': 800, 'hp_lvl': 49, 'dps': 51.4, 'bullet_dmg': 3.6, 'bullet_dmg_lvl': 0.1}}
-    assert boon_attrs(r, {'key': 'hp'}) == ' data-per="49"'
-    # DPS grows with the bullet: 51.4 * 0.1 / 3.6 per boon
-    assert boon_attrs(r, {'key': 'dps'}) == ' data-per="1.42778"'
-    assert boon_attrs(r, {'key': 'reload'}) == ''
-
-
-def test_number_lists_are_values_not_flags():
-    from builders.render import flags_html
-    # a recoil range or prices by tier keep their order: no "+-0.1 +0.1" chips (314 rows, 2026-10-02)
-    assert flags_html('', '-0.1, 0.1') is None
-    assert flags_html('0, 500, 1200', '0, 500, 1250') is None
-    assert 'flag add' in flags_html('A | B', 'A | B | C')
-
-
 def test_key_bindings_in_text_read_as_keys():
     from builders.patches_pages import _plain
     assert _plain("Press {g:citadel_binding:'Attack'} to fire") == 'Press [Attack] to fire'
     # a binding with a form word ("1st") was printed raw on 12 build pages
     assert _plain("{g:citadel_binding:1st:'Spectator.SpecNext'}Target") == '[Spec Next] Target'
-
-
-def test_no_limit_reads_as_no_limit():
-    from builders.cards import is_noop
-    from builders.render import shown_value
-    # one wording for 9999 and -1 (audit 2026-10-04: "∞ → no limit" read as a change)
-    assert shown_value('9999') == 'no limit' and shown_value('99999') == 'no limit' and shown_value('9999m') == 'no limit'
-    assert shown_value('999') == '999'
-    # the spellings of "no limit" are one value
-    assert is_noop({'op': 'change', 'old_s': '9999', 'new_s': '99999'})
-    assert is_noop({'op': 'change', 'old_s': '9999', 'new_s': '-1',
-                    'path': 'm_mapAbilityProperties.ChannelMoveSpeed.m_strValue'})
-
-
-def test_flags_written_without_spaces_read_as_words():
-    from builders.render import flags_html, readable_value
-    v = 'CITADEL_ABILITY_BEHAVIOR_CHANNELLED|CITADEL_ABILITY_BEHAVIOR_NO_TARGET'
-    assert readable_value(v) == 'Channelled | No Target'
-    assert '+channelled' in flags_html('', v)
 
 
 def test_build_page_lists_cosmetics_groundwork(monkeypatch):
@@ -940,200 +318,6 @@ def test_home_feed_puts_changes_on_their_pages():
                    frozenset({'npc_units.vdata:trooper_base'})) is None
 
 
-def test_entity_history_rows_marks_filters_and_lazy_blocks():
-    """2026-10-03, the entity page is the history: rows are what the files changed (+ changes in the
-    game's code), bug fixes / looks / unmatched lines and engine plumbing stay off; one toolbar; work on
-    an unreleased hero hides behind "Before release"; a band that stays folded waits in a <template>, every
-    band with the entity's own changes is open and in the page (review 2026-10-05)."""
-    from builders import history_view
-    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
-    keys = [('heroes.vdata:hero_atlas', 'Base stats', None), ('abilities.vdata:ab_charge', 'Shoulder Charge', None)]
-    by_ent = {'heroes.vdata:hero_atlas': [(r2, [ch(key='c1', label='Health per boon', status='documented')]),
-                                          (r1, [ch(key='c3', label='Stamina', status='unreleased')])],
-              'abilities.vdata:ab_charge': [(r2, [ch(key='c2', label='T1: Move Speed', dir='buff'),
-                                                  ch(key='c4', label='Particle', path='m_strParticleFile',
-                                                     old_s='a.vpcf', new_s='b.vpcf', cat='balance')])]}
-    by_subject = {'abrams': [(r2, {'text': 'Abrams: Can now cancel Shoulder Charge', 'status': 'code', 'subject': 'Abrams'}),
-                             (r2, {'text': 'Abrams: Fixed a bug', 'status': 'fix', 'subject': 'Abrams'})]}
-    areas = {'heroes.vdata:hero_atlas': 'stats', 'abilities.vdata:ab_charge': 'abil'}
-    html = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas)
-    assert 'Can now cancel Shoulder Charge' in html and 'Fixed a bug' in html
-    assert 'Technical' not in html and 'data-ab="ab_charge" data-area="abil"' in html
-    # the toolbar: tags present, the eye, parts; the newest block in the page, the older one lazy
-    assert 'data-f-tag="buff"' in html and 'data-f-tag="nerf"' in html and 'data-f-area="stats"' in html
-    assert 'Not in patch notes' in html and html.index('id="p-p2"') < html.index('id="p-p1"')
-    assert '<template class="hp-t">' in html.split('id="p-p1"')[1] and 'template' not in html.split('id="p-p1"')[0]
-    # the old patch had only work on a hero in development: hidden behind the switch
-    assert 'pblock dev-only' in html and 'Before release' in html
-    released = history_view.history_table(keys, ['Abrams'], by_ent, by_subject, '../', areas=areas, in_dev=True)
-    assert 'dev-only' not in released and 'hblocks show-dev' in released
-
-
-def test_engine_vocabulary_stays_off_the_pages_unless_the_notes_spoke():
-    """2026-10-03 advisor: 452 'Behaviour' flag rows, pellet offsets, Walker's weak-point joints read as
-    noise; a flag change a note line covers ("No longer interrupts sliding") stays."""
-    from builders.cards import is_engine
-    flags = {'cat': 'mechanic', 'label': 'Behaviour', 'status': 'hidden',
-             'old_s': 'CITADEL_ABILITY_BEHAVIOR_A', 'new_s': 'CITADEL_ABILITY_BEHAVIOR_A | CITADEL_ABILITY_BEHAVIOR_B'}
-    assert is_engine(flags) and not is_engine({**flags, 'status': 'described'})
-    assert is_engine({'cat': 'mechanic', 'label': 'Projectile › Behaviour', 'old_s': 'PBF_StickToWorld', 'new_s': None})
-    assert is_engine({'cat': 'mechanic', 'label': 'Scatter Offsets[3]', 'path': 'm_mapWeaponInfos.primary.m_vecScatterOffsets[3]',
-                      'old_s': '2, 0', 'new_s': None})
-    assert not is_engine({'cat': 'balance', 'label': 'Silence Duration', 'old_s': None, 'new_s': '0.3'})
-
-
-def test_item_history_puts_the_enhanced_version_in_its_own_group():
-    """2026-10-03: 14% of item rows read "Enhanced: …" — on the item page they are a group of their own."""
-    from builders.history_view import history_table
-    row = {'id': 'p1', 'date': '2026-09-29', 'title': 'City Never Sleeps · 09-29-2026'}
-    key = 'abilities.vdata:upgrade_x'
-    by_ent = {key: [(row, [ch(key='a', label='Bonus Health', dir='buff'), ch(key='b', label='Enhanced: Bonus Health')])]}
-    html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../', enhanced=True)
-    assert 'Enhanced version' in html and 'Enhanced: ' not in html
-    assert 'data-f-area="base"' in html and 'data-f-area="enh"' in html
-    assert html.count('class="esub') == 1                 # the item's own rows need no header
-
-
-def test_values_say_no_limit_and_carry_their_unit_on_both_sides():
-    """Advisor round 3, 2026-10-03: "Channel Move Speed 8m → −1", "Weapon Damage 20% →", "50 → 20m"."""
-    from builders.render import vals_html
-    assert 'no limit' in vals_html(ch(old_s='8m', new_s='-1', pct=None))
-    assert '>—<' in vals_html(ch(old_s='20%', new_s='', pct=None))
-    assert '>50m<' in vals_html(ch(old_s='50', new_s='20m'))
-    assert '>-1%<' in vals_html(ch(old_s='-2%', new_s='-1%'))           # a real penalty stays a number
-
-
-def test_two_fields_under_one_label_get_told_apart():
-    """Advisor round 3, 2026-10-03: 104 pairs like "Healing Reduction" (receive / regen penalty)."""
-    from builders.cards import disambiguate
-    rows = disambiguate([{'label': 'Healing Reduction', 'path': 'm_mapAbilityProperties.HealAmpReceivePenaltyPercent.m_strValue'},
-                         {'label': 'Healing Reduction', 'path': 'm_mapAbilityProperties.HealAmpRegenPenaltyPercent.m_strValue'},
-                         {'label': 'Cooldown', 'path': 'm_mapAbilityProperties.AbilityCooldown.m_strValue'}])
-    assert [r['label'] for r in rows] == ['Healing Reduction · receive', 'Healing Reduction · regen', 'Cooldown']
-
-
-def test_a_bare_namesake_gets_a_word_too():
-    """Advisor round 4: Puddle Punch's T3 "Damage −50 → −40" beside "Damage · heavy melee 50 → 40" read as
-    one stat; "Spirit Power · tech" said nothing (Tech is Spirit); a scale function's switch is plumbing."""
-    from builders.cards import disambiguate, is_engine
-    up = 'm_vecAbilityUpgrades[2].m_vecPropertyUpgrades{%s}.m_strBonus'
-    rows = disambiguate([{'label': 'T3: Damage', 'path': up % 'Damage'},
-                         {'label': 'T3: Damage', 'path': up % 'DamageHeavyMelee'}])
-    assert [r['label'] for r in rows] == ['T3: Damage · base', 'T3: Damage · heavy melee']
-    prop = 'm_mapAbilityProperties.%s.m_strValue'
-    rows = disambiguate([{'label': 'Spirit Power', 'path': prop % 'TechPower'},
-                         {'label': 'Spirit Power', 'path': prop % 'BonusSpirit'}])
-    assert [r['label'] for r in rows] == ['Spirit Power · base', 'Spirit Power · bonus']
-    rows = disambiguate([{'label': 'Spirit Power', 'path': prop % 'TechPower', 'op': 'change', 'new_s': '0'},
-                         {'label': 'Spirit Power', 'path': prop % 'SpiritPower', 'op': 'add', 'new_s': '8'}])
-    assert [r['label'] for r in rows] == ['Spirit Power · old field', 'Spirit Power · new field']
-    spread = 'm_mapWeaponInfos.primary.m_ShootSpreadPenaltyPerShotNormalization.%s'
-    rows = disambiguate([{'label': 'Spread Normalization', 'path': spread % 'm_SpreadPerShotFactor'},
-                         {'label': 'Spread Normalization', 'path': spread % 'm_FireRatePctRange'}])
-    assert [r['label'] for r in rows] == ['Spread Normalization · per shot factor', 'Spread Normalization · fire rate range']
-    # the same row reads alike in a patch where its namesake did not move
-    from builders.history_view import history_table
-    p1 = {'id': 'p1', 'date': '2026-03-21', 'title': '03-21-2026 Update'}
-    p2 = {'id': 'p2', 'date': '2025-07-04', 'title': '07-04-2025 Update'}
-    key = 'abilities.vdata:viscous_telepunch'
-    by_ent = {key: [(p1, [ch(key='a', label='T3: Damage', path=up % 'Damage'),
-                          ch(key='b', label='T3: Damage', path=up % 'DamageHeavyMelee')]),
-                    (p2, [ch(key='c', label='T3: Damage', path=up % 'Damage', old_s='-35', new_s='-30')])]}
-    html = history_table([(key, 'Puddle Punch', None)], ['Viscous'], by_ent, {}, '../')
-    bands = html.split('id="history"')[1]            # the strip's hover-card data repeats the labels
-    assert bands.count('T3: Damage · base') == 2 and bands.count('T3: Damage · heavy melee') == 1
-    switch = {'cat': 'mechanic', 'label': 'Cooldown · Function Disabled', 'status': 'hidden', 'old_s': 'no', 'new_s': 'yes',
-              'path': 'm_mapAbilityProperties.AbilityCooldown.m_subclassScaleFunction.m_bFunctionDisabled'}
-    assert is_engine(switch)
-    assert not is_engine({**switch, 'path': 'm_mapAbilityProperties.AbilityCooldown.m_subclassScaleFunction.m_flStatScale'})
-
-
-def test_player_terms_and_the_strip_puts_the_newest_on_the_right():
-    """Advisor round 4, 2026-10-03: one wording for the eye ("Not in patch notes"), a date instead of
-    "build 6711", the count left out of the notes on a strip tile. Owner 2026-10-05: the newest patch on
-    the right everywhere (the strip ran newest-left while the matrices ran newest-right)."""
-    from builders.common import first_seen
-    from builders.history_view import history_table
-    assert first_seen([6711, '2026-09-29T21:00:00Z']) == '<div class="meta">First seen 2026-09-29</div>'
-    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
-    key = 'abilities.vdata:upgrade_x'
-    by_ent = {key: [(r1, [ch(key='a', status='documented')]), (r2, [ch(key='b'), ch(key='c', label='Range')])]}
-    html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../')
-    strip = html.split('class="patch-strip"')[1].split('</div>')[0]
-    assert strip.index('#p-p1') < strip.index('#p-p2')
-    assert '2 changes, 2 not in patch notes' in strip and 'all 2 not in patch notes' in html
-
-
-def test_an_entity_page_puts_its_strip_under_the_head():
-    """Review 2026-10-05: History started 1365-2096 px down a hero page (Sloppy's first band: y=312); the strip
-    is the row under the head on hero, item and unit pages, its data blob with it."""
-    from builders.history_view import head_strip, history_table
-    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    r2 = {'id': 'p2', 'date': '2026-02-01', 'title': '02-01-2026 Update'}
-    key = 'abilities.vdata:upgrade_x'
-    by_ent = {key: [(r1, [ch(key='a', status='documented')]), (r2, [ch(key='b')])]}
-    told: dict = {}
-    html = history_table([(key, 'X', None)], ['X'], by_ent, {}, '../', facts_out=told)
-    assert 'patch-strip' not in html and 'strip-data' not in html
-    row = head_strip(told)
-    assert row.startswith('<div class="head-strip">') and 'patch-strip' in row and 'strip-data' in row
-    assert 'patch-strip' in history_table([(key, 'X', None)], ['X'], by_ent, {}, '../')    # a Game page keeps it
-
-
-def test_a_bands_patch_link_lands_on_the_entity(monkeypatch):
-    """Review 2026-10-05: "patch ↗" opened the top of the patch page (Sloppy lands on the hero's block): it goes to
-    what the notes said about the entity (#n-) when they name it, else to its card under All changes (#c-)."""
-    from builders import archive
-    from builders.history_view import history_table, patch_href
-    monkeypatch.setattr(archive, 'note_anchors', lambda pid: frozenset({'upgrade_x'}) if pid == 'p2' else frozenset())
-    monkeypatch.setattr(archive, 'change_anchors', lambda pid: frozenset({'upgrade_x', 'bot'}))
-    assert patch_href('p2', '../', 'upgrade_x') == '../patches/p2.html#n-upgrade_x'
-    assert patch_href('p1', '../', 'upgrade_x') == '../patches/p1.html#c-upgrade_x'
-    assert patch_href('p1', '../') == '../patches/p1.html'
-    # review 2026-10-05: 2,112 of 6,295 band links pointed at an id the patch page has no place for — the page itself
-    # then; a unit family's band lands on the member the patch page has a card for
-    assert patch_href('p1', '../', 'hero_astro') == '../patches/p1.html'
-    assert patch_href('p1', '../', 'bot_weak', ['bot_weak', 'bot']) == '../patches/p1.html#c-bot'
-    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    key = 'abilities.vdata:upgrade_x'
-    html = history_table([(key, 'X', None)], ['X'], {key: [(r1, [ch(key='a')])]}, {}, '../')
-    assert 'href="../patches/p1.html#c-upgrade_x"' in html
-    game = history_table([('game:urn', 'Urn', None), (key, 'X', None)], ['Urn'], {key: [(r1, [ch(key='a')])]}, {}, '../')
-    assert 'href="../patches/p1.html"' in game                         # a Game system: the page itself
-
-
-def test_valves_words_sit_under_the_rows_they_cover(monkeypatch):
-    """Review 2026-10-05: a described row looked like any other — Valve's line is a quiet note under the ability's
-    rows; a line about many entities ("Spirit Power scaling globally reduced by -7%") is said once per band;
-    a documented row gets none (its line repeats "label old → new"). A change that came in a later build than the
-    notes' own says so on its eye."""
-    from builders import archive
-    from builders.history_view import history_table
-    idx = {'abilities.vdata:a:x': (0, 1), 'abilities.vdata:a:y': (2,), 'abilities.vdata:a:z': (3,)}
-    lines = (('Alpha: Wake Up delay no longer increases with spirit scaling', 'described', 1),
-             ('Spirit Power scaling globally reduced by -7%', 'described', 40),
-             ('Alpha: Range increased from 10m to 12m', 'documented', 1),
-             ('Alpha: Wake Up delay no longer increases with spirit scaling', 'described', 1))
-    monkeypatch.setattr(archive, 'note_lines', lambda pid: (idx, lines))
-    monkeypatch.setattr(archive, 'builds_of', lambda pid: [{'build': 100, 'date': '2026-03-06T00:00:00Z'},
-                                                           {'build': 104, 'date': '2026-03-09T00:00:00Z'}])
-    from builders import evidence          # the notes' own build is 100 (what a silent hotfix is newer than)
-    monkeypatch.setattr(evidence, 'notes_window', lambda pid: (100, frozenset({100}), '2026-03-06'))
-    r1 = {'id': 'p1', 'date': '2026-03-06', 'title': '03-06-2026 Update'}
-    rows = [ch(key='abilities.vdata:a:x', path='x', label='Wake Up Delay', status='described'),
-            ch(key='abilities.vdata:a:y', path='y', label='Range', status='documented'),
-            ch(key='abilities.vdata:a:z', path='z', label='Radius', status='described'),
-            ch(key='abilities.vdata:a:w', path='w', label='Width', status='hidden', builds=[104])]
-    keys = [('heroes.vdata:h', 'Base stats', None), ('abilities.vdata:a', 'Alpha', None)]
-    html = history_table(keys, ['Hero'], {'abilities.vdata:a': [(r1, rows)]}, {}, '../')
-    notes = re.findall(r'class="vnote"><span class="vn-l">Patch notes</span>([^<]*)', html)
-    assert notes == ['Spirit Power scaling globally reduced by -7%', 'Wake Up delay no longer increases with spirit scaling']
-    assert html.index('class="vnotes"') < html.index('class="hgroup')          # the band's line first
-    assert 'came in build 104 (2026-03-09), after the patch' in html
-
-
 def test_an_update_with_notes_lists_what_they_left_out():
     """Review 2026-10-05: the "From the files" tab of an update with notes repeated All changes (833 / 833) and said
     "Valve published no numbers" for City Never Sleeps: it lists only the rows not in the notes, said truly."""
@@ -1183,57 +367,6 @@ def test_a_shared_edits_card_is_the_place_of_its_targets(monkeypatch):
     assert change_anchors([block, item]) == {'dash', 'hero_astro', 'bot_weak', 'upgrade_x'}
 
 
-def test_one_hidden_change_is_never_all_of_one():
-    """Review 2026-10-05: "ALL 1 NOT IN NOTES"; an all-hidden band's rows keep a dimmed eye, each its row's proof
-    (review 2026-10-17: they had none, the banner's was the only way to a build)."""
-    from builders.history_view import history_table
-    r1 = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    key = 'abilities.vdata:upgrade_x'
-    html = history_table([(key, 'X', None)], ['X'], {key: [(r1, [ch(key='a')])]}, {}, '../')
-    assert '>1 not in patch notes<' in html and 'all 1 not in' not in html
-    from pathlib import Path
-    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    assert '.pblock.all-hidden .erow:not(.late) .st .mark { opacity: .7; }' in css
-    # a row that came after the patch in a later build keeps its full eye there: its words are the proof (review 2026-10-05)
-    from builders.cards import row
-    assert 'class="erow st-hidden is-hidden late"' in row('hidden', '', 'x', tip='came in build 104 (2026-03-09), after the patch')
-    assert ' late' not in row('hidden', '', 'x')
-
-
-def test_strip_tiles_are_striped_squares_and_whole_ones_show():
-    """Owner 2026-10-21 (Sloppy's dynamic cells; 14px tiles were too narrow): a 24px square with the stripes of every
-    tag at rest (one colour showed half of what changed), the count on hover; the row never scrolls (2026-10-05: a
-    bar under the strip; 2026-10-21: a scrolled row cut its oldest tile): the newest tiles that fit whole show."""
-    import re
-    from pathlib import Path
-    from builders.history_view import patch_strip, tile_colour
-    root = Path(__file__).resolve().parent.parent
-    css = root.joinpath('site', 'styles.css').read_text(encoding='utf-8')
-    rule = re.search(r'\.patch-strip \{[^}]*\}', css).group(0)
-    assert 'overflow: hidden' in rule and 'overflow-x: auto' not in rule
-    assert re.search(r'\.ps-tile \{[^}]*flex: 0 0 24px[^}]*height: 24px[^}]*background: var\(--st, var\(--c', css)
-    assert '.ps-tile.ps-out { display: none; }' in css
-    js = root.joinpath('site', 'scripts.js').read_text(encoding='utf-8')
-    assert "safe('strip-end'" in js and "classList.add('ps-out')" in js
-    # the colour: the patch's net mark, else its most counted tag
-    assert tile_colour({'buff': 1, 'nerf': 5}, 'mix') == 'changed' and tile_colour({'buff': 1}, 'nerf') == 'nerf'
-    assert tile_colour({'new': 3, 'rework': 3, 'buff': 1}, '') == 'new'
-    assert tile_colour({'up': 2}, '') == 'changed'
-    hdr = [{'id': f'p{i}', 'date': f'2026-0{i}-01', 'title': f'0{i}-01-2026 Update'} for i in (1, 2)]
-    html = patch_strip([(h['id'], h, {'buff': 2}, 0, [], 'buff') for h in hdr])
-    assert 'class="ps-tile c-buff"' in html and 'style="--st:linear-gradient(' in html
-
-
-def test_current_fold_is_open_and_events_carry_no_value():
-    """Advisor round 4: Slum Shroom's page was one "Added to the game files · —" row under a closed
-    "Current stats"; owner 2026-10-04: nothing folded by default, whatever the history's length."""
-    from builders.history_view import now_fold
-    from builders.render import vals_html
-    assert '<details class="now px-frame" open>' in now_fold('Current stats', '<table></table>')
-    assert now_fold('Current stats', '') == ''
-    assert vals_html({'op': 'add', 'path': '@add', 'cat': 'balance', 'label': 'Added to the game files'}) == ''
-
-
 def test_site_search_lists_heroes_abilities_items_and_units():
     """Advisor round 4: no way to jump to "what changed on X" from the home page."""
     from builders.site_search import search_rows
@@ -1247,303 +380,12 @@ def test_site_search_lists_heroes_abilities_items_and_units():
     assert by_name['Extra Charge'][2] == 'Item · removed' and by_name['Walker'][2] == 'Unit'
 
 
-ITEM_COLS = [{'key': 'tier', 'label': 'Tier', 'group': 'Shop', 'pol': 0, 'digits': 0, 'unit': ''},
-             {'key': 'cost', 'label': 'Cost', 'group': 'Shop', 'pol': -1, 'digits': 0, 'unit': '', 'css': 'souls'},
-             {'key': 'health_max', 'label': 'Bonus Health', 'group': 'Vitality', 'pol': 1, 'digits': 0, 'unit': '',
-              'css': 'health', 'stat': True},
-             {'key': 'bullet_armor_damage_resist', 'label': 'Bullet Resist', 'group': 'Vitality', 'pol': 1,
-              'digits': 0, 'unit': '%', 'css': 'bullet_armor_up', 'stat': True},
-             {'key': 'cooldown', 'label': 'Cooldown', 'group': 'Utility', 'pol': -1, 'digits': 2, 'unit': 's',
-              'css': 'cooldown'}]
-BOOSTER = {'id': 'upgrade_headshot_booster', 'name': 'Headshot Booster', 'slot': 'Weapon',
-           'values': {'tier': 1, 'cost': 800.0, 'health_max': 30.0, 'cooldown': 9.0},
-           'shown': {'health_max': '+30', 'cooldown': '9s'},
-           'effects': [{'key': 'fx:HeadShotBonusDamage', 'label': 'Head Shot Bonus Damage', 'value': '+45',
-                        'css': 'bullet_damage', 'pol': 1, 'digits': 0}],
-           'history': {'health_max': [[5554, '2025-05-08', 40.0, 30.0]],
-                       'bullet_armor_damage_resist': [[5554, '2025-05-08', 4.0, None]],
-                       'fx:HeadShotBonusDamage': [[6000, '2025-12-01', 40.0, 45.0]]}}
-
-
-def test_item_stats_show_what_an_item_does():
-    """Owner complaint 6 (2026-10-04): Item Stats was 67-84% dashes and never showed an item's own numbers.
-    The always-on stats are chips in one cell (one sortable column each on demand), every other card
-    number is an Effect chip with its label and unit, each with its own history."""
-    from builders.tables_pages import effects_cell, item_columns, stats_cell
-    cols = item_columns(ITEM_COLS)
-    assert [c['key'] for c in cols] == ['tier', 'cost', 'stats', 'health_max', 'bullet_armor_damage_resist',
-                                        'effect', 'cooldown', 'builds']
-    stat_cols = [c for c in cols if c.get('stat')]
-    assert all(c['lazy'] and c['cls'] == 'stc' for c in stat_cols)    # no per-stat cells in the page
-    html = stats_cell(BOOSTER, stat_cols, '2025-01-01')
-    assert 'class="sc f-v has-hist recent"' in html and 'data-col="health_max" data-sort="30.0"' in html
-    assert '<b>+30</b> <i>Bonus Health</i>' in html and 'data-spp' in html
-    assert 'data-hist=\'[[5554,"2025-05-08",40.0,30.0]]\'' in html
-    # a stat the item lost keeps its history for the column view, as an empty marker
-    assert 'class="sc gone has-hist recent" data-col="bullet_armor_damage_resist"' in html
-    assert 'data-sort="1"' in html                                       # one stat now
-    fx = effects_cell(BOOSTER, '2026-01-01')
-    assert '<b>+45</b> <i>Head Shot Bonus Damage</i>' in fx and 'Headshot Booster · Head Shot Bonus Damage' in fx
-    assert 'class="fx has-hist"' in fx and 'data-col="effect"' in fx and 'data-pol="0"' in fx
-    empty = {**BOOSTER, 'values': {}, 'effects': [], 'history': {}}
-    assert '<span class="dash">—</span>' in stats_cell(empty, stat_cols, '') and 'data-sort=""' in effects_cell(empty, '')
-
-
-def test_item_table_bands_tiers_and_lazy_columns():
-    from builders.tables_pages import item_columns, render_table, tier_starts
-    rows = [{**BOOSTER, 'id': f'i{n}', 'name': f'I{n}', 'slot': slot, 'values': {**BOOSTER['values'], 'tier': tier}}
-            for n, (slot, tier) in enumerate([('Weapon', 1), ('Weapon', 1), ('Weapon', 2), ('Spirit', 2)])]
-    assert tier_starts(rows) == {'i0', 'i2', 'i3'}
-    cols = item_columns(ITEM_COLS)
-    html = render_table(cols, rows, lambda r: f'<td class="name">{r["name"]}</td>', 'Item',
-                        section_of=lambda r: (r['slot'], f' data-cat="{r["slot"][0].lower()}"'),
-                        cells_by_key={'stats': lambda r, c, cut: '<td class="sumc"></td>',
-                                      'effect': lambda r, c, cut: '<td class="fxc"></td>',
-                                      'builds': lambda r, c, cut: '<td class="xcol"></td>'},
-                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'})
-    # one band row per category, spanning the table; the box at the page's left edge like every table's (2026-10-17)
-    assert html.count('<tr class="sec"') == 2 and '<tr class="sec" data-cat="s">' in html
-    assert 'class="sec-fill"' in html and 'class="table-fade"' in html
-    # a lazy column: its header says how to build its cells, the rows have none
-    assert re.search(r'data-col="health_max"[^>]*data-cell-cls="grp-start( g-odd)? stc"', html)
-    assert 'data-col="health_max" data-sort' not in html
-    # units in headers, the game's property icon before the label
-    assert 'Cooldown <span class="u">s</span>' in html and 'Bullet Resist <span class="u">%</span>' in html
-    assert 'stats/prop/cooldown.svg' in html
-    assert '<th colspan="2" class="cat stc" data-group="Vitality">' in html
-
-
-def test_item_effects_mark_the_active_and_recent_losses():
-    """Review 2026-10-04: "+70% Spirit Lifesteal" while Infuser runs sat beside its always-on +13% with
-    nothing between them; a number the item lost left no trace on the table."""
-    from builders.tables_pages import effects_cell
-    row = {**BOOSTER, 'effects': BOOSTER['effects'] + [
-        {'key': 'fx:Lifesteal', 'label': 'Spirit Lifesteal', 'value': '+70%', 'css': None, 'pol': 1, 'digits': 0,
-         'active': True}],
-        'removed': [{'key': 'fx:PerKill', 'label': 'Weapon Damage per Kill', 'css': None, 'pol': 1, 'digits': 0,
-                     'history': [[6700, '2026-09-20', 10.0, None, 'changed']]},
-                    {'key': 'fx:Old', 'label': 'Old Thing', 'css': None, 'pol': 1, 'digits': 0,
-                     'history': [[5000, '2024-08-01', 3.0, None, 'changed']]}],
-        'odir': {'fx:HeadShotBonusDamage': 'buff'}}
-    html = effects_cell(row, '2026-08-20')
-    # the "Active" tag before the first active number, which is framed apart
-    assert html.index('<span class="fx-tag">Active</span>') < html.index('class="fx fx-act')
-    assert html.index('Head Shot Bonus Damage') < html.index('fx-tag')
-    # lost lately: struck through with its history; lost long ago: only on the item's page
-    assert 'class="fx fx-gone has-hist recent"' in html and '<b>10</b> <i>Weapon Damage per Kill</i>' in html
-    assert 'Old Thing' not in html
-    assert 'data-sort="2"' in html                                      # what the item does now
-    assert 'data-odir="buff"' in html                                   # the whole history's direction
-
-
-def test_item_stats_refuse_an_old_items_json():
-    """Review 2026-10-04: the old items.json built a broken page (two Stats groups, empty cells) without
-    failing; CI deploys committed data, so a stale file must stop the build."""
-    import pytest
-    from builders.tables_pages import check_items_data
-    with pytest.raises(RuntimeError, match='old format'):
-        check_items_data({'columns': ITEM_COLS[:2], 'items': [{'id': 'x', 'values': {}}]})
-    with pytest.raises(RuntimeError):
-        check_items_data({'columns': ITEM_COLS, 'items': [{'id': 'x', 'values': {}}]})
-    check_items_data({'columns': ITEM_COLS, 'items': [BOOSTER]})
-
-
-def test_item_unknown_stat_family_is_one_group_before_effects():
-    """A new provided stat no family word matches is "Other", next to the stat families: as "Utility" it
-    sat before Effect while Cooldown sat after it — two "Utility" groups the folding merged by name."""
-    from builders.tables_pages import item_columns, render_table
-    new = {'key': 'something_new', 'label': 'New', 'group': 'Other', 'pol': 1, 'digits': 0, 'unit': '', 'stat': True}
-    cols = item_columns(ITEM_COLS[:4] + [new] + ITEM_COLS[4:])
-    groups = [c['group'] for c in cols]
-    assert groups == ['Shop', 'Shop', 'Stats', 'Vitality', 'Vitality', 'Other', 'Effect', 'Utility', 'Builds']
-    html = render_table(cols, [BOOSTER], lambda r: '<td class="name"></td>', 'Item',
-                        cells_by_key={'stats': lambda r, c, cut: '<td></td>', 'effect': lambda r, c, cut: '<td></td>',
-                                      'builds': lambda r, c, cut: '<td></td>'}, table_attrs=' data-heat-by="tier"')
-    assert html.count('data-group="Utility">') == 1 and '<table class="stats" data-heat-by="tier">' in html
-
-
-def test_table_bar_scrolls_away_and_its_legend_wraps():
-    """The sticky bar covered the column headers (a third of a phone); the 489px legend chip scrolled
-    the page sideways at 390px; the heatmap is on by default on Item Stats."""
-    from pathlib import Path
-    from builders.tables_pages import _toolbar
-    bar = _toolbar('Item…', heat_on=True)
-    assert 'class="toolbar tbl-bar"' in bar and 'data-heatmap checked' in bar
-    assert ('<span class="lg-tail"> · <span class="lg-hover">hover</span><span class="lg-tap">tap</span>'
-            ' a value for its history</span>') in bar
-    assert 'data-heatmap checked' not in _toolbar('Hero…')
-    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
-    # static on a phone or a short window; a desktop keeps it under the site bar (tests/test_vis_layout.py)
-    assert ('@media (max-width: 760px), (max-height: 560px) { .toolbar.tbl-bar, .toolbar.dyn-bar { position: static; } }'
-            in css)
-    assert '.chip.legend-hist { white-space: normal; max-width: 100%; }' in css
-    # a unit without art: the glyph gets the icon's fixed box (Shrine's grew to a 300x210 picture)
-    assert 'table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px;' in css
-
-
 def test_stylesheet_colours_live_in_root_only():
     """AGENTS.md: every colour is a :root token; no hex / rgba literal in the rules."""
-    from pathlib import Path
-    css = (Path(__file__).resolve().parent.parent / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
     rest = css[css.index('}', css.index(':root {')) + 1:]
     assert [m.group(0) for m in re.finditer(r':[^;{}]*(#[0-9a-fA-F]{3,8}\b|rgba?\()', rest)] == []
-
-
-def test_buff_vs_nerf_weighs_the_changes():
-    """Review 2026-10-05: "Buff vs nerf" was a majority of rows — one +50% buff lost to two −10% nerfs."""
-    from builders.weights import band_score, net_class
-    big = {'dir': 'buff', 'pct': 50.0, 'op': 'change'}
-    small = {'dir': 'nerf', 'pct': -10.0, 'op': 'change'}
-    net, vol = band_score([big, small, small])
-    assert net == 1.5 and vol == 3.5 and net_class(net, vol) == 'net-buff'
-    assert net_class(*band_score([big, {**big, 'dir': 'nerf'}])) == 'net-mix'
-    assert band_score([{'op': 'add', 'dir': None, 'pct': None}]) == (1.0, 1.0)            # a NEW thing
-
-
-def test_net_mark_is_one_rule_on_bands_cards_and_matrices(monkeypatch):
-    """Review 2026-10-05: the change matrices weighed buff vs nerf, a band, a strip tile's card and a home icon said
-    nothing (the home icon's underline counted a majority). weights.net_of is the one rule all of them read."""
-    from builders import dynamics_page, history_view
-    from builders.home_page import _chip, update_feed
-    from builders.weights import net_chip, net_of
-    big = ch(dir='buff', pct=50.0)
-    small = ch(dir='nerf', pct=-10.0)
-    assert net_of([big, small, small]) == 'buff'                    # one +50% buff outweighs two −10% nerfs
-    assert net_of([small, small]) == 'nerf'
-    assert net_of([big, ch(dir='nerf', pct=-50.0)]) == 'mix'
-    assert net_of([ch(op='rework'), ch(cat='mechanic', dir='changed', pct=None)]) == ''    # nothing takes a side
-    assert net_chip('buff') == '<span class="net-chip net-buff">net buff</span>' and net_chip('') == ''
-    # the band's banner: one chip after the counters; none for a band of reworks only
-    hdr = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    summary, _ = history_view._banner('p1', hdr, [big, small, small], '../')
-    assert summary.count('net-chip') == 1 and '<span class="net-chip net-buff">net buff</span>' in summary
-    assert summary.index('class="tsum"') < summary.index('net-chip') < summary.index('patch ↗')
-    assert 'net-chip' not in history_view._banner('p1', hdr, [ch(op='rework')], '../')[0]
-    # the strip tile's card carries the band's mark and the words
-    data = history_view.strip_data([('p1', hdr, {'buff': 1, 'nerf': 2}, 0, [], net_of([big, small, small]))])
-    assert data['t'][0][6] == 'buff' and data['nets']['mix'] == 'mixed'
-    # the home icon: its underline by the weighed sum, not by which side has more rows
-    ents = [{'key': 'abilities.vdata:a1', 'file': 'abilities.vdata', 'id': 'a1', 'kind': 'ability', 'owner': 'hero_atlas',
-             'name': 'Siphon Life', 'changes': [{**big, 'key': 'k1'}, {**small, 'key': 'k2', 'label': 'Radius'},
-                                                {**small, 'key': 'k3', 'label': 'Range'}]}]
-    s = update_feed({'entities': ents})['heroes']['heroes.vdata:hero_atlas']
-    assert s['nerf'] == 2 and s['buff'] == 1
-    assert 'class="lu net-buff"' in _chip('heroes.vdata:hero_atlas', s, 'p1', {'heroes.vdata:hero_atlas': 'Abrams'}, k=0)
-    # a matrix tile: its class and its card's mark from the same rule (scripts.js never re-weighs)
-    rows = [{'id': 'p1', 'date': '2026-09-29', 'title': '09-29-2026 Update'}]
-    monkeypatch.setattr(dynamics_page, '_collect', lambda: {
-        'rows': rows, 'cells': {'item:x': {'p1': {'buff': 1, 'nerf': 2}}}, 'parts': {}, 'samples': {}, 'hidden': {},
-        'nets': {'item:x': {'p1': net_of([big, small, small])}}})
-    html = dynamics_page.matrix_html([('item:x', 'X', None, 'x.html', '')], 'item')
-    assert 'class="dsq net-buff"' in html and '"nets":{' in html and ',"buff"]]' in html
-
-
-def test_band_chip_and_matrix_cell_weigh_the_same_rows(monkeypatch):
-    """Review 2026-10-05: 44 hero cells and 1 item cell had a matrix tile of one side and a band chip of another (or
-    none) — the cell weighed work on abilities still in development (Nano 2024-09-26: band "net nerf", tile buff)
-    and missed an ability removed in the patch (its record names no owner: Holliday 2026-09-29 read 7 DEL on the
-    band, 1 in the cell). One rule now (weights.weighed_rows): a rule for all and work before release are out of
-    the net in both, a removed ability counts on its hero in both."""
-    import re as _re
-    from builders import archive, dynamics_page, game_systems, history_view
-    rows = {r: {'id': r, 'date': f'2026-0{i}-01', 'title': f'0{i}-01-2026 Update'}
-            for i, r in enumerate(('p1', 'p2', 'p3', 'p4'), start=1)}
-
-    def c(ent, n, **kw):
-        return ch(**{'key': f'{ent}:{n}', 'path': n, 'label': f'Field {n}', 'status': 'hidden', **kw})
-    hero, ab, gone = 'heroes.vdata:hero_x', 'abilities.vdata:ab_x', 'abilities.vdata:ab_gone'
-    per = {   # patch -> entity key -> rows
-        'p1': {hero: [c(hero, 'a', dir='buff', pct=50.0),                      # +2.5
-                      c(hero, 'b', dir='nerf', pct=-60.0, shared_all=True, shared_what='heroes')],   # rule for all
-               ab: [c(ab, 'a', pct=-10.0), c(ab, 'b', pct=-10.0)]},             # -0.5 -0.5
-        'p2': {hero: [c(hero, 'c', pct=-10.0, status='documented')],             # -0.5 released
-               ab: [c(ab, n, dir='buff', pct=20.0, status='unreleased') for n in 'cde']},   # work before release
-        'p3': {hero: [c(hero, 'd', dir='buff', pct=5.0)],
-               gone: [c(gone, n, op='remove', dir=None, pct=None) for n in 'ab']},   # removed: -1 -1
-        'p4': {ab: [c(ab, 'f', cat='mechanic', dir='changed', pct=None)]},        # no side
-    }
-    want = {'p1': 'buff', 'p2': 'nerf', 'p3': 'nerf', 'p4': ''}
-    # the band: the hero page's history
-    by_ent = {}
-    for pid, ents in per.items():
-        for key, cs in ents.items():
-            by_ent.setdefault(key, []).append((rows[pid], cs))
-    keys = [(hero, 'Base stats', None), (ab, 'Ability X', None), (gone, 'Gone Ability', None)]
-    html = history_view.history_table(keys, ['X'], by_ent, {}, '../')
-    band = {}
-    for m in _re.finditer(r'<details class="pblock[^"]*" id="p-(\w+)"[^>]*>\s*<summary.*?</summary>', html, _re.S):
-        got = _re.search(r'net-chip net-(\w+)', m.group(0))
-        band[m.group(1)] = got.group(1) if got else ''
-    # the matrix: the same patches as the archive gives them (a removed ability's record has no owner, no kind)
-    cat = [{'file': 'heroes.vdata', 'id': 'hero_x', 'kind': 'hero', 'name': 'X'},
-           {'file': 'abilities.vdata', 'id': 'ab_x', 'kind': 'ability', 'owner': 'hero_x', 'name': 'Ability X'},
-           {'file': 'abilities.vdata', 'id': 'ab_gone', 'kind': 'ability', 'owner': 'hero_x', 'name': 'Gone Ability'}]
-
-    def record(key, cs):
-        file, _, eid = key.partition(':')
-        info = {'key': key, 'file': file, 'id': eid, 'changes': cs}
-        if eid == 'ab_gone':                     # removed in this patch: its record names no owner, no kind
-            return info
-        known = next(e for e in cat if e['id'] == eid)
-        return {**info, 'kind': known['kind'], **({'owner': known['owner']} if 'owner' in known else {})}
-    monkeypatch.setattr(archive, 'by_date', lambda: list(rows.values()))
-    monkeypatch.setattr(archive, 'patch', lambda pid: {'id': pid, 'extras': {}})
-    monkeypatch.setattr(archive, 'gameplay', lambda pid: [record(k, cs) for k, cs in per[pid].items()])
-    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: {'entities': cat, 'abilities': {}, 'heroes': []})
-    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
-    dynamics_page._collect.cache_clear()
-    try:
-        nets = dynamics_page._collect()['nets']['hero:hero_x']
-        mx = dynamics_page.matrix_html([('hero:hero_x', 'X', None, 'x.html', '')], 'hero')
-    finally:
-        dynamics_page._collect.cache_clear()
-    tiles = {pid: mark for mark, pid in _re.findall(r'class="dsq net-(\w+)[^"]*"[^>]*href="x\.html#p-(\w+)"', mx)}
-    assert band == want and nets == want
-    assert tiles == {p: m or 'mix' for p, m in want.items()}            # '' (no side) is the matrix's mix colour
-
-
-def test_matrix_cell_drops_the_repeats_the_page_drops_and_reads_an_entity_as_one_list(monkeypatch):
-    """2026-10-06, the last 5 of 4,476 cells: the hero page says an alt fire's row its gun repeats once (Shiv
-    2025-05-08: band 1 DEL, cell 2) and a sub-ability's row its parent repeats once (Tengu 2024-06-06: 1 NEW, 3);
-    an item's own and shared records are one list, so a shared Corrupted bonus folds into its Corrupted version
-    (Veil Walker 2026-09-29: band 1 NEW, cell 2). The cell now counts what the band counts."""
-    from builders import archive, dynamics_page, game_systems
-    row = {'id': 'p1', 'date': '2026-01-01', 'title': '01-01-2026 Update'}
-    gun, alt = 'citadel_weapon_x_set', 'citadel_weapon_x_alt'
-    cat = [{'file': 'heroes.vdata', 'id': 'hero_x', 'kind': 'hero', 'name': 'X'},
-           {'file': 'abilities.vdata', 'id': gun, 'kind': 'weapon', 'owner': 'hero_x', 'name': 'Gun'},
-           {'file': 'abilities.vdata', 'id': alt, 'kind': 'weapon', 'owner': 'hero_x', 'name': alt},
-           {'file': 'abilities.vdata', 'id': 'upgrade_y', 'kind': 'item', 'name': 'Y'}]
-    cards = {gun: {'id': gun, 'owner': 'hero_x', 'slot': 'Weapon_Primary', 'name': 'Gun'}}
-    spread = ch(label='Spread', path='m_flSpread', old_s='3', new_s='1.5', dir='buff', pct=-50.0)
-    cor = 'm_CorruptedItemInfo.m_Upgrade.m_vecPropertyUpgrades{%s}.m_strBonus'
-    own_cor = [ch(key=f'abilities.vdata:upgrade_y:{p}', label=f'Corrupted: {p}', path=cor % p, op='add', old_s=None,
-                  new_s='+5', dir=None, pct=None, status='described') for p in ('Cooldown', 'Range')]
-    shared_cor = [ch(key='abilities.vdata:upgrade_y:Health', label='Corrupted: Bonus Health', path=cor % 'Health',
-                     op='add', old_s=None, new_s='+10', dir=None, pct=None, status='described', shared=True)]
-    records = [{'key': f'abilities.vdata:{gun}', 'file': 'abilities.vdata', 'id': gun, 'kind': 'weapon',
-                'owner': 'hero_x', 'changes': [dict(spread)]},
-               {'key': f'abilities.vdata:{alt}', 'file': 'abilities.vdata', 'id': alt, 'kind': 'weapon',
-                'owner': 'hero_x', 'changes': [dict(spread)]},                     # the gun's row again
-               {'key': 'abilities.vdata:upgrade_y', 'file': 'abilities.vdata', 'id': 'upgrade_y', 'kind': 'item',
-                'changes': own_cor},
-               {'key': 'abilities.vdata:upgrade_y', 'file': 'abilities.vdata', 'id': 'upgrade_y', 'kind': 'item',
-                'changes': shared_cor}]                                            # a shared block's record
-    data = {'entities.json': {'entities': cat}, 'abilities.json': {'abilities': cards},
-            'tables/heroes.json': {'heroes': []}}
-    monkeypatch.setattr(archive, 'by_date', lambda: [row])
-    monkeypatch.setattr(archive, 'patch', lambda pid: {'id': pid, 'extras': {}})
-    monkeypatch.setattr(archive, 'gameplay', lambda pid: records)
-    monkeypatch.setattr(dynamics_page, 'load_json', lambda name: data[name])
-    monkeypatch.setattr(game_systems, 'convar_start', lambda: None)
-    dynamics_page._collect.cache_clear()
-    try:
-        cells = dynamics_page._collect()['cells']
-    finally:
-        dynamics_page._collect.cache_clear()
-    assert cells['hero:hero_x']['p1'] == {'buff': 1}                   # the alt fire's repeat is said once
-    assert sum(cells['item:upgrade_y']['p1'].values()) == 1             # one Corrupted version, not 2
 
 
 def test_biggest_changes_stack_on_a_phone():
@@ -1553,29 +395,28 @@ def test_biggest_changes_stack_on_a_phone():
     from pathlib import Path
     src = Path(__file__).resolve().parent.parent
     assert 'class="hist big px-frame"' in (src / 'builders' / 'patches_pages.py').read_text(encoding='utf-8')
-    css = (src / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     block = css[css.index('table.hist.big { overflow-x: visible; }') - 200:]
     assert '@media (max-width: 700px)' in block[:400]
     assert _re.search(r'table\.hist\.big tr\.ch \{ display: grid;', css)
-
-
-def test_a_namesake_hint_is_never_a_unit_word():
-    """Review 2026-10-05: "Incoming Damage Deferred · pct", "… · value" — hints made of property words."""
-    from builders.cards import _hint
-    assert _hint('Incoming Damage Deferred', 'IncomingDamageDeferredPct', skip=frozenset()) == ''
-    assert _hint('Healing Reduction', 'HealAmpRegenPenaltyPercent') == 'regen'          # the default skip list
 
 
 def test_note_cards_and_matrix_icons_load_after_the_page():
     """2026-10-06: icons arriving mid-scroll re-balanced the note cards' CSS columns (patches/2024-10-10: 14 layouts,
     1.4 s, p95 83 ms) as they had cost the matrices a re-layering; both load at `load`. A banner's chips wrap
     (Astro's ran 67px past a 1440px window)."""
-    from pathlib import Path
-    root = Path(__file__).resolve().parent.parent
-    js = (root / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    js = site_js()
     assert """'table.dyn td.name img[loading="lazy"], .ecards img[loading="lazy"]'""" in js
-    css = (root / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     banner = css[css.index('.banner {'):css.index('}', css.index('.banner {'))]
     assert 'flex-wrap: wrap' in banner
     bc = css[css.index('.banner .bc {'):css.index('}', css.index('.banner .bc {'))]
     assert 'flex-wrap: wrap' in bc and 'min-width: 0' in bc
+
+
+def test_the_build_picker_lists_every_build_newest_first():
+    from builders.builds_pages import pick_list
+    rows = [{'file': 'a', 'date': '2026-11-05T21:49:42Z'}, {'file': 'b', 'date': '2026-11-11T21:38:45Z'}]
+    got = pick_list(rows, {'a': '6858', 'b': '6861'}, {'b': {'title': 'Ranked - Beta Season 2', 'date': '2026-11-05'}})
+    assert [r[0] for r in got] == ['6861', '6858']
+    assert got[0][1] == '6861, 2026-11-11: Ranked - Beta Season 2' and got[1][1] == '6858, 2026-11-05'

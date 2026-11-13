@@ -1,4 +1,4 @@
-"""Stats tables and change matrices in a real browser: site/scripts.js + site/styles.css on pages built from
+"""Stats tables and change matrices in a real browser: site/js + site/css on pages built from
 fixtures (no dist/, no data). The `browser` fixture is tests/conftest.py's (CI installs Chromium).
 
 Review 2026-10-04: a folded column group never unfolded (Hero Stats 34 -> 21 -> 21 columns) and the
@@ -7,12 +7,14 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from tests.helpers import site_css, site_js
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def _open(browser, body: str, width: int = 1400, height: int = 900):
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    css = site_css()
+    js = site_js()
     page = browser.new_page(viewport={'width': width, 'height': height})
     errors: list[str] = []
     page.on('console', lambda m: errors.append(m.text) if m.type == 'error' else None)
@@ -62,7 +64,7 @@ def test_heat_ranks_signed_values(browser):
 def _items_page(per_checked: bool = False) -> str:
     from builders.tables_pages import (_toolbar, effects_cell, item_columns, item_filter_chips, render_table,
                                        stats_cell)
-    from tests.test_builders import BOOSTER, ITEM_COLS
+    from tests.test_tables import BOOSTER, ITEM_COLS
     rows = [{**BOOSTER, 'id': f'i{n}', 'name': f'I{n}',
              'values': {**BOOSTER['values'], 'health_max': 10.0 * (n + 1), 'tier': 1 + n % 2}} for n in range(5)]
     cols = item_columns(ITEM_COLS)

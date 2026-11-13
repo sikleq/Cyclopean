@@ -1,6 +1,11 @@
-"""Hero / unit table column functions against values from the original sheet."""
+"""Stats tables: the hero / unit column functions against values from the original sheet, and the table pages
+(builders/tables_pages.py)."""
+import re
+
 from pipeline.hero_table import evaluate
 from pipeline.unit_table import evaluate as unit_eval
+
+from tests.helpers import site_css
 
 
 def _hero(weapon: dict, **stats) -> tuple[dict, dict]:
@@ -251,3 +256,184 @@ def test_unit_columns_follow_field_moves():
     a, b = unit_eval(old), unit_eval(new)
     assert a['dps_hero'] == 28 and b['dps_hero'] == 30
     assert round(a['range'], 1) == round(b['range'], 1) == 40.0
+
+
+def test_hero_table_layout_keeps_every_column_and_hides_details():
+    from builders.tables_pages import DETAILS, HERO_LAYOUT, laid_out
+    cols = [{'key': 'dps', 'label': 'DPS', 'group': 'Damage'}, {'key': 'spread', 'label': 'Spread', 'group': 'Damage'},
+            {'key': 'brand_new', 'label': 'Brand new stat', 'group': 'Damage'}]
+    out = laid_out(cols, HERO_LAYOUT)
+    assert [c['key'] for c in out] == ['dps', 'spread', 'brand_new']          # nothing dropped, details last
+    assert out[0]['group'] == 'Weapon' and out[1]['group'] == DETAILS and out[2]['group'] == DETAILS
+    assert all(len(short) <= 13 for _, entries in HERO_LAYOUT for _, short in entries)   # one-line headers
+
+
+def test_a_hero_stats_column_nobody_has_today_waits_under_details(monkeypatch):
+    """Review 2026-10-05: "Bullet res" read "—" for all 44 heroes; it goes under Details with its history."""
+    from builders import tables_pages
+    cols = [{'key': 'hp', 'label': 'Health', 'group': 'Vitality', 'pol': 1, 'digits': 0},
+            {'key': 'bullet_resist', 'label': 'Bullet Resist', 'group': 'Vitality', 'pol': 1, 'digits': 0}]
+    heroes = [{'id': 'hero_atlas', 'name': 'Abrams', 'state': 'release', 'type': 'x_Brawler',
+               'values': {'hp': 800, 'bullet_resist': None}, 'history': {}, 'spirit_scaled': []}]
+    monkeypatch.setattr(tables_pages, 'heroes_data', lambda: {'columns': cols, 'heroes': heroes, 'build': 1,
+                                                              'date': '2026-10-01'})
+    html = tables_pages.heroes_table()
+    head = html.split('<thead>')[1].split('</thead>')[0]
+    assert re.search(r'g-details[^>]*>[^<]*Bullet', head) and not re.search(r'g-details[^>]*>[^<]*Health', head)
+
+
+def test_unit_table_names_and_copies():
+    from builders.tables_pages import merge_copies, non_empty, unit_label
+    assert unit_label({'id': 'npc_neutral_bug', 'name': 'npc_neutral_bug'}) == 'Bug'
+    assert unit_label({'id': 'trooper_zipline_container', 'name': 'trooper_zipline_container'}) == 'Trooper Zipline Container'
+    assert unit_label({'id': 'npc_boss_tier2', 'name': 'Walker'}) == 'Walker'
+    rows = [{'id': f'w{i}', 'name': 'Walker', 'values': {'hp': 6000, 'x': None}} for i in range(4)]
+    rows.append({'id': 'g', 'name': 'Guardian', 'values': {'hp': 5500, 'x': None}})
+    merged = merge_copies(rows)
+    assert [(r['name'], r.get('copies')) for r in merged] == [('Walker', 4), ('Guardian', None)]
+    cols = [{'key': 'hp'}, {'key': 'x'}]
+    assert [c['key'] for c in non_empty(cols, merged)] == ['hp']
+
+
+def test_hero_stats_boons_and_roles():
+    from builders.tables_pages import boon_attrs
+    r = {'values': {'hp': 800, 'hp_lvl': 49, 'dps': 51.4, 'bullet_dmg': 3.6, 'bullet_dmg_lvl': 0.1}}
+    assert boon_attrs(r, {'key': 'hp'}) == ' data-per="49"'
+    # DPS grows with the bullet: 51.4 * 0.1 / 3.6 per boon
+    assert boon_attrs(r, {'key': 'dps'}) == ' data-per="1.42778"'
+    assert boon_attrs(r, {'key': 'reload'}) == ''
+
+
+ITEM_COLS = [{'key': 'tier', 'label': 'Tier', 'group': 'Shop', 'pol': 0, 'digits': 0, 'unit': ''},
+             {'key': 'cost', 'label': 'Cost', 'group': 'Shop', 'pol': -1, 'digits': 0, 'unit': '', 'css': 'souls'},
+             {'key': 'health_max', 'label': 'Bonus Health', 'group': 'Vitality', 'pol': 1, 'digits': 0, 'unit': '',
+              'css': 'health', 'stat': True},
+             {'key': 'bullet_armor_damage_resist', 'label': 'Bullet Resist', 'group': 'Vitality', 'pol': 1,
+              'digits': 0, 'unit': '%', 'css': 'bullet_armor_up', 'stat': True},
+             {'key': 'cooldown', 'label': 'Cooldown', 'group': 'Utility', 'pol': -1, 'digits': 2, 'unit': 's',
+              'css': 'cooldown'}]
+
+
+BOOSTER = {'id': 'upgrade_headshot_booster', 'name': 'Headshot Booster', 'slot': 'Weapon',
+           'values': {'tier': 1, 'cost': 800.0, 'health_max': 30.0, 'cooldown': 9.0},
+           'shown': {'health_max': '+30', 'cooldown': '9s'},
+           'effects': [{'key': 'fx:HeadShotBonusDamage', 'label': 'Head Shot Bonus Damage', 'value': '+45',
+                        'css': 'bullet_damage', 'pol': 1, 'digits': 0}],
+           'history': {'health_max': [[5554, '2025-05-08', 40.0, 30.0]],
+                       'bullet_armor_damage_resist': [[5554, '2025-05-08', 4.0, None]],
+                       'fx:HeadShotBonusDamage': [[6000, '2025-12-01', 40.0, 45.0]]}}
+
+
+def test_item_stats_show_what_an_item_does():
+    """Owner complaint 6 (2026-10-04): Item Stats was 67-84% dashes and never showed an item's own numbers.
+    The always-on stats are chips in one cell (one sortable column each on demand), every other card
+    number is an Effect chip with its label and unit, each with its own history."""
+    from builders.tables_pages import effects_cell, item_columns, stats_cell
+    cols = item_columns(ITEM_COLS)
+    assert [c['key'] for c in cols] == ['tier', 'cost', 'stats', 'health_max', 'bullet_armor_damage_resist',
+                                        'effect', 'cooldown', 'builds']
+    stat_cols = [c for c in cols if c.get('stat')]
+    assert all(c['lazy'] and c['cls'] == 'stc' for c in stat_cols)    # no per-stat cells in the page
+    html = stats_cell(BOOSTER, stat_cols, '2025-01-01')
+    assert 'class="sc f-v has-hist recent"' in html and 'data-col="health_max" data-sort="30.0"' in html
+    assert '<b>+30</b> <i>Bonus Health</i>' in html and 'data-spp' in html
+    assert 'data-hist=\'[[5554,"2025-05-08",40.0,30.0]]\'' in html
+    # a stat the item lost keeps its history for the column view, as an empty marker
+    assert 'class="sc gone has-hist recent" data-col="bullet_armor_damage_resist"' in html
+    assert 'data-sort="1"' in html                                       # one stat now
+    fx = effects_cell(BOOSTER, '2026-01-01')
+    assert '<b>+45</b> <i>Head Shot Bonus Damage</i>' in fx and 'Headshot Booster · Head Shot Bonus Damage' in fx
+    assert 'class="fx has-hist"' in fx and 'data-col="effect"' in fx and 'data-pol="0"' in fx
+    empty = {**BOOSTER, 'values': {}, 'effects': [], 'history': {}}
+    assert '<span class="dash">—</span>' in stats_cell(empty, stat_cols, '') and 'data-sort=""' in effects_cell(empty, '')
+
+
+def test_item_table_bands_tiers_and_lazy_columns():
+    from builders.tables_pages import item_columns, render_table, tier_starts
+    rows = [{**BOOSTER, 'id': f'i{n}', 'name': f'I{n}', 'slot': slot, 'values': {**BOOSTER['values'], 'tier': tier}}
+            for n, (slot, tier) in enumerate([('Weapon', 1), ('Weapon', 1), ('Weapon', 2), ('Spirit', 2)])]
+    assert tier_starts(rows) == {'i0', 'i2', 'i3'}
+    cols = item_columns(ITEM_COLS)
+    html = render_table(cols, rows, lambda r: f'<td class="name">{r["name"]}</td>', 'Item',
+                        section_of=lambda r: (r['slot'], f' data-cat="{r["slot"][0].lower()}"'),
+                        cells_by_key={'stats': lambda r, c, cut: '<td class="sumc"></td>',
+                                      'effect': lambda r, c, cut: '<td class="fxc"></td>',
+                                      'builds': lambda r, c, cut: '<td class="xcol"></td>'},
+                        group_cls={'Vitality': 'stc', 'Stats': 'sumc'})
+    # one band row per category, spanning the table; the box at the page's left edge like every table's (2026-10-17)
+    assert html.count('<tr class="sec"') == 2 and '<tr class="sec" data-cat="s">' in html
+    assert 'class="sec-fill"' in html and 'class="table-fade"' in html
+    # a lazy column: its header says how to build its cells, the rows have none
+    assert re.search(r'data-col="health_max"[^>]*data-cell-cls="grp-start( g-odd)? stc"', html)
+    assert 'data-col="health_max" data-sort' not in html
+    # units in headers, the game's property icon before the label
+    assert 'Cooldown <span class="u">s</span>' in html and 'Bullet Resist <span class="u">%</span>' in html
+    assert 'stats/prop/cooldown.svg' in html
+    assert '<th colspan="2" class="cat stc" data-group="Vitality">' in html
+
+
+def test_item_effects_mark_the_active_and_recent_losses():
+    """Review 2026-10-04: "+70% Spirit Lifesteal" while Infuser runs sat beside its always-on +13% with
+    nothing between them; a number the item lost left no trace on the table."""
+    from builders.tables_pages import effects_cell
+    row = {**BOOSTER, 'effects': BOOSTER['effects'] + [
+        {'key': 'fx:Lifesteal', 'label': 'Spirit Lifesteal', 'value': '+70%', 'css': None, 'pol': 1, 'digits': 0,
+         'active': True}],
+        'removed': [{'key': 'fx:PerKill', 'label': 'Weapon Damage per Kill', 'css': None, 'pol': 1, 'digits': 0,
+                     'history': [[6700, '2026-09-20', 10.0, None, 'changed']]},
+                    {'key': 'fx:Old', 'label': 'Old Thing', 'css': None, 'pol': 1, 'digits': 0,
+                     'history': [[5000, '2024-08-01', 3.0, None, 'changed']]}],
+        'odir': {'fx:HeadShotBonusDamage': 'buff'}}
+    html = effects_cell(row, '2026-08-20')
+    # the "Active" tag before the first active number, which is framed apart
+    assert html.index('<span class="fx-tag">Active</span>') < html.index('class="fx fx-act')
+    assert html.index('Head Shot Bonus Damage') < html.index('fx-tag')
+    # lost lately: struck through with its history; lost long ago: only on the item's page
+    assert 'class="fx fx-gone has-hist recent"' in html and '<b>10</b> <i>Weapon Damage per Kill</i>' in html
+    assert 'Old Thing' not in html
+    assert 'data-sort="2"' in html                                      # what the item does now
+    assert 'data-odir="buff"' in html                                   # the whole history's direction
+
+
+def test_item_stats_refuse_an_old_items_json():
+    """Review 2026-10-04: the old items.json built a broken page (two Stats groups, empty cells) without
+    failing; CI deploys committed data, so a stale file must stop the build."""
+    import pytest
+    from builders.tables_pages import check_items_data
+    with pytest.raises(RuntimeError, match='old format'):
+        check_items_data({'columns': ITEM_COLS[:2], 'items': [{'id': 'x', 'values': {}}]})
+    with pytest.raises(RuntimeError):
+        check_items_data({'columns': ITEM_COLS, 'items': [{'id': 'x', 'values': {}}]})
+    check_items_data({'columns': ITEM_COLS, 'items': [BOOSTER]})
+
+
+def test_item_unknown_stat_family_is_one_group_before_effects():
+    """A new provided stat no family word matches is "Other", next to the stat families: as "Utility" it
+    sat before Effect while Cooldown sat after it — two "Utility" groups the folding merged by name."""
+    from builders.tables_pages import item_columns, render_table
+    new = {'key': 'something_new', 'label': 'New', 'group': 'Other', 'pol': 1, 'digits': 0, 'unit': '', 'stat': True}
+    cols = item_columns(ITEM_COLS[:4] + [new] + ITEM_COLS[4:])
+    groups = [c['group'] for c in cols]
+    assert groups == ['Shop', 'Shop', 'Stats', 'Vitality', 'Vitality', 'Other', 'Effect', 'Utility', 'Builds']
+    html = render_table(cols, [BOOSTER], lambda r: '<td class="name"></td>', 'Item',
+                        cells_by_key={'stats': lambda r, c, cut: '<td></td>', 'effect': lambda r, c, cut: '<td></td>',
+                                      'builds': lambda r, c, cut: '<td></td>'}, table_attrs=' data-heat-by="tier"')
+    assert html.count('data-group="Utility">') == 1 and '<table class="stats" data-heat-by="tier">' in html
+
+
+def test_table_bar_scrolls_away_and_its_legend_wraps():
+    """The sticky bar covered the column headers (a third of a phone); the 489px legend chip scrolled
+    the page sideways at 390px; the heatmap is on by default on Item Stats."""
+    from builders.tables_pages import _toolbar
+    bar = _toolbar('Item…', heat_on=True)
+    assert 'class="toolbar tbl-bar"' in bar and 'data-heatmap checked' in bar
+    assert ('<span class="lg-tail"> · <span class="lg-hover">hover</span><span class="lg-tap">tap</span>'
+            ' a value for its history</span>') in bar
+    assert 'data-heatmap checked' not in _toolbar('Hero…')
+    css = site_css()
+    # static on a phone or a short window; a desktop keeps it under the site bar (tests/test_vis_layout.py)
+    assert ('@media (max-width: 760px), (max-height: 560px) { .toolbar.tbl-bar, .toolbar.dyn-bar { position: static; } }'
+            in css)
+    assert '.chip.legend-hist { white-space: normal; max-width: 100%; }' in css
+    # a unit without art: the glyph gets the icon's fixed box (Shrine's grew to a 300x210 picture)
+    assert 'table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px;' in css

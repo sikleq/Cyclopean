@@ -6,6 +6,8 @@ from pathlib import Path
 
 from builders import fix_reports, history_view, notes_view
 
+from tests.helpers import site_css
+
 ROOT = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location('import_fix_reports', ROOT / 'tools' / 'import_fix_reports.py')
 importer = importlib.util.module_from_spec(_spec)
@@ -74,7 +76,7 @@ def test_a_patch_page_line_carries_the_chip_without_a_link(monkeypatch):
 
 
 def test_the_words_are_small_plain_text_not_a_caps_chip():
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     rule = re.search(r'\.reported \{([^}]*)\}', css).group(1)
     assert 'var(--fs-xs)' in rule and 'var(--font-ui)' in rule and 'uppercase' not in rule and 'var(--font-px)' not in rule
     assert 'chip' not in fix_reports.reported_chip.__code__.co_consts[1:] and 'class="reported"' in str(fix_reports.reported_chip.__code__.co_consts)

@@ -63,6 +63,10 @@ def page_route(key: str, info: dict, pages: frozenset[str] | set[str], unit_main
         return None
     if file == 'npc_units.vdata':
         return f'npc_units.vdata:{main.get(eid, eid)}', 'units'
+    if file == 'modifiers.vdata':          # a neutral's attack: its unit's family (catalog 'units')
+        for u in info.get('units') or ():
+            if f'npc_units.vdata:{u}' in pages:
+                return f'npc_units.vdata:{main.get(u, u)}', 'units'
     return None
 
 
@@ -103,6 +107,11 @@ def _feed_rows(p: dict, templates: frozenset[str], unit_main: dict[str, str] | N
         yield {**e, 'what': part_name(sid, pid)}, cs, f'game:{sid}', 'game'
     for c in convar_changes(p.get('extras', {}).get('convars') or [], convar_start()):
         yield {'file': 'convars', 'id': c['id'], 'what': c['id']}, [c], f'game:{place("convar:" + c["id"])[0]}', 'game'
+    # Street Brawl's item draft weights: one change of Game › Modes (brawl.draft_row)
+    from .brawl import DRAFT_ENTITY, DRAFT_SUBJECT, draft_row
+    drafts = draft_row(p)
+    if drafts and place(DRAFT_SUBJECT):
+        yield {**DRAFT_ENTITY, 'what': 'Item draft weights'}, [drafts], f'game:{place(DRAFT_SUBJECT)[0]}', 'game'
 
 
 def update_feed(p: dict, templates: frozenset[str] = frozenset(), unit_main: dict[str, str] | None = None,

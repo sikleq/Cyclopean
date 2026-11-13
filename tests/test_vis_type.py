@@ -14,14 +14,16 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import js_files, site_css, site_files
+
 ROOT = Path(__file__).resolve().parent.parent
-CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+CSS = site_css()
 
 SCALE = {'2xs': 10, 'xs': 11, 'sm': 13, 'base': 14, 'md': 16, 'lg': 18, 'xl': 20, '2xl': 26, '3xl': 34, '4xl': 40,
-         'brand': 28, 'brand-xl': 58}
+         'brand': 28}
 UI_STEPS = {'2xs', 'xs', 'sm', 'base', 'md', 'lg', 'xl', '3xl'}   # xl: the back-to-top arrow; 3xl: a title date
 PX_STEPS = {'xl', '2xl', '3xl', '4xl'}                             # Jersey 20: never under 20px
-BRAND_STEPS = {'brand', 'brand-xl'}
+BRAND_STEPS = {'brand'}
 
 # The only sizes that are not steps: the shop draws the game's own panel at the game's sizes in its design px
 # (docs/shop.md: CostLabel, card names, the imbue strip, the tooltip's head in its stand-in fonts).
@@ -122,7 +124,7 @@ def test_no_vt323_anywhere():
     """Owner 2026-10-22: VT323 off the whole site — no family token, no rule, no Google Fonts request for it."""
     from builders.common import fonts_url
     assert 'VT323' not in fonts_url()
-    for f in [ROOT / 'site' / 'styles.css', ROOT / 'site' / 'scripts.js', *sorted((ROOT / 'builders').glob('*.py'))]:
+    for f in [*site_files(), *sorted((ROOT / 'builders').glob('*.py'))]:
         text = f.read_text(encoding='utf-8')
         assert 'VT323' not in text and '--font-label' not in text and '--font-px-small' not in text, f.name
 
@@ -145,7 +147,7 @@ def test_builders_and_scripts_write_no_font_size():
     """Sizes live in styles.css: an inline size in a builder or a script would be a step outside the scale. The shop's
     price sizes (the game's CostLabel per tier) and its name fitting (the game's own units) are the exception."""
     hits = []
-    for f in sorted((ROOT / 'builders').glob('*.py')) + [ROOT / 'site' / 'scripts.js']:
+    for f in sorted((ROOT / 'builders').glob('*.py')) + js_files():
         for i, line in enumerate(f.read_text(encoding='utf-8').splitlines(), 1):
             if re.search(r'font-size\s*:|fontSize\s*=\s*[\'"]\d|font\s*:\s*\d', line):
                 hits.append(f'{f.name}:{i}')
@@ -284,8 +286,8 @@ def test_a_chip_is_one_height_in_its_place(browser):
 def test_the_matrix_column_row_sticks_right_under_the_month_row(browser, tmp_path):
     """The month row's height follows its type (the --fs-sm step + its padding and line): the column row's sticky top
     is the same sum, so a scroll shows no gap and no overlap between them."""
-    from test_vis_t2 import DESK, _matrix
-    from test_vis_t2 import _open as open_page
+    from test_vis_tables import DESK, _matrix
+    from test_vis_tables import _open as open_page
     ctx, pg, errors = open_page(browser, tmp_path, _matrix(), DESK)
     try:
         cats, top = pg.evaluate("""() => [document.querySelector('table.dyn thead tr.cats').getBoundingClientRect().height,
@@ -319,7 +321,7 @@ def test_built_pages_keep_to_the_scale(browser, width):
                 if not url.startswith('file:'):
                     return r.abort()
                 if '/styles.css' in url:
-                    return r.fulfill(path=str(ROOT / 'site' / 'styles.css'), content_type='text/css')
+                    return r.fulfill(body=site_css(), content_type='text/css')
                 return r.continue_()
             pg.route('**/*', route)
             pg.goto((dist / f'{name}.html').as_uri())

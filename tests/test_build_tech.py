@@ -146,3 +146,18 @@ def test_build_page_sections_show_the_change_and_no_noise(monkeypatch):
     assert '<b>client.dll</b></span><span class="vals">3 changed' in html and 'particles.dll' in html
     assert 'weight' not in html and '+1' not in html            # moved functions are not shown as new / removed
     assert build_tech.dll_section(1) == ''
+
+
+def test_a_category_with_few_changed_files_names_them_on_the_build_page():
+    # owner 2026-11-13: build 6861's page said "ui ~1" and nothing about which file
+    added = {'panorama/images/hud/a.vtex_c': ('1', 10), 'panorama/images/hud/b.vtex_c': ('2', 10),
+             'models/heroes_wip/frank/frank.vmdl_c': ('3', 10)}
+    removed = {'panorama/images/hud/a.vtex_c': ('0', 9)}
+    big = {f'sounds/misc/s{i}.vsnd_c': ('4', 1) for i in range(extras.FEW_FILES + 1)}
+    few = extras.few_files({**added, **big}, removed)
+    ui = extras.asset_category('panorama/images/hud/a.vtex_c')
+    assert few[ui] == [['modified', 'panorama/images/hud/a.vtex_c'], ['added', 'panorama/images/hud/b.vtex_c']]
+    assert extras.asset_category('sounds/misc/s0.vsnd_c') not in few      # a big category stays a count
+    html = build_tech.files_section({'counts': {ui: {'added': 1, 'removed': 0, 'modified': 1}}, 'files': few}, '../')
+    assert '<code>panorama/images/hud/a.vtex_c</code></span><span class="vals">' in html and 'modified' in html
+    assert 'frank.vmdl_c' not in html                     # a hero's file is its hero's row, not a path

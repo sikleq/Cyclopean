@@ -16,7 +16,7 @@ import time
 
 from . import cache, loc, tracker
 from .classify import (ability_kind, hero_bound_abilities, is_template_entry, shared_abilities, unit_bound_abilities,
-                       unit_is_helper, unit_kind)
+                       unit_bound_modifiers, unit_is_helper, unit_kind)
 
 OUT = tracker.ROOT / 'data' / 'entities.json'
 FILES = ('heroes.vdata', 'abilities.vdata', 'npc_units.vdata', 'misc.vdata', 'modifiers.vdata', 'generic_data.vdata')
@@ -45,7 +45,8 @@ def build() -> dict:
     abilities_now: dict = {}
     units_now: dict = {}
     by_units: dict[str, set[str]] = {}       # ability -> every NPC that ever bound it (Walker's Stomp)
-    head = tracker.head_build()
+    mod_units: dict[str, set[str]] = {}      # modifier -> every neutral whose attack it ever was (classify)
+    head =tracker.head_build()
     upkeep_files: set[str] = set()
     for b in tracker.builds():
         if not tracker.is_game_build(b):
@@ -73,6 +74,8 @@ def build() -> dict:
         shared = shared_abilities(heroes)
         for aid, uids in unit_bound_abilities(units_now, owners, shared).items():
             by_units.setdefault(aid, set()).update(uids)
+        for mid, uids in unit_bound_modifiers(units_now).items():
+            mod_units.setdefault(mid, set()).update(uids)
         ability_slots = {}
         for h in heroes.values():
             if isinstance(h, dict):
@@ -118,6 +121,8 @@ def build() -> dict:
         e['alive'] = e['id'] in current.get(e['file'], set())
         if e['file'] == 'abilities.vdata' and e['id'] in by_units and not e.get('owner'):
             e['units'] = sorted(by_units[e['id']])
+        if e['file'] == 'modifiers.vdata' and e['id'] in mod_units:     # a neutral's attack: its unit's page
+            e['units'] = sorted(mod_units[e['id']])
         by_commit.setdefault(e['last'][2], []).append(e)
     for commit, group in by_commit.items():
         tok = loc.tokens(commit)

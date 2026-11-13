@@ -1,0 +1,43 @@
+/* ---------- 02. Base ---------- */
+*, *::before, *::after { box-sizing: border-box; }
+html { scrollbar-gutter: stable; }
+body {
+  margin: 0;
+  color: var(--text-main);
+  font: var(--fs-base)/1.55 var(--font-ui);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  background-color: var(--bg-page);
+}
+/* atmosphere: a verdigris glow from the top and copper "spores" (Sloppy's starfield). On its own fixed,
+   composited layer: a `background-attachment: fixed` body repainted the whole screen on every scroll frame */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; will-change: transform;
+  background-image:
+    radial-gradient(1100px 520px at 50% -8%, var(--glow-top), transparent 70%),
+    radial-gradient(circle at 37px 61px, var(--spore-hi) 1px, transparent 2px),
+    radial-gradient(circle at 211px 23px, var(--spore-lo) 1px, transparent 2px),
+    radial-gradient(circle at 402px 148px, var(--spore-hi) 1px, transparent 2px),
+    radial-gradient(circle at 118px 263px, var(--spore-lo) 1px, transparent 2px),
+    radial-gradient(circle at 307px 331px, var(--spore-hi) 1px, transparent 2px),
+    radial-gradient(circle at 451px 402px, var(--spore-lo) 1px, transparent 2px),
+    radial-gradient(circle at 66px 430px, var(--spore-hi) 1px, transparent 2px),
+    radial-gradient(circle at 255px 470px, var(--spore-lo) 1px, transparent 2px);
+  background-size: 100% 100%, 480px 480px, 480px 480px, 480px 480px, 480px 480px, 480px 480px, 480px 480px,
+                   480px 480px, 480px 480px;
+}
+a { color: var(--patina); text-decoration: none; }
+a:hover { color: var(--patina-strong); }
+/* the game's icons are 128px paintings shown at 20-96px: scaled smooth (pixelated downscaling made them jagged,
+   owner 2026-10-04) */
+/* Jersey 20 has one weight: never let the browser fake bold */
+h1, h2, h3 { font-family: var(--font-px); font-weight: 400; font-synthesis: none; color: var(--name); letter-spacing: .5px; }
+h1 { font-size: var(--fs-4xl); line-height: 1; margin: 0 0 8px; }
+h2 { font-size: var(--fs-2xl); line-height: 1.1; margin: 30px 0 12px; }
+h3 { font-size: var(--fs-xl); line-height: 1.1; margin: 18px 0 8px; }
+::selection { background: var(--patina-28); }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--bg-page); }
+::-webkit-scrollbar-thumb { background: var(--bg-panel-4); border: 3px solid var(--bg-page); }
+code { font-family: Consolas, "Cascadia Mono", monospace; font-size: var(--fs-sm); }
+

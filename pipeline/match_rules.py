@@ -1,7 +1,7 @@
 """Matching rules learned from the audit of 'hidden' changes.
 
 tests/fixtures/audit_verdicts.jsonl holds ~1000 judged changes; each rule
-here closes one recurring miss (see docs/architecture.md, "Matching rules").
+here closes one recurring miss (see docs/matching.md).
 Score the effect with `python tools/audit_score.py`.
 """
 from __future__ import annotations

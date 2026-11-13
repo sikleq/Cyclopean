@@ -348,43 +348,6 @@ ALLY_PROC_WORDS = {'abilities.vdata:upgrade_medic_bullets:m_nAbilityTargetTypes'
                    {'allied heroes': 'allied heroes (its shots proc on them)'}}
 
 
-def _bits_html(added: list[tuple[str, int]], removed: list[tuple[str, int]]) -> str:
-    """A listed bit's chip takes the colour of the side it moved the owner to (pipeline.flags), not of
-    added / removed: "Interrupted by +silenced" is a nerf, "Interrupted by −rooted" a buff (review
-    2026-10-04: green chips under a NERF tag)."""
-    return ('<span class="vals flags">'
-            + ''.join(f'<span class="flag add {_SIDE_CLASS[s]}">+{esc(w)}</span>' for w, s in added)
-            + ''.join(f'<span class="flag rem {_SIDE_CLASS[-s]}">−{esc(w)}</span>' for w, s in removed) + '</span>')
-
-
-def flag_moves(path: str, old_s, new_s) -> list[str] | None:
-    """The listed bits of a flag field that moved, as '+words' / '−words' (pipeline.flags), for plain-text
-    places (the matrices' hover cards); None when the field is no flag field or no listed bit moved."""
-    d = flag_rules.diff(path, old_s, new_s) if path else None
-    if not d or not (d[0] or d[1]):
-        return None
-    return [f'+{w}' for w, _ in d[0]] + [f'−{w}' for w, _ in d[1]]
-
-
-def flags_html(old_s, new_s, path: str = '') -> str | None:
-    """Bit-flag lists ('A | B | C') show only what was added / removed; in a flag field a player plays
-    with, only its listed bits, in words ("+ignored by troopers and neutrals", pipeline.flags). A field
-    whose moved bits are all unlisted (a "Technical" row) shows them the engine's way: the words left
-    1,168 empty cells (review 2026-10-04)."""
-    d = flag_rules.diff(path, old_s, new_s) if path else None
-    if d is not None and (d[0] or d[1]):
-        return _bits_html(*d)
-    a, b = _flags(old_s), _flags(new_s)
-    if a is None and b is None:
-        return None
-    none = ('', '—', None)                    # an absent side is no flag ("−—" on 41 rows)
-    a = set(a or ([old_s] if old_s not in none else []))
-    b = set(b or ([new_s] if new_s not in none else []))
-    added = ''.join(f'<span class="flag add">+{esc(_short_flag(f))}</span>' for f in sorted(b - a))
-    removed = ''.join(f'<span class="flag rem">−{esc(_short_flag(f))}</span>' for f in sorted(a - b))
-    return f'<span class="vals flags">{added}{removed}</span>'
-
-
 _ENUM_VALUE = re.compile(r'^E[A-Z][A-Za-z0-9]*?_([A-Za-z0-9_]+)$')            # EHeroDevState_PreRelease
 _CAPS_VALUE = re.compile(r'^[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+$')                 # CITADEL_UNIT_TARGET_NEUTRAL
 _CAPS_PREFIX = re.compile(r'^(CITADEL_UNIT_TARGET_|CITADEL_ABILITY_BEHAVIOR_|CITADEL_|MODIFIER_STATE_|MODIFIER_VALUE_|DOTA_)')
@@ -564,6 +527,8 @@ def shown_pair(c: dict) -> tuple:
     on 840 rows ("no limit → −20s" where the row said "−1s → −20s", "castable while busy" for "castable during
     other actions"). Returns ('none',), ('list', old, new) for a folded bonus list or tier swap, ('flags',
     [(text, side class or '')]) for a flag set's moves, else ('pair', old, new)."""
+    if c.get('came_with'):
+        return ('list', '', c['came_with'])     # a new entity's numbers on its arrival row (builders/arrivals.py)
     if c.get('cat') in ('visual', 'audio', 'ui') or str(c.get('path', '')).startswith('@'):
         return ('none',)
     op = c.get('op')

@@ -1,33 +1,11 @@
 """The entity page's CSS and scripts in a real browser, on pages built inside the test (no dist/ needed):
 a phone-width tier table, a trail square under a filter, a filtered band's counters. The `browser` fixture is
 tests/conftest.py's (CI installs Chromium)."""
-import shutil
 from pathlib import Path
 
+from tests.helpers import ch, open_page as _open
+
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def _open(browser, tmp_path: Path, html: str, width: int, height: int = 900):
-    """The page in tmp_path/x/ with the site's CSS and JS one level up (rel '../'), offline."""
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
-    (tmp_path / 'x').mkdir(exist_ok=True)
-    f = tmp_path / 'x' / 'page.html'
-    f.write_text(html, encoding='utf-8')
-    ctx = browser.new_context(viewport={'width': width, 'height': height})
-    pg = ctx.new_page()
-    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
-    errors: list[str] = []
-    pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(f.as_uri())
-    return ctx, pg, errors
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29',
-            'dir': 'nerf', 'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x'}
-    base.update(kw)
-    return base
 
 
 def test_a_tier_table_fits_a_phone(browser, tmp_path):

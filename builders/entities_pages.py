@@ -4,16 +4,17 @@ from __future__ import annotations
 from collections import defaultdict
 
 from .common import display_name, entity_icon, esc, first_seen, glyph_for, img, load_json, page, slug, write
-from .cards import GAMEPLAY
+from .brawl import DRAFT_SUBJECT, draft_row
+from .cards import gameplay_rows
 from .hero_page import _split_unit, _unit_html, hero_page, history_table, prop_icon, prop_values, stat_tables
 from .history_view import head_strip, hidden_link, now_fold
 from .now_values import flow as now_flow, group as now_group
 from .render import KIND_LABEL, tag_badge
 from pipeline.game_map import pickup_owner
+from pipeline.item_table import SLOTS as SLOT_NAMES
 
 UNIT_GROUPS = (('building', 'Buildings & objectives'), ('trooper', 'Troopers'), ('neutral', 'Neutrals'),
                ('unit', 'Other units'), ('helper', 'Unnamed, hideout, bots & effects'))
-SLOT_NAMES = {'EItemSlotType_WeaponMod': 'Weapon', 'EItemSlotType_Armor': 'Vitality', 'EItemSlotType_Tech': 'Spirit'}
 
 
 def _history() -> tuple[dict, dict]:
@@ -33,7 +34,7 @@ def _history() -> tuple[dict, dict]:
     for row in archive.index():
         p = archive.patch(row['id'])
         for e in spread_all(p['entities']):
-            ch = [c for c in e['changes'] if c['cat'] in GAMEPLAY]
+            ch = gameplay_rows(e['changes'])
             if ch:
                 by_ent[e['key']].append((row, ch))
         for e in p['entities']:
@@ -42,9 +43,13 @@ def _history() -> tuple[dict, dict]:
                 real = [k for k in e.get('target_keys') or [] if k in cat and not cat[k].get('template')]
                 what = noun(e['file'], real, cat)
                 ch = [{**c, 'shared_n': len(real), 'shared_what': what, 'shared_every': True}
-                      for c in e['changes'] if c['cat'] in GAMEPLAY]
+                      for c in gameplay_rows(e['changes'])]
                 if ch:
                     by_ent[ALL_PREFIX + e['file']].append((row, ch))
+        # Street Brawl's item draft weights of the patch: ONE row of Game › Modes, never a hero page's (brawl.draft_row)
+        drafts = draft_row(p)
+        if drafts:
+            by_ent[DRAFT_SUBJECT].append((row, [drafts]))
         cvs = p.get('extras', {}).get('convars') or []
         if cvs:                       # as they are, for the Game rules table (values now and their history)
             by_ent[RAW_CONVARS].append((row, cvs))
@@ -198,9 +203,13 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
              entity_icon(m['file'], m['id'], m['kind'], rel)) for m in members]
     areas = {k: (f't{TIER_RANK[tier_of(m)]}' if tier_of(m) in TIER_RANK and TIER_RANK[tier_of(m)] <= 3 else 'stats')
              for (k, _, _), m in zip(keys, members)}
-    abilities = {a['id']: a for m in members for a in bound.get(m['id'], [])}
-    own = [(f'abilities.vdata:{a["id"]}', display_name(a), entity_icon(a['file'], a['id'], a['kind'], rel))
-           for a in sorted(abilities.values(), key=lambda a: (a['kind'] == 'weapon', display_name(a)))]
+    abilities = {(a['file'], a['id']): a for m in members for a in bound.get(m['id'], [])}
+    # a neutral's attack (an effect, modifiers.vdata) is named as the Game section names effects ("Neutral attack lob
+    # book"), never by its id
+    own = [(f'{a["file"]}:{a["id"]}', display_name(a) if a['file'] == 'abilities.vdata' else unit_attack_name(a),
+            entity_icon(a['file'], a['id'], a['kind'], rel))
+           for a in sorted(abilities.values(), key=lambda a: (a['kind'] == 'weapon', a['file'] != 'abilities.vdata',
+                                                              display_name(a)))]
     told: dict = {}
     hist = history_table(keys + own, [name] + [display_name(m) for m in members], by_ent, by_subject, rel,
                          line_names=False, areas=areas, area_labels=UNIT_AREAS,
@@ -211,6 +220,13 @@ def unit_page(members: list[dict], urow: dict, cols: list[dict], by_ent, by_subj
             f'<div class="chips">{"".join(chips)}</div>'
             f'{first_seen(u["first"])}</div>{head_strip(told)}</div>')
     return page(name, head + now_fold('Current stats', stats_html) + hist, rel, 'units', cls='entity')
+
+
+def unit_attack_name(e: dict) -> str:
+    """A neutral's attack effect by the Game section's name ('citadel_neutral_attack_lob_book' -> "Neutral attack lob
+    book"): the files give it no text."""
+    from .game_systems import name_of
+    return name_of(f"{e['file']}:{e['id']}", e)
 
 
 def redirect_page(target: str, name: str) -> str:
@@ -269,6 +285,8 @@ def page_keys(ents: dict[str, dict], heroes: list[dict], items: list[dict], unit
     out = {f"{e['file']}:{e['id']}" for e in heroes + items + units}
     out |= {k for k, e in ents.items() if e['file'] == 'abilities.vdata'
             and (e.get('owner') in hero_ids or set(e.get('units') or ()) & unit_ids)}
+    # a neutral's attacks (modifiers its entry names: catalog 'units', classify.unit_bound_modifiers)
+    out |= {k for k, e in ents.items() if e['file'] == 'modifiers.vdata' and set(e.get('units') or ()) & unit_ids}
     out |= {k for k, e in ents.items() if pickup_owner(e['file'], e['id']) in hero_ids}
     return out
 
@@ -392,8 +410,8 @@ def _build_units(ctx: dict, units: list[dict]) -> tuple[dict, list[tuple]]:
     rel = ctx['rel']
     units_t = ctx['units_t']
     urow = {r['id']: r for r in units_t['units']}
-    bound = defaultdict(list)                  # unit id -> the abilities it binds (Walker's Stomp…)
-    for e in ctx['by_id'].values():
+    bound = defaultdict(list)                  # unit id -> the abilities it binds (Walker's Stomp…), a neutral's attacks
+    for e in [*ctx['by_id'].values(), *(x for x in ctx.get('ents', {}).values() if x['file'] == 'modifiers.vdata')]:
         for uid in e.get('units') or ():
             bound[uid].append(e)
     from .unit_families import families

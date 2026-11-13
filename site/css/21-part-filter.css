@@ -1,0 +1,7 @@
+/* ---------- 20. hero changes: the part filter (All / Stats / Weapon / Abilities) ---------- */
+.dyn-parts { display: inline-flex; gap: 4px; }
+.dsq.part-out { visibility: hidden; }
+table.dt-rows tr.dt-part td { padding: 6px 6px 3px; text-align: left; font: 600 var(--fs-xs)/1 var(--font-ui); text-transform: uppercase;
+  letter-spacing: .08em; color: var(--label); border-right: 0; }
+table.dt-rows tr.dt-part.p-weapon td { color: color-mix(in srgb, var(--weapon) 60%, var(--label)); }
+

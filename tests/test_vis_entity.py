@@ -5,51 +5,15 @@ the strip / matrix tile keeps its stripes whole, a phone's rows use the width, t
 the portrait, the rework list says "more", and the Walker's weak points have names. Pages are built inside the test
 and opened with the site's CSS and JS (the `browser` fixture is tests/conftest.py's)."""
 import re
-import shutil
 from pathlib import Path
 
+from tests.helpers import (box as _box, boxes as _boxes, make_ch, no_side_scroll as _no_side_scroll, open_page as _open,
+                           site_css)
+
+ch = make_ch(status='documented')
+
 ROOT = Path(__file__).resolve().parent.parent
-CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29',
-            'dir': 'nerf', 'pct': 7.4, 'grad': 2, 'status': 'documented', 'path': 'x'}
-    base.update(kw)
-    return base
-
-
-def _open(browser, tmp_path: Path, html: str, width: int, height: int = 900, phone: bool = False):
-    """The page in tmp_path/x/ with the site's CSS and JS one level up (rel '../'), offline."""
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
-    (tmp_path / 'x').mkdir(exist_ok=True)
-    f = tmp_path / 'x' / 'page.html'
-    f.write_text(html, encoding='utf-8')
-    opts = {'viewport': {'width': width, 'height': height}}
-    if phone:
-        opts.update(is_mobile=True, has_touch=True, device_scale_factor=2)
-    ctx = browser.new_context(**opts)
-    pg = ctx.new_page()
-    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
-    errors: list[str] = []
-    pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(f.as_uri())
-    return ctx, pg, errors
-
-
-def _box(pg, sel: str) -> dict:
-    return pg.evaluate(f"(() => {{ const r = document.querySelector({sel!r}).getBoundingClientRect();"
-                       " return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height}; })()")
-
-
-def _boxes(pg, sel: str) -> list[dict]:
-    return pg.evaluate(f"[...document.querySelectorAll({sel!r})].map(e => {{ const r = e.getBoundingClientRect();"
-                       " return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height}; })")
-
-
-def _no_side_scroll(pg) -> bool:
-    return pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
+CSS = site_css()
 
 
 # ---- 1. the "now" panels fill the width ------------------------------------------------------------------------
@@ -203,41 +167,22 @@ def test_ability_cards_share_one_height_with_tiers_at_the_foot(browser, tmp_path
 # ---- 3. the weapon: a header row over even rows of numbers -----------------------------------------------------
 
 
-def test_weapon_rows_come_out_even():
-    from builders.hero_page import wb_per_row
-    assert [wb_per_row(n) for n in (0, 1, 6, 8, 9, 12, 13, 14, 16, 17)] == [1, 1, 6, 8, 5, 6, 7, 7, 8, 6]
-
-
-def _weapon_page(n_rest: int) -> str:
+def _weapon_page() -> str:
     from builders import hero_page
     from builders.common import page
-    top = [('dps', 'DPS'), ('dps_max', 'Max DPS'), ('bullet_dmg', 'Bullet DMG'), ('bps', 'Bullets / s'),
-           ('clip', 'Ammo'), ('reload', 'Reload (s)')]
-    rest = [(f'x{i}', f'Weapon number {i}') for i in range(n_rest)]
-    cols = [{'key': k, 'label': lbl, 'group': 'Damage', 'digits': 2, 'pol': 1} for k, lbl in top + rest]
-    row = {'values': {c['key']: 1.5 for c in cols}, 'history': {}, 'spirit_scaled': []}
-    block = hero_page.weapon_block({'name': 'Censure & Penance', 'id': 'w'}, row, cols, 'Haze', '../')
+    block = hero_page.weapon_block({'name': 'Censure & Penance', 'id': 'w'}, None, [], 'Haze', '../')
     return page('Haze', f'<section class="now-open">{block}</section>', '../', cls='entity')
 
 
-def test_the_weapon_name_heads_the_block_and_no_row_ends_in_a_hole(browser, tmp_path, monkeypatch):
-    """A 250px column put the name on two lines over ~400px of nothing; 6 + 6 + 2 numbers left a hole of four."""
+def test_the_weapon_name_heads_the_block(browser, tmp_path, monkeypatch):
+    """A 250px column put the name on two lines over ~400px of nothing."""
     monkeypatch.setattr('builders.trail.trail_html', lambda *a, **k: '')
     monkeypatch.setattr('builders.trail.last_counts', lambda key: None)
     for width, phone in ((1440, False), (1000, False), (390, True)):
-        ctx, pg, errors = _open(browser, tmp_path, _weapon_page(14), width, 844, phone)
+        ctx, pg, errors = _open(browser, tmp_path, _weapon_page(), width, 844, phone)
         try:
             name, nums = _box(pg, '.wb-name'), _box(pg, '.wb-nums')
             assert name['b'] <= nums['t'] and name['h'] < 40                  # one line, above the numbers
-            box = _box(pg, '.wb-cells')
-            cells = _boxes(pg, '.wb-cells > .wcell')
-            rows: dict[int, list[dict]] = {}
-            for c in cells:
-                rows.setdefault(round(c['t']), []).append(c)
-            for got in rows.values():
-                assert abs(max(c['r'] for c in got) - box['r']) < 2, width     # every row reaches the right edge
-            if width == 1440:
-                assert [len(v) for v in rows.values()] == [7, 7]
             assert _no_side_scroll(pg) and not errors
         finally:
             ctx.close()
@@ -352,14 +297,15 @@ def test_a_tile_keeps_its_stripes_whole_and_its_count_on_a_plate(browser, tmp_pa
     ctx, pg, errors = _open(browser, tmp_path, page('X', f'<div class="head-strip">{patch_strip(items)}</div>', '../',
                                                     cls='entity'), 390, 844, True)
     try:
-        for t in pg.query_selector_all('.ps-tile'):
-            t.hover()                    # the count shows on hover (owner 2026-10-21, question 2)
-            pg.wait_for_timeout(200)     # the tile's grow transition
+        # owner 2026-11-13: the count shows at rest (it was hover-only), the tags are a bar across the tile's foot
+        shown = [t for t in pg.query_selector_all('.ps-tile') if t.is_visible()]
+        assert len(shown) >= 3
+        for t in shown:
             tile, n = t.bounding_box(), t.query_selector('.dn').bounding_box()
+            assert tile['width'] >= 36 and n['width'] > 0                       # bigger, and the number visible
             assert n['x'] >= tile['x'] and n['x'] + n['width'] <= tile['x'] + tile['width'] + 0.5   # "28" fits its tile
-        st = pg.evaluate("(() => { const s = getComputedStyle(document.querySelector('.ps-tile .dn'));"
-                         " return [s.backgroundColor, s.color]; })()")
-        assert st[0] not in ('rgba(0, 0, 0, 0)', 'transparent')
+        bar = pg.evaluate("getComputedStyle(document.querySelector('.ps-tile'), '::before').backgroundImage")
+        assert bar.startswith('linear-gradient(90deg')
         hid = pg.evaluate("getComputedStyle(document.querySelector('.ps-tile.hid')).borderTopWidth")
         assert hid == '4px' and not errors
     finally:
@@ -434,13 +380,9 @@ def test_the_hero_head_keeps_the_name_beside_the_portrait(browser, tmp_path, mon
     for width, side in ((1440, 150), (800, 110), (390, 88)):
         ctx, pg, errors = _open(browser, tmp_path, html, width, 844, width < 600)
         try:
-            pic, name, stats = _box(pg, '.hero-head .portrait'), _box(pg, '.hero-head h1'), _box(pg, '.hero-head .keystats')
+            pic, name = _box(pg, '.hero-head .portrait'), _box(pg, '.hero-head h1')
             assert abs(pic['w'] - side) < 1, width
             assert name['l'] > pic['r'] and name['t'] < pic['b'], width        # side by side
-            if width < 980:
-                assert stats['t'] >= pic['b'] and stats['l'] <= pic['l'] + 1   # the stats take the width below
-            else:
-                assert stats['l'] > pic['r']
             assert _no_side_scroll(pg) and not errors
         finally:
             ctx.close()

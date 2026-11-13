@@ -117,6 +117,9 @@ def asset_diff(prev: str, cur: str) -> dict | None:
         'notable': {k: sorted(v, key=lambda x: x[1]) for k, v in notable.items()},
         'hero_models': {k: sorted(v) for k, v in sorted(heroes_touched.items())},
     }
+    few = few_files(added, removed)
+    if few:
+        out['files'] = few
     owners = hero_owners(cur)
     by_owner =asset_owners({p: _op(p, added, removed) for p in added.keys() | removed.keys()}, owners)
     if by_owner:
@@ -128,6 +131,19 @@ def asset_diff(prev: str, cur: str) -> dict | None:
             j['hero'] = owners.get(_REDO.sub('', m.group(1))) if m else None
         out['model_sizes'] = jumps
     return out
+
+
+FEW_FILES = 25     # a category with at most this many changed files lists them by path on the build page
+
+
+def few_files(added: dict, removed: dict) -> dict[str, list[list[str]]]:
+    """{category: [[op, path], ...]} for every category that changed at most FEW_FILES files (owner 2026-11-13: build
+    6861's page said "ui ~1" and nothing about which file). A big category stays a count: thousands of paths
+    a build tell nothing (owner 2026-10-24)."""
+    by_cat: dict[str, list[list[str]]] = defaultdict(list)
+    for path in sorted(added.keys() | removed.keys()):
+        by_cat[asset_category(path)].append([_op(path, added, removed), path])
+    return {cat: rows for cat, rows in sorted(by_cat.items()) if len(rows) <= FEW_FILES}
 
 
 def hero_owners(commit: str) -> dict[str, str]:

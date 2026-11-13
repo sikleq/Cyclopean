@@ -49,10 +49,6 @@ def clean(s: str) -> str | None:
     return s if sum(1 for ch in s if _WORDISH.match(ch)) >= 0.85 * len(s) else None
 
 
-def is_text(s: str) -> bool:
-    return clean(s) is not None
-
-
 def _texts(blob: str) -> set[str]:
     return {c for c in map(clean, blob.splitlines()) if c}
 

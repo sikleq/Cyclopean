@@ -1,0 +1,407 @@
+/* ---------- 09b. Entity pages: hero head, stat tables, ability cards, history table ---------- */
+/* portrait | name, chips, "First seen" over the key stats; under 980px the stats take the whole width below and the
+   portrait keeps the name beside it, as an item's or a unit's head does (it stood alone over 250-600px of nothing) */
+.hero-head { display: grid; grid-template-columns: 150px minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 0 18px;
+  align-items: start; margin-bottom: 16px; }
+.hero-head .portrait { grid-row: 1 / span 3; width: 150px; aspect-ratio: 280 / 380; object-fit: cover; background: var(--bg-panel-2); }
+.hero-head .hh-id { min-width: 0; }
+/* a hero in development with no portrait in the files: the hero glyph, square and dim, not stretched to the frame */
+.hero-head .portrait.glyph { display: flex; color: var(--text-dimmer); }
+.hero-head .portrait.glyph::before { width: 48%; height: auto; aspect-ratio: 1; }
+.hero-head h1 { font-size: var(--fs-4xl); margin: 0; }
+.hero-head .meta { color: var(--text-dim); font-size: var(--fs-sm); margin: 4px 0 10px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* a weapon tile's label (the alt fire's row); "changed lately" is a corner notch */
+.wcell .l { font: 600 var(--fs-xs)/1.1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .04em; }
+.wcell.has-hist { cursor: help; }
+.wcell.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
+  border-top: 7px solid var(--patina); border-left: 7px solid transparent; }
+.si { display: inline-block; width: 16px; height: 16px; object-fit: contain; flex: none; }
+
+/* weapon: not an ability card — a wide band, first after the head. Its name, last change, History and trail are ONE
+   header row over the numbers (a 250px column left the name on two lines over ~400px of nothing) */
+.weapon-block {
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px;
+  padding: 12px 14px; margin: 18px 0 8px;
+  background: linear-gradient(90deg, var(--patina-14), var(--bg-panel) 45%);
+  border-left: 4px solid var(--patina);
+}
+.wb-id { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.wb-id img { width: 56px; height: 56px; object-fit: contain; background: var(--bg-panel-4); padding: 4px; flex: none; }
+.wb-id > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; min-width: 0; }
+.wb-kicker { flex-basis: 100%; font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--patina); text-transform: uppercase; letter-spacing: .1em; }
+.wb-name { font: var(--fs-xl)/1.15 var(--font-px); color: var(--text-bright); margin: 2px 0 0; }
+/* not a name but a sentence ("No in-game name yet"): the UI font */
+.wb-name.unnamed { font: var(--fs-base)/1.15 var(--font-ui); color: var(--text-dimmer); }
+.wb-desc { flex-basis: 100%; font-size: var(--fs-sm); color: var(--text-dim); }
+.wb-nums { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+/* weapon tiles: the value on top, its label under it in the tile label every tile uses (key stats, the six headline
+   tiles, the rest: two fonts in two cases sat in one block — visual pass 2026-10-17, round 2); top-aligned, so a row's
+   values share a line when a label wraps on a phone. Every tile keeps the icon's corner slot: the game has no stat
+   icon for radius, spread, gravity or lifetime, and none is invented (AGENTS.md: icons only from the game's files) */
+.wcell { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;
+  min-height: 52px; padding: 8px 8px 7px; background: var(--bg-panel); outline: 1px solid var(--line-soft); text-align: center; }
+.wcell .si { position: absolute; left: 6px; top: 6px; width: 14px; height: 14px; opacity: .85; }
+.wcell .v { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); font-variant-numeric: tabular-nums; }
+.wcell .l { max-width: 100%; overflow-wrap: break-word; }
+.wcell.spirit .v { color: var(--tag-rework); }
+.wcell .v .u { margin-left: 2px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); }
+.wcell:hover { background: var(--bg-hover); }
+/* the gun's (and its alt fire's) last change, History link and trail — an ability card's head line */
+.wb-links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 2px 0 6px; font: 600 var(--fs-sm)/1 var(--font-ui); }
+.wb-links .ac-last { color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.wb-links .ac-last:hover { color: var(--text-bright); }
+.wb-links .ac-last .tsum { margin-left: 0; gap: 5px; vertical-align: -1px; }
+.wb-links .ac-last .pip { font: 700 var(--fs-xs)/1 var(--font-ui); }
+.wb-links .ac-hist { color: var(--patina); }
+.wb-links .ac-hist:hover { color: var(--text-bright); }
+.wb-links .trail { flex-basis: 100%; }
+.wb-id .wb-links { margin: 0; }
+.wb-id .wb-links .trail { flex-basis: auto; }
+/* the alt fire: the files give it no name — a line under the gun's numbers, its own numbers as a compact row below */
+.wb-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; padding: 6px 10px; background: var(--bg-panel);
+  outline: 1px solid var(--line-soft); }
+.wb-alt-l { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.wb-alt .wb-links { margin: 0; }
+.wb-alt .wb-links .trail { flex-basis: auto; }
+/* one row on a desktop, however many numbers (Shiv's pellets make nine); three to a row on a phone, like the gun's */
+.wb-alt-cells { flex-basis: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px;
+  margin: 2px 0; }
+@media (max-width: 1100px) { .wb-alt-cells { grid-auto-flow: row; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); } }
+@media (max-width: 600px) { .wb-alt-cells { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.wb-alt-cells .wcell { min-height: 44px; padding: 6px 6px 5px; gap: 3px; background: var(--bg-panel-2); }
+.wb-alt-cells .wcell .v { font-size: var(--fs-xl); }
+.wb-none { padding: 10px 12px; font-size: var(--fs-sm); color: var(--text-dimmer); background: var(--bg-panel); outline: 1px solid var(--line-soft); }
+
+/* what an entity is today (builders/now_values.py): a unit's stats, an item's sections, a Game system's entries and a
+   hero's other stats are ONE component — groups (a heading bar, maybe chips and a text, then label · value rows) flow
+   down columns like the console variables, 330px at least. A group stays whole where it fits; a long one (`.long`) and
+   a lone group's rows flow on. No box per group, so a short group leaves no empty frame, and each value sits at its
+   column's right edge (visual pass 2026-10-17, round 2: equal-height boxes with one row in a box made for six, values
+   floating mid-card, three-column lists leaving empty boxes) */
+.stat-flow { columns: 330px auto; column-gap: 24px; column-rule: 1px solid var(--line-soft); margin-bottom: 12px; }
+.stat-panel { min-width: 0; margin: 0 0 14px; break-inside: avoid; }
+.stat-flow > .stat-panel:last-child { margin-bottom: 0; }
+.stat-flow > .stat-panel.long, .stat-flow > .stat-panel:only-child { break-inside: auto; }
+/* a lone group: its heading and text across the width, its rows in the columns under them */
+.stat-flow > .stat-panel:only-child > h3, .stat-flow > .stat-panel:only-child > .vg-top { column-span: all; }
+.sc-row .v .u, table.kvt td.v .u { margin-left: 2px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); }
+.stat-panel h3 { margin: 0; padding: 7px 10px 6px; font-size: var(--fs-xl); background: var(--bg-panel-3); break-after: avoid; }
+/* a hero's other stats sit on the page, not in a fold's frame: the component's ground of its own */
+.now-open > .stat-flow { padding: 10px 12px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--line-soft); }
+/* an item section's header values (cooldown, duration…) and its text, between its heading and its rows */
+.stat-panel .vg-top { padding: 7px 10px 3px; break-inside: avoid; break-after: avoid; }
+.stat-panel .vg-hdr { gap: 4px; margin-bottom: 5px; }
+.stat-panel .vg-desc { margin-bottom: 4px; font-size: var(--fs-sm); color: var(--text-dim); }
+.sc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 10px; border-top: 1px solid var(--line-soft);
+  font-size: var(--fs-sm); break-inside: avoid; }
+.stat-panel > h3 + .sc-row, .stat-panel > .vg-top + .sc-row { border-top-color: transparent; }
+.sc-row:hover { background: var(--bg-hover); }
+.sc-row .k { display: flex; align-items: center; gap: 7px; color: var(--text-main); min-width: 0; }
+.sc-row .k > .si { width: 16px; height: 16px; }
+.sc-row .v { color: var(--text-bright); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.sc-row .v .scale { display: block; font-size: var(--fs-xs); color: var(--tag-rework); }
+.sc-row .v.spirit { color: var(--tag-rework); }
+.sc-row .v.has-hist { cursor: help; }
+.sc-row .v.has-hist.recent::after { content: ""; display: inline-block; width: 4px; height: 4px; margin-left: 5px; vertical-align: 3px; background: var(--patina-dim); }
+/* a Game system's values today (builders/game_now.py): its entries' groups, then its console variables across the
+   width, their rows in columns of their own (61 of Souls' in one 280px panel was a 1,500px column) */
+.now-flow { margin-bottom: 0; }
+.now-flow > .stat-panel.now-cv { margin-bottom: 0; }
+.cv-rows { columns: 330px auto; column-gap: 24px; column-rule: 1px solid var(--line-soft); }
+.cv-rows .sc-row { break-inside: avoid; }
+.cv-rows .sc-row .k code { min-width: 0; font-size: var(--fs-sm); color: var(--text-main); overflow-wrap: anywhere; }
+.cv-rows .sc-row .v.has-hist { text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
+
+table.kvt { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+table.kvt caption { text-align: left; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-bright); padding: 8px 8px 6px; background: var(--bg-panel-2); caption-side: top; }
+table.kvt td { padding: 4px 8px; border-bottom: 1px solid var(--line-soft); }
+table.kvt td.v { text-align: right; color: var(--text-bright); white-space: nowrap; }
+table.kvt tr:hover td { background: var(--bg-hover); }
+table.kvt td.has-hist { cursor: help; }
+table.kvt td.has-hist.recent::after { content: ""; display: inline-block; width: 4px; height: 4px; margin-left: 5px; vertical-align: 3px; background: var(--patina-dim); }
+table.kvt td.spirit { color: var(--tag-rework); }
+
+/* a card ends where its last tier does: stretched to the row's tallest card with T1-T3 pinned to the bottom, Smoke Bomb
+   and Bullet Dance held 150-200px of nothing (visual pass 2026-10-17) */
+/* every card in a row one height (owner 2026-10-21, question 5): stretch, the card's own frame fills it */
+.ability-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 12px; align-items: stretch; }
+.ability-card { display: flex; flex-direction: column; }
+.ability-card > .tiers { margin-top: auto; }      /* the upgrades line up at the foot of cards of one height */
+.ability-card .ac-head { display: flex; gap: 10px; align-items: center; padding: 8px 10px; background: var(--bg-panel-2); }
+.ability-card .ac-head .ab-ic { width: 48px; height: 48px; padding: 6px; }
+.ability-card .ac-last .tsum { margin-left: 0; gap: 5px; vertical-align: -1px; }
+.ability-card .ac-last .pip { font: 700 var(--fs-xs)/1 var(--font-ui); }
+.ability-card .ac-name { font: var(--fs-xl)/1.1 var(--font-px); color: var(--text-bright); }
+.ability-card .ac-id { min-width: 0; flex: 1; }
+.ability-card .ac-id .trail { margin-top: 6px; }
+.ability-card .ac-last { margin-left: 10px; font: 600 var(--fs-sm)/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0;
+  white-space: nowrap; color: var(--text-dim); }
+.ability-card .ac-last:hover { color: var(--text-bright); }
+.ability-card .ac-hist { margin-left: 10px; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--patina); }
+.ability-card .ac-hist:hover { color: var(--text-bright); }
+/* "Ability 1", "Ultimate", "Weapon": the UI face, small caps-like (owner 2026-10-21: the pixel face read badly) */
+.ability-card .ac-sub { font: 600 var(--fs-xs)/1.4 var(--font-ui); color: var(--text-dim); text-transform: uppercase;
+  letter-spacing: .06em; }
+.ability-card .ac-hdr { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 10px 0; }
+/* compact enough that the usual pair ("Cooldown 30s", "Cast time 0.2s") shares one line in a 270px card */
+/* label small and dim in the UI face, the value in the same face, bright: the pixel face's "COOLDOWN 30s" read
+   blurry and loud (owner 2026-10-21, question 5) */
+.ability-card .ac-hdr .chip, .stat-panel .vg-hdr .chip { gap: 5px; padding: 4px 7px; font: 600 var(--fs-xs)/1 var(--font-ui);
+  letter-spacing: .05em; color: var(--text-dim); }
+.ability-card .ac-hdr .chip b, .stat-panel .vg-hdr .chip b { font: 600 var(--fs-sm)/1 var(--font-ui); letter-spacing: 0;
+  text-transform: none; font-variant-numeric: tabular-nums; color: var(--text-bright); }
+.ability-card .ac-desc { padding: 6px 10px; font-size: var(--fs-sm); color: var(--text-dim); }
+.ability-card table.kvt td { padding: 3px 10px; }
+/* the scaling rides under its number on a line of its own (nowrap from td.v), so the label keeps its width:
+   "Movement / Slow" broke beside "20 +0.6×Light Melee Damage" (52 rows, review 2026-10-05) */
+.ability-card .scale { display: block; margin-left: 0; color: var(--tag-rework); font-size: var(--fs-xs); }
+/* a label that still wraps runs on under its text, not under the icon (14px icon + 6px gap) */
+.ability-card table.kvt td:first-child { padding-left: 30px; text-indent: -20px; }
+/* property icons from the in-game tooltip; spirit damage purple, bullet damage warm,
+   healing green — the colours the game uses for those values */
+.pi { display: inline-block; width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; object-fit: contain; flex: none; }
+.chip .pi { width: 13px; height: 13px; margin-right: 3px; }
+/* "42s", "20m", not "42S"; the chip's own weight */
+.chip b { color: var(--text-bright); font-weight: inherit; text-transform: none; }
+.p-tech_damage td.v, .sc-row.p-tech_damage .v, .chip.p-tech_damage b { color: var(--spirit); }
+.p-bullet_damage td.v, .sc-row.p-bullet_damage .v, .chip.p-bullet_damage b { color: var(--weapon); }
+.p-healing td.v, .sc-row.p-healing .v, .chip.p-healing b { color: var(--tag-buff); }
+.tier { display: grid; grid-template-columns: 30px 1fr; gap: 8px; align-items: start; padding: 5px 10px; border-top: 1px solid var(--line-soft); font-size: var(--fs-sm); }
+.tier .tn { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--bg-page); background: var(--patina-dim); text-align: center; padding: 4px 0; }
+.tier .tt { white-space: pre-line; }
+
+/* Patches / Notes vs files: centred, translucent lines both ways; the field and Valve's line read left */
+table.errata { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+table.errata th, table.errata td { padding: 6px 10px; text-align: center; vertical-align: middle;
+  border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+table.errata th { font: 600 var(--fs-sm)/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
+table.errata td.nm, table.errata td.ln { text-align: left; }
+table.errata td.nm { white-space: nowrap; }
+table.errata td.nm .si2 { width: 24px; height: 24px; object-fit: contain; vertical-align: middle; margin-right: 6px; }
+table.errata td.nm .lb { display: block; color: var(--text-dim); font-size: var(--fs-sm); margin-left: 30px; }
+table.errata td.ln { color: var(--text-main); min-width: 260px; }
+table.errata td.v { white-space: nowrap; }
+table.errata td.v.f { color: var(--text-bright); }
+table.errata td.d { white-space: nowrap; }
+
+table.hist { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+table.hist td { padding: 4px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+table.hist td.sc { white-space: nowrap; color: var(--text-bright); width: 1%; }
+table.hist td.sc img { width: 20px; height: 20px; vertical-align: -5px; margin-right: 6px; object-fit: contain; }
+table.hist td.sc .own { color: var(--text-dimmer); font-size: var(--fs-sm); margin-left: 6px; }
+table.hist td.tg { width: 1%; white-space: nowrap; }
+table.hist td.ov { white-space: nowrap; text-align: right; width: 1%; }
+table.hist td.st { width: 1%; }
+table.hist tr:hover td { background: var(--bg-hover); }
+/* category glyph (a group or a rule, not one entity): same box as a game icon */
+.glyph { display: inline-flex; align-items: center; justify-content: center; flex: none;
+  background: var(--bg-panel-3); color: var(--text-dim); vertical-align: middle; }
+.glyph::before { content: ""; display: block; width: 70%; height: 70%; margin: auto; background: currentColor;
+  -webkit-mask: var(--gl) center / 100% 100% no-repeat; mask: var(--gl) center / 100% 100% no-repeat; }
+/* a glyph in a box laid out as a block (a card head, a toolbar chip, a feed icon) centres its shape too */
+.ecard-h .ei .glyph, .hf-ab .glyph, .ab-ic .glyph, .lu .glyph.glyph { display: flex; }
+.glyph { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M7 1h2v2H7zM7 13h2v2H7zM1 7h2v2H1zM13 7h2v2h-2zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2zM5 4h6v1H5zM4 5h8v6H4zM5 11h6v1H5zM7 7h2v2H7z'/%3E%3C/svg%3E"); }
+.glyph.g-heroes { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M6 2h4v4H6zM2 4h3v3H2zM11 4h3v3h-3zM5 7h6v7H5zM1 8h3v5H1zM12 8h3v5h-3z'/%3E%3C/svg%3E"); }
+.glyph.g-hero { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M5 2h6v5H5zM3 8h10v6H3z'/%3E%3C/svg%3E"); }
+.glyph.g-abilities { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M7 1h2v4H7zM7 11h2v4H7zM1 7h4v2H1zM11 7h4v2h-4zM6 6h4v4H6zM3 3h2v2H3zM11 3h2v2h-2zM3 11h2v2H3zM11 11h2v2h-2z'/%3E%3C/svg%3E"); }
+.glyph.g-units { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M6 1h4v4H6zM4 6h8v5H4zM4 11h3v4H4zM9 11h3v4H9zM13 2h1v10h-1z'/%3E%3C/svg%3E"); }
+.glyph.g-map { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M2 3h12v11H2zM3 4h10v9H3zM4 5h2v2H4zM6 7h2v2H6zM8 9h2v2H8zM10 11h2v1h-2z'/%3E%3C/svg%3E"); }
+.glyph.g-modifier { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M7 1h2v1H7zM6 2h4v1H6zM5 3h6v1H5zM4 4h8v1H4zM3 5h10v1H3zM6 6h4v9H6z'/%3E%3C/svg%3E"); }
+.glyph.g-unknown { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M5 2h6v2H5zM3 4h2v2H3zM11 4h2v3h-2zM9 7h2v2H9zM7 9h2v2H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
+.glyph.g-loot { --gl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath fill-rule='evenodd' d='M3 3h10v3H3zM2 6h12v8H2zM7 8h2v3H7z'/%3E%3C/svg%3E"); }
+table.hist td.sc .glyph { width: 22px; height: 22px; margin-right: 6px; vertical-align: -5px; }
+.glyph.g-heroes, .glyph.g-hero { color: var(--patina); }
+table.hist tr.ch.st-unreleased td { background: var(--dev-10); }
+.vals.wrap { white-space: normal; display: inline-block; max-width: 520px; text-align: right; }
+.only-hidden table.hist tr.ch:not(.st-hidden):not(.st-unreleased):not(.st-unannounced) { display: none; }
+
+/* patch page tabs */
+.tabs { display: flex; flex-wrap: wrap; gap: 2px; }
+/* one height for every tab, the words on one line: the 20px eye of "Not in patch notes" made its tab taller and its
+   words ~4px lower (review 2026-10-17); the eye is centred like a chip's. The line is the eye's 14px: with the count in
+   the 13px UI font (the pixel font's 16px held it before) the eye's tab stood 1px taller */
+.tabs .px-btn { display: inline-flex; align-items: baseline; line-height: 14px; }
+.tabs .px-btn .mark { align-self: center; width: 14px; height: 14px; margin-right: 5px; }
+.tabs .px-btn .mark::before { width: 14px; height: 14px; }
+/* a phone: the tabs are ONE row that scrolls sideways, like the history bar's ability chips — wrapped, the sticky bar
+   was three rows (138px; 194 of an 844px screen with the site bar, review 2026-10-17); scripts.js `tabs` scrolls the
+   open one into sight */
+@media (max-width: 760px) {
+  .tabs.toolbar { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 8px; }
+  .tabs.toolbar > * { flex: none; }
+}
+.tab-panel { display: none; }
+.tab-panel.on { display: block; }
+.mark.untracked, .mark.nodata, .mark.repeated, .mark.unmatched { color: var(--text-dimmer); }
+.cols-2 { column-count: 2; column-gap: 14px; }
+.cols-2 > * { break-inside: avoid; }
+@media (max-width: 1100px) { .cols-2 { column-count: 1; } }
+
+/* home */
+.home-top { display: flex; flex-wrap: wrap; align-items: center; gap: 18px 28px; margin: 6px 0 16px; }
+.home-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-left: auto; }
+/* find any hero, ability, item or unit (builders/site_search.py, scripts.js site-search) */
+.site-search { position: relative; flex: 1 1 280px; max-width: 460px; }
+.site-search input { width: 100%; height: 44px; font-size: var(--fs-md); }
+.ss-list { position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: var(--z-tooltip); max-height: 420px; overflow-y: auto;
+  background: var(--bg-panel); box-shadow: 0 0 0 2px var(--frame-line), 0 10px 24px var(--shadow-deep); }
+.ss-list a { display: grid; grid-template-columns: 32px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 6px 10px;
+  color: var(--text-main); }
+.ss-list a:hover, .ss-list a.on { background: var(--bg-hover); color: var(--text-bright); }
+.ss-list img, .ss-list .ss-noimg { width: 32px; height: 32px; object-fit: contain; background: var(--bg-panel-4); }
+.ss-list .ss-nm { font: 600 var(--fs-base)/1.2 var(--font-ui); }
+.ss-list .ss-what { font: var(--fs-sm)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; }
+.ss-none { padding: 10px 12px; color: var(--text-dimmer); }
+.home-stats .hs { display: flex; flex-direction: column; gap: 4px; min-width: 140px; padding: 10px 14px 9px 16px;
+  background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel)); box-shadow: inset 4px 0 0 var(--frame-hi),
+  0 0 0 2px var(--frame-line); }
+.home-stats .hs .n { font: var(--fs-3xl)/1 var(--font-px); color: var(--text-bright); }
+.home-stats .hs .l { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
+.home-stats .hs.documented { box-shadow: inset 4px 0 0 var(--patina), 0 0 0 2px var(--frame-line); }
+.home-stats .hs.documented .n { color: var(--patina); }
+.home-stats .hs.hidden { box-shadow: inset 4px 0 0 var(--eye), 0 0 0 2px var(--frame-line); }
+/* the count opens the Hero changes with "Not in patch notes" on; the four sections' names under it, each its own
+   change matrix so filtered (home_page._top, scripts.js dyn-url) */
+.home-stats .hs-go { display: flex; flex-direction: column; gap: 4px; color: inherit; }
+.home-stats .hs-go:hover .l, .home-stats .hs-go:focus-visible .l { color: var(--text-bright); }
+.home-stats .hs-in { margin-top: 2px; font: 500 var(--fs-sm)/1.3 var(--font-ui); color: var(--text-dimmer); }
+/* "N not in patch notes" leads to what Valve did not say (scripts.js hidden-hash): a link, the same look */
+.sum-audit a.au-hidden { color: inherit; }
+a.au.au-hidden:hover, a.au.au-hidden:focus-visible { color: var(--text-bright); }
+a.au.au-hidden:hover b { text-decoration: underline; }
+.home-stats .hs.hidden .n { color: var(--eye); text-shadow: 0 0 12px var(--eye-glow); }
+.home-stats .hs.mismatch { box-shadow: inset 4px 0 0 var(--tag-mismatch), 0 0 0 2px var(--frame-line); }
+.home-stats .hs.mismatch .n { color: var(--tag-mismatch); }
+/* the four sections as tiles; their art is the section's own icons */
+.home-tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 0 3px 26px; }
+.htile { position: relative; display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 6px 14px; min-height: 120px;
+  padding: 16px 18px; overflow: hidden; color: var(--text-bright); transition: transform 120ms steps(3); }
+.htile:hover { --frame: var(--patina); transform: translateY(-2px); }
+.htile .ht-t { font: var(--fs-3xl)/1 var(--font-px); }
+/* the count is a number beside a pixel title: Jersey's smallest step */
+.htile .ht-n { font: var(--fs-xl)/1 var(--font-px); color: var(--label); }
+/* what the index shows behind a switch, apart from the number (home_page._tiles: "+5 pre-release") */
+.htile .ht-x { margin-left: 8px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; }
+/* as many whole icons as the tile has room for: the rest wrap out of sight (two tiles a row on a tablet) */
+.htile .ht-art { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; height: 40px; overflow: hidden; }
+.htile .ht-art img { width: 40px; height: 40px; object-fit: cover; background: var(--bg-panel-4); }
+/* the Game systems' icons are glyphs and small paintings from the game files: whole, not cropped */
+.htile.game .ht-art img { object-fit: contain; padding: 5px; }
+/* the Game section (builders/game_pages.py): a system's card holds its icon, glyph or painting, at one size */
+.game-card img, .game-card .glyph { width: 72px; height: 72px; object-fit: contain; }
+.game-card .glyph { color: var(--label); }
+/* the game's flat HUD marks fill their whole square: inset more, to the visual weight of the paintings beside them */
+.game-card img[src$=".svg"] { padding: 13px; }
+.dyn td.name .mx-g { display: inline-block; width: 22px; height: 22px; vertical-align: middle; margin-right: 6px; color: var(--label); }
+/* Game rules: one table, a band row per system; centred cells and translucent lines both ways, names left */
+/* the search and the table share one column at the page's left edge, under the title and tabs (centred, a 776px table
+   and its bar sat apart from them; review 2026-10-17); the table scrolls with the page, its head sticks under the site
+   bar (no box of its own: a double scroll over 200 rows) */
+.rules-col { width: 100%; }
+.rules-col table.game-rules { width: 100%; }
+.rules-col > .toolbar { position: static; margin-bottom: 10px; }
+table.game-rules { border-collapse: separate; border-spacing: 0; font-size: var(--fs-sm); font-variant-numeric: tabular-nums;
+  min-width: 560px; border-left: 1px solid var(--grid); border-top: 1px solid var(--grid); }
+table.game-rules th, table.game-rules td { padding: 5px 14px; text-align: center; border-right: 1px solid var(--grid);
+  border-bottom: 1px solid var(--grid); }
+table.game-rules thead th { position: sticky; top: var(--nav-h); z-index: var(--z-sticky); background: var(--bg-panel-2);
+  font: 600 var(--fs-sm)/1.2 var(--font-ui); color: var(--text-bright); border-bottom-color: var(--grid-strong); }
+table.game-rules td.nm { text-align: left; color: var(--text-main); }
+table.game-rules td.v { color: var(--text-bright); white-space: nowrap; }
+table.game-rules td.has-hist { cursor: help; text-decoration: underline dotted var(--grid-strong); text-underline-offset: 3px; }
+table.game-rules tr.sec td { text-align: left; background: var(--bg-panel-2); border-color: var(--grid-strong);
+  font: 600 var(--fs-sm)/1 var(--font-ui); text-transform: uppercase; letter-spacing: .05em; }
+table.game-rules tr.sec a { color: var(--label); display: inline-flex; align-items: center; gap: 8px; }
+table.game-rules .rules-ic { width: 20px; height: 20px; object-fit: contain; color: var(--label); }
+table.game-rules .lc-n { display: none; }
+/* a phone: a name breaks after its underscores only (game_rules._row's <wbr>; break-all cut "citadel_bounty_a / oe_deny_
+   radius"), and Changes rides under Last change: the two mostly-dash columns took 45% of the width (review 2026-10-17) */
+@media (max-width: 700px) {
+  table.game-rules { min-width: 0; width: 100%; }
+  table.game-rules th, table.game-rules td { padding: 5px 6px; }
+  table.game-rules td.nm code { word-break: normal; overflow-wrap: normal; }
+  table.game-rules .cn { display: none; }
+  table.game-rules td.lc { white-space: nowrap; }
+  table.game-rules .lc-n { display: block; margin-top: 2px; font-size: var(--fs-sm); color: var(--text-dim); }
+}
+.home-h { margin: 6px 3px 12px; }
+/* what each of the latest updates changed: a strip of icons per section, each opens that page at that update */
+.update { margin: 0 3px 16px; padding: 0 0 12px; }
+.update > .banner { margin: 0 0 6px; }
+/* the banner's count is the entity pages' eye chip (a.chip.eye-link); the clauses explaining it follow in the date's
+   quiet type, each after a " · " that wraps with it (review 2026-10-17: pixel caps, the clauses run together) */
+.update .bc .au-more { display: inline-flex; align-items: center; gap: 8px; }
+.update .bc .au-dot { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dimmer); }
+.update .bc .au { display: inline-flex; align-items: center; gap: 4px; font: 500 var(--fs-sm)/1.2 var(--font-ui);
+  letter-spacing: 0; text-transform: none; color: var(--text-dim); }
+/* the sections side by side, each its label over its icons; a section as wide as its icons, a long one takes the
+   whole width and wraps (review 2026-10-17: stacked under a 110px label column, five heroes and two items filled
+   360px of a 1640px card) */
+.lu-groups { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 14px 44px; padding: 10px 16px 0; }
+.lu-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+.lu-h { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.lu-h b { color: var(--text-bright); font-weight: inherit; }
+/* a group whose icons all hold only changes the notes left out: one eye here, none on the icons — the entity pages'
+   eye chip (a.chip.eye-link), not amber sans with the eye glued to it (review 2026-10-17) */
+.lu-h .lu-all { display: inline-flex; vertical-align: -2px; margin: -3px 0 -2px 8px; color: var(--eye); }    /* its margin box no taller than the label's line */
+.lu-h .lu-all .mark, .lu-h .lu-all .mark::before { width: 14px; height: 14px; }
+.lu-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.lu { position: relative; display: block; width: 44px; height: 44px; background: var(--bg-panel-4);
+  box-shadow: 0 0 0 2px var(--frame-line), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
+.lu.net-buff { --lu-c: var(--tag-buff); }
+.lu.net-nerf { --lu-c: var(--tag-nerf); }
+.lu img, .lu .glyph { display: block; width: 44px; height: 44px; object-fit: cover; }
+.lu.lu-game img, .lu.lu-game .glyph { object-fit: contain; padding: 7px; color: var(--label); }
+/* the units the game has no picture for, folded into one tile (home_page.fold_bare): "+N", not N grey glyphs */
+.lu-fold-n { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; padding-bottom: 3px;
+  font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); }
+.lu.lu-fold:hover .lu-fold-n { color: var(--text-bright); }
+.lu:hover { box-shadow: 0 0 0 2px var(--patina), inset 0 -3px 0 var(--lu-c, var(--tag-changed)); }
+.lu-n { position: absolute; right: 1px; bottom: 3px; padding: 0 3px; font: 600 var(--fs-xs)/14px var(--font-ui); color: var(--text-bright);
+  background: var(--shadow); }
+.lu-eye { position: absolute; left: 1px; top: 1px; display: flex; color: var(--eye); }
+.lu-eye .mark, .lu-eye .mark::before { width: 14px; height: 14px; }
+@media (max-width: 1180px) {
+  .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 860px) {
+  .home-stats { margin-left: 0; }
+}
+/* a tablet keeps two tiles a row (one a row, each card showed its 6 icons in a 720px box); a phone one. Its two counters
+   share the width the tiles take: they ended 24px short of them, 6px off their left edge (review 2026-10-17) */
+/* a phone keeps them two a row, smaller: one a row, the four took ~1000px and "Latest changes" began ~900px down
+   (review 2026-10-17). The title and its number share a line when they fit, the icons sit at the bottom */
+@media (max-width: 640px) {
+  .home-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .htile { display: flex; flex-wrap: wrap; align-items: baseline; align-content: space-between; gap: 4px 8px;
+    min-height: 0; padding: 12px 12px 14px; }
+  .htile .ht-t { font-size: var(--fs-2xl); }
+  .htile .ht-x { margin-left: 6px; }
+  .htile .ht-art { flex: 1 1 100%; height: 32px; gap: 5px; margin-top: 6px; }
+  .htile .ht-art img { width: 32px; height: 32px; }
+  .htile.game .ht-art img { padding: 4px; }
+}
+/* an update's banner: its counts start under the title at the left, wrapped or not (the first card's sat right, the
+   next one's left, review 2026-10-17) */
+@media (max-width: 700px) {
+  .update > .banner .bc { flex-basis: 100%; justify-content: flex-start; }
+  /* the clauses under the chip, one a line: a " · " would start a wrapped line */
+  .update .bc .au-more { flex-basis: 100%; }
+  .update .bc .au-dot { display: none; }
+}
+@media (max-width: 600px) {
+  .home-stats { flex: 1 1 100%; flex-wrap: nowrap; margin: 0 calc(3px + var(--px)); }     /* the tiles' box edges */
+  .home-stats .hs { flex: 1 1 auto; }
+}
+@media (max-width: 980px) {
+  .hero-head { grid-template-columns: 110px minmax(0, 1fr); align-items: center; }
+  .hero-head .portrait { grid-row: 1; width: 110px; }
+}
+@media (max-width: 420px) {
+  .hero-head { grid-template-columns: 88px minmax(0, 1fr); column-gap: 12px; }
+  /* the glyph of a hero with no portrait too: at 110px (section 10's 860px rule) it ran under the name */
+  .hero-head > img.portrait, .hero-head > .portrait.glyph { width: 88px; }
+  .hero-head h1 { font-size: var(--fs-3xl); }
+}
+

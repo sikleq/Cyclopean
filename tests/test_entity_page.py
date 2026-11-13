@@ -4,14 +4,9 @@ import json
 import re
 from pathlib import Path
 
+from tests.helpers import ch, site_css, site_js
+
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29',
-            'dir': 'nerf', 'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x'}
-    base.update(kw)
-    return base
 
 
 def _blob(html: str) -> dict:
@@ -122,7 +117,7 @@ def test_toolbar_tags_are_aria_pressed_buttons_of_the_one_badge():
     bar = html.split('class="toolbar hist-bar"')[1]
     assert '<button class="tag nerf" data-f-tag="nerf" aria-pressed="false">NERF</button>' in bar
     assert 'class="hf-ab ult txt"' in bar and 'data-tooltip="Seismic Impact"' in bar   # no art: its name
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    js = site_js()
     hist = js.split("safe('hist-filter'")[1].split("safe('patch-anchor'")[0]
     assert "btn.classList.toggle('on', i < 0)" not in js
     assert "setAttribute('aria-pressed', i < 0 ? 'true' : 'false')" in hist
@@ -158,7 +153,7 @@ def test_one_tag_badge_everywhere():
     for f in ('hero_page.py', 'entities_pages.py', 'notes_view.py', 'patches_pages.py', 'dynamics_page.py', 'cards.py'):
         src = (ROOT / 'builders' / f).read_text(encoding='utf-8')
         assert not re.search(r'<(span|button) class="tag [a-z{]', src), f
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     for t in TAG_ART:            # the counters (.pip) draw the same mask
         assert f'.tag.{t}, .pip.{t} {{ --ti-content: ""; --ti: {tag_mask(t)}; }}' in css, t
 
@@ -222,7 +217,9 @@ def test_hero_page_is_one_open_column(monkeypatch):
     html = hero_page.hero_page(h, cards, row, cols, ents, {}, {})
     assert '<main class="page entity">' in html
     assert '<details' not in html.split('class="h2row"')[0]                # nothing folded above the history
-    assert '<section class="now-open">' in html and '<div class="wb-cells"' in html and '<h2>Stats</h2>' in html
+    assert '<section class="now-open">' in html and '<h2>Stats</h2>' in html
+    stats = html.split('<h2>Stats</h2>')[1]
+    assert '>DPS<' in stats and '>Bullet Speed<' in stats                  # the gun's numbers too (no game panels)
     assert 'class="ab-ic ult"' in html and 'href="#p-p9" data-p="p9" data-ab="ult"' in html
     # review 2026-10-05: the alt fire is a line of the weapon block, never an (empty) ability card; a card with
     # nothing to read is not drawn; the grid holds the ability slots only
@@ -271,7 +268,7 @@ def test_page_class_and_centred_column_css():
     from builders.common import page
     assert '<main class="page entity">' in page('X', '', '../', cls='entity')
     assert '<main class="page wide">' in page('X', '', '../', wide=True)
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     assert '.page.entity { max-width: calc(var(--entity-w)' in css
     assert 'max-width: 1120px' not in css
     tag = css.split('\n.tag {')[1].split('}')[0]
@@ -304,7 +301,7 @@ def test_home_feed_icons_carry_a_card():
 
 def test_colours_only_in_root_and_no_has():
     """AGENTS.md: every colour is a :root token; :has() is banned on big pages."""
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     css = re.sub(r'/\*.*?\*/', '', css, flags=re.S)
     root_end = css.index('}', css.index(':root {'))
     rest = css[root_end:]
@@ -344,7 +341,7 @@ def test_a_new_units_head_row_says_what_it_stands_for():
     assert shown + sum(n for n, _ in behind.values()) == sum(built.values())
     # a patch's ordinary rows carry no such attribute
     assert 'data-n=' not in entity_rows(changes[:3])
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    js = site_js()
     hist = js.split("safe('hist-filter'")[1].split("safe('patch-anchor'")[0]
     assert "r.getAttribute('data-n')" in hist and 'onlyHidden ? e[2] : e[1]' in hist and 'tagOk(r)' in hist
 
@@ -423,16 +420,16 @@ def test_phone_tier_table_matrices_and_item_cards_css():
     (2) centring every wide table gave the change matrices a 20px sideways scroll at 1700-1920px — the
     stats tables' centring is the item-stats track's `.table-fade.center`; (3) auto-fill left a third of an
     item's "Current values" empty; (4) dead rules (details.more, the bar's switch) went."""
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     phone = [b for b in css.split('@media (max-width: 700px) {')[1:] if 'table.tier-grid' in b.split('\n}')[0]]
     assert phone and 'table.tier-grid { width: 100%; min-width: 0; }' in phone[0]
     assert '.page.wide .table-fade' not in css
     # review 2026-10-05: a one-row card is not stretched; visual pass 2026-10-17: the sections share the width from the
     # left, their rows in columns — round 2: as groups of the one "today" component flowing in columns, no box each
-    # (tests/test_vis_e2.py)
+    # (tests/test_vis_entity_grids.py)
     assert '.stat-flow { columns: 330px auto;' in css and 'item-secs' not in css
     assert 'details.more' not in css and '.hist-bar .switch' not in css
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    js = site_js()
     anchor = js.split("safe('patch-anchor'")[1].split("safe('tabs'")[0]
     # a square's group is unhidden on its own: the band can show (another ability's rows) while it is filtered out
     assert 'reveal(group)' in anchor and 'reset(true)' in anchor

@@ -53,7 +53,8 @@ def line_text(c: dict) -> str:
     from .render import shown_pair
     path = str(c.get('path') or '')
     if path == '@add':
-        return 'added to the game'
+        # with the numbers it came with (builders/arrivals.py)
+        return f'added to the game ({c["came_with"]})' if c.get('came_with') else 'added to the game'
     if path == '@return':
         return 'back in the game files'
     if path == '@remove':

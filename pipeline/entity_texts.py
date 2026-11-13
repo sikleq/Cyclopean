@@ -12,16 +12,17 @@ from __future__ import annotations
 import html
 import re
 
+from .loc import HTML_TAG
+
 TEXT_FILES = ('abilities.vdata', 'heroes.vdata')
 # 'ability_x' (name), 'ability_x_desc', 'ability_x_t2_desc' (an upgrade tier's text)
 _KEY = re.compile(r'^(?P<base>[a-z0-9_]+?)(?:_t(?P<tier>[1-3]))?(?P<desc>_desc)?$')
-_TAGS = re.compile(r'<[^>]+>')
 _SPACE = re.compile(r'\s+')
 
 
 def words(s: str | None) -> str:
     """What a reader sees of a text: no markup, entities decoded, spaces collapsed."""
-    return _SPACE.sub(' ', html.unescape(_TAGS.sub(' ', s or ''))).strip()
+    return _SPACE.sub(' ', html.unescape(HTML_TAG.sub(' ', s or ''))).strip()
 
 
 def key_part(key: str, ids: dict[str, str]) -> tuple[str, str] | None:

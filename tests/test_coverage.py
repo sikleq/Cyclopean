@@ -12,14 +12,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import ch
+
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29', 'dir': 'nerf',
-            'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x'}
-    base.update(kw)
-    return base
 
 
 def _cat(n_heroes=10, **extra):

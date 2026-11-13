@@ -1,4 +1,4 @@
-"""Shared fixtures. `browser`: headless Chromium for the tests of site/scripts.js and styles.css. On a developer's
+"""Shared fixtures. `browser`: headless Chromium for the tests of site/js and styles.css. On a developer's
 machine without Playwright or its Chromium those tests skip; in CI (the `CI` variable GitHub Actions sets) a missing
 browser is a failure — the 22 browser tests had skipped there for good, so 1,700 lines of scripts.js went untested
 (review 2026-10-05)."""

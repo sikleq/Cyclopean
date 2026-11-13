@@ -14,6 +14,7 @@ from functools import lru_cache
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+BUILDS_DIR = ROOT / 'data' / 'builds'         # one record per tracker commit (pipeline.history)
 TRACKER = Path(os.environ.get('CYCLOPEAN_TRACKER', ROOT / 'vendor' / 'GameTracking-Deadlock'))
 TRACKER_URL = 'https://github.com/SteamTracking/GameTracking-Deadlock.git'
 
@@ -30,6 +31,9 @@ VDATA_FILES = (
     'generic_data.vdata',
     'loot_tables.vdata',
     'accolades.vdata',
+    # ranked seasons' rules (points per match, rank-up XP, shields, hero unlock, calibration cap, season dates):
+    # the "Ranked - Beta Season 2" post of 2026-11-05 matched nothing while its numbers sat here
+    'ranked_seasons.vdata',
 )
 VDATA_PATHS = tuple(SCRIPTS + f for f in VDATA_FILES)
 ASSET_LIST = 'game/citadel/pak01_dir.txt'

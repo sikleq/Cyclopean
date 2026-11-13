@@ -185,7 +185,8 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     from .cards import card, card_head, change_rows, is_hidden, player_facing, sub_head
     from .common import entity_icon, glyph_for, hero_icon
     from .trail import trail_html
-    heroes = {e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
+    ents = shown_entities(ents)          # no card is a name over nothing
+    heroes ={e['id']: e for e in ents if e['file'] == 'heroes.vdata' and e['id'] != '@shared'}
     by_owner: dict[str, list] = {}
     rest = []
     for e in ents:
@@ -252,6 +253,13 @@ def _changes_table(ents: list[dict], rel: str, pid: str | None = None) -> str:
     return '<div class="ecards">' + ''.join(out) + '</div>'
 
 
+def shown_entities(ents: list[dict]) -> list[dict]:
+    """The entities `_changes_table` gives a card: those that write a row (`cards.writes_rows`) — build-6801 had 22
+    cards of a name over nothing (Parry's "Duration Reducible no" added; concept audit 2026-11-13)."""
+    from .cards import writes_rows
+    return [e for e in ents if writes_rows(e['changes'], added=e.get('status') == 'added')]
+
+
 def own_anchors(ents: list[dict]) -> set[str]:
     """The ids with a card of their own under All changes (`c-<id>`): a hero (its base stats or anything it owns),
     an item, a unit, a rule."""
@@ -277,6 +285,7 @@ def shared_anchor_ids(e: dict) -> list[str]:
 def change_anchors(ents: list[dict]) -> frozenset[str]:
     """Every id the All changes tab has a `c-<id>` place for (`_changes_table`): own cards, then the targets of the
     shared edits."""
+    ents = shown_entities(ents)
     own = own_anchors(ents)
     return frozenset(own | {i for e in ents if e['id'] == '@shared' for i in shared_anchor_ids(e)})
 

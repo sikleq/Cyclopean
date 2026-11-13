@@ -1,0 +1,65 @@
+/* ---------- 05. Page shell ---------- */
+.page { max-width: var(--content-w); margin: 0 auto; padding: 18px var(--gutter) 60px; }
+/* a wide page (an index, a table, a matrix) shares the site bar's width: its title, toolbar and table start where the
+   brand does (at 1920 they sat at x=20 under a brand at x=140, the matrix centred between; review 2026-10-17) */
+.page.wide { max-width: var(--content-w); }
+/* a hero / item / unit page: head, today's stats, strip, toolbar and every band share ONE centred column
+   (the history sat in 1120px pinned left under a 1640px head: 134px of margin left, 666px right at 1920); a patch or
+   build page's cards are the same one column (`column`, common.page) */
+.page.entity { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
+.page.column { max-width: calc(var(--entity-w) + 2 * var(--gutter)); }
+/* the site changelog: one centred column of prose, lines of ~80 characters (they ran ~1370px, ~200 characters at
+   1440: review 2026-10-17) */
+.page.changelog { max-width: calc(80ch + 2 * var(--gutter) + 40px); }
+.page.changelog .section-title .dimmer { white-space: nowrap; }      /* a date is one word */
+/* an entity's patch strip wraps to the head's own row (.page-head > .head-strip, 07a) */
+.page-head { display: flex; flex-wrap: wrap; gap: 8px 18px; align-items: center; margin-bottom: 18px; }
+.page-head > div:not(.head-strip) { flex: 1 1 0; min-width: 0; }     /* the name block stays beside the icon */
+.page-head .head-icon { width: 96px; height: 96px; object-fit: contain; background: var(--bg-panel-2); }
+.page-head .meta { color: var(--text-dim); font-size: var(--fs-sm); }
+.page-head .meta b { color: var(--text-main); font-weight: 600; }
+.crumbs { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .08em; }
+.crumbs a { color: var(--text-dim); }
+
+/* flush under the site bar: a 2px gap let the content scroll through between the two */
+.toolbar {
+  position: sticky; top: var(--nav-h); z-index: var(--z-sticky);
+  display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border-bottom: var(--px) solid var(--line);
+  margin: 0 0 18px;
+  scroll-margin-top: var(--nav-h);      /* a bar scrolled to (#hidden) stops at its stuck place, under the site bar */
+}
+.toolbar .sep { width: 2px; height: 26px; background: var(--line); margin: 0 4px; }
+/* a phone: an index's toolbar scrolls away like a table's (stuck, it took 96px for a search box), and the separators
+   go — once a bar wraps they dangled at a row's end or stood alone on a row */
+@media (max-width: 760px) {
+  main.page.wide > .toolbar { position: static; }
+  .toolbar .sep { display: none; }
+}
+.toolbar input[type=search], .site-search input[type=search] {
+  font: var(--fs-md) var(--font-ui); color: var(--text-main);
+  background: var(--bg-page); border: var(--px) solid var(--line); padding: 6px 10px; min-width: 220px;
+}
+.toolbar input[type=search]:focus, .site-search input[type=search]:focus { outline: none; border-color: var(--patina-dim); }
+
+.stat-strip { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 20px; }
+.stat-box { padding: 10px 14px; min-width: 140px; }
+.stat-box .n { font: var(--fs-2xl)/1 var(--font-px); color: var(--text-bright); }
+.stat-box .l { font: 600 var(--fs-xs)/1.15 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; margin-top: 6px; }
+.stat-box.unreleased .n { color: var(--dev); }
+.stat-box.hidden .n { color: var(--eye); text-shadow: 0 0 10px var(--eye-glow); }
+.stat-box.documented .n { color: var(--patina); }
+.stat-box.mismatch .n { color: var(--tag-mismatch); }
+
+.section { margin: 0 0 22px; padding: 14px 16px 16px; }
+.section > h2:first-child, .section > h3:first-child { margin-top: 0; }
+.section-title { display: flex; align-items: center; gap: 10px; }
+.section-title .chip { margin-left: auto; }
+.section-title .dimmer { font: 500 var(--fs-sm)/1 var(--font-ui); letter-spacing: 0; }   /* a date: never the pixel font */
+details.collapsible > summary { cursor: pointer; list-style: none; font: 600 var(--fs-base)/1.2 var(--font-ui); color: var(--text-bright); padding: 4px 0; }
+details.collapsible > summary::before { content: "+"; display: inline-block; width: 18px; color: var(--patina); font: 600 var(--fs-base)/1 var(--font-ui); }
+details.collapsible[open] > summary::before { content: "-"; }
+details.collapsible > summary .chip { margin-left: 8px; }
+

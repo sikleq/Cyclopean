@@ -1,4 +1,4 @@
-"""Front-end fixes of the perf track (2026-10-05) in a real browser: site/scripts.js + styles.css on fixture
+"""Front-end fixes of the perf track (2026-10-05) in a real browser: site/js + styles.css on fixture
 markup. The `browser` fixture is tests/conftest.py's (CI installs Chromium)."""
 from __future__ import annotations
 
@@ -7,12 +7,14 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import site_css, site_js
+
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def _open(browser, body: str, head: str = '', width: int = 1400, height: int = 900, before=None):
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    css = site_css()
+    js = site_js()
     page = browser.new_page(viewport={'width': width, 'height': height})
     errors: list[str] = []
     page.on('pageerror', lambda e: errors.append(str(e)))

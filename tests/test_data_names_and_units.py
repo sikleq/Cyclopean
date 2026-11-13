@@ -4,7 +4,7 @@ fixes. No tracker clone needed."""
 from builders import dynamics_page
 from builders.cards import is_noop, merge_renames
 from builders.common import pretty_id
-from builders.render import flags_html, vals_html
+from builders.render import vals_html
 from pipeline import flags, labels, semantics
 from pipeline.match import MChange, change_json
 
@@ -104,8 +104,8 @@ def test_a_weapon_id_says_only_what_follows_its_owners_code():
 def test_a_flag_change_of_unlisted_bits_still_shows_its_bits():
     old = 'CITADEL_ABILITY_BEHAVIOR_NO_TARGET'
     new = 'CITADEL_ABILITY_BEHAVIOR_NO_TARGET | CITADEL_ABILITY_BEHAVIOR_CAN_SET_QUICK_CAST'
-    html = flags_html(old, new, 'm_AbilityBehaviorsBits')
-    assert html and 'quick cast' in html and html != '<span class="vals flags"></span>'
+    html = vals_html({'op': 'change', 'path': 'm_AbilityBehaviorsBits', 'cat': 'mechanic', 'old_s': old, 'new_s': new})
+    assert 'flag add">+can set quick cast<' in html and '<span class="vals flags"></span>' not in html
 
 
 def test_flag_chips_take_the_colour_of_their_side():

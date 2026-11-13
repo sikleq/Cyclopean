@@ -68,6 +68,7 @@ PREFIXES = (
     'panorama/images/hud/zipline_icon',
     'panorama/images/hud/ledge_climb',
     'panorama/images/hud/teleport_icon',
+    'panorama/images/hideout/rankprotectshield',
     # the getting-started map's legend: the Mid-Boss mark at full size (data/overrides/unit_icons.json)
     'panorama/images/getting_started/map_',
     # role marks on unit types that share one portrait (unit_icons.json 'rules', third column): the build browser's

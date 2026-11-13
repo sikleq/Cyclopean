@@ -1,5 +1,26 @@
 [
   {
+    "date": "2026-11-13",
+    "title": "Ranked, bigger patch tiles, a build picker",
+    "items": [
+      "Game has a Ranked page: each ranked season's rules from the game files (points per match, rank-up XP, shields, hero unlock, calibration cap) and how they changed.",
+      "The patch tiles under a name are much bigger: the number of changes shows without hovering, the tags are a wide bar under it.",
+      "In a change list the % stands at the row's right edge; hovering a row draws a dashed line to it.",
+      "On hero, item, unit and Game pages a row not in the patch notes has no coloured strip by the ability icon any more: the eye and the row's tint mark it.",
+      "The filter buttons above a history are one height.",
+      "A build page lists the files that changed when there are only a few, and a list picks any build.",
+      "Two more bug fixes say when they were first reported: the spectate Cancel button (164 days) and Rem's souls from breakables (49 days, was 26).",
+      "Game › Modes has Street Brawl's item draft: how many rare and enhanced items each round offers and the tier buckets, as rows. The heroes' item draft weights are one folded row a patch, hero, item, old and new value.",
+      "A new item, ability or unit shows the numbers it came with on its \"Added to the game files\" row, and an edit made to it later in the same update is its own row (Eternal Gift's Respawn Time -90% to -70%).",
+      "A neutral's attacks (Neutral attack lob book, light melee, self bomb) are on its unit page, not in Game › Other.",
+      "A removed entity on a build or patch page says \"Removed from game data\"; a card with nothing to show is gone.",
+      "Build pages list every text change, console variable and entity (folded, never cut), mark console variables not in the patch notes with the eye, list the other data fields a build changed, and skip binary strings with no word in them.",
+      "New console variables and new tier bonuses list their rows instead of a bare \"Added to the game\".",
+      "More server variables are on Game pages: the trailing team's Urn and Rift thresholds, the idle time before a player counts as disconnected, the breakable props' reject cooldown, the auto-mantle step and others.",
+      "List rows read as words: \"Lane 3\" for \"value #3\", \"Buy Time, round 5\", \"Vitality purchase bonus, tier 3\". The footer links the builds."
+    ]
+  },
+  {
     "date": "2026-11-05",
     "title": "Minor Update 11-04 read right",
     "items": [

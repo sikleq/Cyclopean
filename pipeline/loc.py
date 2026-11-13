@@ -62,10 +62,19 @@ def english_files(rev: str) -> dict[str, str]:
     return out
 
 
+ITEMS_PREFIX = '@items:'     # an items' text that another file holds under the same key (semantics._loc_label)
+
+
 def tokens(rev: str) -> dict[str, str]:
+    """Every english token of the build, the first file's text winning a key two files hold; the items' file keeps
+    its own text of such a key under ITEMS_PREFIX (data audit 2026-11-13: Ethereal Shift's Spirit Power read "Spirit
+    Power while Pathing", a hero ability's label from citadel_heroes)."""
     merged: dict[str, str] = {}
     for path, blob in sorted(english_files(rev).items()):
+        items = _group(path) == 'citadel_mods'
         for k, v in _file_tokens(blob).items():
+            if items and k in merged and merged[k] != v:
+                merged[ITEMS_PREFIX + k] = v
             merged.setdefault(k, v)
     return merged
 
@@ -158,9 +167,9 @@ def entity_name(tok: dict[str, str], eid: str, owner: str | None = None) -> str:
     return tok.get(base) or tok.get(base + ':n') or eid
 
 
-_HTML_RE = re.compile(r'<[^>]+>')
+HTML_TAG = re.compile(r'<[^>]+>')                 # a markup tag in a localized text
 
 
 def plain(s: str | None) -> str:
     """Display text: no markup, HTML entities decoded ('&amp;' -> '&'; pages escape it once)."""
-    return html.unescape(_HTML_RE.sub('', s or '')).strip()
+    return html.unescape(HTML_TAG.sub('', s or '')).strip()

@@ -23,7 +23,7 @@ from functools import lru_cache
 
 from pipeline.tracker import SCRIPTS        # where the data files sit (the same layout in both trackers)
 
-from .common import build_pages, esc, tech_only_files
+from .common import HIDDEN_WORDS, build_pages, esc, tech_only_files
 
 # the trackers the builds come from (pipeline.tracker): GameTracking-Deadlock from its first build on, its archived
 # predecessor (Lifeismana/Deadlocked) before it — checked against both clones for all 622 builds on 2026-10-06
@@ -32,7 +32,6 @@ MAIN_TRACKER = 'https://github.com/SteamTracking/GameTracking-Deadlock'
 PRE_TRACKER = 'https://github.com/Lifeismana/Deadlocked'
 # the site's one term (review 2026-10-17): "not in patch notes" for what the notes left out, "no patch notes" for an
 # update without any; a change that came in a later build than the notes' own says "after the patch"
-HIDDEN_WORDS = 'Not in patch notes'
 NO_NOTES_WORDS = 'No patch notes for this update'
 VERSION_DATE = '%b %d %Y %H:%M:%S'       # a record's `version_date`: "Oct 14 2026 20:01:37" (steam.inf)
 
@@ -128,14 +127,14 @@ def _facts(file: str) -> tuple[frozenset[str], frozenset[str], str]:
     """(the ids a build page has a `c-<id>` card for, its row anchors, the game build's date) — read once per build
     record; empty when the record is missing (a test's data). A key the page writes twice (two '@shared' blocks with
     one path, other values: 41 rows in 15 builds) has no anchor: an eye there opens the card or the page."""
-    from .builds_pages import ENTITY_LIMIT, page_entities, unique_keys
+    from .builds_pages import page_entities, unique_keys
     from .common import load_json
     from .patches_pages import own_anchors
     try:
         rec = load_json(f'builds/{file}')
     except (OSError, ValueError):
         return frozenset(), frozenset(), ''
-    ents = page_entities(rec)[:ENTITY_LIMIT]
+    ents = page_entities(rec)          # every entity is on the page (past ENTITY_LIMIT, folded)
     return (frozenset(own_anchors(ents)), frozenset(map(row_anchor, unique_keys(ents)[0])),
             game_day(rec.get('version_date')))
 

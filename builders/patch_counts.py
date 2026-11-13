@@ -26,14 +26,14 @@ def page_set() -> frozenset[str]:
     """The entity keys a hero, item or unit page shows — the same set the entities step builds its pages from
     (`entities_pages.page_entities` over the keys with changes of their own in any patch)."""
     from . import archive
-    from .cards import GAMEPLAY
+    from .cards import is_gameplay
     from .entities_pages import page_entities, page_keys
     from .shared_rows import entities as spread_all, is_every
     ents = {f"{e['file']}:{e['id']}": e for e in load_json('entities.json')['entities']}
     mine: set[str] = set()          # entities_pages.changed over its _history
     for row in archive.index():
         for e in spread_all(archive.patch(row['id'])['entities']):
-            if any(c['cat'] in GAMEPLAY and not is_every(c) for c in e['changes']):
+            if any(is_gameplay(c) and not is_every(c) for c in e['changes']):
                 mine.add(e['key'])
     trow = {r['id']: r for r in load_json('tables/heroes.json')['heroes']}
     heroes, items, units = page_entities(ents, mine, trow)
@@ -180,6 +180,11 @@ def _placed_rows(p: dict, pages: frozenset[str] | set[str] | None = None):
     convars = (p.get('extras') or {}).get('convars') or []
     for c in player_facing(convar_changes(convars, convar_start())) if convars else ():
         yield None, c, GAME, 0
+    # Street Brawl's item draft weights: one row of Game › Modes a patch, as its page and icon count it (brawl.draft_row)
+    from .brawl import DRAFT_ENTITY, draft_row
+    drafts = draft_row(p)
+    if drafts:
+        yield DRAFT_ENTITY, drafts, GAME, 0
 
 
 def _by_system(e: dict, once: set[tuple], group: str):

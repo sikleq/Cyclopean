@@ -1,0 +1,96 @@
+/* ---------- 08. Grids & cards ---------- */
+.grid { display: grid; gap: 10px; }
+.grid.heroes { grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); }
+.grid.items { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); }
+.grid.units { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.card { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px 6px 8px; color: var(--text-main); text-align: center; }
+.card:hover { background: var(--bg-hover); color: var(--text-bright); }
+/* a unit without game art shows its glyph in the same square (an empty span has no size of its own) */
+.card img, .card .glyph { width: 72px; height: 72px; object-fit: contain; }
+/* every card's art sits on the glyph's tile, at one inset: cut-out renders, a render with its own backdrop (Base
+   Defense Sentry), white HUD marks and the site glyph read as one set (review 2026-10-17) */
+.card img { padding: 5px; background: var(--bg-panel-3); }
+/* a flat HUD mark (icons/units/_mark/: an ability icon, a minimap or map-legend marker) sits inside its tile as a
+   Game card's mark and the site glyph do; a painted portrait fills it (review 2026-10-17: the yellow Mid-Boss filled
+   its tile edge to edge beside the paintings) */
+.card img[src*="/_mark/"] { padding: 13px; }
+.card .nm { font: 600 var(--fs-base)/1.15 var(--font-ui); }
+.card .sub { font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); text-transform: uppercase; }
+.card .sub:empty { display: none; }
+/* what the newest patch did to the hero, under the portrait */
+.card .last { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 2px 7px; margin-top: auto; }
+.card .last .tsum { margin: 0; gap: 6px; }
+.card .last .d { font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+/* a Game card's changes the notes left out: the eye and the count, in the date's quiet type (game_pages) */
+.card .last .gc-hid { display: inline-flex; align-items: center; gap: 2px; font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--eye);
+  white-space: nowrap; font-variant-numeric: tabular-nums; }
+.card .last .gc-hid .mark, .card .last .gc-hid .mark::before { width: 14px; height: 14px; }
+/* a phone: two unit / Game cards a row with a smaller icon (one a row, a 72px icon centred in a 350x150 box,
+   review 2026-10-17) */
+@media (max-width: 600px) {
+  .grid.units { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .grid.units .card { padding: 10px 4px 8px; }
+  .grid.units .card img, .grid.units .card .glyph { width: 56px; height: 56px; }
+  .grid.units .card img[src*="/_mark/"] { padding: 10px; }
+  .grid.units .card .nm { overflow-wrap: break-word; }
+}
+.card.gone { opacity: .55; }
+.card.gone .nm::after { content: " †"; color: var(--tag-del); }
+.grid-group-title { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); margin: 24px 0 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+/* patches index: month banners, one row per update, follow-ups indented under their parent */
+.ixlist .banner.sub:first-child { margin-top: 6px; }
+.ix { display: grid; grid-template-columns: 100px minmax(0, 1fr) 168px 244px 250px; gap: 14px; align-items: center;
+  padding: 10px 14px; color: var(--text-main); background: var(--bg-panel);
+  box-shadow: 0 1px 0 var(--line-soft); }
+.ix:hover { background: var(--bg-panel-2); box-shadow: inset 4px 0 0 var(--patina), 0 1px 0 var(--line-soft); color: var(--text-main); }
+.ix.fu { padding-left: 34px; background: var(--bg-page); }
+.ix.fu .ixt .t { font-size: var(--fs-xl); color: var(--text-main); }
+.ixd { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.ixt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ixt .t { font: var(--fs-xl)/1.05 var(--font-px); color: var(--text-bright); }
+.ixt .b { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .06em; }
+.ixs { display: grid; grid-template-columns: repeat(4, 58px); gap: 2px; font: 500 var(--fs-sm)/1 var(--font-ui); }
+.ixs .ix-buff { color: var(--tag-buff); }
+.ixs .ix-nerf { color: var(--tag-nerf); }
+.ixs .ix-new { color: var(--tag-new); }
+.ixs .ix-del { color: var(--tag-del); }
+.ixh { display: flex; gap: 4px; justify-content: flex-end; }   /* faces end on one line, row to row (owner) */
+.ixh img { width: 24px; height: 24px; object-fit: cover; background: var(--bg-panel-4); box-shadow: 0 0 0 1px var(--frame-line); }
+.ixa { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: var(--fs-sm); color: var(--text-dim); }
+.ixa .au { display: inline-flex; align-items: center; gap: 4px; }
+.ixa .au b { color: var(--text-bright); font-weight: 600; }
+.ixa .au-hidden b { color: var(--eye); }
+.ixa .au-mismatch b { color: var(--tag-mismatch); }
+.ixa .bar { flex-basis: 100%; height: 3px; margin-top: 2px; }
+/* narrower: two lines — date | title | faces over the counts | notes; a phone stacks faces, counts and notes under the
+   title. Every cell has its own place: the counts (4 x 58px) sat in the 90px date column and painted over the notes'
+   numbers (review 2026-10-17) */
+@media (max-width: 1100px) {
+  .ix { grid-template-columns: 90px minmax(0, 1fr) 250px; row-gap: 8px; }
+  .ixh { grid-area: 1 / 3; }
+  .ixs { grid-area: 2 / 2; }
+  .ixa { grid-area: 2 / 3; }
+}
+@media (max-width: 760px) {
+  .ix { grid-template-columns: 82px minmax(0, 1fr); column-gap: 10px; }
+  .ixh, .ixs, .ixa { grid-area: auto / 2; }
+  .ixh { justify-content: flex-start; }
+  .ixs { grid-template-columns: repeat(4, minmax(0, 58px)); }
+  .ix.fu { padding-left: 24px; }
+}
+
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline > li { display: grid; grid-template-columns: 110px 1fr auto; gap: 14px; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line-soft); }
+.timeline > li:hover { background: var(--bg-hover); }
+.timeline .date { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.timeline .ttl { font: 600 var(--fs-base)/1.2 var(--font-ui); color: var(--text-bright); }
+.timeline small { font: var(--fs-sm) var(--font-ui); color: var(--text-dimmer); margin-left: 8px; }   /* the patch, after the title */
+.timeline .nums { display: flex; flex-wrap: wrap; gap: 6px; }
+.bar { display: flex; height: 6px; margin-top: 6px; background: var(--bg-panel-3); }
+.bar > span { display: block; height: 100%; }
+.bar .b-doc { background: var(--patina); }
+.bar .b-des { background: var(--text-dimmer); }
+.bar .b-hid { background: var(--eye); }
+
+

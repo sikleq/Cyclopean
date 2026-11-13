@@ -2,11 +2,15 @@
 (protobuf), text strings of the game's binaries, and functions of client.dll / server.dll.
 
 Owner (2026-10-24): only what tells something. No full path lists (thousands of files a build, as on datavpk.com),
-no steam.inf or manifests: files are counted per hero or unit, paths are written only for maps.
+no steam.inf or manifests: files are counted per hero or unit, paths are written for maps and, since 2026-11-13
+(owner: build 6861 said "ui ~1" and nothing more), for a category that changed only a few files (extras.FEW_FILES).
 """
 from __future__ import annotations
 
+import re
 from functools import lru_cache
+
+from pipeline.extras import OWNER_RULES
 
 from .common import DATA, esc, load_json, names_by_id, pretty_id, slug
 from .evidence import path_diff_url
@@ -60,6 +64,14 @@ def files_section(assets: dict | None, rel: str) -> str:
         rows.append(f'<li><span class="lbl">{_owner(o, rel)}</span><span class="vals wrap">{" · ".join(parts)}</span></li>')
     for op, path in (assets.get('notable') or {}).get('map', ()):
         rows.append(f'<li><span class="lbl"><code>{esc(path)}</code></span><span class="vals">map {esc(op)}</span></li>')
+    # a category with few changed files names them (owner 2026-11-13: "UI 1" said nothing); a hero's or unit's files
+    # are its row above, maps are listed already
+    for cat, files in (assets.get('files') or {}).items():
+        for op, path in files:
+            if cat == 'map' or any(rx.search(path) for rx, _ in OWNER_RULES):
+                continue
+            rows.append(f'<li><span class="lbl"><code>{esc(path)}</code></span>'
+                        f'<span class="vals">{esc(cat.replace("_", " "))} {esc(op)}</span></li>')
     total = assets.get('counts') or {}
     line = ', '.join(f'{esc(cat.replace("_", " "))} {counts([t["added"], t["removed"], t["modified"]])}'
                      for cat, t in total.items())
@@ -89,12 +101,23 @@ def protobuf_section(rows: list[dict] | None, build, commit: str | None) -> str:
     return _section('Protobuf messages', len(rows), f'<ul class="change-list">{"".join(items)}</ul>', open_=True)
 
 
+_WORD = re.compile(r'[A-Za-z]{4,}')
+
+
+def is_word_string(s: str) -> bool:
+    """A string a reader can read: it holds a word of 4+ letters. Bytes of code the strings dump reads as text are not
+    (".l/gwk": 2,774 of 26,673 listed strings, every listed one in 133 builds; concept audit 2026-11-13)."""
+    return bool(_WORD.search(s or ''))
+
+
 def strings_section(mods: dict | None, build, commit: str | None) -> str:
-    """Text strings that appeared in or left each game binary (the first and most telling of each side)."""
+    """Text strings that appeared in or left each game binary (the first and most telling of each side), only those
+    with a word (`is_word_string`); a build whose listed strings are all byte junk has no section."""
     if not mods:
         return ''
     items = []
     total = 0
+    words = 0
     for mod, d in mods.items():
         name = f'{mod}.dll'
         if commit and mod in STRING_PATHS:
@@ -102,11 +125,17 @@ def strings_section(mods: dict | None, build, commit: str | None) -> str:
         n_mod = d['n_added'] + d['n_removed']
         total += n_mod
         items.append(_head(name, f'+{d["n_added"]} −{d["n_removed"]}'))
+        shown = 0
         for side, word in (('added', 'new'), ('removed', 'removed')):
-            items += [_line(f'<code>{esc(s[:STRING_CHARS])}</code>', word) for s in d[side]]
-        more = n_mod - len(d['added']) - len(d['removed'])
+            got = [s for s in d[side] if is_word_string(s)]
+            shown += len(got)
+            items += [_line(f'<code>{esc(s[:STRING_CHARS])}</code>', word) for s in got]
+        words += shown
+        more = n_mod - shown
         if more:
             items.append(_line(f'<span class="muted">and {more} more</span>', ''))
+    if not words:
+        return ''
     return _section('Strings in the binaries', total, f'<ul class="change-list">{"".join(items)}</ul>')
 
 

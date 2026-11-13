@@ -1,0 +1,39 @@
+/* ---------- 14. Interface & sound tab: features as a compact grid ---------- */
+.feats { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 6px; margin: 0 0 8px; padding: 0; list-style: none; }
+.feat { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; background: var(--bg-panel);
+  box-shadow: inset 0 0 0 1px var(--line-soft); font-size: var(--fs-sm); line-height: 1.4; color: var(--text-dim); }
+.feat b { display: block; font: 600 var(--fs-sm)/1.25 var(--font-ui); color: var(--text-bright); margin-bottom: 2px; }
+.feat .mark { margin-top: 1px; }
+.feat.st-described, .feat.st-documented { box-shadow: inset 3px 0 0 var(--patina-dim), inset 0 0 0 1px var(--line-soft); }
+.erow .tx .fname { color: var(--text-bright); font-weight: 600; margin-right: 4px; }
+.nchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.nchip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; background: var(--bg-panel-3);
+  box-shadow: inset 0 0 0 1px var(--line-soft); font-size: var(--fs-sm); color: var(--text-main); }
+.nchip.pic { padding: 2px 8px 2px 2px; }
+.nchip img { width: 24px; height: 24px; object-fit: cover; background: var(--bg-panel-4); }
+
+/* a Sloppy-style switch: label + small track (Pre-release, Hide old, Show deleted) */
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-main); }
+.switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+/* off: a dark slot with a bone knob on the left; on: the slot filled copper, the knob bright on the right (a dark
+   30px bar with a tiny grey square read as a broken input, review 2026-10-17) */
+.switch .track { flex: none; position: relative; width: 32px; height: 18px; background: var(--bg-page);
+  box-shadow: inset 0 0 0 2px var(--line-bright); transition: background-color .12s; }
+.switch .track::after { content: ""; position: absolute; left: 4px; top: 4px; width: 10px; height: 10px; background: var(--text-dim);
+  transition: left .12s; }
+.switch:hover .track { box-shadow: inset 0 0 0 2px var(--patina-dim); }
+.switch input:checked + .track { background: var(--patina); box-shadow: inset 0 0 0 2px var(--patina-strong); }
+.switch input:checked + .track::after { left: 18px; background: var(--text-bright); box-shadow: 0 0 0 1px var(--patina-deep); }
+.switch input:focus-visible + .track { outline: 2px solid var(--patina); outline-offset: 2px; }
+.switch .n { color: var(--text-dimmer); font-weight: 500; }
+#heroes-grid:not(.show-pre) .hgcard.pre { display: none; }
+#units-grid:not(.show-gone) .card.gone { display: none; }
+#units-grid:not(.show-helpers) .helper-group { display: none; }
+/* the helper group counts and shows its removed entries itself (the two switches never overlap) */
+#units-grid.show-helpers .helper-group .card.gone { display: flex; }
+details.fold-group > summary { cursor: pointer; list-style: none; }
+details.fold-group > summary::-webkit-details-marker { display: none; }
+details.fold-group > summary::before { content: "+ "; color: var(--patina); }
+details.fold-group[open] > summary::before { content: "- "; }
+details.fold-group > summary .n { color: var(--text-dimmer); font: 500 var(--fs-sm)/1 var(--font-ui); }
+

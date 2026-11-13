@@ -1,0 +1,20 @@
+/* ---------- 19. Hero Stats extras (Sloppy): boons box, role filter, tinted columns, history underline ---------- */
+.boons { display: inline-flex; align-items: center; gap: 8px; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-main); }
+.boons input { width: 56px; padding: 5px 6px; text-align: center; font: 600 var(--fs-md)/1 var(--font-ui); color: var(--text-bright);
+  background: var(--bg-page); border: 2px solid var(--frame-line); }
+.boons input:focus { outline: none; border-color: var(--patina); }
+table.stats td.boosted { color: var(--patina-strong); font-weight: 600; }
+/* a group header folds its group to the first column (scripts.js col-groups); zeros read quieter */
+table.stats th.cat.foldable { cursor: pointer; }
+table.stats th.cat.foldable:hover { color: var(--text-bright); }
+table.stats th.cat.folded::after { content: " +"; color: var(--patina); }
+table.stats .grp-off { display: none; }
+table.stats td.zero { color: var(--text-dimmer); }
+table.stats tr.role-out { display: none; }
+table.stats td.tint-vit { color: color-mix(in srgb, var(--vitality) 55%, var(--text-main)); }
+table.stats td.tint-wpn { color: color-mix(in srgb, var(--weapon) 45%, var(--text-main)); }
+table.stats td.tint-spi { color: color-mix(in srgb, var(--spirit) 55%, var(--text-main)); }
+/* a value with a history to show on hover: a dotted underline, as Sloppy marks its hoverable numbers */
+table.stats td.has-hist { text-decoration: underline dotted color-mix(in srgb, var(--text-dim) 60%, transparent);
+  text-underline-offset: 3px; }
+

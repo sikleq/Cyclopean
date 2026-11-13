@@ -31,7 +31,7 @@ FUZZ_AFTER = timedelta(hours=30)
 UNANNOUNCED_MIN_FIELDS = 150          # gameplay fields that make a notes-less build its own "patch"
 UNANNOUNCED_GAP = timedelta(days=3)   # ... when no changelog lies within this distance
 HUGE_BUILD_FIELDS = 1000              # a build this big is an update of its own even beside a follow-up
-BUILDS_DIR = tracker.ROOT / 'data' / 'builds'
+BUILDS_DIR = tracker.BUILDS_DIR
 ANNOUNCEMENT_GAP = timedelta(days=2)  # an announcement names a notes-less big build this close
 # a hero's release build is a window of its own, with the hotfixes of its release day (Baba's 6757 at 21:03, its fix
 # 6759 at 00:03; Rat King's 6736 and three builds within 4 h); a later build goes back to the notes window around it

@@ -1,6 +1,7 @@
 """Entity-level diff between two parsed vdata files."""
 from __future__ import annotations
 
+import re
 from dataclasses import asdict, dataclass
 
 from .classify import category
@@ -62,6 +63,10 @@ def _jsonable(v):
 
 def _eq(a, b) -> bool:
     if isinstance(a, float) and isinstance(b, float):
+        # the same number with another unit is a change: Bounce Pad's Radius "12" (engine units) -> "12m" (metres,
+        # build 5315) was not recorded (data audit 2026-11-13)
+        if getattr(a, 'unit', '') != getattr(b, 'unit', ''):
+            return False
         return abs(a - b) <= 1e-9 * max(1.0, abs(a), abs(b))
     return a == b
 
@@ -125,6 +130,18 @@ def collapse_shared(changes: list[EntityChange]) -> list[EntityChange]:
     return result
 
 
+_SEASON = re.compile(r'^season_(\d+)$')
+
+
+def previous_season(file: str, eid: str, entries: dict) -> dict:
+    """What a new ranked season is compared with: the season before it ("points per match increased from 300 to
+    350" is season_2 against season_1; data audit 2026-11-13: season_2 read "Added" with no old numbers and the
+    post's lines matched nothing). Any other new entry starts from nothing."""
+    m = _SEASON.match(eid) if file == 'ranked_seasons.vdata' else None
+    prev = entries.get(f'season_{int(m.group(1)) - 1}') if m else None
+    return prev if isinstance(prev, dict) else {}
+
+
 def diff_file(name: str, old: dict, new: dict, curve_old: bool = True, curve_new: bool = True) -> list[EntityChange]:
     old = old or {}
     new = new or {}
@@ -132,7 +149,8 @@ def diff_file(name: str, old: dict, new: dict, curve_old: bool = True, curve_new
     for eid in sorted((old.keys() | new.keys()) - SKIP_TOP):
         a, b = old.get(eid), new.get(eid)
         if a is None:
-            result.append(EntityChange(name, eid, 'added', diff_entity({}, b if isinstance(b, dict) else {'value': b},
+            base = previous_season(name, eid, new)
+            result.append(EntityChange(name, eid, 'added', diff_entity(base, b if isinstance(b, dict) else {'value': b},
                                                                        curve_old, curve_new)))
         elif b is None:
             result.append(EntityChange(name, eid, 'removed', []))

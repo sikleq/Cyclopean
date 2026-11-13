@@ -14,17 +14,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import make_ch, site_css, site_js
+
+ch = make_ch(builds=[6440], key='heroes.vdata:hero_haze:x', file='heroes.vdata', id='hero_haze')
+
 ROOT = Path(__file__).resolve().parent.parent
 BUILDS = [{'build': 6440, 'date': '2026-04-10T20:00:00Z', 'file': '6440_x.json.gz'},
           {'build': 6444, 'date': '2026-04-11T09:00:00Z', 'file': '6444_ed400792.json.gz'}]
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29', 'dir': 'nerf',
-            'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x', 'builds': [6440],
-            'key': 'heroes.vdata:hero_haze:x', 'file': 'heroes.vdata', 'id': 'hero_haze'}
-    base.update(kw)
-    return base
 
 
 def test_the_eye_names_the_build_and_opens_it(monkeypatch):
@@ -82,7 +78,7 @@ def test_the_eye_is_a_link_in_the_tab_order_and_a_silent_hotfix_is_marked_late()
     assert 'tabindex' not in row('hidden', '', 'x', tip=words, href='../builds/6440.html', late=False)
     assert ' late' not in row('hidden', '', 'x', tip='… build 6440', href='../builds/6440.html', late=False)
     assert 'is-hidden late' in row('hidden', '', 'x', tip='… after the patch', href='../builds/6444.html', late=True)
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     assert 'a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }' in css
 
 
@@ -125,8 +121,8 @@ def test_the_build_page_links_the_trackers_commit():
 
 
 def test_on_a_phone_the_first_tap_shows_the_eyes_words_and_the_second_opens_the_build(browser):
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    css = site_css()
+    js = site_js()
     ctx = browser.new_context(viewport={'width': 390, 'height': 800}, is_mobile=True, has_touch=True)
     page = ctx.new_page()
     errors: list[str] = []
@@ -151,8 +147,8 @@ def test_on_a_phone_the_first_tap_shows_the_eyes_words_and_the_second_opens_the_
 def test_on_an_iphone_the_eye_opens_its_build_on_the_second_tap(browser):
     """iOS drops the click of a tap whose mouseover showed something: the first tap there is a touch and a mouseover
     only. The link armed itself at click time, so the second tap only armed it and a third opened it."""
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    css = site_css()
+    js = site_js()
     ctx = browser.new_context(viewport={'width': 390, 'height': 800}, is_mobile=True, has_touch=True)
     page = ctx.new_page()
     page.set_content(f'<!doctype html><html><head><style>{css}</style></head><body><p style="height:200px">x</p>'
@@ -234,7 +230,7 @@ def test_the_history_tip_draws_the_eye_on_a_hidden_step(browser):
 
 def test_the_trail_square_eye_is_drawn_one_to_one():
     from builders.pixel_icons import EYE_SMALL, eye_small_mask
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     assert all(len(r) == 10 for r in EYE_SMALL) and len(EYE_SMALL) == 10
     assert f'--mask-eye-sm: {eye_small_mask()};' in css
     # the eye's colour as the square's top edge, the stripes whole below it (visual pass 2026-10-17: the eye on a dark

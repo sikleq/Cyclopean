@@ -1,0 +1,44 @@
+/* ---------- 18. Patch calendar (Sloppy's Calendar) ---------- */
+.cal-years { margin: 0 0 10px; gap: 6px; }
+.cal-legend { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); }
+.cal-legend i.cd { width: 14px; height: 14px; display: inline-block; }
+.cal-legend .sep { width: 12px; }
+.cal-year { display: none; padding: 12px 14px; background: var(--bg-panel); margin-bottom: 14px; overflow-x: auto; }
+.cal-year.on { display: block; }
+.cal-grid { display: flex; flex-direction: column; gap: 3px; min-width: 1080px; }
+.cal-row { display: grid; grid-template-columns: 44px repeat(31, minmax(0, 1fr)); gap: 3px; align-items: stretch; }
+.cm { font: 600 var(--fs-sm)/26px var(--font-ui); color: var(--text-dim); text-align: center; }
+.cd { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 26px;
+  font: 500 var(--fs-xs)/1 var(--font-ui); font-variant-numeric: tabular-nums; color: var(--text-dimmer);
+  background: var(--bg-panel-2); box-shadow: inset 0 0 0 1px var(--grid); }
+.cd.none { background: transparent; box-shadow: none; }
+/* how many game builds landed that day: patina, faint to strong */
+.cd.s1 { background: color-mix(in srgb, var(--patina) 14%, var(--bg-panel-2)); color: var(--text-dim); }
+.cd.s2 { background: color-mix(in srgb, var(--patina) 26%, var(--bg-panel-2)); color: var(--text-main); }
+.cd.s3 { background: color-mix(in srgb, var(--patina) 40%, var(--bg-panel-2)); color: var(--text-bright); }
+.cd.s4 { background: color-mix(in srgb, var(--patina) 58%, var(--bg-panel-2)); color: var(--bg-page); }
+.cd.today { box-shadow: inset 0 0 0 2px var(--text-bright); }
+/* a patch day: a raised tile with its name; named updates in gold */
+.cd.patch { background: var(--bg-panel-4); color: var(--text-bright); box-shadow: inset 0 0 0 2px var(--patina), 0 2px 6px var(--shadow); }
+.cd.patch.named { background: color-mix(in srgb, var(--gold) 30%, var(--bg-panel-3)); box-shadow: inset 0 0 0 2px var(--gold), 0 2px 6px var(--shadow); }
+.cd.patch.fu { box-shadow: inset 0 0 0 1px var(--patina-dim); }
+.cd.patch b { font: 700 var(--fs-xs)/1 var(--font-ui); }
+.cd.patch .pl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 var(--fs-2xs)/1.1 var(--font-ui);
+  color: var(--label); padding: 0 1px; }
+.cd.patch.named .pl { color: var(--gold); }
+.cd.patch:hover { outline: 2px solid var(--text-bright); }
+.cal-stats { display: flex; flex-wrap: wrap; gap: 10px 26px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--grid); }
+.cs { display: flex; align-items: baseline; gap: 6px; font: 500 var(--fs-sm)/1.2 var(--font-ui); color: var(--text-dim); }
+.cs b { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); }
+.cadence { padding: 12px 14px; background: var(--bg-panel); }
+.cad-h { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.cad-h b { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); }
+.cad-h span { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); }
+.cad-bars { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; height: 150px; align-items: end; }
+.cb { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.cb .bar { position: relative; display: flex; flex-direction: column; justify-content: flex-start; width: 100%; max-width: 46px; min-height: 2px;
+  background: color-mix(in srgb, var(--patina) 55%, var(--bg-panel-3)); box-shadow: inset 0 2px 0 var(--patina-strong); }
+.cb .nb { display: block; width: 100%; background: var(--gold); }
+.cb .n { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-bright); }
+.cb .m { font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dim); }
+

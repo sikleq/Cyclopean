@@ -13,7 +13,7 @@ The site never uses font glyphs for meaning-bearing symbols: fallback fonts diff
 - `builders/pixel_icons.py` — `TAG_ART` (10×10 ASCII grids, `#` ink, `.` empty), `art_path()` turns
   rows into one SVG path of horizontal runs, `svg_mask(d, view, evenodd)` turns a path into a CSS mask
   image (`url("data:image/svg+xml,…")`), `tag_mask(tag)` = the tag's mask.
-- **No inline SVG on pages.** The markup is an empty element; `site/styles.css` draws the shape with
+- **No inline SVG on pages.** The markup is an empty element; the stylesheet (`site/css/`) draws the shape with
   `::before` as a mask in the element's own colour (`currentColor`):
   - tags and counters: `render.tag_badge` / `tag_html` (`<span class="tag buff">BUFF</span>`) and
     `render.pip(cls, n)` (`<span class="pip nerf">2</span>`); the rule per tag is
@@ -56,9 +56,10 @@ patch summary hero chips (`.hchip`, 8px icons — the tightest place).
 ## Adding an icon
 
 1. Add the grid to `TAG_ART` (or the path to `MARK_ART` / `GLYPHS`) with a comment saying what it means.
-2. Add its CSS rule to `site/styles.css` next to the others, with the mask printed by `tag_mask` /
+2. Add its CSS rule next to the others (tags and marks: `site/css/06-badges.css`, glyphs:
+   `site/css/11-entity-pages.css`), with the mask printed by `tag_mask` /
    `svg_mask` (e.g. `python -c "from builders.pixel_icons import tag_mask; print(tag_mask('buff'))"`).
 3. Run `python -m pytest tests/test_builders.py tests/test_entity_page.py tests/test_perf.py -q` (grid
    shape, CSS in sync with the art) and the review loop above.
 4. Use it through `tag_badge` / `pip` / `mark` / `visual`; never paste an SVG into templates by hand.
-5. Note the meaning in `docs/architecture.md` (Tags) if it is a new tag.
+5. Note the meaning in `docs/matching.md` (Tags) if it is a new tag.

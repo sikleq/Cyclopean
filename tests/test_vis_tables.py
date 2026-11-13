@@ -5,35 +5,20 @@ tests/conftest.py's."""
 from __future__ import annotations
 
 import re
-import shutil
 from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
 
+from tests.helpers import open_file as _open_html, site_css, site_js
+
 ROOT = Path(__file__).resolve().parent.parent
-CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-JS = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+CSS = site_css()
+JS = site_js()
 
 DESK = {'viewport': {'width': 1440, 'height': 900}}
 WIDE = {'viewport': {'width': 1920, 'height': 1080}}
 PHONE = {'viewport': {'width': 390, 'height': 844}, 'is_mobile': True, 'has_touch': True, 'device_scale_factor': 2}
-
-
-def _open_html(browser, tmp_path: Path, html: str, ctx_args: dict):
-    """A whole page (the site's CSS and JS one level up), offline."""
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
-    (tmp_path / 'x').mkdir(exist_ok=True)
-    f = tmp_path / 'x' / 'page.html'
-    f.write_text(html, encoding='utf-8')
-    ctx = browser.new_context(**ctx_args)
-    pg = ctx.new_page()
-    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
-    errors: list[str] = []
-    pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(f.as_uri())
-    return ctx, pg, errors
 
 
 def _open(browser, tmp_path: Path, body: str, ctx_args: dict):

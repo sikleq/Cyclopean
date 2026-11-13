@@ -17,8 +17,9 @@ import re
 from datetime import date, timedelta
 from functools import lru_cache
 
-from .common import (EYE_MARK, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
+from .common import (EYE_MARK, HIDDEN_WORDS, display_name, entity_icon, esc, hero_icon, load_json, patch_name, patch_title_text,
                      visual)
+from .brawl import DRAFT_SUBJECT, draft_row
 from .render import TAG_ORDER, TAG_WORD_ONE, TAG_WORDS, same_change, tag_badge, tag_of
 from .tables_pages import filters_fold, tier_label
 from .weights import NET_WORDS, net_of
@@ -130,7 +131,7 @@ def _collect() -> dict:
                 keys = [f'item:{e["id"]}']
             elif e['file'] == 'npc_units.vdata':
                 keys = [f'unit:{fam.get(e["id"], e["id"])}']
-            elif e['file'] == 'abilities.vdata' and e['id'] in npc:
+            elif e['file'] in ('abilities.vdata', 'modifiers.vdata') and e['id'] in npc:     # a neutral's attack too
                 keys = list(dict.fromkeys(f'unit:{fam.get(u, u)}' for u in npc[e['id']]))
             else:
                 continue
@@ -148,6 +149,10 @@ def _collect() -> dict:
         for c in convar_changes(cvs, start):
             sid, pid = place(f'convar:{c["id"]}')
             found.append(([f'game:{sid}'], pid, 'Console variables', [c], ''))
+        drafts = draft_row(p)            # Street Brawl's item draft weights: one change (brawl.draft_row)
+        if drafts and place(DRAFT_SUBJECT):
+            sid, pid = place(DRAFT_SUBJECT)
+            found.append(([f'game:{sid}'], pid, 'Item draft weights', [drafts], ''))
         # one entity's records in a patch (its own and each shared block it is in) are read as ONE list, as its page's
         # group reads them: a shared "Corrupted: Bonus Health" folds into the item's Corrupted version there and was a
         # second NEW here (Veil Walker 2026-09-29; 2026-10-06). A Game system's entries stay apart (they are
@@ -455,7 +460,7 @@ def toolbar(kind: str, n_hidden_rows: int, hidden_label: str, roles: tuple[str, 
     # notes only (scripts.js dyn-parts; "#hidden" presses it, dyn-url). The orange top sat on nearly every 2026 hero
     # tile and said nothing; the legend says what it means (review 2026-10-17)
     hid_btn = (f'<button class="px-btn dyn-hid" data-target="{target}" aria-pressed="false">{EYE_MARK}'
-               f'Not in patch notes</button><span class="sep"></span>')
+               f'{HIDDEN_WORDS}</button><span class="sep"></span>')
     return (f'<div class="toolbar dyn-bar"><input type="search" placeholder="Search…" data-search-target="{target} tbody tr">'
             + filters_fold(f'<span class="sep"></span>{hid_btn}'
                            f'<label class="switch"><input type="checkbox" data-toggle-class="show-old" data-target="{target}">'

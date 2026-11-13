@@ -1,40 +1,23 @@
 """Round 4 of the visual pass (2026-10-17), the "hidden changes" track: the change matrices' "Not in patch notes" filter
 and the legend of the tiles' orange top, every matrix filter in the address, the home counter's way to them, anchored
 targets that land below the sticky bars, one wording for "not in patch notes" / "no patch notes", and the month under
-the first tile of each month of an entity's patch strip. Builders are checked on their markup; site/styles.css and
-site/scripts.js in Chromium (`browser`: conftest.py) on the builders' own pages."""
+the first tile of each month of an entity's patch strip. Builders are checked on their markup; site/css and
+site/js in Chromium (`browser`: conftest.py) on the builders' own pages."""
 from __future__ import annotations
 
 import json
 import re
-import shutil
+from functools import partial
 from pathlib import Path
 
 import pytest
 
+from tests.helpers import js_files, open_page
+
+_open = partial(open_page, settle_ms=150)
+
 ROOT = Path(__file__).resolve().parent.parent
 PHONE = {'width': 390, 'height': 844}
-
-
-def _open(browser, tmp_path: Path, html: str, width: int = 1440, height: int = 900, phone: bool = False,
-          hash_: str = ''):
-    """`html` as tmp_path/x/page.html with the site's CSS and JS one level up (rel '../'), opened at `hash_`, offline."""
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
-    (tmp_path / 'x').mkdir(exist_ok=True)
-    f = tmp_path / 'x' / 'page.html'
-    f.write_text(html, encoding='utf-8')
-    opts = {'viewport': {'width': width, 'height': height}}
-    if phone:
-        opts.update(is_mobile=True, has_touch=True, device_scale_factor=2)
-    ctx = browser.new_context(**opts)
-    pg = ctx.new_page()
-    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
-    errors: list[str] = []
-    pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(f.as_uri() + hash_)
-    pg.wait_for_timeout(150)
-    return ctx, pg, errors
 
 
 # ---- 1. the matrices: "Not in patch notes" and the orange top's legend -------------------------------------------
@@ -258,7 +241,7 @@ GONE = ('no official notes', 'lines not found in the files', 'not in notes', 'ch
 def test_one_term_for_each_idea_in_the_builders_and_the_script():
     """Review 2026-10-17: ~10 phrasings for two ideas. "not in patch notes" (the eye), "no patch notes" (an update with
     none at all). The eye's own evidence words (builders/evidence.py) are another track's."""
-    for f in [*sorted((ROOT / 'builders').glob('*.py')), ROOT / 'site' / 'scripts.js']:
+    for f in [*sorted((ROOT / 'builders').glob('*.py')), *js_files()]:
         if f.name == 'evidence.py':
             continue
         code = '\n'.join(ln for ln in f.read_text(encoding='utf-8').splitlines()

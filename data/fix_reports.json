@@ -254,6 +254,7 @@
 },
 "2025-02-25": {
 "Fixed 'Unstick Hero' and 'Suicide' buttons not working properly.": 152,
+"Fixed Cancel button not working when waiting to spectate a match.": 164,
 "Fixed Pause not working while you're dead.": 127,
 "Fixed a bug that allowed you to kill your teammates coming out of The Cube.": 196,
 "Fixed a bug where abilities could mispredict a successful cast if the target is an ally.": 94,
@@ -375,7 +376,7 @@
 "2026-04-10": {
 "Haze: Fixed being able to slide while using Bullet Dance": 342,
 "Lightning Scroll: Fixed the stun delay being affected by debuff reducer making the stun go off faster": 163,
-"Rem: Fixed souls bug with breakables": 26,
+"Rem: Fixed souls bug with breakables": 49,
 "Shiv: Fixed Rage not building up against Barriers": 555,
 "Yamato: Fixed Crimson Slash not hitting through veils": 555
 },

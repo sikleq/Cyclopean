@@ -4,12 +4,14 @@
   "Urn", "Bounty") brings its entries no page claims and its console variables, an added variable included; a number
   list matches a line that gives it element by element ("1/0.65/0.28 → 1/0.54/0.36"); an interface word next to an
   entity whose files moved no longer ends the line before it is matched (#47.2)."""
+from functools import partial
+
 from pipeline import game_map
 from pipeline.match import MChange, annotate_line, list_match, names_other_stat, system_pools, words
 
+from tests.helpers import mc
 
-def _mc(file, eid, path, old, new, label, op='change', kind='global', **kw) -> MChange:
-    return MChange(file, eid, path, op, old, new, 'balance', kind, None, label, False, **kw)
+_mc = partial(mc, kind='global')
 
 
 def _by_ent(changes):
@@ -279,8 +281,9 @@ def test_an_entry_inserted_in_a_list_shifts_no_later_row(monkeypatch):
                                                {'m_sPickup': 'x', 'm_flPickupWeight': 2},
                                                {'m_sPickup': 'b', 'm_flPickupWeight': 1},
                                                {'m_sPickup': 'c', 'm_flPickupWeight': 1}]}}
-    monkeypatch.setattr(match, 'window_states', lambda p: ('old', 'new'))
-    monkeypatch.setattr(match, '_state', lambda commit, file: before if commit == 'old' else after)
+    from pipeline import match_window
+    monkeypatch.setattr(match_window, 'window_states', lambda p: ('old', 'new'))
+    monkeypatch.setattr(match_window, '_state', lambda commit, file: before if commit == 'old' else after)
     shifted = [_mc('misc.vdata', 'crate', f'm_vecPrimaryPickups[{i}].m_sPickup', o, n, 'Primary Pickups › Pickup',
                    builds=[7]) for i, (o, n) in enumerate((('b', 'x'), ('c', 'b'), (None, 'c')), start=1)]
     other = _mc('misc.vdata', 'crate', 'm_flRadius', 1, 2, 'Radius', builds=[7])

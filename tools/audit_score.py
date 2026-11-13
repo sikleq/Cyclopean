@@ -20,9 +20,9 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from pipeline import jsonio  # noqa: E402
+from pipeline.classify import GAMEPLAY_CATS  # noqa: E402
 
 FIXTURE = ROOT / 'tests' / 'fixtures' / 'audit_verdicts.jsonl'
-GAMEPLAY = ('balance', 'mechanic', 'availability')
 
 
 def current_status(patches: dict, v: dict) -> str:
@@ -34,7 +34,7 @@ def current_status(patches: dict, v: dict) -> str:
             continue
         for c in e['changes']:
             if c['path'] == v['path']:
-                return c['status'] if c['cat'] in GAMEPLAY else 'not_gameplay'
+                return c['status'] if c['cat'] in GAMEPLAY_CATS else 'not_gameplay'
     return 'gone'          # no longer listed as a gameplay change of that entity
 
 

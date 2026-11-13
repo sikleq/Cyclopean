@@ -28,8 +28,10 @@ def by_date() -> list[dict]:
 
 @lru_cache(maxsize=None)
 def patch(pid: str) -> dict:
-    """One patch record (data/patches/<id>.json.gz)."""
-    return load_json(f'patches/{pid}.json.gz')
+    """One patch record (data/patches/<id>.json.gz), its new entities completed from the build records: what each came
+    with and the edits later builds of the window made to it (builders/arrivals.py)."""
+    from .arrivals import complete
+    return complete(load_json(f'patches/{pid}.json.gz'))
 
 
 @lru_cache(maxsize=None)

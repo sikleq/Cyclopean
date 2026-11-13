@@ -1,0 +1,199 @@
+/* ---------- 01. Tokens ---------- */
+:root {
+  /* surfaces: deep verdigris ink */
+  --bg-page: #0b1213;
+  --bg-panel: #111a1b;
+  --bg-panel-2: #16211f;
+  --bg-panel-3: #1c2a28;
+  --bg-panel-4: #243431;
+  --bg-hover: #1f302d;
+
+  /* lines */
+  --line: #2a3d3a;
+  --line-soft: #1e2c2a;
+  --line-bright: #3f5c57;
+
+  /* text: bone */
+  --text-main: #e0d8c6;
+  --text-bright: #f6f0e2;
+  --text-dim: #9aa59e;
+  --text-dimmer: #85918b;     /* 4.5:1 on every panel up to --bg-panel-3 (#6b7772 was 3.2:1 there; review 2026-10-17) */
+
+  /* accents */
+  --patina: #5fc4a4;          /* primary accent — oxidised copper */
+  --patina-strong: #8fe3c6;
+  --patina-dim: #3b7f6b;
+  --patina-deep: #1f4a3f;
+  --eye: #ff9a3c;             /* the cyclops eye — hidden (undocumented) changes */
+  --eye-glow: rgba(255, 154, 60, 0.28);
+  --team-amber: #e38b2c;      /* semantic only: Hidden King team */
+  --team-sapphire: #4f7fd9;   /* semantic only: Archmother team */
+
+  /* change tags (BUFF moved to yellow-green, away from the copper accent) */
+  --tag-buff: #86c95f;
+  --tag-nerf: #e26a5a;
+  --tag-new: #e8c860;
+  --tag-del: #c9668f;
+  --tag-rework: #a58ad2;
+  --tag-changed: #8fa39c;
+  --tag-mech: #6fb2c4;
+  --tag-on: #9ad86a;
+  --tag-off: #b07a86;
+  --tag-mismatch: #ff6b8a;
+  --dev: #b48cf0;             /* hero still in development (unreleased) */
+  --spirit: #c49bff;          /* spirit (tech) damage, as the game colours it */
+  --weapon: #f0b06a;          /* bullet / weapon damage, as the game colours it */
+  --vitality: #a5ce3c;        /* the shop's Vitality column (the game's fortitude green) */
+  --gold: #e3b955;            /* a named update's title (City Never Sleeps) */
+
+  /* translucent helpers (derived from tokens above) */
+  --shadow: rgba(0, 0, 0, 0.55);
+  --patina-14: rgba(95, 196, 164, 0.14);
+  --patina-28: rgba(95, 196, 164, 0.28);
+  --dev-10: rgba(180, 140, 240, 0.10);
+  --shadow-soft: rgba(0, 0, 0, 0.22);
+  --shadow-deep: rgba(0, 0, 0, 0.45);
+  --patina-06: rgba(95, 196, 164, 0.06);
+  --patina-25: rgba(95, 196, 164, 0.25);
+  --patina-30: rgba(95, 196, 164, 0.30);
+  --eye-06: rgba(255, 154, 60, 0.06);
+  --eye-14: rgba(255, 154, 60, 0.14);
+  --eye-53: rgba(255, 154, 60, 0.53);
+  --bone-08: rgba(224, 216, 198, 0.08);
+  --cell-odd: color-mix(in srgb, var(--patina) 6%, var(--bg-panel));   /* solid table tints (cheap to scroll) */
+  /* solid: a see-through hover let the cells scrolled under the sticky name column show through it */
+  --cell-hover: color-mix(in srgb, var(--text-main) 7%, var(--bg-panel-3));
+  /* stats-table heatmap: 4 steps each way by rank in the column (the middle fifth stays plain) */
+  --heat-g1: color-mix(in srgb, var(--tag-buff) 7%, var(--bg-panel));
+  --heat-g2: color-mix(in srgb, var(--tag-buff) 13%, var(--bg-panel));
+  --heat-g3: color-mix(in srgb, var(--tag-buff) 20%, var(--bg-panel));
+  --heat-g4: color-mix(in srgb, var(--tag-buff) 29%, var(--bg-panel));
+  --heat-b1: color-mix(in srgb, var(--tag-nerf) 7%, var(--bg-panel));
+  --heat-b2: color-mix(in srgb, var(--tag-nerf) 13%, var(--bg-panel));
+  --heat-b3: color-mix(in srgb, var(--tag-nerf) 20%, var(--bg-panel));
+  --heat-b4: color-mix(in srgb, var(--tag-nerf) 29%, var(--bg-panel));
+  --sorted-col: color-mix(in srgb, var(--gold) 9%, transparent);   /* the column the table is sorted by */
+  /* stat families' numbers on Item Stats (weapon / spirit / vitality / movement) */
+  --fam-w: color-mix(in srgb, var(--weapon) 75%, var(--text-bright));
+  --fam-s: color-mix(in srgb, var(--spirit) 75%, var(--text-bright));
+  --fam-v: color-mix(in srgb, var(--vitality) 75%, var(--text-bright));
+  --fam-m: color-mix(in srgb, var(--patina) 70%, var(--text-bright));
+  --grid: rgba(224, 216, 198, 0.08);         /* table lines, both directions (owner: translucent) */
+  --grid-strong: rgba(224, 216, 198, 0.18);  /* a column group's first line */
+  --glow-top: rgba(31, 74, 64, 0.45);
+  --spore-hi: rgba(95, 196, 164, 0.24);
+  --spore-lo: rgba(95, 196, 164, 0.10);
+
+  /* frames, banners, header (art direction 2026-10-01) */
+  --frame-line: #24403a;
+  --frame-hi: #34574f;
+  --banner-a: #1b3b34;
+  --banner-b: #122220;
+  --nav-a: #152221;
+  --nav-b: #0d1516;
+  --label: #a3ada5;
+  --name: #e8dfc9;
+  --band: #1a2826;
+  --arrow: #5b6b66;
+  --value-old: #7f8a82;
+  --empty-sq: #0b1413;
+
+  /* the game's shop (panorama citadel_base_styles.css): its own palette, kept apart from ours */
+  --gs-ink: #10130d;                         /* offBlack: card names */
+  --gs-price: #99ffd6;                       /* shardColor: souls, prices */
+  --gs-w-t4: #e4c5a1;                        /* tier 4 names on the dark cards */
+  --gs-s-t4: #e3d4f2;
+  --gs-v-t4: #c2e7cd;
+  --gs-imbue: #e7c8ff;                       /* spiritLight */
+  --gs-paper-w: #98896b;                     /* each page's paper (sampled from its art): narrow screens */
+  --gs-paper-s: #938386;
+  --gs-paper-v: #7f7e6a;
+  --gs-dim: rgba(8, 10, 7, 0.55);            /* the rest of the shop under a hover (opacity .5 + brightness .5) */
+  --gs-head-bg: rgba(16, 19, 13, 0.19);      /* All Items header strip: offBlack&30 */
+  --gs-row-line: rgba(16, 19, 13, 0.56);     /* between the tiers: offBlack&90 */
+  --gs-tab-all: #b2b2af;  --gs-tab-all-2: #9b957f;
+  --gs-tab-w: #e4b20c;    --gs-tab-w-2: #a37406;   --gs-tab-w-hi: #fdde6f;
+  --gs-tab-s: #b866de;    --gs-tab-s-2: #762f97;   --gs-tab-s-hi: #e59dff;
+  --gs-tab-v: #a5ce3c;    --gs-tab-v-2: #5e7b12;   --gs-tab-v-hi: #cbf85b;
+  --gs-card-shadow: rgba(0, 0, 0, 0.44);     /* box-shadow 2px 2px 12px #0007 */
+  --gs-imbue-bg: rgba(16, 19, 13, 0.72);
+  --gs-tip-bg: #1d1c1a;
+  --gs-tip-text: #cdcdcd;
+  --gs-tip-bar: rgba(16, 19, 13, 0.6);
+  --gs-outline: #ffffff;
+  /* the hero page's stat panels (citadel_hero_stats_panels_shared.css): each category's gradient under its paper,
+     the dark tile (#00000070), the "other" strip (#00000060), the spirit frame of a Spirit-Power stat */
+  --gp-w-1: #493516;  --gp-w-2: #271904;
+  --gp-v-1: #375b3b;  --gp-v-2: #072f0b;
+  --gp-s-1: #653a6d;  --gp-s-2: #452456;
+  --gp-tile: rgba(0, 0, 0, 0.44);
+  --gp-tile-hover: rgba(255, 255, 255, 0.04);
+  --gp-strip: rgba(0, 0, 0, 0.38);
+  --gp-spirit-line: rgba(196, 155, 255, 0.4);
+  --gp-spirit-bg: rgba(69, 36, 86, 0.5);
+  --gp-ink: #ece4d0;                          /* offWhite: the panels' text */
+  --gp-ink-dim: rgba(236, 228, 208, 0.62);    /* the titles' opacity .6 */
+  /* the Boon Rewards card (citadel_ui_player_level_bonus_display.css, citadel_base_styles.css @defines): black,
+     offBlack top, offWhite text and its alphas, white bold names, the icons' washes */
+  --gb-bg: #000000;
+  --gb-top: #10130d;
+  --gb-ink: #ffefd7;
+  --gb-ink-80: rgba(255, 239, 215, 0.8);
+  --gb-ink-40: rgba(255, 239, 215, 0.4);
+  --gb-ink-30: rgba(255, 239, 215, 0.3);
+  --gb-white: #ffffff;
+  --gb-spirit-light: #e7c8ff;                 /* spiritLightColor */
+  --gb-melee: #ec9719;                        /* courageBrightColor */
+  --gb-health: #00ff99;                       /* armorColor */
+
+  /* type: Jersey 20 headings / names / big numbers (weight 400 only, 20px+), IBM Plex Sans everything else: body,
+     labels, chips, counters, badges and table numbers (owner 2026-10-22: no small pixel font) */
+  --font-ui: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --font-px: "Jersey 20", "IBM Plex Sans", sans-serif;
+  --font-brand: "Jacquard 24", "Jersey 20", serif;
+  /* the type scale: every font-size outside :root is one of these steps (tests/test_vis_type.py). A family keeps to
+     its own steps — 2-5 sizes each, 31 family / size / weight mixes on one hero page had grown (critic 2026-10-17):
+     - UI font (IBM Plex Sans): --fs-xs tags, caps labels and chips · --fs-sm secondary text, tables, tips, buttons,
+       meta, dates in lists, bigger caps labels, counters, units · --fs-base body: rows, names, values · --fs-2xs only
+       a count inside a 14-30px tile or square · --fs-md a text field (16px: a phone does not zoom in on it) ·
+       --fs-lg a date heading a band · --fs-3xl a date that is a page's whole title
+     - Jersey 20 (headings, names, big numbers): --fs-xl and up; 34px puts its pixels on whole device pixels
+     - Jacquard 24: the wordmark only (--fs-brand) */
+  --fs-2xs: 10px;
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-base: 14px;
+  --fs-md: 16px;
+  --fs-lg: 18px;
+  --fs-xl: 20px;
+  --fs-2xl: 26px;
+  --fs-3xl: 34px;
+  --fs-4xl: 40px;
+  --fs-brand: 28px;
+
+  /* rhythm */
+  --px: 2px;                  /* pixel unit for frames */
+  --nav-h: 56px;
+  --content-w: 1680px;
+  --entity-w: 1680px;         /* a hero / item / unit page: ONE centred column (owner 2026-10-04), as wide as the
+                                 others (owner 2026-10-21: 1180px left half of a 1920 screen empty) */
+  --tag-w: 80px;              /* every tag badge one width (CHANGED, the longest, fits), so a row's text starts on one line */
+  --gutter: 20px;
+  /* a sortable header's hint and the sorted one's direction (pixel_icons.SORT_ART) */
+  --mask-sort: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E");
+  --mask-sort-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 3h8v1h-8zM2 4h6v1h-6zM3 5h4v1h-4zM4 6h2v1h-2z'/%3E%3C/svg%3E");
+  --mask-sort-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 3h2v1h-2zM3 4h4v1h-4zM2 5h6v1h-6zM1 6h8v1h-8z'/%3E%3C/svg%3E");
+  /* a wide table's "more columns this way" arrow, the sort arrows' pixel triangle turned right (.table-fade::before) */
+  --mask-more: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h1v1h-1zM3 2h2v1h-2zM3 3h3v1h-3zM3 4h4v2h-4zM3 6h3v1h-3zM3 7h2v1h-2zM3 8h1v1h-1z'/%3E%3C/svg%3E");
+
+  /* the eye as a mask (the strip tiles draw it in --eye; an inline SVG per tile cost 13 KB a page) */
+  --mask-eye: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 4h6v1H5zM3 5h2v1H3zM11 5h2v1h-2zM1 6h2v1H1zM13 6h2v1h-2zM0 7h1v2H0zM15 7h1v2h-1zM1 9h2v1H1zM13 9h2v1h-2zM3 10h2v1H3zM11 10h2v1h-2zM5 11h6v1H5zM6 6h4v4H6z'/%3E%3C/svg%3E");
+  /* the eye drawn 1:1 at 10px for a 12px trail square (pixel_icons.EYE_SMALL) */
+  --mask-eye-sm: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 2h4v1h-4zM1 3h2v1h-2zM7 3h2v1h-2zM0 4h1v1h-1zM4 4h2v1h-2zM9 4h1v1h-1zM0 5h1v1h-1zM4 5h2v1h-2zM9 5h1v1h-1zM1 6h2v1h-2zM7 6h2v1h-2zM3 7h4v1h-4z'/%3E%3C/svg%3E");
+
+  /* z ladder: tooltips float over the sticky site bar (they rendered under it at the top of a page) */
+  --z-sticky: 20;
+  --z-nav: 100;
+  --z-tooltip: 200;
+}
+

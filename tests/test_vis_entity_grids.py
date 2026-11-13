@@ -1,67 +1,16 @@
-"""Visual pass 2026-10-17, round 2, the entity pages: the hero's key stats and the weapon's numbers are grids whose
-columns line up and whose rows come out whole; the patch strip sits in the head with a "Patches" label; a unit's,
+"""Visual pass 2026-10-17, round 2, the entity pages: the patch strip sits in the head with a "Patches" label; a unit's,
 an item's and a Game system's values today are ONE component flowing in columns; a history band's title leads with
-its date; every tile's label is one style; a hover card's field column gets its share; a unit variant and the skin
-chip read plainly. Pages are built inside the test and opened with the site's CSS and JS (`browser`: conftest.py)."""
+its date; a hover card's field column gets its share; a unit variant and the skin chip read plainly. Pages are built inside the test and opened with the site's CSS and JS (`browser`: conftest.py)."""
 import re
-import shutil
 from pathlib import Path
 
+from tests.helpers import (box as _box, boxes as _boxes, make_ch, no_side_scroll as _no_side_scroll, open_page as _open,
+                           site_css)
+
+ch = make_ch(status='documented')
+
 ROOT = Path(__file__).resolve().parent.parent
-CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29',
-            'dir': 'nerf', 'pct': 7.4, 'grad': 2, 'status': 'documented', 'path': 'x'}
-    base.update(kw)
-    return base
-
-
-def _open(browser, tmp_path: Path, html: str, width: int, height: int = 900, phone: bool = False):
-    """The page in tmp_path/x/ with the site's CSS and JS one level up (rel '../'), offline."""
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
-    (tmp_path / 'x').mkdir(exist_ok=True)
-    f = tmp_path / 'x' / 'page.html'
-    f.write_text(html, encoding='utf-8')
-    opts = {'viewport': {'width': width, 'height': height}}
-    if phone:
-        opts.update(is_mobile=True, has_touch=True, device_scale_factor=2)
-    ctx = browser.new_context(**opts)
-    pg = ctx.new_page()
-    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
-    errors: list[str] = []
-    pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(f.as_uri())
-    return ctx, pg, errors
-
-
-def _box(pg, sel: str) -> dict:
-    return pg.evaluate(f"(() => {{ const r = document.querySelector({sel!r}).getBoundingClientRect();"
-                       " return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height}; })()")
-
-
-def _boxes(pg, sel: str) -> list[dict]:
-    return pg.evaluate(f"[...document.querySelectorAll({sel!r})].map(e => {{ const r = e.getBoundingClientRect();"
-                       " return {l: r.left, r: r.right, t: r.top, b: r.bottom, w: r.width, h: r.height}; })")
-
-
-def _no_side_scroll(pg) -> bool:
-    return pg.evaluate('document.documentElement.scrollWidth <= document.documentElement.clientWidth')
-
-
-def _grid_ok(pg, sel: str) -> tuple[dict[int, list[dict]], set[int]]:
-    """The tiles of a grid by row, and the x of every tile edge: rows whole (each reaches the box's right edge) and
-    the columns lined up (few distinct edges) are what the tests check."""
-    box, tiles = _box(pg, sel), _boxes(pg, f'{sel} > *')
-    rows: dict[int, list[dict]] = {}
-    for t in tiles:
-        rows.setdefault(round(t['t']), []).append(t)
-    for got in rows.values():
-        assert abs(max(t['r'] for t in got) - box['r']) < 2, sel                # no hole, no row short of the edge
-        assert abs(min(t['l'] for t in got) - box['l']) < 2, sel
-    return rows, {round(t['l']) for t in tiles} | {round(t['r']) for t in tiles}
+CSS = site_css()
 
 
 HERO_STATS = (('hp', 'Health'), ('hp_lvl', '+HP / boon'), ('hp_regen', 'HP Regen'), ('move', 'Move Speed (m/s)'),
@@ -71,7 +20,8 @@ HERO_STATS = (('hp', 'Health'), ('hp_lvl', '+HP / boon'), ('hp_regen', 'HP Regen
 
 
 def _hero_html(monkeypatch, weapon_rest: int = 14, skin: bool = False) -> str:
-    """Haze's head (13 key stats), her gun (6 + `weapon_rest` numbers) and a history of three patches."""
+    """Haze's head, a stats row of 13 stats and her gun's 6 + `weapon_rest` numbers (no game panels), and a history
+    of three patches."""
     from builders import hero_page
     monkeypatch.setattr('builders.trail.trail_html', lambda *a, **k: '')
     monkeypatch.setattr('builders.trail.last_counts', lambda key: None)
@@ -91,60 +41,6 @@ def _hero_html(monkeypatch, weapon_rest: int = 14, skin: bool = False) -> str:
     return hero_page.hero_page(h, {}, row, cols, {}, by_ent, {})
 
 
-# ---- 1. key stats and 5. weapon numbers: grids whose columns line up, rows whole ------------------------------------
-
-
-def test_lead_span_fills_whole_rows():
-    from builders.hero_page import fit_cols, keystats_vars, lead_span
-    assert [lead_span(n, 7) for n in (7, 13, 14)] == [1, 2, 1]
-    assert [lead_span(n, 3) for n in (12, 13, 14)] == [1, 3, 2]
-    for n in range(1, 30):
-        for c in range(1, 9):
-            assert (n - 1 + lead_span(n, c)) % c == 0                          # the rows come out whole
-    assert keystats_vars(13) == '--ks-c:7;--ks-s:2;--ks-s5:3;--ks-s3:3'
-    assert keystats_vars(15) == '--ks-c:8;--ks-s:2;--ks-s5:1;--ks-s3:1'
-    assert [fit_cols(n, (4, 5)) for n in (14, 15, 16)] == [5, 5, 4]
-
-
-def test_the_key_stats_and_weapon_numbers_line_up_in_whole_rows(browser, tmp_path, monkeypatch):
-    """13 key stats split 7 + 6 and stretched, so the rows' columns missed each other; a phone's 13th spanned the
-    screen alone; 14 weapon numbers at three a row left two stretched tiles (visual pass 2026-10-17, round 2)."""
-    html = _hero_html(monkeypatch)
-    # 13 tiles: Health spans 2 of 7 (two rows), 3 of 5 (three), a phone's whole row of 3 (five)
-    for width, phone, ks_cols, ks_rows in ((1440, False, 7, 2), (800, False, 5, 3), (390, True, 3, 5)):
-        ctx, pg, errors = _open(browser, tmp_path, html, width, 844, phone)
-        try:
-            rows, edges = _grid_ok(pg, '.keystats')
-            assert len(edges) <= 2 * ks_cols, (width, edges)                  # every row on the same column lines
-            assert len(rows) == ks_rows, width
-            _, wedges = _grid_ok(pg, '.wb-cells')
-            assert len(wedges) <= 2 * 8, width
-            # a row's values share one line however their labels wrap
-            for sel in ('.wb-cells > .wcell', '.keystats > .keystat'):
-                tops: dict[int, set[int]] = {}
-                for t in pg.query_selector_all(sel):
-                    tops.setdefault(round(t.bounding_box()['y']), set()).add(round(t.query_selector('.v').bounding_box()['y']))
-                assert all(len(v) == 1 for v in tops.values()), (width, sel, tops)
-            assert _no_side_scroll(pg) and not errors
-        finally:
-            ctx.close()
-
-
-def test_every_tile_label_is_one_style(browser, tmp_path, monkeypatch):
-    """The six headline tiles and the key stats wore uppercase pixel labels, the other 14 numbers mixed-case sans."""
-    ctx, pg, errors = _open(browser, tmp_path, _hero_html(monkeypatch), 1440)
-    try:
-        got = pg.evaluate("""['.keystat .l', '.wcell.top .l', '.wb-cells .wcell .l'].map(s => {
-            const c = getComputedStyle(document.querySelector(s));
-            return [c.fontFamily, c.fontSize, c.textTransform, c.color]; })""")
-        assert got[0] == got[1] == got[2] and got[0][2] == 'uppercase'
-        # every tile keeps the icon's corner slot (an empty one where the game has no stat icon)
-        assert pg.evaluate("[...document.querySelectorAll('.wcell')].every(t => t.querySelector(':scope > .si'))")
-        assert not errors
-    finally:
-        ctx.close()
-
-
 # ---- 2. the patch strip in the head ------------------------------------------------------------------------------
 
 
@@ -157,8 +53,8 @@ def test_the_patch_strip_sits_in_the_head_with_its_label(browser, tmp_path, monk
         ctx, pg, errors = _open(browser, tmp_path, html, width, 844, phone)
         try:
             pic, name, strip = _box(pg, '.hero-head .portrait'), _box(pg, '.hero-head h1'), _box(pg, '.head-strip')
-            stats, label = _box(pg, '.hero-head .keystats'), _box(pg, '.head-strip .hs-l')
-            assert strip['t'] > name['b'] and strip['b'] <= stats['t'] + 1     # under the name, over the stats
+            label = _box(pg, '.head-strip .hs-l')
+            assert strip['t'] > name['b']                                      # under the name
             if phone:
                 assert abs(strip['l'] - pic['l']) <= 2 and strip['t'] >= pic['b']   # the head's whole width (frame: 2px)
             else:

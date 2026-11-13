@@ -16,20 +16,11 @@ import json
 import re
 from pathlib import Path
 
-from pipeline.match import MChange, mark_inherited_defaults, release_pass
+from pipeline.match import mark_inherited_defaults, release_pass
+
+from tests.helpers import ch, mc as _mc
 
 ROOT = Path(__file__).resolve().parent.parent
-
-
-def _mc(file, eid, path, old, new, label, op='change', cat='balance', kind='ability', owner=None, **kw) -> MChange:
-    return MChange(file, eid, path, op, old, new, cat, kind, owner, label, False, **kw)
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29', 'dir': 'nerf',
-            'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x'}
-    base.update(kw)
-    return base
 
 
 # ---- 1. a release post is the build's notes ------------------------------------------------------------------------

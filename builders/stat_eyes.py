@@ -23,13 +23,13 @@ HIDDEN = 1                  # the step's sixth element
 def _rows_by_build() -> dict[tuple[str, int], tuple[dict, ...]]:
     """(entity key, build) -> the gameplay rows that build moved, over every patch (one edit over many entities
     spread to each: shared_rows), engine plumbing and no-ops left out as every counter leaves them."""
-    from .cards import GAMEPLAY, is_engine, is_noop
+    from .cards import gameplay_rows, is_engine, is_noop
     from .shared_rows import entities as spread_all
     out: dict[tuple[str, int], list[dict]] = {}
     for r in archive.index():
         for e in spread_all(archive.patch(r['id'])['entities']):
-            for c in e['changes']:
-                if c.get('cat') not in GAMEPLAY or is_engine(c) or is_noop(c):
+            for c in gameplay_rows(e['changes']):
+                if is_engine(c) or is_noop(c):
                     continue
                 for b in c.get('builds') or ():
                     out.setdefault((e['key'], b), []).append(c)

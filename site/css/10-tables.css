@@ -1,0 +1,108 @@
+/* ---------- 09. Tables ---------- */
+/* a table's frame hugs it, the fade on its own edge (review 2026-10-05: Unit Stats' 570px tables in full-width frames,
+   half empty), and starts at the page's left edge under its title, bar and band: centred, Unit Stats' four tables of
+   four widths had four left edges under full-width bands, a matrix sat 23px right of its bar (review 2026-10-17) */
+/* every table spans the page's width (owner 2026-10-21, question 8: Game rules left ~1000px empty at 1920) */
+.table-fade { position: relative; width: 100%; max-width: 100%; }
+.table-fade table.stats { min-width: 100%; }
+/* "more columns this way" until the box is scrolled to its end: a shadow over the content's right edge with a copper
+   rule and an arrow at the top (a fade into --bg-page was the table's own colour: nobody saw it, review 2026-10-17).
+   scripts.js table-fade keeps it off the box's scrollbars (--fade-r / --fade-b) */
+.table-fade::before, .table-fade::after { content: ""; position: absolute; pointer-events: none; transition: opacity .2s; }
+.table-fade::after { top: 2px; right: var(--fade-r, 2px); bottom: var(--fade-b, 2px); width: 40px;
+  background: linear-gradient(90deg, transparent, var(--shadow) 80%); box-shadow: inset -2px 0 0 var(--patina-dim); }
+.table-fade::before { z-index: 1; top: 8px; right: calc(var(--fade-r, 2px) + 5px); width: 10px; height: 10px; background: var(--patina);
+  -webkit-mask: var(--mask-more) center / 10px 10px no-repeat; mask: var(--mask-more) center / 10px 10px no-repeat; }
+.table-fade.at-end::before, .table-fade.at-end::after { opacity: 0; }
+.table-scroll {
+  position: relative; contain: paint;
+  overflow: auto;
+  max-height: calc(100vh - var(--nav-h) - 24px);
+  border: var(--px) solid var(--line);
+}
+table.stats { border-collapse: separate; border-spacing: 0; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+/* 4px a side, not 6: two more of Hero Stats' 33 default columns in a 1440px window (review 2026-10-17) */
+table.stats th, table.stats td { padding: 3px 4px; white-space: nowrap; text-align: center; border-bottom: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+table.stats thead th { position: sticky; background: var(--bg-panel-2); z-index: 3; color: var(--text-dim); font-weight: 600; }
+table.stats thead tr.cats th { top: 0; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-bright); text-align: center; padding: 6px 10px; border-bottom: 1px solid var(--grid-strong); border-left: 1px solid var(--grid-strong); }
+/* a group's name stays in sight while its group runs off either edge (scripts.js table-sort pins --name-w): centred
+   over the group when it fits, else held just past the sticky names or short of the right-edge fade */
+table.stats thead tr.cats th.cat > .cl { display: inline-block; position: sticky; left: calc(var(--name-w, 0px) + 8px); right: 48px; }
+/* one line per header: short labels, the full one is the tooltip */
+table.stats thead tr.cols th { top: var(--cat-row-h, 28px); cursor: pointer; font-size: var(--fs-xs); line-height: 1.2; white-space: nowrap; min-width: 40px; vertical-align: bottom; }
+.table-scroll:not(.show-details) .g-details { display: none; }
+table.stats thead tr.cols th:hover { color: var(--text-bright); }
+/* the sorted column: a gold header with its arrow, its cells under a faint gold wash (Sloppy) */
+table.stats thead th.sorted { color: var(--gold); box-shadow: inset 0 -2px 0 var(--gold); }
+/* a column that sorts says so: a quiet two-way arrow; the sorted one points the way it sorts (aria-sort, set by
+   scripts.js table-sort on every sortable header; pixel_icons.SORT_ART — the font ▼ / ▲ is gone) */
+table.stats thead tr.cols th[aria-sort]::after { content: ""; display: inline-block; width: 10px; height: 10px;
+  margin-left: 2px; vertical-align: -1px; background: currentColor; opacity: .35;
+  -webkit-mask: var(--sort-ic, var(--mask-sort)) center / 10px 10px no-repeat; mask: var(--sort-ic, var(--mask-sort)) center / 10px 10px no-repeat; }
+table.stats thead tr.cols th[aria-sort="descending"]::after { --sort-ic: var(--mask-sort-down); opacity: 1; }
+table.stats thead tr.cols th[aria-sort="ascending"]::after { --sort-ic: var(--mask-sort-up); opacity: 1; }
+table.stats th.name, table.stats td.name { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--bg-panel); }
+table.stats thead th.name { text-align: center; }
+table.stats thead th.name { z-index: 4; }
+table.stats td.name a { display: flex; align-items: center; gap: 8px; color: var(--name); font: 600 var(--fs-base)/1 var(--font-ui); }
+/* the icon box is fixed: a unit without art gets the glyph at the same size (Shrine's grew to 300x210) */
+table.stats td.name img, table.stats td.name .glyph { flex: none; width: 22px; height: 22px; object-fit: contain; }
+table.stats tbody td { background-color: var(--bg-panel); }
+table.stats td.g-odd { background-color: var(--cell-odd); }
+table.stats td.name .pre { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--eye); margin-left: 4px; }
+table.stats tbody tr:hover td { background-color: var(--cell-hover); }
+table.stats tbody tr.marked td { box-shadow: inset 0 2px 0 var(--patina), inset 0 -2px 0 var(--patina); }
+table.stats td.grp-start, table.stats th.grp-start { border-left: 1px solid var(--grid-strong); }
+table.stats td.has-hist { cursor: help; position: relative; }
+/* changed lately: a corner notch (a 4px dot read as a background speck), numbers stay centred */
+table.stats td.has-hist.recent::after { content: ""; position: absolute; right: 0; top: 0; width: 0; height: 0;
+  border-top: 7px solid var(--patina); border-left: 7px solid transparent; }
+table.stats td.spirit { color: var(--tag-rework); }
+.table-tabs { margin-bottom: 12px; }
+.chip.legend-hist::before { content: ""; width: 0; height: 0; border-top: 7px solid var(--patina); border-left: 7px solid transparent; align-self: flex-start; }
+table.stats td .dash, .dash { color: var(--text-dimmer); }
+
+.hist-tip {
+  position: fixed; z-index: var(--z-tooltip);
+  max-width: 420px; padding: 10px 12px;
+  background: var(--bg-panel-3);
+  font-size: var(--fs-sm);
+  pointer-events: none;
+  display: none;
+}
+.hist-tip.on { display: block; }
+.hist-tip .t-head { font: 600 var(--fs-sm)/1.2 var(--font-ui); color: var(--text-bright); margin-bottom: 6px; }
+.hist-tip .t-overall { color: var(--text-dim); margin-bottom: 6px; }
+/* every row shares one set of columns (date | was | → | now | %), so the numbers line up */
+.hist-tip ol { display: grid; grid-template-columns: auto auto auto auto auto; column-gap: 8px; row-gap: 4px; align-items: baseline;
+  margin: 0; padding: 0; list-style: none; font-variant-numeric: tabular-nums; }
+.hist-tip li { display: contents; }
+.hist-tip li .o { text-align: right; color: var(--label); }
+.hist-tip li .arrow { padding: 0; }
+.hist-tip li .n { font-weight: 600; }
+.hist-tip li .n.dir-changed, .hist-tip li .n.dir-up, .hist-tip li .n.dir-down { color: var(--text-bright); }
+.hist-tip li .p { text-align: right; }
+.hist-tip li .p .pct { margin-left: 0; }
+/* a step the notes left out (stat_eyes.py): the eye after its % */
+.hist-tip li .p .mark { width: 16px; height: 14px; margin-left: 4px; vertical-align: -2px; }
+.hist-tip li .p .mark::before { width: 14px; height: 14px; }
+.hist-tip li .d { font: 500 var(--fs-sm)/1.4 var(--font-ui); color: var(--text-dimmer); font-variant-numeric: tabular-nums; letter-spacing: 0; white-space: nowrap; }
+.hist-tip li > span { line-height: 1.4; }
+
+/* icon-only markers explain themselves on hover: ONE floating element placed by
+   scripts.js (clamped to the viewport, flips below when there is no room above) —
+   a CSS ::after centred on the marker ran off the screen at the edges */
+.tip {
+  position: fixed; left: 0; top: 0; z-index: var(--z-tooltip);
+  max-width: min(280px, calc(100vw - 16px));
+  padding: 6px 9px;
+  background: var(--bg-panel-4); color: var(--text-main);
+  font: var(--fs-sm)/1.4 var(--font-ui); text-transform: none; letter-spacing: 0; white-space: normal;
+  box-shadow: 0 -2px 0 var(--line-bright), 0 2px 0 var(--line-bright), -2px 0 0 var(--line-bright),
+              2px 0 0 var(--line-bright), 0 6px 16px var(--shadow);
+  pointer-events: none;
+  display: none;
+}
+.tip.on { display: block; }
+[data-tooltip] { cursor: help; }
+

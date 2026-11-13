@@ -25,7 +25,7 @@ from functools import lru_cache
 
 from . import jsonio, loc, semantics, tracker
 
-BUILDS = tracker.ROOT / 'data' / 'builds'
+BUILDS = tracker.BUILDS_DIR
 
 
 def field_key(file: str, eid: str, path: str) -> str:

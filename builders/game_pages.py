@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from .brawl import DRAFT_SUBJECT
 from .common import EYE_MARK, entity_icon, esc, page, plural, write
 from .game_systems import (ALL_PREFIX, CONVAR_PREFIX, SECTION, is_template, merged_label, name_of, place,
                            place_all_row, place_entity, shown, system, systems)
@@ -65,6 +66,13 @@ def collect(by_ent: dict, cat: dict, pages: set[str] | None = None) -> tuple[dic
                 k = f'game:{sid}:{pid}:all:{file}'
                 hist[k] = list(by_patch.values())
                 entries[sid][pid].append((k, '', ''))
+            continue
+        if key == DRAFT_SUBJECT:            # Street Brawl's item draft weights: one row a patch (brawl.draft_row)
+            hit = place(DRAFT_SUBJECT)
+            if hit:
+                k = f'game:{hit[0]}:{hit[1]}:drafts'
+                hist[k] = list(h)
+                entries[hit[0]][hit[1]].append((k, '', ''))
             continue
         if key.startswith(CONVAR_PREFIX):
             hit = place(f'convar:{key[len(CONVAR_PREFIX):]}')
@@ -126,7 +134,8 @@ def _keys(sys_id: str, parts: dict, rel: str) -> tuple[list, dict]:
             areas[k] = part.id
         for k, _, _ in pseudo:
             # a rule for every hero / ability is the part itself ("Level curve"; its rows say "all 61 heroes")
-            keys.append((k, 'Console variables' if k.endswith(':convars') else part.name, None))
+            keys.append((k, 'Console variables' if k.endswith(':convars') else
+                         'Item draft weights' if k.endswith(':drafts') else part.name, None))
             areas[k] = part.id
     return keys, areas
 

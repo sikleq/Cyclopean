@@ -1,0 +1,86 @@
+/* ---------- 03. Pixel primitives ---------- */
+/* Notched pixel frame: four offset shadows leave the corners empty.
+   Colour comes from --frame so every frame stays on tokens. */
+.px-frame {
+  --frame: var(--frame-line);
+  background: linear-gradient(180deg, var(--bg-panel-2), var(--bg-panel));
+  box-shadow:
+    0 calc(-1 * var(--px)) 0 0 var(--frame),
+    0 var(--px) 0 0 var(--frame),
+    calc(-1 * var(--px)) 0 0 0 var(--frame),
+    var(--px) 0 0 0 var(--frame),
+    0 10px 24px var(--shadow-deep);
+  margin: var(--px);
+}
+.px-frame.bright { --frame: var(--frame-hi); }
+
+/* section banner (Sloppy's ITEM UPDATES band, in verdigris) */
+/* a banner's chips wrap under its title when there are many (Astro's band of 21 changes + net + eye + three
+   "+N for all …" chips ran 67px past a 1440px window; 2026-10-06); a one-line banner looks as before */
+.banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-height: 44px;
+  padding: 6px 18px; margin: 26px 0 10px;
+  background: linear-gradient(90deg, var(--banner-a), var(--banner-b) 45%, var(--bg-panel));
+  box-shadow: inset 4px 0 0 var(--patina), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page);
+}
+.banner .bt { font: var(--fs-xl)/1 var(--font-px); color: var(--text-bright); text-transform: uppercase; letter-spacing: .08em;
+  text-shadow: 0 2px 0 var(--bg-page); }
+.banner .bt a { color: inherit; }
+/* patch titles: the date once; a named update gets a gold star and its name, the date beside it */
+.pname { color: var(--gold); }
+.pdate:not(.solo) { margin-left: 12px; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); font-variant-numeric: tabular-nums; letter-spacing: 0; text-transform: none; }
+.pdate.solo { font: 700 var(--fs-lg)/1 var(--font-ui); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.pkind { margin-left: 10px; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); text-transform: uppercase; letter-spacing: .08em; }
+.pfu { margin-left: 10px; font: 600 var(--fs-xs)/1 var(--font-ui); color: var(--patina); text-transform: uppercase; letter-spacing: .08em; }
+.ixt .t > :first-child { margin-left: 0; }
+.banner.named { box-shadow: inset 4px 0 0 var(--tag-new), inset 0 1px 0 var(--bone-08), 0 2px 0 var(--bg-page); }
+.ptitle h1 .pdate:not(.solo) { font-size: var(--fs-lg); }
+.ptitle h1 .pdate.solo { font-size: var(--fs-3xl); }
+/* a date is one word: a phone broke "2026-10-14" after "2026-10-" under the patch's name; on a line of its own it
+   starts at the name's edge (review 2026-10-17) */
+.pdate { white-space: nowrap; }
+.ptitle h1 { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 12px; }
+.ptitle h1 > *, .ptitle h1 > .pdate:not(.solo) { margin-left: 0; }
+.banner .bc { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px 8px; min-width: 0;
+  align-items: center; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--label); letter-spacing: .06em; text-transform: uppercase; }
+.banner.sub { min-height: 36px; margin: 16px 0 8px; }
+.banner.sub .bt { font-size: var(--fs-xl); }
+
+.px-btn {
+  font: 600 var(--fs-sm)/1 var(--font-ui);
+  color: var(--text-main);
+  background: var(--bg-panel-3);
+  border: 0;
+  padding: 7px 12px 8px;
+  cursor: pointer;
+  box-shadow: inset 0 -3px 0 var(--bg-page), 0 -2px 0 var(--line), 0 2px 0 var(--line), -2px 0 0 var(--line), 2px 0 0 var(--line);
+  margin: 2px;
+}
+.px-btn:hover { background: var(--bg-panel-4); color: var(--text-bright); }
+.px-btn.on {
+  background: var(--patina-dim);
+  color: var(--text-bright);
+  box-shadow: inset 0 -3px 0 var(--patina-deep), 0 -2px 0 var(--patina), 0 2px 0 var(--patina), -2px 0 0 var(--patina), 2px 0 0 var(--patina);
+}
+.px-btn .count { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--text-dim); margin-left: 6px; }
+/* a build page's picker of every build (builds_pages.build_page): a pixel button's frame around a native list */
+.build-nav { align-items: center; gap: 8px; }
+.build-pick { max-width: min(520px, 100%); margin: 2px; padding: 6px 10px 7px; border: 0; cursor: pointer;
+  font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-main); background: var(--bg-panel-3);
+  box-shadow: inset 0 -3px 0 var(--bg-page), 0 -2px 0 var(--line), 0 2px 0 var(--line), -2px 0 0 var(--line), 2px 0 0 var(--line); }
+.build-pick:hover { background: var(--bg-panel-4); color: var(--text-bright); }
+.build-pick:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 3px; }
+.build-pick option { background: var(--bg-panel-2); color: var(--text-main); }
+.px-btn.on .count { color: var(--text-bright); }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font: 600 var(--fs-xs)/1 var(--font-ui);
+  text-transform: uppercase; letter-spacing: .06em;
+  padding: 3px 8px 2px;
+  background: var(--bg-panel-3);
+  color: var(--label);
+  white-space: nowrap;
+  box-shadow: inset 0 0 0 1px var(--frame-line);
+}
+

@@ -1,0 +1,15 @@
+/* ==========================================================================
+   CYCLOPEAN — global stylesheet
+   ==========================================================================
+   01. Tokens (:root)        — every colour lives here, nowhere else
+   02. Base                  — reset, typography, scrollbars
+   03. Pixel primitives      — notched frames, buttons, chips
+   04. Navigation            — top bar, tabs
+   05. Page shell            — headers, toolbar, sections
+   06. Badges & markers      — BUFF/NERF/…, hidden eye, documented tick
+   07. Change lists          — patch lines, entity blocks
+   08. Grids & cards         — hero/item/unit grids, patch timeline
+   09. Tables                — stats table, sticky header, history tooltip
+   10. Utilities
+   ========================================================================== */
+

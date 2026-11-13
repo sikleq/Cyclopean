@@ -7,8 +7,10 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tests.helpers import site_css, site_js
+
 ROOT = Path(__file__).resolve().parent.parent
-CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+CSS = site_css()
 
 
 def test_text_and_note_rows_carry_a_neutral_badge():
@@ -26,7 +28,7 @@ def test_text_and_note_rows_carry_a_neutral_badge():
     assert 'class="erow st-code"><span class="st">' in page and '<span class="tag note-tag">NOTE</span>' in page
     assert '.tag.note-tag { --c: var(--text-dimmer); }' in CSS
     # no tag filter or counter takes it (scripts.js tagOf reads the filter tags only)
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    js = site_js()
     assert "r.classList.contains('st-code') || r.classList.contains('st-text')" in js
 
 
@@ -141,3 +143,11 @@ def test_one_call_forgets_every_builders_cache():
     assert {n for n, _ in cached} >= {'builders.archive', 'builders.evidence', 'builders.trail', 'builders.stat_eyes'}
     assert all(v.cache_info().currsize == 0 for _, v in cached)
     assert caches.clear_all() == len(cached)
+
+
+def test_footer_links_are_a_comma_list_without_dot_separators():
+    """The owner's rule (2026-10-29): no `·` separators; the footer had grown 'Builds</a> ·<a' with a lost space."""
+    from builders.common import page
+    foot = re.search(r'<footer class="site-foot">.*?</footer>', page('t', '<p>x</p>'), re.S).group(0)
+    assert '·' not in foot
+    assert '</a>, <a' in foot

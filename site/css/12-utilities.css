@@ -1,0 +1,96 @@
+/* ---------- 10. Utilities ---------- */
+.muted { color: var(--text-dim); }
+.dimmer { color: var(--text-dimmer); }
+.hidden-el { display: none !important; }
+.flex { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+/* a finger's targets: links drawn smaller than 24px get a bigger hit area, the look unchanged — padding the link and
+   taking it back with a negative margin, or a transparent box around it (review 2026-10-17: "patch ↗" 43x12, a
+   matrix date 13x14, a trail square 12x12, an ability card's History 51x15, a one-digit value 8x20) */
+@media (pointer: coarse) {
+  .nav-brand { padding: 7px; margin: -7px; }
+  .banner .pnotes { padding: 8px 6px; margin: -8px -6px -8px -2px; }
+  table.dyn thead tr.cols th.dd { overflow: visible; }
+  table.dyn thead tr.cols th.dd > a { position: relative; display: inline-block; }
+  table.dyn thead tr.cols th.dd > a::after { content: ""; position: absolute; left: -9px; right: -8px; top: -7px; bottom: -6px; }
+  /* every square alike, so the row keeps its baseline (taken 6px back by vertical-align); !important: the tag colours'
+     `background` shorthand would paint the transparent border too */
+  .trail { vertical-align: -6px; }
+  .trail .sq { box-sizing: content-box; border: 6px solid transparent; margin: -6px; background-clip: padding-box !important; }
+  .trail a.sq.cur { box-shadow: none; outline: 1px solid var(--patina); outline-offset: -6px; }   /* the ring, as before */
+  .trail a.sq:hover { outline-offset: -6px; }
+  .ac-hist, .ac-last, .lu-more, footer.site-foot a { padding-block: 6px; margin-block: -6px; }
+  .lu-more { padding-inline: 8px; margin-inline: -8px; }
+  .sc-row .v.has-hist { padding: 4px 8px; margin: -4px -8px; }
+}
+@media (max-width: 860px) {
+  .timeline > li { grid-template-columns: 1fr; }
+  /* phones keep the menu: the sections scroll sideways next to the eye (it was hidden outright) */
+  .nav-inner { gap: 10px; grid-template-columns: auto minmax(0, 1fr) auto; }
+  .nav-brand-text { display: none; }
+  .nav-build { display: none; }
+  .nav-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .nav-tab { font-size: var(--fs-xl); padding: 0 8px; white-space: nowrap; }
+}
+footer.site-foot { max-width: var(--content-w); margin: 0 auto; padding: 24px var(--gutter) 40px; color: var(--text-dimmer); font-size: var(--fs-sm); border-top: var(--px) solid var(--line-soft); }
+
+/* notes written from the files (written_notes): Valve's sections, one line per change with its tag badge */
+h3.gn-h { margin: 22px 0 8px; }
+h3.gn-h .n { font-size: var(--fs-xl); color: var(--text-dim); margin-left: 6px; }
+ul.gen-notes { margin: 0; padding: 0; list-style: none; font-size: var(--fs-sm); }
+ul.gen-notes li { display: flex; gap: 8px; align-items: baseline; margin: 3px 0; }
+ul.gen-notes li .tag { flex: none; }
+/* a hero release's lines lead with their status mark (written_notes `marks`): an empty box sits on the baseline by
+   its bottom edge, above the text's middle — drawn 3px lower, the line itself unmoved */
+ul.gen-notes li > .mark { position: relative; top: 3px; }
+ul.gen-notes .gn-t { min-width: 0; overflow-wrap: anywhere; }
+/* phones: a notes row puts its values under the text; an ability header wraps (both widened the page) */
+@media (max-width: 600px) {
+  .erow { grid-template-columns: 22px var(--tag-w) minmax(0, 1fr); }
+  .erow .vv { grid-column: 2 / -1; text-align: left; max-width: none; white-space: normal; }
+  /* a patch or build page's card row: no gutter, its tag (and a status mark, if any) runs in before the text, which
+     wraps under it at the full width — the tag and the 22px gutter took ~45% of the row and each line wrapped 3-4
+     times in ~195px (review 2026-10-17) */
+  .ecard .erow { display: flow-root; }
+  .ecard .erow .st, .ecard .erow .tg { float: left; margin: 0 6px -6px 0; }    /* no taller than the first line */
+  .ecard .erow .st:empty, .ecard .erow .tg:empty { display: none; }
+  .ecard .erow .vv { display: block; margin-top: 2px; }
+  .ability-card .ac-head { flex-wrap: wrap; }
+  .ability-card, .ability-card .ac-head > * { min-width: 0; }
+  .erow .tx, .ability-card .ac-head { overflow-wrap: anywhere; }
+}
+/* a page's title for screen readers only: the logo lives in the site bar, a section's name is its tab there (owner
+   2026-10-21, question 4: the big home wordmark and "Heroes" under the "Heroes" tab ate the first screen) */
+.vh { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0);
+  white-space: nowrap; border: 0; }
+.vals.flags { display: inline-flex; flex-wrap: wrap; gap: 3px; justify-content: flex-end; white-space: normal; max-width: 420px; }
+.flag { font: 600 var(--fs-xs)/1 var(--font-ui); padding: 3px 5px; background: var(--bg-panel-3); text-transform: uppercase; }
+.flag.add { color: var(--tag-buff); }
+.flag.rem { color: var(--tag-nerf); }
+/* a gameplay bit: the side it moved the owner to (render._bits_html), whether added or removed */
+.flag.good { color: var(--tag-buff); }
+.flag.bad { color: var(--tag-nerf); }
+.flag.even { color: var(--tag-changed); }
+table.hist td.ov { white-space: nowrap; min-width: 150px; }
+/* an item's sections are groups of the "today" component (09b .stat-flow, builders/now_values.py); an item without
+   sections keeps its values as a row of chips */
+.item-hdr { margin-bottom: 10px; }
+@media (max-width: 860px) {
+  table.hist, table.kvt { display: block; max-width: 100%; overflow-x: auto; }
+  /* an ability card's table fits a phone: its rows and lines run the card's whole width */
+  .ability-card table.kvt { display: table; }
+  .hero-head .portrait { width: 110px; }
+}
+/* a patch's "Biggest changes" on a phone: each row in two lines (name + tag, then label + old → new) instead of a
+   table 235px wider than the screen whose values sat off to the right (2026-10-06) */
+@media (max-width: 700px) {
+  table.hist.big { overflow-x: visible; }
+  table.hist.big tbody { display: block; }
+  table.hist.big tr.ch { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; row-gap: 2px;
+    padding: 6px 8px; border-bottom: 1px solid var(--line-soft); }
+  table.hist.big tr.ch td { display: block; padding: 0; border: 0; width: auto; min-width: 0; white-space: normal;
+    text-align: left; }
+  table.hist.big tr.ch td.sc { grid-column: 1; grid-row: 1; }
+  table.hist.big tr.ch td.tg { grid-column: 2; grid-row: 1; justify-self: end; }
+  table.hist.big tr.ch td:nth-child(3), table.hist.big tr.ch td.ov { grid-column: 1 / -1; }
+}
+

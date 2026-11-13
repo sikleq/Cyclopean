@@ -6,6 +6,8 @@ import os
 import sys
 from pathlib import Path
 
+from tests.helpers import site_css, site_js
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
@@ -70,7 +72,7 @@ def test_marks_counters_and_glyphs_are_css_masks_in_sync():
     from builders.common import GLYPHS, MARK_ART, STATUS_MARK, esc, mark, visual
     from builders.pixel_icons import svg_mask
     from builders.render import pip
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     rules = {}
     for sel, url in re.findall(r'([^{}\n]+)\{ --mk-on: ""; --mk: ([^;]+); \}', css):
         for s in sel.split(','):
@@ -103,7 +105,7 @@ def test_fonts_are_one_stylesheet_that_does_not_block_the_first_paint():
     assert 'media="print"' in attrs and 'data-fonts' in attrs and attrs2 == ''
     assert '<noscript><link rel="stylesheet" href="' + url + '"></noscript>' in html
     assert 'Archivo' not in page('T', '<p>x</p>')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    js = site_js()
     assert "link[data-fonts]" in js and "l.media = 'all'" in js
 
 

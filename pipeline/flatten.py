@@ -104,7 +104,12 @@ SUB_ID_FIELDS = ('m_eUpgradeType', 'm_eScaleStatFilter')
 # numbers that identify a row of a table: an investment step by its souls threshold, a purchase bonus
 # by its tier — keyed by index, a step inserted at 6,400 souls shifted every later step and read as
 # "step 10: 100 → 75 NERF" (audit 2026-10-01)
-NUMERIC_ID_FIELDS = ('nGoldThreshold', 'm_nTier')
+NUMERIC_ID_FIELDS = ('nGoldThreshold', 'm_nTier', 'm_unInterval')
+# a ranked season's rank bands are keyed by the last rank each covers; the band with no end covers every rank
+# (data audit 2026-11-13: build 6853 split season_1's one band into [all, up to 111] and by position its shields
+# read removed and added)
+RANK_BAND_END = 'm_unRankEnd'
+RANK_BAND_ALL = 'all'
 
 
 _ID_LOWER = {k.lower(): k for k in ID_FIELDS}
@@ -128,6 +133,13 @@ def _list_key(items: list):
     """Return a function item -> key string, or None to fall back to indexes."""
     if not items or not all(isinstance(x, dict) for x in items):
         return None
+    if any(RANK_BAND_END in x or 'm_vecSubRankXP' in x or 'm_nBadgeShields' in x for x in items):
+        # the band with no end is "all"; the ones with an end are numbered from the lowest end up, so a band whose
+        # end moved (season_1's 111 -> season_2's 91) stays one band: its shields read 5 -> 3, not removed + added
+        ended = sorted((x[RANK_BAND_END] for x in items if RANK_BAND_END in x), key=float)
+        if len(set(map(str, ended))) == len(ended) and sum(RANK_BAND_END not in x for x in items) <= 1:
+            order = {str(e): str(i + 1) for i, e in enumerate(ended)}
+            return lambda x: order[str(x[RANK_BAND_END])] if RANK_BAND_END in x else RANK_BAND_ALL
     for key in NUMERIC_ID_FIELDS:
         vals = [x.get(key) for x in items]
         if all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in vals) and len(set(vals)) == len(vals):

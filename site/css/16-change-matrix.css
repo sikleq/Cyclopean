@@ -1,0 +1,50 @@
+/* ---------- 15. Hero / item changes matrix (Sloppy's "Dynamics") ---------- */
+/* fixed layout from the colgroup: the name column, 30px per patch, 0 for an old patch while hidden */
+table.dyn { --dyn-name: 210px; border-collapse: separate; border-spacing: 0; font-size: var(--fs-sm); table-layout: fixed;
+  width: calc(var(--dyn-name) + var(--n-new) * 30px); }
+table.dyn.show-old { width: calc(var(--dyn-name) + var(--n-all) * 30px); }
+table.dyn col { width: 30px; }
+table.dyn col.nm { width: var(--dyn-name); }
+table.dyn:not(.show-old) col.old { width: 0; }
+table.dyn th, table.dyn td { padding: 3px; border-bottom: 1px solid var(--line-soft); text-align: center; white-space: nowrap; }
+table.dyn thead th { position: sticky; top: 0; z-index: 3; background: var(--bg-panel-2); color: var(--text-dim); }
+table.dyn thead tr.cols th { top: calc(var(--fs-sm) + 13px); font: 500 var(--fs-xs)/1 var(--font-ui); font-variant-numeric: tabular-nums; }
+table.dyn thead tr.cols th a { color: inherit; }
+table.dyn thead tr.cols th.named a { color: var(--gold); font-weight: 700; }
+table.dyn thead tr.cats th { font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--text-bright); border-left: 1px solid var(--line); text-align: left; padding: 6px; }
+table.dyn th.name, table.dyn td.name { position: sticky; left: 0; z-index: 2; background: var(--bg-panel); text-align: left;
+  overflow: hidden; text-overflow: ellipsis; }
+table.dyn thead th.name { z-index: 4; background: var(--bg-panel-2); }
+table.dyn td.name a { display: flex; align-items: center; gap: 8px; min-height: 26px; color: var(--name); font: 600 var(--fs-sm)/1 var(--font-ui);
+  white-space: nowrap; overflow: hidden; }
+table.dyn td.name img { flex: none; width: 26px; height: 26px; object-fit: cover; background: var(--bg-panel-4); }
+/* a Game system's icon whole, as on its card, the home page and its own page: cropped to the square, the tall Souls
+   coil (35x67) read as a swirl, another icon than everywhere else (review 2026-10-17) */
+table.dyn[data-what] td.name img { object-fit: contain; padding: 2px; }
+/* a run of empty cells is one cell (dynamics_page._gap): the column lines are its background */
+table.dyn tr.cols th.dd { padding-left: 0; padding-right: 0; overflow: hidden; }
+table.dyn tbody td:not(.name) { padding: 3px 0; background-color: var(--bg-panel);
+  background-image: repeating-linear-gradient(90deg, transparent 0 29px, var(--grid) 29px 30px); }
+table.dyn tbody tr:hover td { background-color: var(--bg-hover); }
+/* the cell: a square of stripes (one gradient, dynamics_page.stripes), each as tall as its share */
+.dsq { display: block; width: 26px; height: 26px; margin: 0 auto; overflow: hidden;
+  box-shadow: inset 0 0 0 1px var(--bg-page); }
+.dsq:hover { outline: 2px solid var(--text-bright); }
+/* buff vs nerf: one net colour per cell (over the stripes' inline gradient) */
+table.dyn.bvn .dsq.net-buff { background: var(--tag-buff) !important; }
+table.dyn.bvn .dsq.net-nerf { background: var(--tag-nerf) !important; }
+table.dyn.bvn .dsq.net-mix { background: var(--tag-changed) !important; }
+/* old columns: month headers by class; the cells by column number (scripts.js dyn-old) */
+table.dyn:not(.show-old) .old { display: none; }
+/* a month the cutoff splits (dynamics_page._months): with the old columns in sight its newer part reads on */
+table.dyn.show-old thead th.dm.cont { --ml-c: transparent; color: transparent; border-left-color: transparent; }
+table.dyn:not(.show-extra) tr.extra { display: none; }
+table.dyn tr.f-out { display: none; }          /* a slot / tier / role filter (scripts.js dyn-rows) */
+/* "Not in patch notes" (dynamics_page.toolbar .dyn-hid): a row the notes never left anything out of goes (`nh`, built),
+   one with nothing of it in the newer columns while the older ones hide (`nhn`) */
+table.dyn.only-hid tr.nh, table.dyn.only-hid:not(.show-old) tr.nhn { display: none; }
+.dyn-rows { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.dyn-bar { flex-wrap: wrap; row-gap: 8px; }
+.dyn-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.dyn-tags .tag { min-width: 0; }      /* selected (aria-pressed): only these tags — the .tag rules */
+

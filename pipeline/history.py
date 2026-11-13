@@ -14,10 +14,12 @@ import time
 from pathlib import Path
 
 from . import cache, extras, jsonio, loc, protobuf_diff, strings_diff, tracker
+from .classify import GAMEPLAY_CATS
 from .diff import EntityChange, diff_entity, diff_file
 
-OUT = tracker.ROOT / 'data' / 'builds'
-FORMAT_VERSION = 8        # 8: protobuf and binary-string changes, changed files per hero / unit (assets.owners)
+OUT = tracker.BUILDS_DIR
+FORMAT_VERSION = 9        # 9: a unit change alone is a change, ranked rank bands keyed, a new season against the one
+#                           before it, assets.files (data audit 2026-11-13); 8: protobuf and binary-string changes, changed files per hero / unit (assets.owners)
 #                           7: identifying fields matched whatever their capitals (m_StrPropertyNAme), no upkeep records
 #                           6: table rows keyed by souls threshold / tier, speed curve wins only before 5747,
 #                           the spirit-resist-per-boon key rename; 5: numbers in lists keep their order
@@ -79,7 +81,7 @@ def entity_changes(prev: tracker.Build, cur: tracker.Build, last_known: dict | N
             rec = ec.to_json()
             if ec.status in ('added', 'returned'):
                 # a new entity keeps gameplay data only; cosmetics would bloat
-                rec['changes'] = [c for c in rec['changes'] if c['cat'] in ('balance', 'mechanic', 'availability')]
+                rec['changes'] = [c for c in rec['changes'] if c['cat'] in GAMEPLAY_CATS]
             entities.append(rec)
     return entities
 
@@ -89,12 +91,6 @@ def _returned(name: str, eid: str, before: dict, now: dict, curve_old: bool = Tr
     a = a if isinstance(a, dict) else {'value': a}
     b = b if isinstance(b, dict) else {'value': b}
     return EntityChange(name, eid, 'returned', diff_entity(a, b, curve_old, curve_new))
-
-
-def is_baseline(prev: tracker.Build) -> bool:
-    """The tracker's first real build is compared with an empty repo: that is
-    the starting point, not a change."""
-    return all(tracker.blob_id(prev.commit, p) is None for p in tracker.VDATA_PATHS)
 
 
 def _source_base(last_known: dict | None, key: str, prev: tracker.Build, cur: tracker.Build,

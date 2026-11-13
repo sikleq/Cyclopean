@@ -12,6 +12,9 @@ from __future__ import annotations
 
 import re
 
+from .loc import HTML_TAG
+from .field_units import UNITS_PER_METER
+
 PANELS = (('weapon', 'm_eWeaponStatsDisplay', 'CitadelHeroStats_Weapon'),
           ('vitality', 'm_eVitalityStatsDisplay', 'CitadelHeroStats_Vitality'),
           ('spirit', 'm_eSpiritStatsDisplay', 'CitadelHeroStats_Spirit'))
@@ -65,7 +68,6 @@ TEXT = ('CitadelHeroStats_Weapon', 'CitadelHeroStats_Vitality', 'CitadelHeroStat
         'Citadel_Player_Level_Stat_RewardsMax', 'Citadel_Player_Level_StatIncreases', 'Citadel_Player_Level_StatMax',
         'StatDesc_TechPower') + tuple(r[1] for r in BOON_ROWS)
 
-_HTML = re.compile(r'<[^>]+>')
 
 
 def loc_key(stat: str) -> str:
@@ -135,7 +137,6 @@ _NOT_A_STAT = re.compile(r'^m_(?:sz|str)|Sound|Particle|Effect|Tracer|Seed$|^m_v
 COLUMN_READS = {'m_reloadDuration', 'm_flIntraBurstCycleTime', 'm_flBulletSpeed', 'm_BulletSpeedCurve',
                 'm_bReloadSingleBullets', 'm_flReloadSingleBulletsInitialDelay', 'm_iAmmoConsumedPerShot'}
 _ENGINE_DISTANCE = re.compile(r'(?:Range|Distance)$')      # engine units: shown in metres (AGENTS.md rule 6)
-UNITS_PER_METER = 39.37
 
 
 def _scalar(v) -> float | None:
@@ -178,5 +179,5 @@ def labels(tok: dict[str, str], heroes: dict) -> dict:
     return {
         'stats': {s: tok.get(loc_key(s).lower()) for s in sorted(stats)},
         'attrs': {a: tok.get(f'attribute_{a}'.lower()) for a in sorted(attrs)},
-        'text': {k: _HTML.sub('', tok.get(k.lower()) or '').strip() or None for k in TEXT},
+        'text': {k: HTML_TAG.sub('', tok.get(k.lower()) or '').strip() or None for k in TEXT},
     }

@@ -1,7 +1,8 @@
 {
   "_why": "Coverage audit 2026-10-05 (owner: 'I want to see ALL changes to everything in the game'): 2,040 gameplay changes (1,340 not in the patch notes) were on no hero, item or unit page — the Soul Urn rework of 2026-06-04, crates, powerups, the Rejuvenator, soul sharing, the level curve, respawn times and soul rewards (console variables). They are the Game section (builders/game_systems.py): a system is a page like a unit family's, its parts are groups of entries. Every rule is a regex tried from the start of a subject, systems and parts in this order, the first match wins. Subjects: an entry 'file:id#kind' ('misc.vdata:citadel_breakable_item_container#global'), a row of a rule for every hero or ability 'file:@all:path' ('heroes.vdata:@all:m_mapLevelInfo.10…'), a console variable 'convar:name'. Whatever no system names falls to 'other' (nothing is lost); a console variable only shows when a part names it (UI, bots and debug switches stay in the patch archive). Names: the game's files give most of these entries no text, so the site names them here (never their ids); icons come from the game files (icons/…; art a system has no field for is picked in game_icons.json and stored under icons/game/) or the site's pixel glyphs ('glyph:…'), never invented art.",
   "_why_display": "The order the pages list the systems in (the 'systems' order below is the regexes' precedence: the Urn's soul orbs before every soul orb).",
-  "display": ["souls", "respawn", "progression", "urn", "pickups", "breakables", "troopers", "camps", "shop", "combat", "modes", "events", "other"],
+  "display": ["souls", "respawn", "progression", "urn", "pickups", "breakables", "troopers", "camps", "shop", "combat", "modes", "ranked", "events", "other"],
+  "_why_ranked": "Ranked (2026-11-13, owner: Ranked as a Game system): scripts/ranked_seasons.vdata, one entry per season (season_1, season_2; default_ranked is their template). Its numbers are the rules of a season: points per match, rank-up XP, rank and badge shields, hero unlock, the calibration cap and the season's dates. Leaderboards and point redistribution are server-side and stay untracked.",
   "_why_events": "Halloween 2026 (build 6826, owner 2026-10-30: 'add it'): the event's candy, cauldrons, trick-or-treat troll, masks and pumpkins were spread over Every hero's abilities (the candy is a cosmetic slot every hero carries), Crates and Effects, and its console variables were on no page. Seasonal events go first so a cauldron is not a crate. Winter: the 2025 Holiday Challenge's snowball and presents. Icon: the 2026 candy the Eat Candy slot shows (items/seasonal/2026_candy, game_icons.json 'systems').",
   "systems": [
     {
@@ -32,7 +33,7 @@
           "misc[.]vdata:(citadel_idol_cashin|xp_orb_idol_dropoff|citadel_item_pickup_idol)#",
           "modifiers[.]vdata:modifier_(idol_|citadel_idol_|citadel_holding_golden_idol)",
           "generic_data[.]vdata:m_IdolParams#",
-          "convar:citadel_(idol_|golden_idol_|allow_biased_urn)"]},
+          "convar:citadel_(idol_|golden_idol_|allow_biased_urn|trailingteam_bias_threshold_)"]},
         {"id": "rift", "name": "Unstable Rift", "match": [
           "misc[.]vdata:(citadel_koth_cashin|citadel_item_koth_spawner|xp_orb_koth_giveup)#",
           "generic_data[.]vdata:m_KothParams#",
@@ -60,7 +61,7 @@
           "misc[.]vdata:(citadel_breakable_|citadel_punchable_powerup_base#)",
           "generic_data[.]vdata:m_Breakable",
           "loot_tables[.]vdata:",
-          "convar:citadel_crate_"]}
+          "convar:citadel_(crate_|breakable_)"]}
       ]
     },
     {
@@ -177,7 +178,7 @@
         {"id": "rules", "name": "Combat rules", "match": [
           "abilities[.]vdata:@all:",
           "modifiers[.]vdata:(modifier_crowd_control_diminish_watcher|modifier_citadel_catapult_damage_watcher|modifier_zipline_\\w*|modifier_citadel_knockdown|modifier_speed_boost|modifier_citadel_unstick|modifier_combat_status|citadel_modifier_teleport|modifier_obscured_by_steam|modifier_bullet_shield_tracker|modifier_magic_shield_tracker|modifier_shield_tracker_base)#",
-          "convar:citadel_(movement_|movespeed_|stamina_|ability_damage_falloff|damage_falloff|slow_air_drag|enable_slows_affect_air_drag)"]}
+          "convar:citadel_(movement_|movespeed_|stamina_|mantle_|ability_damage_falloff|damage_falloff|slow_air_drag|enable_slows_affect_air_drag)"]}
       ]
     },
     {
@@ -187,10 +188,20 @@
       "subjects": ["Street Brawl"],
       "parts": [
         {"id": "brawl", "name": "Street Brawl", "match": [
+          "brawl:draft_weights",
           "generic_data[.]vdata:m_StreetBrawl#",
           "misc[.]vdata:street_brawl",
           "modifiers[.]vdata:modifier_streetbrawl",
-          "convar:citadel_street_brawl"]}
+          "convar:citadel_(street_brawl|match_pre_trooper_spawn_brawl_time)"]}
+      ]
+    },
+    {
+      "id": "ranked",
+      "name": "Ranked",
+      "icon": "game/rankprotectshield.webp",
+      "subjects": ["Ranked", "Ranked season", "Season 1", "Season 2"],
+      "parts": [
+        {"id": "seasons", "name": "Seasons", "match": ["ranked_seasons[.]vdata:"]}
       ]
     },
     {
@@ -202,12 +213,17 @@
         {"id": "abilities", "name": "Abilities with no hero", "match": ["abilities[.]vdata:"]},
         {"id": "objects", "name": "Map objects", "match": ["misc[.]vdata:"]},
         {"id": "modifiers", "name": "Effects", "match": ["modifiers[.]vdata:"]},
-        {"id": "rules", "name": "Game rules", "match": ["generic_data[.]vdata:"]},
-        {"id": "units", "name": "Units", "match": ["npc_units[.]vdata:"]},
+        {"id": "rules", "name": "Game rules", "match": [
+          "generic_data[.]vdata:",
+          "convar:citadel_(idle_time|first_blood_disables_match_not_scored|first_tower_kill_disables_match_not_scored|minimap_npc_reveal_duration)$"]},
+        {"id": "units", "name": "Units", "match": [
+          "npc_units[.]vdata:",
+          "convar:citadel_boss_tier_3_laser_disable_body_rotation$"]},
         {"id": "rest", "name": "Other", "match": ["[a-z_]+[.]vdata:"]}
       ]
     }
   ],
+  "_why_convars_2026_11_13": "Concept audit 2026-11-13: 46 server variables that moved were on no Game page. Placed, as rules a match plays by: the trailing team's bias thresholds for the Urn and the Rift ('Max Difference between teams to get full trailing bonuses for Koth/Urn') in the Soul Urn part, the breakable props' reject cooldown in Crates, the auto-mantle step check in Combat rules, Street Brawl's wait before the first troopers in Street Brawl, the idle time before a player counts as disconnected, the first-blood / first-tower rules for a match not being scored and the minimap reveal of NPCs in Game rules, the Patron's laser body rotation in Units. Left out on purpose: names `convar_hide` drops (wip models, hero demo switches, celebrations, the AI motor, nav, hitboxes, caches, an experiment) and engine or service plumbing a player never plays against (NPC path detour, follow distance, push speed, shoot-check sphere, floor caching, sub-tick aim data, chat rate limiting, the play-stats laning end time, metal expire time).",
   "_why_convars": "Console variables show only when a part names them, the game server reads them ('gamedll' in their flags) and their name is no test or display switch (`hide`): crate respawn times are flagged 'cheat' and are the real values, so flags alone cannot tell. The first build with console variables (6395, 2026-03-10) is where tracking starts: its 1,365 entries are a snapshot, not changes.",
   "convar_hide": "(debug|_log|log_|bot_|_bot|test|_wip|wip_|experiment|cache|query|validate|audit|anim|nav|hitbox|motor|glow|celebration|visibility|_text|offset|status|stuck|waypoint|think|per_tick|tick_limit|hero_demo|release_vote|forced_hero|model|observer|stateful|pipeline|use_new|_v2|override)",
   "_why_units": "A console variable's unit from its snake_case name (AGENTS rule 6: numbers as the game shows them — metres = engine units / 39.37, seconds and percents with their unit; Game rules read 'citadel_bounty_aoe_radius 2165.35', review 2026-10-05). [regex, unit, scale]: the first match wins; scale 'units' divides engine units by 39.37, 'x100' turns a 0..1 fraction into a percent, '' keeps the number. A name that says '_meters' is metres already; '_time' alone is not a unit (the trooper waves' '_late_time 20' counts minutes, the reward's '_time 2400' seconds), nor 'ratio' or 'percent' (0.005 or 1.5). No match = a bare number.",

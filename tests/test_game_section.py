@@ -6,12 +6,9 @@ import re
 
 import pytest
 
+from tests.helpers import make_ch
 
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29', 'dir': 'nerf',
-            'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x', 'key': 'k:x'}
-    base.update(kw)
-    return base
+ch = make_ch(key='k:x')
 
 
 ROW = {'id': '2026-06-04', 'date': '2026-06-04', 'title': 'Minor Update - 06-04-2026'}
@@ -55,6 +52,9 @@ ROW = {'id': '2026-06-04', 'date': '2026-06-04', 'title': 'Minor Update - 06-04-
     ('convar:citadel_halloween_candy_heavy_melee_drop_percent', ('events', 'halloween')),
     ('abilities.vdata:cosmetic_ability_snowball#shared', ('events', 'winter')),
     ('misc.vdata:citadel_breakable_prop_tough_crate#global', ('breakables', 'crates')),
+    # Ranked (2026-11-13): a season's rules are the Ranked system's, not "Other"
+    ('ranked_seasons.vdata:season_2#', ('ranked', 'seasons')),
+    ('ranked_seasons.vdata:default_ranked#', ('ranked', 'seasons')),
 ])
 def test_every_subject_has_a_system(subject, where):
     from builders.game_systems import place
@@ -541,10 +541,10 @@ def test_a_text_change_carries_the_values_of_the_builds_around_its_window():
 
 
 def test_a_windows_states_are_the_builds_before_and_after_it(monkeypatch):
-    from pipeline import match
+    from pipeline import match, match_passes, match_window
     from pipeline.patches import Patch
     recs = {'a.json.gz': {'commit': 'c1', 'prev_commit': 'c0'}, 'b.json.gz': {'commit': 'c2', 'prev_commit': 'c1'}}
-    monkeypatch.setattr(match, 'load_record', lambda f: recs[f])
+    monkeypatch.setattr(match_window, 'load_record', lambda f: recs[f])
     p = Patch('2026-07-28', 'x', '2026-07-28', None, [{'file': 'a.json.gz'}, {'file': 'b.json.gz'}])
     assert match.window_states(p) == ('c0', 'c2')
 
@@ -557,7 +557,7 @@ def test_a_windows_states_are_the_builds_before_and_after_it(monkeypatch):
     files = {'b0': {'ability_x': {'m_mapAbilityProperties': {'AbilityCooldown': {'m_strValue': '30'}}}},
              'b2': {'ability_x': {'m_mapAbilityProperties': {'AbilityCooldown': {'m_strValue': '28'}}}}}
     monkeypatch.setattr(match.tracker, 'blob_id', lambda commit, path: blobs.get(commit))
-    monkeypatch.setattr(match, '_abilities_blob', lambda blob: files[blob])
+    monkeypatch.setattr(match_passes, '_abilities_blob', lambda blob: files[blob])
     monkeypatch.setattr(match.loc, 'tokens', lambda commit: {})
     rows = [{'ent': 'abilities.vdata:ability_x', 'part': 'desc', 'old': 'Every {s:AbilityCooldown}s',
              'new': 'Each {s:AbilityCooldown}s'},
@@ -681,3 +681,11 @@ def test_every_zipline_modifier_is_a_combat_rule():
     bonus (modifier_zipline_speed_player_generator_kill) fell to Other and its note line stayed unmatched."""
     from pipeline import game_map
     assert game_map.place('modifiers.vdata:modifier_zipline_speed_player_generator_kill#') == ('combat', 'rules')
+
+
+def test_a_ranked_seasons_fields_have_names_and_no_seconds():
+    from pipeline.semantics import describe
+    d = describe('m_unBaseWinLossPointGrant', {}, 'season_2')
+    assert d['label'] == 'Rank Points per Match' and not d.get('unit')
+    assert not describe('m_vecIntervals[0].m_unInterval', {}, 'season_2').get('unit')
+    assert describe('m_vecRankInfo{1}.m_nBadgeShields', {}, 'season_2')['label'] == 'Badge Shields (rank band 1)'

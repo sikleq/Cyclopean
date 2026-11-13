@@ -309,6 +309,27 @@ def unit_bound_abilities(units: dict, owners: dict[str, str] | None = None,
     return {ab: sorted(us) for ab, us in out.items()}
 
 
+# a neutral's attacks are effects (modifiers.vdata) its entry names, not abilities it binds: its special attacks and
+# its melee ("citadel_neutral_attack_lob_book", "citadel_neutral_light_melee_normal")
+NEUTRAL_ATTACK_FIELDS = ('m_vNeutralAbilities', 'm_sNeutralMelee')
+
+
+def unit_bound_modifiers(units: dict) -> dict[str, list[str]]:
+    """{modifier id: [unit ids]} from the neutrals' attack fields (`NEUTRAL_ATTACK_FIELDS`): their rows belong on the
+    unit's page like an NPC's bound ability (concept audit 2026-11-13: ~50 rows such as "Neutral attack lob book" sat in
+    Game › Other)."""
+    out: dict[str, set[str]] = {}
+    for uid, unit in units.items():
+        if not isinstance(unit, dict):
+            continue
+        for field in NEUTRAL_ATTACK_FIELDS:
+            v = unit.get(field)
+            for mid in (v if isinstance(v, list) else [v]):
+                if isinstance(mid, str) and mid:
+                    out.setdefault(mid, set()).add(uid)
+    return {m: sorted(us) for m, us in out.items()}
+
+
 def ability_kind(aid: str, data: dict, owners: dict[str, str],
                  shared: set[str] | frozenset[str] = frozenset()) -> str:
     cls = str(data.get('_class', '')) if isinstance(data, dict) else ''
@@ -329,7 +350,7 @@ _BUILDING_WORDS = ('guard', 'walker', 'boss', 'barrack', 'shrine', 'patron', 'ti
                    'destroyable')
 
 
-_GAMEPLAY = ('balance', 'mechanic', 'availability')
+GAMEPLAY_CATS = ('balance', 'mechanic', 'availability')      # the categories a player plays with
 
 
 def unit_is_helper(uid: str, data: dict) -> bool:
@@ -344,7 +365,7 @@ def unit_is_helper(uid: str, data: dict) -> bool:
         return True
     if not isinstance(data, dict) or not data:
         return False                           # nothing left to judge (a removed unit)
-    return not any(category(p, None, v) in _GAMEPLAY for p, v in flatten(data).items())
+    return not any(category(p, None, v) in GAMEPLAY_CATS for p, v in flatten(data).items())
 
 
 def unit_kind(uid: str, data: dict) -> str:

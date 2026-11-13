@@ -6,7 +6,7 @@ from __future__ import annotations
 from functools import lru_cache
 
 from . import archive
-from .cards import GAMEPLAY, player_facing
+from .cards import gameplay_rows, player_facing
 from .common import esc, patch_title_text
 from .render import counts_text, tag_of
 
@@ -36,7 +36,7 @@ def _index() -> tuple[list[dict], dict[str, dict[str, dict[str, int]]], dict[str
     hidden: dict[str, dict[str, int]] = {}
     for r in rows:
         for e in spread_all(archive.patch(r['id'])['entities']):
-            ch = player_facing(own([c for c in e['changes'] if c['cat'] in GAMEPLAY]))
+            ch = player_facing(own(gameplay_rows(e['changes'])))
             if ch:
                 counts = by_ent.setdefault(e['key'], {}).setdefault(r['id'], {})
                 for c in ch:

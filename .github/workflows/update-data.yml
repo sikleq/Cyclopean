@@ -34,7 +34,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          sparse-checkout: data/tracker_head.txt
+          sparse-checkout: |
+            data/tracker_head.txt
+            data/notes/steam.json
+            tools/new_steam_posts.py
           sparse-checkout-cone-mode: false
       - id: cmp
         run: |
@@ -43,10 +46,15 @@ jobs:
           [ -n "$head" ] || { echo "ls-remote failed"; exit 1; }
           last=$(cat data/tracker_head.txt 2>/dev/null || echo none)
           echo "head=$head" >> "$GITHUB_OUTPUT"
-          if [ "$head" != "$last" ] || [ "${{ inputs.force }}" = "true" ]; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"; echo "tracker moved: $last -> $head"
+          # a patch-notes post Valve made after the last build waited for the next build (data audit 2026-11-13):
+          # a Steam announcement whose id data/notes/steam.json does not hold starts the run too; a Steam outage
+          # says nothing (no run)
+          news=$(curl -fsS --max-time 20 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=1422450&count=5&maxlength=1&feeds=steam_community_announcements&format=json' \
+                 | python3 tools/new_steam_posts.py data/notes/steam.json || true)
+          if [ "$head" != "$last" ] || [ -n "$news" ] || [ "${{ inputs.force }}" = "true" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; echo "tracker $last -> $head; new Steam posts: ${news:-none}"
           else
-            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "no new build ($head)"
+            echo "changed=false" >> "$GITHUB_OUTPUT"; echo "no new build ($head), no new Steam post"
           fi
 
   update:

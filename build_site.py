@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
 from builders import builds_pages, entities_pages, home_page, patches_pages, tables_pages  # noqa: E402
-from builders.common import DIST, ICONS, SITE  # noqa: E402
+from builders.common import DIST, ICONS, SITE, site_text  # noqa: E402
 
 STEPS = (
     ('patches', patches_pages.build_all),
@@ -63,8 +63,7 @@ def refresh_data(sync: bool) -> None:
 
 def copy_assets() -> None:
     DIST.mkdir(exist_ok=True)
-    css = (SITE / 'styles.css').read_text(encoding='utf-8')
-    js = (SITE / 'scripts.js').read_text(encoding='utf-8')
+    css, js = site_text('styles.css'), site_text('scripts.js')        # site/css/*.css, site/js/*.js joined
     try:
         import rcssmin
         import rjsmin

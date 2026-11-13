@@ -1,15 +1,16 @@
 """Build pages: every tracked game build and exactly what its files changed."""
 from __future__ import annotations
 
+import json
+
 from . import build_tech
 from .common import (COSMETIC_KINDS, build_label, build_pages, cosmetics, esc, load_json, names_by_id, plural, page,
                      patch_title_text, pretty_id, slug, write)
-from .cards import GAMEPLAY, facing_scope
+from .cards import facing_scope
 from .evidence import build_rows_scope, commit_url, diff_url, row_key, source_of
 from .patches_pages import _changes_table, _loc_li, convar_li
 
-COSMETIC = ('visual', 'audio', 'ui', 'meta')
-ENTITY_LIMIT = 400          # huge builds (new heroes) are truncated with a note
+ENTITY_LIMIT = 400          # cards shown open on a build page; the rest of a huge build (a new hero) folded
 
 
 def _patch_of_build() -> dict[str, dict]:
@@ -79,22 +80,29 @@ def page_entities(rec: dict, statuses: dict[str, str] | None = None) -> list[dic
     gameplay rows, an entity that came, went or came back as one event row. The eye on an entity page links into
     this list (evidence.build_anchors / build_rows), so both read it from here. Each row carries `src`, the record's
     own row (evidence.source_of: its anchor and source block), and its status in the patch (`statuses`: notes_of)."""
+    from .cards import gameplay_rows, writes_rows
     ents = []
     for e in rec['entities']:
         def st(c: dict) -> str:
             return _status(statuses, e, c) if statuses else c.get('status', 'raw')
         g = [{**c, 'status': st(c), 'src': (e['file'], e['id'], c['path'], c.get('op'), c.get('old'), c.get('new'))}
              if c.get('path') else {**c, 'status': st(c)}
-             for c in e['changes'] if c['cat'] in GAMEPLAY]
+             for c in gameplay_rows(e['changes'])]
         if g or e['status'] in ('added', 'removed', 'returned'):
+            # the event row has its path ('@remove'…, as in a patch record): without one `cards.is_noop` read "Removed
+            # from game data" with no value as an empty removal and dropped it — 199 cards on 40 build pages were a
+            # name over nothing (5315's Riptide, Scald; concept audit 2026-11-13)
             if e['status'] == 'added' and not g:
-                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Added to game data', 'new_s': ''}]
+                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Added to game data', 'new_s': '', 'path': '@add'}]
             if e['status'] == 'returned':
-                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Back in game data', 'new_s': ''}] + g
+                g = [{'op': 'add', 'cat': 'mechanic', 'label': 'Back in game data', 'new_s': '', 'path': '@return'}] + g
             if e['status'] == 'removed':
-                g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': ''}]
+                g = [{'op': 'remove', 'cat': 'mechanic', 'label': 'Removed from game data', 'old_s': '',
+                      'path': '@remove'}]
             g = [c if 'status' in c else {**c, 'status': st(c)} for c in g]
-            ents.append({**e, 'changes': g})
+            # a card is never a name over nothing: rows that are all no-ops are no card (`cards.writes_rows`)
+            if writes_rows(g, added=e['status'] == 'added'):
+                ents.append({**e, 'changes': g})
     return ents
 
 
@@ -144,17 +152,79 @@ def data_files(rec: dict) -> list[str]:
     return list(dict.fromkeys(e['file'] for e in rec.get('entities') or () if e.get('file')))
 
 
+def split_limit(ents: list[dict]) -> tuple[list[dict], list[dict]]:
+    """(the cards shown open, the rest folded under "More entities") of a build page: the first ENTITY_LIMIT, and a
+    hero's later abilities with them (one card a hero: two would share its `c-<hero>` anchor)."""
+    if len(ents) <= ENTITY_LIMIT:
+        return ents, []
+    head = ents[:ENTITY_LIMIT]
+
+    def owner(e: dict) -> str | None:
+        return e['id'] if e['file'] == 'heroes.vdata' and e['id'] != '@shared' else e.get('owner')
+    heroes = {owner(e) for e in head} - {None}
+    first = head + [e for e in ents[ENTITY_LIMIT:] if owner(e) in heroes]
+    return first, [e for e in ents[ENTITY_LIMIT:] if owner(e) not in heroes]
+
+
+OTHER_WORDS = {'technical': 'technical', 'visual': 'visual', 'audio': 'audio', 'ui': 'interface', 'meta': 'meta',
+               'streetbrawl': 'Street Brawl'}
+OTHER_CHARS = 160           # a long value (a particle path, a list of ids) is cut on the page
+
+
+def other_rows(rec: dict) -> list[tuple[dict, dict]]:
+    """(entity, row) of every data field the build moved that is no gameplay row (`cards.is_gameplay`): engine
+    plumbing, looks, sounds, interface, test flags, Street Brawl's draft weights. A build that moved only these said
+    "0 gameplay fields" and "Cosmetic fields changed: visual 1" (74 builds; concept audit 2026-11-13)."""
+    from .cards import is_gameplay
+    # an entity that came or went is its one event row (its every field is no news: a new hero's ~200)
+    return [(e, c) for e in rec.get('entities') or () if e.get('status') not in ('added', 'removed')
+            for c in e.get('changes') or () if not is_gameplay(c) and c.get('path')]
+
+
+def _cut(v) -> str:
+    s = '' if v is None else str(v)
+    return s if len(s) <= OTHER_CHARS else s[:OTHER_CHARS] + '…'
+
+
+def other_section(rows: list[tuple[dict, dict]]) -> str:
+    """The "Other data fields" fold: each row as entity › label, its kind and old → new (names, never ids)."""
+    from .patches_pages import _display_name
+    items = []
+    for e, c in rows:
+        old, new = c.get('old_s', c.get('old')), c.get('new_s', c.get('new'))
+        old = None if old in ('', '—') else old
+        new = None if new in ('', '—') else new
+        vals = (f'<span class="old">{esc(_cut(old))}</span><span class="arrow">→</span><span class="new">{esc(_cut(new))}</span>'
+                if old is not None and new is not None else
+                f'<span class="new">{esc(_cut(new))}</span>' if new is not None else
+                f'<span class="old">{esc(_cut(old))}</span>' if old is not None else '')
+        op = {'add': 'new', 'remove': 'removed'}.get(str(c.get('op')), '')
+        items.append(f'<li><span class="chip">{esc(OTHER_WORDS.get(c.get("cat"), c.get("cat")))}</span>'
+                     f'<span class="lbl">{esc(_display_name(e))} › {esc(c.get("label") or "")}'
+                     f'{" " + op if op else ""}</span><span class="vals wrap">{vals}</span></li>')
+    return (f'<details class="collapsible section px-frame"><summary>Other data fields<span class="chip">{len(rows)}'
+            f'</span></summary><ul class="change-list">{"".join(items)}</ul></details>')
+
+
+def convar_statuses(pid: str | None, build) -> dict[tuple[str, str], str]:
+    """{(variable, op): its status in the update} of the console variables `build` moved (the patch's extras.convars,
+    the rows the patch and Game pages mark)."""
+    from . import archive
+    if not pid or build is None:
+        return {}
+    try:
+        cvs = (archive.patch(pid).get('extras') or {}).get('convars') or []
+    except (OSError, KeyError):
+        return {}
+    return {(cv.get('name'), cv.get('op')): cv.get('status') for cv in cvs if cv.get('build') == build and cv.get('status')}
+
+
 def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     rel = '../'
     # each row with its status in the update it belongs to (the eye on what the notes left out) and its source
     statuses = notes_of(patch['id'], rec['build']) if patch and rec.get('build') is not None else {}
     ents = page_entities(rec, statuses)
     diff = ({f: diff_url(rec.get('build'), rec['commit'], f) for f in data_files(rec)} if rec.get('commit') else {})
-    cosmetic: dict[str, int] = {}
-    for e in rec['entities']:
-        for c in e['changes']:
-            if c['cat'] in COSMETIC:
-                cosmetic[c['cat']] = cosmetic.get(c['cat'], 0) + 1
     # the proof of every row: the tracker's own commit of this build (evidence.commit_url) and its diff of each data
     # file (a row's "file diff ↗" names one of these: `df-<file>`, scripts.js build-src)
     commit = (f' · <a href="{esc(commit_url(rec.get("build"), rec["commit"]))}" rel="noopener">tracker commit ↗</a>'
@@ -181,20 +251,29 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     body.append('<div id="build-body">')
     if ents:
         body.append('<section class="section"><h2>Gameplay data</h2>')
-        # every row: its source and, its key written once, its anchor (evidence.row_source)
-        with build_rows_scope(diff, unique_keys(ents[:ENTITY_LIMIT])[1]):
-            body.append(_changes_table(ents[:ENTITY_LIMIT], rel))
-        if len(ents) > ENTITY_LIMIT:
-            body.append(f'<p class="muted">{len(ents) - ENTITY_LIMIT} more entities not shown.</p>')
+        # every row: its source and, its key written once, its anchor (evidence.row_source). Every entity is on the
+        # page: past ENTITY_LIMIT the rest is folded, not cut (a new hero's build had "N more entities not shown")
+        first, more = split_limit(ents)
+        with build_rows_scope(diff, unique_keys(ents)[1]):
+            body.append(_changes_table(first, rel))
+            if more:
+                body.append(f'<details class="collapsible section px-frame"><summary>More entities'
+                            f'<span class="chip">{len(more)}</span></summary>{_changes_table(more, rel)}</details>')
         body.append('</section>')
-    if cosmetic:
-        body.append('<p class="muted">Cosmetic fields changed: ' + ', '.join(f'{k} {v}' for k, v in sorted(cosmetic.items())) + '.</p>')
+    other = other_rows(rec)
+    if other:
+        body.append(other_section(other))
     if rec.get('loc'):
-        rows = ''.join(_loc_li(x) for x in rec['loc'][:500])
+        # every text change, folded (they were cut at 500)
+        rows = ''.join(_loc_li(x) for x in rec['loc'])
         body.append(f'<details class="collapsible section px-frame"><summary>Text changes<span class="chip">{len(rec["loc"])}</span></summary>'
                     f'<ul class="change-list">{rows}</ul></details>')
     if rec.get('convars'):
-        rows = ''.join(convar_li(x) for x in rec['convars'][:400])
+        # every variable, folded (cut at 400), with its status in the update — the eye where the notes left it out,
+        # as the patch and Game pages mark it (2,124 rows had none)
+        cv_status = convar_statuses(patch['id'] if patch else None, rec.get('build'))
+        rows = ''.join(convar_li({**x, 'status': cv_status.get((x.get('name'), x.get('op')), x.get('status'))})
+                       for x in rec['convars'])
         body.append(f'<details class="collapsible section px-frame"><summary>Console variables<span class="chip">{len(rec["convars"])}</span></summary>'
                     f'<ul class="change-list">{rows}</ul></details>')
     cos = cosmetics_section(rec.get('build'), rel)
@@ -208,9 +287,13 @@ def build_page(rec: dict, patch: dict | None, prev_b, next_b) -> str:
     nav = []
     if prev_b:
         nav.append(f'<a class="px-btn" href="{esc(prev_b)}.html">← {esc(prev_b)}</a>')
+    # any build in one step (owner 2026-11-13: "I can only press back"): the list loads from builds/list.json on first
+    # use (scripts.js build-pick), so 900 pages do not carry 900 options each
+    nav.append(f'<select class="build-pick" data-list="{LIST_JSON}" aria-label="Go to build">'
+               f'<option selected>{esc(build_label(rec["build"]))}</option></select>')
     if next_b:
         nav.append(f'<a class="px-btn" href="{esc(next_b)}.html">{esc(next_b)} →</a>')
-    body.append('<div class="flex">' + ''.join(nav) + '</div>')
+    body.append('<div class="flex build-nav">' + ''.join(nav) + '</div>')
     return page(build_label(rec['build']), ''.join(body), rel, 'builds', cls='column')     # its cards: one column
 
 
@@ -277,4 +360,19 @@ def build_all() -> int:
             write(f'builds/{pages[i]}.html', build_page(rec, patch_of.get(r['file']), prev_b, next_b))
         n += 1
     write('builds/index.html', index_page(rows, patch_of, stems))
+    write(f'builds/{LIST_JSON}', json.dumps(pick_list(rows, stems, patch_of), ensure_ascii=False, separators=(',', ':')))
     return n
+
+
+LIST_JSON = 'list.json'
+
+
+def pick_list(rows: list[dict], stems: dict[str, str], patch_of: dict[str, dict]) -> list[list[str]]:
+    """The build picker's options, newest first: [page stem, label] ('6861, 2026-11-11: Ranked - Beta Season 2'; no
+    separator dots, owner 2026-10-29)."""
+    out = []
+    for r in reversed(rows):
+        patch = patch_of.get(r['file'])
+        label = f'{stems[r["file"]]}, {r["date"][:10]}' + (f': {patch["title"]}' if patch and patch.get('title') else '')
+        out.append([stems[r['file']], label])
+    return out

@@ -3,12 +3,12 @@ inside the test with the site's generator, CSS and scripts (no dist/ needed); `b
 from __future__ import annotations
 
 import re
-import shutil
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
-CSS = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-JS = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+from tests.helpers import open_file, site_css, site_js
+
+CSS = site_css()
+JS = site_js()
 
 DESK = {'viewport': {'width': 1440, 'height': 900}}
 PHONE = {'viewport': {'width': 390, 'height': 844}, 'is_mobile': True, 'has_touch': True, 'device_scale_factor': 2}
@@ -17,18 +17,7 @@ PHONE = {'viewport': {'width': 390, 'height': 844}, 'is_mobile': True, 'has_touc
 def _open(browser, tmp_path: Path, body: str, ctx_args: dict, wide: bool = True, cls: str = ''):
     """A whole site page (nav, main, footer, the site's CSS and JS one level up), offline."""
     from builders.common import page
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
-    (tmp_path / 'x').mkdir(exist_ok=True)
-    f = tmp_path / 'x' / 'page.html'
-    f.write_text(page('X', body, '../', 'heroes', wide=wide, cls=cls), encoding='utf-8')
-    ctx = browser.new_context(**ctx_args)
-    pg = ctx.new_page()
-    pg.route('**/*', lambda r: r.continue_() if r.request.url.startswith('file:') else r.abort())
-    errors: list[str] = []
-    pg.on('pageerror', lambda e: errors.append(str(e)))
-    pg.goto(f.as_uri())
-    return ctx, pg, errors
+    return open_file(browser, tmp_path, page('X', body, '../', 'heroes', wide=wide, cls=cls), ctx_args)
 
 
 def _table(groups: dict[str, int], n_rows: int = 60) -> str:

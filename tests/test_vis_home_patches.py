@@ -1,5 +1,5 @@
 """Visual pass 2026-10-17, round 2, the "p2" track: the home page, patch pages, the indexes, unit art and the site bar.
-Builders' output and the committed icons; site/styles.css + site/scripts.js on the builders' own markup in a real
+Builders' output and the committed icons; site/css + site/js on the builders' own markup in a real
 browser (the `browser` fixture of tests/conftest.py)."""
 from __future__ import annotations
 
@@ -8,29 +8,14 @@ import re
 import sys
 from pathlib import Path
 
+from tests.helpers import open_inline as _open
+
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / 'tools'))
 
 
 def _json(rel: str):
     return json.loads((ROOT / rel).read_text(encoding='utf-8'))
-
-
-def _open(browser, body: str, width: int = 1440, height: int = 900, touch: bool = False, main: str = 'page'):
-    """A page of `body` with the site's CSS and JS inline; `touch`: a phone (is_mobile, has_touch)."""
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
-    opts = {'viewport': {'width': width, 'height': height}}
-    if touch:
-        opts.update(is_mobile=True, has_touch=True)
-    ctx = browser.new_context(**opts)
-    page = ctx.new_page()
-    errors: list[str] = []
-    page.on('pageerror', lambda e: errors.append(str(e)))
-    page.set_content(f'<!doctype html><html><head><meta charset="utf-8">'
-                     f'<meta name="viewport" content="width=device-width, initial-scale=1"><style>{css}</style></head>'
-                     f'<body><main class="{main}">{body}</main><script>{js}</script></body></html>')
-    return ctx, page, errors
 
 
 # ---- 1. unit art: every unit type told apart, flat marks inset on their tile ---------------------------------------

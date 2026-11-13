@@ -22,723 +22,38 @@ import difflib
 import json
 import re
 from dataclasses import dataclass, field
-from functools import lru_cache
-from typing import Callable
 
-from . import cache, catalog, game_map, jsonio, labels, loc, semantics, tracker
+from . import cache, catalog, game_map, jsonio, loc, semantics, tracker
 from . import flags as flag_rules
-from . import flatten as flatten_mod
-from .diff import _eq as diff_eq, _jsonable as jsonable
 from . import match_rules as rules
 from . import patches as patches_mod
 from . import classify as classify_mod
-from .classify import category, decor_entity
+from .classify import GAMEPLAY_CATS
 from .patches import Patch, group
 from .shared_groups import SharedGroups, window_of
 
+# split 2026-11-13 into match_values (numbers, words, MChange), match_window (a window's changes) and match_passes
+# (passes after the lines are read, the record's extras): every name is re-exported here for its callers
+from .match_values import (ALIGNED_MAX, APPROX, EXACT, GENERIC_WORDS, HERO_STAT_WORDS, MChange, SYNONYMS, SYNONYM_ONLY,  # noqa: F401
+                           WEAPON_WORDS, _ARROW_RE, _ATTACK_KIND, _BY_RE, _CHANGED_FROM, _COMPOUND, _COMPOUNDS,
+                           _FIX_RE, _FOR_BOTH, _FROM_TO, _GRANT, _HALF_DAMAGE, _HP, _INSTEAD_RE, _ITEM_TIER_MOVE,
+                           _LENGTHY, _METRES_ON_LINE, _MOVED_TO_TIER, _NOW_BY, _NUM, _PAIR_RE, _PARENS, _PART_STOP,
+                           _PART_WORD, _PCT_LESS, _RATE_LIKE, _STOP, _SWAP_LINE, _SYNONYMS, _THOUSANDS, _TIER_NAME,
+                           _TIER_RE, _TIER_TO, _TIME_WORDS, _WORD_RE, _aligned_pairs, _label_tokens, _number_list,
+                           _numeric, _same_way, _shown_pair, _skeleton, _stems, _tokens, close, data_values,
+                           exact_pair, expand_words, granted_pair, half_match, list_match, num, parse_pairs,
+                           shown_in_meters, topic_words, two_sided, value_matches, words)
+from .match_window import (BUILDS, LISTED_STATES, LIST_FILES, LIST_IDS, RELEASED_STATES, _BASE_LINK, _DEV_STATE,  # noqa: F401
+                           _IN_DEV, _LIST_INDEX, _PROVIDED_TYPE, _SELECTABLE, _TRUTHY, _gameplay_entity, _state,
+                           _window_change, event_name, keyed_list, load_record, mark_availability_moves, mark_dud_guns,
+                           mark_inherited_defaults, mark_retyped, merge_ops, nameless_part, rekey_lists,
+                           window_changes, window_states)
+from .match_passes import (KEY_KINDS, KEY_LIMIT, KEY_MAX_PCT, LATE_DAYS, LOC_GROUPS, LOC_LIMIT, SHARED_NAMES, States,  # noqa: F401
+                           _CONVAR_OP, _CONVAR_ORDER, _DIGIT, _LOOK_LINE, _SOUND_WORD, _TEST_ENTITY, _abilities_blob,
+                           _chain_hit, _days, _late_hit, _subject_of, code_lines, key_changes, late_landings,
+                           repeated_lines, sentence, slim_extras, text_state, texts_with_values)
+
 OUT = tracker.ROOT / 'data' / 'patches'
-BUILDS = tracker.ROOT / 'data' / 'builds'
-GAMEPLAY_CATS = ('balance', 'mechanic', 'availability')
-
-_NUM = r'[-+]?\d*\.?\d+'
-# "from 50% to 40%", "from +40 degrees angle to +25", "from 18m->54m to 16m->48m",
-# "from 100+1.5 to 120+1.75" (base + spirit scaling)
-_COMPOUND = rf'{_NUM}(?:\s*[a-z%]*\s*(?:->|→|\+|/)\s*{_NUM})*'     # "6800/9350/11900" = per-phase values
-_PAIR_RE = re.compile(
-    # up to 6 words between: "from 6% Max Health as spirit damage to 6.5%"
-    rf'from\s+(?P<a>{_COMPOUND})(?:\s*[a-z%°.\'/]+){{0,6}}?\s*(?:to|->|→)\s*(?P<b>{_COMPOUND})',
-    re.I)
-# "Fixed …" / "Hero: Fixed …" — not "a fixed amount of souls"
-_FIX_RE = re.compile(r'^(fixed|fix(es)?)\b|:\s*(fixed|fix(es)?)\b', re.I)
-SYNONYMS = {
-    'bounty': {'gold', 'reward', 'souls', 'bounty'},
-    'guardian': {'tier', 'boss', 'guardian'},
-    'walker': {'tier', 'boss', 'walker'},
-    'respawn': {'spawn', 'respawn'},
-    'breakables': {'breakable', 'spawn'},
-    'urn': {'idol', 'urn'},
-    'rejuvenator': {'rejuv', 'rejuvenator', 'rejuvinator'},     # the files spell it 'Rejuvinator' (m_RejuvParams)
-    'faster': {'faster', 'speed'},             # "Now travels 40% faster" is the projectile's Speed (2026-10-30)
-    'slower': {'slower', 'speed'},
-}
-_SYNONYMS = rules.stemmed_synonyms(SYNONYMS)       # as words() writes them ('breakables' -> 'breakable')
-_ARROW_RE = re.compile(rf'(?P<a>{_NUM})\s*[a-z%]*\s*(?:->|→)\s*(?P<b>{_NUM})', re.I)
-_BY_RE = re.compile(rf'(increased|reduced|decreased|lowered|raised)\s+by\s+~?(?P<p>{_NUM})\s*%', re.I)
-_PCT_LESS = re.compile(rf'(?P<p>{_NUM})\s*%\s+(?:less|more|shorter|longer|lower|higher|faster|slower)\b', re.I)
-_HALF_DAMAGE = re.compile(r'\bhalf\s+(?:the\s+)?damage\s+(?:to|against|on|vs\.?)\s+(?:the\s+)?(?:objectives?|bosse?s?)\b',
-                          re.I)
-_WORD_RE = re.compile(r'[a-z]{3,}')
-_TIER_RE = re.compile(r'\bT([1-3])\b')
-_STOP = {'the', 'and', 'from', 'now', 'with', 'for', 'increased', 'reduced', 'decreased', 'per', 'base',
-         'damage', 'when', 'that', 'this', 'are', 'was', 'has', 'into', 'than', 'also', 'its', 'you', 'your'}
-WEAPON_WORDS = {'gun', 'weapon', 'bullet', 'bullets', 'clip', 'ammo', 'reload', 'fire', 'falloff', 'pellets',
-                'spread', 'alt', 'altfire', 'headshot', 'velocity'}
-# words too common to tie a line to one field on their own
-GENERIC_WORDS = {'damage', 'bounty', 'soul', 'souls', 'gold', 'health', 'value', 'bonu', 'bonus', 'amount', 'time',
-                 'rate', 'hero', 'heroe', 'trooper', 'walker', 'guardian', 'patron', 'shrine', 'boss', 'attack',
-                 'player', 'enemy', 'nearby', 'max', 'min', 'resist', 'resistance', 'bullet', 'spirit', 'weapon',
-                 'ability', 'abilitie', 'also', 'longer', 'more', 'less', 'able', 'will', 'when', 'target', 'unit'}
-SYNONYM_ONLY = {'armor', 'resistance', 'healing', 'time', 'cd'}
-HERO_STAT_WORDS = {'health', 'regen', 'move', 'sprint', 'stamina', 'boon', 'melee', 'resist', 'resistance', 'dash',
-                   'speed'}
-GENERAL_KEYWORDS = {
-    'slow': re.compile(r'slow', re.I),
-    'ground dash': re.compile(r'GroundDash', re.I),
-    'bounty': re.compile(r'(bounty|gold|reward)', re.I),
-    'respawn': re.compile(r'(respawn|spawn_time)', re.I),
-}
-
-
-@dataclass
-class MChange:
-    file: str
-    eid: str
-    path: str
-    op: str
-    old: object
-    new: object
-    cat: str
-    kind: str
-    owner: str | None
-    label: str
-    meters: bool
-    builds: list = field(default_factory=list)
-    shared: bool = False
-    status: str = 'hidden'
-    lines: list = field(default_factory=list)
-    chain: list = field(default_factory=list)     # every value the field took inside the window
-    drawback: bool = False                        # the holder's own downside (enrich.drawbacks)
-    neg_base: bool = False                        # a bonus to a property stored negative (enrich.negative_props)
-    unit: str = ''                                # what the tooltip prints after the value ('s', '%', 'm')
-    invert: bool = False                          # a rate the game shows as a time (stamina per second -> cooldown)
-    scale: float = 1.0                            # the patch's boon rescale for this per-boon field (old / new count)
-    speed_m: bool = False                         # a speed written "20m": shown m/s (semantics.M_SPEED), display only
-    # what the page prints (pipeline.labels: one label / unit / sign per field over its history); `label`
-    # stays the window's own wording, which the note lines of that time are matched against
-    shown: str = ''
-    sign: str = ''                                # '-': the tooltip's own minus (an enemy slow), shown as a size
-    retyped: bool = False                         # the property's provided type flipped with its sign (Riposte)
-    moved: bool = False                           # the same fact moved to another field (mark_availability_moves)
-    # the old value's unit when Valve dropped or replaced the printed unit inside the window (labels.unit_switch):
-    # "Extra Ammo Consumed 30% → 2" is CHANGED, no percent — 30% of a clip and 2 bullets do not compare
-    old_unit: str | None = None
-    base: object = None                           # a Street Brawl value's normal value (enrich.street_brawl_base)
-
-    @property
-    def key(self) -> str:
-        return f'{self.file}:{self.eid}:{self.path}'
-
-    def steps(self) -> list[tuple]:
-        """(old, new) pairs a note line may describe: each build-to-build step
-        and the window total ("100 -> 75" and later "75 -> 125")."""
-        chain = self.chain or [self.old, self.new]
-        pairs = list(zip(chain, chain[1:]))
-        if (chain[0], chain[-1]) not in pairs:
-            pairs.append((chain[0], chain[-1]))
-        if self.base is not None and self.op == 'add':
-            # a mode's value set against the value it replaces: "Threadsap duration lasts 35% less" is 22 -> 14
-            pairs.append((self.base, self.new))
-        if self.scale != 1.0:
-            # the patch rescaled every per-boon value (rules.boon_rescale): the notes quote the new value
-            # in the old scale ("Kelvin: Bullet damage growth 1.2 -> 0.9" is 1.2 -> 0.707 in the files)
-            pairs += [(o, num(n) / self.scale) for o, n in pairs if num(n) is not None]
-        return pairs
-
-
-def num(v):
-    if isinstance(v, bool) or v is None:
-        return None
-    if isinstance(v, (int, float)):
-        return float(v)
-    m = re.match(rf'^\s*({_NUM})\s*[a-z%]*\s*$', str(v), re.I)
-    return float(m.group(1)) if m else None
-
-
-EXACT = 0.005      # relative tolerance for "the same number"
-APPROX = 0.10      # the notes round: 0.54 -> "0.5", 31.5 -> "32", 53.5 m/s -> "53m/s"
-
-
-def close(a: float | None, b: float | None, rel: float = EXACT) -> bool:
-    if a is None or b is None:
-        return False
-    # relative only: an absolute 0.011 made 0.06 -> 0.05 match 26 unrelated fields (audit 2026-10-01)
-    return abs(a - b) <= max(1e-6, rel * abs(b))
-
-
-_LENGTHY = re.compile(r'(range|radius|distance|speed|velocity|width|height|length|falloff)', re.I)
-_RATE_LIKE = re.compile(r'(rate|interval|recovery|regen|per second|cycle)', re.I)
-
-
-def value_matches(v, x: float, meters=False, rel: float = EXACT) -> bool:
-    """Does data value v equal the notes' number x under a display transform the FIELD allows?
-    raw, magnitude; a fraction as a percent (|v| <= 5); engine units as metres for lengths and
-    speeds; a rate as an interval for rate-like fields. `meters` is the MChange (or a bool for
-    "may be in engine units"). Every transform for every field linked "Walkers Resistance 0/8/16%"
-    to Health 9000 -> 7000 and "Heavy Melee cooldown 0.9s" to a damage scale 35 (audit 2026-10-01)."""
-    n = num(v)
-    if n is None:
-        return False
-    if isinstance(meters, MChange):            # the change itself: its field decides the transforms
-        name = meters.label or meters.path
-        # engine units only for a field that is engine units: not a share, not one already in metres
-        not_engine = (semantics.FRACTION, semantics.METRES, semantics.MPS)
-        units = (bool(meters.meters) and meters.meters not in not_engine
-                 or not meters.meters and bool(_LENGTHY.search(name)))
-        inverse = bool(_RATE_LIKE.search(name))
-    else:
-        units, inverse = bool(meters), True
-    candidates = [n, abs(n)]
-    if abs(n) <= 5:
-        candidates += [n * 100, abs(n) * 100]
-    if units:
-        candidates.append(n / semantics.UNITS_PER_METER)
-    if inverse and n not in (0, 0.0):
-        candidates.append(1 / abs(n))      # "stamina cooldown 5s" vs regen 0.2/s
-    return any(close(c, abs(x), rel) or close(c, x, rel) for c in candidates)
-
-
-def _number_list(v) -> list[float] | None:
-    """A value that is a list of numbers (a soul split per player count, a resist per enemy count), else None."""
-    if not isinstance(v, (tuple, list)) or not v:
-        return None
-    out = [num(x) for x in v]
-    return None if any(x is None for x in out) else out
-
-
-def list_match(c: MChange, pairs, rel: float = EXACT) -> bool:
-    """A number list the line gives element by element: "Trooper bounty split ratios updated from 1/0.65/0.28/…
-    to 1/0.54/0.36/…" is m_flTrooperKillGoldShareFrac (1, 0.65, 0.28, …) -> (1, 0.54, 0.36, …), every element
-    under the field's own transforms (a fraction as the notes' percent). A list never matched a pair: its value
-    is no number (coverage finding 8)."""
-    if len(pairs) < 2:
-        return False
-    for o, n in c.steps():
-        a, b = _number_list(o), _number_list(n)
-        if not a or not b or len(a) != len(b):
-            continue
-        if len(a) == len(pairs) + 1 and a[0] == b[0]:
-            # an entry the notes skip because it did not move: Walkers' resist per nearby enemy starts at
-            # "0 enemies: 0%" (0, 0, 8, … 40 -> 0, 0, 0, 20, … 50), the notes list 1-6 enemies
-            a, b = a[1:], b[1:]
-        if len(a) == len(pairs) and all(value_matches(x, p, c, rel) and value_matches(y, q, c, rel)
-                                        for x, y, (p, q) in zip(a, b, pairs)):
-            return True
-    return False
-
-
-def two_sided(c: MChange, pairs) -> bool:
-    """Both numbers of a pair (or a whole list) are the field's, within the notes' rounding: not one value alone."""
-    return list_match(c, pairs, APPROX) or any(value_matches(o, a, c, APPROX) and value_matches(n, b, c, APPROX)
-                                               for a, b in pairs for o, n in c.steps())
-
-
-def exact_pair(c: MChange, pairs) -> bool:
-    if list_match(c, pairs):
-        return True
-    for a, b in pairs:
-        if any(value_matches(o, a, c) and value_matches(n, b, c) for o, n in c.steps()):
-            return True
-        if c.op == 'add' and value_matches(c.new, b, c):
-            return True
-        if c.op == 'remove' and value_matches(c.old, a, c):
-            return True
-    return False
-
-
-def shown_in_meters(c: MChange, pairs) -> bool:
-    """The notes quote this value in metres (source units ÷ 39.37)."""
-    for a, b in pairs:
-        for v, x in ((c.old, a), (c.new, b)):
-            n = num(v)
-            if n is not None and abs(n) > 50 and close(abs(n) / semantics.UNITS_PER_METER, abs(x), APPROX):
-                return True
-    return False
-
-
-def data_values(c: MChange, pairs) -> list[str]:
-    meters = c.meters or shown_in_meters(c, pairs)
-    return [semantics.display_value(_number_list(v) or num(v), meters) for v in (c.old, c.new)]
-
-
-def half_match(c: MChange, pairs) -> bool:
-    """One side of a 'from A to B' agrees with the files: the property is
-    identified, so a disagreement on the other side is a real mismatch."""
-    return any(value_matches(o, a, c, APPROX) or value_matches(n, b, c, APPROX)
-               for a, b in pairs for o, n in c.steps())
-
-
-# which attack a field belongs to ("Baba Bench Melee Attack Light › Attack Impulse Max Upward"): the attack's kind is
-# no topic of its own — "Repeat light melees while airborne…" and "Heavy melee ground pound…" took that launch field
-_ATTACK_KIND = {'melee', 'light', 'heavy', 'attack'}
-
-
-def topic_words(c: MChange) -> set[str]:
-    """The words a field is about: its label's, but of a block's attack ("… Attack Light ›") only what names more."""
-    head, sep, prop = (c.label or '').rpartition('›')
-    return words(c.label or '') if not sep else words(prop) | (words(head) - _ATTACK_KIND)
-
-
-def _stems(ws: set[str]) -> set[str]:
-    """Words without an -ing or a final e: "bouncing" and "bounce" are one, "targeting" is "target"."""
-    out = set()
-    for w in ws:
-        if w.endswith('ing') and len(w) > 6:
-            w = w[:-3]
-        out.add(w[:-1] if w.endswith('e') and len(w) > 4 else w)
-    return out
-
-
-def _shown_pair(c: MChange) -> tuple[float, float] | None:
-    """The field's old and new numbers the way the page prints them (a rate shown as a time is inverted), or None."""
-    o, n = num(c.old), num(c.new)
-    if o is None or n is None:
-        return None
-    if c.invert and o and n:
-        o, n = 1 / o, 1 / n
-    return o, n
-
-
-def _numeric(c: MChange) -> bool:
-    return _shown_pair(c) is not None
-
-
-def _same_way(c: MChange, pairs) -> bool:
-    """The field moved the way a pair of the line moves (both up or both down), or the line gives its multiplier as
-    a reduction: "Headshot reduction increased from 25% to 35%" is Headshot Damage Taken × 0.75 → 0.65, "No longer
-    has -30% Lifesteal Effectiveness" 0.7 → 1."""
-    on = _shown_pair(c)
-    if not on:
-        return False
-    if any((b - a) * (on[1] - on[0]) > 0 for a, b in pairs):
-        return True
-    o, n = on
-    return 0 <= o <= 2 and 0 <= n <= 2 and any(
-        close((1 - o) * 100, abs(a), APPROX) and close((1 - n) * 100, abs(b), APPROX) for a, b in pairs)
-
-
-def expand_words(ws: set[str]) -> set[str]:
-    out = set(ws)
-    for w in ws:
-        out |= _SYNONYMS.get(w, set())
-    return out
-
-
-# "5,175" / "12,000" but not the unspaced list "160,180,200"
-_THOUSANDS = re.compile(r'(?<![\d,])(\d{1,3}),(\d{3})(?![\d,])')
-
-
-def parse_pairs(text: str) -> list[tuple[float, float]]:
-    # "from 5,175 to 7,000": thousands separators; list commas ("5, 6") keep their space
-    text = _THOUSANDS.sub(r'\1\2', text)
-    pairs = []
-    for m in _PAIR_RE.finditer(text):
-        a = [float(x) for x in re.findall(_NUM, m.group('a'))]
-        b = [float(x) for x in re.findall(_NUM, m.group('b'))]
-        if len(a) == len(b):
-            pairs.extend(zip(a, b))
-        elif a and b:
-            pairs.append((a[0], b[0]))
-    if not pairs:
-        for m in _ARROW_RE.finditer(text):
-            pairs.append((float(m.group('a')), float(m.group('b'))))
-    if not pairs:
-        # "level 2 drops now happen at 15 minutes instead of 20": the new value first
-        for m in _INSTEAD_RE.finditer(text):
-            pairs.append((float(m.group('a')), float(m.group('b'))))
-    if not pairs:
-        # "T1 +1m/s Move Speed to +2m/s Move Speed": a tier's bonus without "from" (Rat King, 2026-10-05: exact, but
-        # only "described")
-        for m in _TIER_TO.finditer(text):
-            pairs.append((float(m.group('a')), float(m.group('b'))))
-    if not pairs:
-        # "T2 slow from -24% Slow and -26% Dash distance to -28% for both": two values to one (Sand Blast, 2026-11-04:
-        # its Movement Slow 24 → 28 stayed hidden)
-        m = _FOR_BOTH.search(text)
-        if m:
-            pairs = [(float(m.group('a')), float(m.group('c'))), (float(m.group('b')), float(m.group('c')))]
-    if not pairs and not _SWAP_LINE.search(text):
-        # (not 'T1 changed from "-15s Cooldown" to "+50 Max Health Steal"': two properties, no pair)
-        pairs = _aligned_pairs(text)
-    return pairs
-
-
-_INSTEAD_RE = re.compile(rf'(?P<b>{_NUM})\s*[a-z%]*\s+instead of\s+(?P<a>{_NUM})', re.I)
-_FOR_BOTH = re.compile(rf'\bfrom\s+(?P<a>{_NUM})[^\d]{{0,30}}?\band\s+(?P<b>{_NUM})[^\d]{{0,30}}?\bto\s+(?P<c>{_NUM})'
-                       rf'[^\d]{{0,10}}\bfor\s+both\b', re.I)
-_TIER_TO = re.compile(rf'\bT[1-4]\s+(?P<a>{_NUM})\s*[a-z%/]*(?:\s+[a-z]+){{0,4}}\s+to\s+(?P<b>{_NUM})', re.I)
-# "Cooldown increased from 25s to 27s (moved to T2)": the tier's bonus to the same property moved with it
-_MOVED_TO_TIER = re.compile(r'\(\s*moved\s+to\s+T([1-3])\s*\)', re.I)
-_ITEM_TIER_MOVE = re.compile(r'\bmoved\s+from\s+T([1-5])\s+to\s+T([1-5])\b', re.I)
-_FROM_TO = re.compile(r'\bfrom\b(?P<a>(?:[^.;:]|(?<=\d)\.(?=\d))*?)\bto\b(?P<b>(?:[^.;:]|(?<=\d)\.(?=\d))*)', re.I)
-ALIGNED_MAX = 4
-
-
-def _aligned_pairs(text: str) -> list[tuple[float, float]]:
-    """"from A … B … to C … D …" with as many numbers on each side, paired in order — the words between
-    them hold numbers too, which the strict pattern does not allow: "T2 reduced from -15% Spirit Resist
-    for 8s to -10% for 6s", "from 150 (+1.2) to 125 (+1.0)", 'from "+225s within 4s" to "+200 within 3s"',
-    "spawn interval improved from every 5s to every 4s" (data-quality audit 2026-10-04: their rows kept
-    the eye). An ability tier ("T2") is no number."""
-    m = _FROM_TO.search(text)
-    if not m:
-        return []
-    a, b = (re.findall(_NUM, _TIER_NAME.sub(' ', m.group(g))) for g in ('a', 'b'))
-    if not a or len(a) != len(b) or len(a) > ALIGNED_MAX:
-        return []
-    # the same words around the numbers (one side may leave some out: "-10% for 6s"): not one property
-    # traded for another ("T3 changed from -56s Cooldown to Impact Area Stuns for 1s")
-    wa, wb = (_skeleton(m.group(g)) for g in ('a', 'b'))
-    if not (wa <= wb or wb <= wa):
-        return []
-    return [(float(x), float(y)) for x, y in zip(a, b)]
-
-
-_TIME_WORDS = {'minute': 'min', 'minutes': 'min', 'mins': 'min', 'second': 's', 'seconds': 's', 'sec': 's'}
-
-
-def _skeleton(part: str) -> set[str]:
-    return {_TIME_WORDS.get(w, w) for w in re.findall(r'[a-z]{2,}', part.lower())}
-
-
-# "T2 is now +50 Damage" is a value; "Luggage Cart is now 20% larger" is a change: "is now" needs the "+"
-_GRANT = re.compile(r'\b(?P<neg>no longer\s+)?(?:grants?|gives?|gains?|provides?|has|have|deals?|applies?|adds?|'
-                    r'(?:is|are)\s+now(?=\s+\+))\s+'
-                    rf'(?:an?\s+|bonus\s+|extra\s+)?(?P<v>[-+]?{_NUM})', re.I)
-
-
-def granted_pair(text: str) -> list[tuple[float, float]]:
-    """[(0, N)] for "now grants +N …", [(N, 0)] for "no longer grants +N …" (one number only — a tier
-    name "T3" and an aside in parentheses are no numbers: "T3 no longer grants +100% Ammo")."""
-    bare = _TIER_NAME.sub(' ', _PARENS.sub(' ', text))
-    if len(re.findall(_NUM, bare)) != 1:
-        return []
-    m = _GRANT.search(bare) or _NOW_BY.search(bare)
-    if not m:
-        return []
-    v = abs(float(m.group('v')))
-    return [(v, 0.0)] if m.groupdict().get('neg') else [(0.0, v)]
-
-
-_TIER_NAME = re.compile(r'\bT[1-4]\b')
-# "Crow Familiar now reduces bullet armor by 6%", "Barriers now last for 16s", "T2 is now +50 Damage"
-_NOW_BY = re.compile(rf'\bnow\s+(?:also\s+)?(?:(?:reduces?|increases?|slows?|amplifies?|lowers?|raises?)\b.*?\bby\s+'
-                     rf'|lasts?\s+(?:for\s+)?)~?(?P<v>[-+]?{_NUM})', re.I)
-
-
-def words(text: str) -> set[str]:
-    """Content words, lightly stemmed (pellet/pellets, charge/charges)."""
-    out = set()
-    for w in _WORD_RE.findall(text.lower()):
-        if w in _STOP:
-            continue
-        out.add(w[:-1] if len(w) > 4 and w.endswith('s') and not w.endswith('ss') else w)
-    if _HP.search(text):
-        out.add('health')            # "Walker HP" — two letters the word pattern skips
-    for joined, parts in _COMPOUNDS:
-        if joined in out:
-            out |= parts             # "Movespeed scaling" names Move Speed per Spirit
-    return out
-
-
-_COMPOUNDS = (('movespeed', {'move', 'speed'}), ('firerate', {'fire', 'rate'}))
-
-
-_HP = re.compile(r'\bhp\b', re.I)
-
-
-# ---- window merge ---------------------------------------------------------
-
-def load_record(file_name: str) -> dict:
-    return jsonio.load(BUILDS / file_name)
-
-
-def merge_ops(first: str, then: str) -> str:
-    """One field's op across the window's builds. A field added then tuned is still NEW (it was
-    shown as '— → 0.75' CHANGED), tuned then removed is DEL ('16.2 → —'); added then removed
-    never shipped and becomes a no-op change (old == new == None, dropped below)."""
-    if first == 'add':
-        return 'change' if then == 'remove' else 'add'
-    if first == 'remove':
-        return 'change' if then == 'add' else 'remove'
-    return 'remove' if then == 'remove' else 'change'
-
-
-_PROVIDED_TYPE = re.compile(r'^m_mapAbilityProperties\.([^.]+)\.m_eProvidedPropertyType$')
-
-
-def mark_retyped(changes: list[MChange]) -> None:
-    """A property whose provided type flipped in the window (REDUCTION_PERCENT → INCREASE_PERCENT) flips
-    the sign of its numbers with it: Riposte's "Melee Resist −22% → 22%" is the same resist written the
-    other way round (`retyped` -> change_json 'same'). A sign flip without it stays a change."""
-    retyped = {(c.file, c.eid, m.group(1)) for c in changes if c.op == 'change'
-               for m in [_PROVIDED_TYPE.match(c.path)] if m}
-    if not retyped:
-        return
-    for c in changes:
-        if (c.file, c.eid, semantics.property_name(c.path)) in retyped and not _PROVIDED_TYPE.match(c.path):
-            c.retyped = True
-
-
-_SELECTABLE = 'm_bPlayerSelectable'
-_DEV_STATE = 'm_eHeroDevelopmentState'
-_IN_DEV = 'm_bInDevelopment'
-_TRUTHY = ('true', '1', 'yes')
-
-
-def mark_availability_moves(changes: list[MChange]) -> None:
-    """A hero's availability written in another field, not a change: on 2026-09-29 heroes.vdata dropped
-    m_bPlayerSelectable and gained m_eHeroDevelopmentState, so 38 released heroes read "Hero Development State →
-    Release" (ON) and 43 "Player Selectable yes → —" in the newest band of their pages, counted as not in the
-    patch notes (Haze "seemed to be released on September 29", review 2026-10-05). Both rows of a hero are
-    `moved` (change_json 'same': no row, no count) when the old flag and the new state say the same — selectable
-    and a released state, or not selectable and a state that is not; a hero that changed availability keeps both."""
-    by_hero: dict[str, dict[str, MChange]] = {}
-    for c in changes:
-        if c.file == 'heroes.vdata' and c.path in (_SELECTABLE, _DEV_STATE, _IN_DEV):
-            by_hero.setdefault(c.eid, {})[c.path] = c
-    for fields in by_hero.values():
-        flag, state, in_dev = fields.get(_SELECTABLE), fields.get(_DEV_STATE), fields.get(_IN_DEV)
-        if state and in_dev and state.op == 'change' and str(state.new) in RELEASED_STATES:
-            # the old in-development flag turned ON the day Baba and Violet were released ("OFF In Development no →
-            # yes" beside "ON Release", data review 2026-10-17): the state says it; the flag's row is part of it
-            in_dev.moved = True
-        if not flag or not state or flag.op != 'remove' or state.op != 'add':
-            continue
-        if (str(flag.old).lower() in _TRUTHY) == (str(state.new) in LISTED_STATES):
-            flag.moved = state.moved = True
-
-
-def mark_dud_guns(changes: list[MChange]) -> None:
-    """A weapon block that came or went whole on an ability that is no gun, with zero bullet damage, never fired: the
-    engine's default gun copied in (Aura of Suffering lost one of 100 fields on 2026-03-06 — spread, recoil, clip 0 —
-    which a wrong word link had called described; the audit calls them not gameplay). Its added / removed rows are
-    plumbing; a value that changed inside it stays."""
-    blocks: dict[str, list[MChange]] = {}
-    for c in changes:
-        if c.file == 'abilities.vdata' and c.kind != 'weapon' and c.path.startswith('m_mapWeaponInfos.'):
-            blocks.setdefault(c.eid, []).append(c)
-    for rows in blocks.values():
-        dmg = next((c for c in rows if c.path.endswith('.m_flBulletDamage')), None)
-        if dmg is None or not ((dmg.op == 'remove' and num(dmg.old) == 0) or (dmg.op == 'add' and num(dmg.new) == 0)):
-            continue
-        for c in rows:
-            if c.op in ('add', 'remove'):
-                c.cat = 'technical'
-
-
-_BASE_LINK = ('_base', '_multibase')
-
-
-def nameless_part(eid: str, cat: dict[str, dict]) -> bool:
-    """A second part of an ability with no name of its own: its id is the parent's plus a part suffix
-    (classify._SUB_SUFFIX) and it bears the parent's name or none ('ability_ice_dome_trigger' of Frozen Shelter). A part
-    named on its own is an ability of its own (Solomon's 'ability_chessmaster_knightbuff_trigger' is "Move King", Mirage's
-    'mirage_teleport' "Traveler")."""
-    parent = classify_mod.sub_part_parent(eid)
-    pe = cat.get(f'abilities.vdata:{parent}') if parent else None
-    if not pe:
-        return False
-    name = (cat.get(f'abilities.vdata:{eid}') or {}).get('name')
-    return not name or name == eid or name == pe.get('name')
-
-
-def mark_inherited_defaults(changes: list[MChange], cat: dict[str, dict]) -> None:
-    """A nameless part of an ability (`nameless_part`: its trigger, cancel, recast) that gets a template in the
-    window (`_multibase` / `_base` added) takes the template's defaults: every field it did not have "appears" — Frozen
-    Shelter's trigger read "Activation added (instant cast)", "Max Level added (1)", "Charge Delay added (default)",
-    "Bullet Velocity added (254m/s)" among City Never Sleeps' hidden changes (review 2026-10-17, round 4). Those added
-    rows are plumbing, as the audit calls an explicit default (NOT_GAMEPLAY "explicit 0 default added"); a value that
-    changed stays. Only a part: a whole ability or item moving to another template (an item's tier move) is real."""
-    linked = {(c.file, c.eid) for c in changes if c.path in _BASE_LINK and c.op == 'add'
-              and c.file == 'abilities.vdata' and nameless_part(c.eid, cat)}
-    for c in changes:
-        if (c.file, c.eid) in linked and c.op == 'add' and c.cat in GAMEPLAY_CATS:
-            c.cat = 'technical'
-
-
-def _window_change(file: str, tid: str, c: dict, ce: dict, builds: list, shared: bool, tok: dict[str, str],
-                   canon: dict[str, dict]) -> MChange:
-    """A record's field change `c` of entity `tid` as the window's MChange (labels of that build's text)."""
-    key = f"{file}:{tid}:{c['path']}"
-    d = semantics.describe(c['path'], tok, tid, ce.get('kind', ''), c.get('scaled_by'), c.get('loc_token'),
-                           c.get('scale_parts'))
-    cn = canon[key] = labels.canonical(key, d)
-    shown = cn['label']
-    if c.get('scale_parts') and 'scaling' not in shown:
-        # a scaling T1-T3 bonus its path does not name (enrich.tier_scaling) says so in ITS window only: one field can
-        # be a flat bonus in one build and a scaling one later (Warden's T3 Barrier +150, Fire Scarabs' T3 63 → 1.2)
-        shown += semantics.scaling_suffix(c['scale_parts'])
-    return MChange(
-        file, tid, c['path'], c['op'], c.get('old'), c.get('new'), c['cat'],
-        # an NPC's ability (catalog 'units': Walker's Stomp) is judged as its unit: UP / DOWN
-        'unit' if ce.get('units') else ce.get('kind', ''), ce.get('owner'), d['label'], d['meters'],
-        builds, shared, chain=[c.get('old'), c.get('new')],
-        drawback=bool(c.get('drawback')), neg_base=bool(c.get('neg_base')),
-        unit=labels.display_unit(d, cn), invert=bool(d.get('invert')),
-        speed_m=bool(d.get('speed_m')), shown=shown, sign=cn['sign'], base=c.get('base'))
-
-
-# lists whose entries carry their own name (a breakable's pickups, a loot table's items, the lanes): one entry
-# inserted at #2 shifted every later row — "Primary Pickups #3 › Pickup: Medium → Large", "#4 …" (#12.6 / #41)
-LIST_IDS = ('m_sPickup', 'm_strItem', 'm_strLaneName')
-_LIST_INDEX = re.compile(r'^(\w+)\[\d+\]\.')
-# the files that hold such lists (an ability's T1-T3 list IS positional: never re-read the big abilities.vdata)
-LIST_FILES = ('misc.vdata', 'loot_tables.vdata', 'generic_data.vdata')
-
-
-def keyed_list(entity, name: str) -> dict[str, object] | None:
-    """{path: value} of an entity's list `name` keyed by the name its entries carry ("m_vecPrimaryPickups
-    {spirit_permanent_pickup}.m_flPickupWeight"), or None when an entry has none or two share one."""
-    obj = entity if isinstance(entity, dict) else {'value': entity}
-    items = obj.get(name)
-    if items is None and entity is not None:
-        return {}                                   # the list came or went whole: every entry is new / gone
-    if not isinstance(items, list) or not items or not all(isinstance(x, dict) for x in items):
-        return None
-    for id_field in LIST_IDS:
-        ids = [x.get(id_field) for x in items]
-        if all(isinstance(i, str) and i for i in ids) and len(set(ids)) == len(ids):
-            out = {}
-            for x in items:
-                flat = flatten_mod.flatten(x)
-                if len(flat) > 1:
-                    flat.pop(id_field, None)        # the entry's other rows say it came or went; its name is the key
-                out.update({f'{name}{{{x[id_field]}}}.{path}': v for path, v in flat.items()})
-            return out
-    return None
-
-
-@lru_cache(maxsize=8)
-def _state(commit: str, file: str) -> dict:
-    """A vdata file as a build left it, parsed once (a shared edit over 23 breakables reads misc.vdata 46 times)."""
-    return cache.vdata(commit, tracker.SCRIPTS + file)
-
-
-def rekey_lists(p: Patch, changes: list[MChange], cat: dict[str, dict], tok: dict[str, str],
-                canon: dict[str, dict]) -> list[MChange]:
-    """The window's rows of a named-entries list (`LIST_IDS`) by entry instead of by position: the list as the
-    window found it and left it (`window_states`), diffed by the entries' names. The build records keep their
-    positions (keying them in pipeline/flatten.py needs every record rebuilt: `history --rebuild`, ~25 min)."""
-    # a window a hero's release interrupts: its "before" and "after" states hold the release build's edits too — a list
-    # that build moved stays by position (its rows are the release's)
-    theirs: set[tuple[str, str, str]] = set()
-    for row in patches_mod.gap_builds(p):
-        for e in load_record(row['file'])['entities']:
-            if e['file'] in LIST_FILES:
-                theirs |= {(e['file'], e['id'], m.group(1)) for c in e.get('changes', ())
-                           for m in [_LIST_INDEX.match(c['path'])] if m}
-    lists: dict[tuple[str, str, str], list[MChange]] = {}
-    for c in changes:
-        m = _LIST_INDEX.match(c.path)
-        if m and c.file in LIST_FILES and (c.file, c.eid, m.group(1)) not in theirs:
-            lists.setdefault((c.file, c.eid, m.group(1)), []).append(c)
-    if not lists:
-        return changes
-    before, after = window_states(p)
-    if not before or not after:
-        return changes
-    drop: set[int] = set()
-    out: list[MChange] = []
-    for (file, eid, name), rows in sorted(lists.items()):
-        a = keyed_list(_state(before, file).get(eid), name)
-        b = keyed_list(_state(after, file).get(eid), name)
-        if a is None or b is None:
-            continue
-        drop |= {id(c) for c in rows}
-        builds = sorted({x for c in rows for x in c.builds})
-        shared = any(c.shared for c in rows)
-        ce = cat.get(f'{file}:{eid}', {})
-        for path in sorted(a.keys() | b.keys()):
-            old, new = a.get(path), b.get(path)
-            if path in a and path in b and diff_eq(old, new):
-                continue
-            op = 'change' if path in a and path in b else 'add' if path in b else 'remove'
-            rec = {'path': path, 'op': op, 'old': jsonable(old), 'new': jsonable(new), 'cat': category(path, old, new)}
-            out.append(_window_change(file, eid, rec, ce, list(builds), shared, tok, canon))
-    return [c for c in changes if id(c) not in drop] + out
-
-
-def window_changes(p: Patch, cat: dict[str, dict], tok: dict[str, str]) -> tuple[list[MChange], dict]:
-    """Merge the builds of a window. Entities added inside the window are not
-    diffed field by field (their whole data is "new"): they become one
-    'entity added' change each."""
-    merged: dict[str, MChange] = {}
-    canon: dict[str, dict] = {}
-    extras = {'loc': [], 'convars': [], 'assets': [], 'entities_added': [], 'entities_removed': [],
-              'entities_returned': []}
-    added_here: set[str] = set()
-    for row in p.builds:
-        rec = load_record(row['file'])
-        for e in rec['entities']:
-            targets_default = [e['id']]
-            ekey = f"{e['file']}:{e['id']}"
-            if e['status'] in ('added', 'removed', 'returned'):
-                if e['status'] == 'added':
-                    added_here.add(ekey)
-                ce = cat.get(ekey, {})
-                extras[f"entities_{e['status']}"].append({
-                    'file': e['file'], 'id': e['id'], 'build': rec['build'],
-                    'name': event_name(e, ce), 'kind': e.get('kind'), 'owner': e.get('owner'),
-                    'units': ce.get('units'), 'gameplay': _gameplay_entity(e)})
-                if e['status'] != 'returned':
-                    continue                  # a returned entity's fields differ from its last version: diffed below
-            if ekey in added_here:
-                continue
-            for c in e['changes']:
-                for tid in (c.get('targets') or targets_default):
-                    if f"{e['file']}:{tid}" in added_here:
-                        continue
-                    ce = cat.get(f"{e['file']}:{tid}", {})
-                    key = f"{e['file']}:{tid}:{c['path']}"
-                    mc = merged.get(key)
-                    if mc is None:
-                        merged[key] = _window_change(e['file'], tid, c, ce, [rec['build']], bool(c.get('targets')),
-                                                     tok, canon)
-                    else:
-                        mc.new = c.get('new')
-                        mc.chain.append(c.get('new'))
-                        mc.builds.append(rec['build'])
-                        mc.op = merge_ops(mc.op, c['op'])
-        extras['loc'].extend(dict(x, build=rec['build']) for x in rec.get('loc') or [])
-        extras['convars'].extend(dict(x, build=rec['build']) for x in rec.get('convars') or [])
-        if rec.get('assets'):
-            extras['assets'].append({'build': rec['build'], **rec['assets']})
-    changes = [c for c in merged.values() if not (c.op == 'change' and c.old == c.new)]
-    changes = rekey_lists(p, changes, cat, tok, canon)
-    for c in changes:
-        sw = labels.unit_switch(canon.get(c.key) or {}, c.builds) if c.op == 'change' else None
-        if sw:
-            era = {'speed_m': c.speed_m}
-            c.old_unit, c.unit = (labels.display_unit(era, {'unit': u}) for u in sw)
-    mark_retyped(changes)
-    mark_availability_moves(changes)
-    mark_dud_guns(changes)
-    mark_inherited_defaults(changes, cat)
-    # console variables take part in matching ("Respawn time … from 35s to 38s"), and so does one a game system
-    # names that came with a value ("Unstable Rift spawn interval increased from every 6 minutes to every 7
-    # minutes" is citadel_koth_respawn_interval added at 420; coverage finding 8) — not the snapshot that started
-    # the tracking (every variable "added"), nor one that also moved in the window (its change row is the match)
-    moved_cv = {cv['name'] for cv in extras['convars'] if cv.get('op') == 'change'}
-    for cv in extras['convars']:
-        new = num(cv.get('new'))
-        if cv.get('op') == 'change' and num(cv.get('old')) is not None and new is not None:
-            old = cv['old']
-        elif (cv.get('op') == 'add' and new is not None and cv['name'] not in moved_cv
-              and cv.get('build') != game_map.convar_start() and game_map.convar_system(cv['name'])):
-            old = None
-        else:
-            continue
-        label = cv['name'].replace('citadel_', '').replace('_', ' ')
-        changes.append(MChange('convars', cv['name'], cv['name'], cv['op'], old, cv['new'], 'balance',
-                               'global', None, label, False, [cv['build']]))
-    # an entity added and removed within one window never shipped; one removed and back within one
-    # window (or back and removed again) is where it started: only its field changes remain
-    removed = {f"{x['file']}:{x['id']}" for x in extras['entities_removed']}
-    returned = {f"{x['file']}:{x['id']}" for x in extras['entities_returned']}
-    both = (added_here | returned) & removed
-    for bucket in ('entities_added', 'entities_removed', 'entities_returned'):
-        extras[bucket] = [x for x in extras[bucket] if f"{x['file']}:{x['id']}" not in both]
-    return changes, extras
 
 
 # ---- line matching --------------------------------------------------------
@@ -833,7 +148,6 @@ def system_alias(text: str, pools: dict[str, set[str]] | None) -> set[str]:
     return {k for _, sid in game_map.phrases_in(text) for k in pools.get(sid, ())}
 
 
-_PARENS = re.compile(r'\([^)]*\)')
 INLINE_NAME_MIN = 5          # "Stomp" yes, "Bash" no
 INLINE_NAME_MAX_KEYS = 6     # a name shared by dozens of entities ("Melee") names none of them
 
@@ -955,26 +269,9 @@ def pct_close(c: MChange, by_pct: float, sign: int = 0, rate_line: bool = False,
 
 
 _LIST_SPLIT = re.compile(r',\s*(?:and\s+)?|\s+and\s+|\s*&\s*|/')
-_PART_STOP = {'the', 'and', 'its', 'of', 'to', 'for', 'all', 'value', 'values', 'base', 'now', 'their'}
-_PART_WORD = re.compile(r'[a-z]{2,}')
-
-
-def _tokens(text: str) -> set[str]:
-    """Words of a listed property or a field label, 'damage' kept (words() drops it as too common):
-    "Siphon Life damage and spirit scaling" names two fields."""
-    low = text.lower()
-    out = {rules.stem(w) for w in _PART_WORD.findall(low) if w not in _PART_STOP}
-    if 'hp' in out:
-        out = (out - {'hp'}) | {'health'}
-    return out
 
 
 _GROWTH_WORDS = {'growth', 'boon', 'scaling', 'minute'}
-
-
-def _label_tokens(c: MChange) -> set[str]:
-    out = rules.expand_label_words(_tokens(c.label))
-    return out | {'growth'} if rules.GROWTH_LABEL.search(c.label or '') else out
 
 
 def list_parts(head: str) -> list[set[str]]:
@@ -1218,10 +515,51 @@ def post_pass(changes: list[MChange], by_ent: dict[str, list[MChange]]) -> None:
                     other.lines.append(line)
 
 
+@dataclass
+class _Line:
+    """One patch-note line on its way through `annotate_line`'s steps: what the line says (its numbers, words,
+    tier), what it is about (`subject`, the `pool` of changes, the abilities it names) and its `result`."""
+    text: str
+    changes: list
+    by_ent: dict
+    idx: dict
+    cat: dict
+    tok: dict
+    rescale: object
+    pools: object
+    subject: Subject | None
+    rest: str
+    lw: set
+    pairs: list
+    fix_line: bool
+    granted: bool
+    by_pct: float | None
+    by_at: int | None
+    tier: int | None
+    result: dict
+    pool: list = field(default_factory=list)
+    ability_hits: set = field(default_factory=set)
+    by_name: set = field(default_factory=set)
+
+
 def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None) -> dict:
     """`pools`: the window's game systems and their changed entries (`system_pools`), for a line with numbers only:
     a system holds dozens of entries, and a line without numbers would link whichever shares a word ("Added Dash
     Speed to the Vitality stat screen" took the zipline's Latch End Speed)."""
+    ln = _read_line(text, changes, by_ent, idx, cat, tok, rescale, pools)
+    done = _line_subject(ln)
+    if done is not None:
+        return done
+    _line_aim(ln)
+    done = _line_numbers(ln)
+    if done is not None:
+        return done
+    return _line_words(ln)
+
+
+def _read_line(text, changes, by_ent, idx, cat, tok, rescale, pools) -> _Line:
+    """What the line says: its subject before a colon, its words, its number pairs (minutes, a fix's swap, a value
+    granted or taken), a percent it moves by and the tier it names."""
     pools = system_lines_pools(text, pools)
     subject = None
     rest = text
@@ -1264,7 +602,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
     tm = None if mv else _TIER_RE.search(rest)
     tier = int(tm.group(1)) if tm else None
     result = {'text': text, 'subject': subject.name if subject else None, 'status': 'unmatched', 'changes': []}
+    return _Line(text, changes, by_ent, idx, cat, tok, rescale, pools, subject, rest, lw, pairs, fix_line, granted,
+                 by_pct, by_at, tier, result)
 
+
+def _line_subject(ln: _Line) -> dict | None:
+    """A line without a subject: untracked topics, the rules for lines over many entities (boons, "all ..."), a
+    name or alias inside it. The result when the line is done, else None (`ln.subject` may be set)."""
+    text, changes, by_ent, idx, cat = ln.text, ln.changes, ln.by_ent, ln.idx, ln.cat
+    rescale, pools, subject, pairs, by_pct, result = ln.rescale, ln.pools, ln.subject, ln.pairs, ln.by_pct, ln.result
     if not subject:
         topic = None if pairs or by_pct is not None else rules.untracked_topic(text)
         if topic not in (None, 'visual') and not (topic == 'interface' and _names_moved(text, idx, cat, by_ent)):
@@ -1289,7 +635,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             subject = Subject(aliased, None, 'alias_inline', systems - aliased)
         elif named:
             subject = Subject(named, None, 'name_inline')
+    ln.subject = subject
+    return None
 
+
+def _line_aim(ln: _Line) -> None:
+    """The changes the line can be about (`ln.pool`, gameplay only) and the abilities / guns it names
+    (`ln.ability_hits`, `ln.by_name`); a line about an entity whose files did not move is marked `_quiet`."""
+    changes, by_ent, idx, cat, tok = ln.changes, ln.by_ent, ln.idx, ln.cat, ln.tok
+    subject, rest, lw, result = ln.subject, ln.rest, ln.lw, ln.result
     if subject:
         # sorted: set order changes between runs (hash randomisation) -> unstable output
         pool = [c for k in sorted(subject.ids) for c in by_ent.get(k, [])]
@@ -1333,7 +687,15 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
         if not any(c.cat in GAMEPLAY_CATS for k in about for c in by_ent.get(k, [])):
             result['_quiet'] = sorted(about)
     pool = [c for c in pool if c.cat in GAMEPLAY_CATS]
+    ln.pool, ln.ability_hits, ln.by_name, ln.lw = pool, ability_hits, by_name, lw
 
+
+def _line_numbers(ln: _Line) -> dict | None:
+    """A line with numbers: the best-scored fields (its subject's, a game system's, the whole patch's), or a
+    disagreement between the notes and the files (mismatch). The result, or None to try its words."""
+    text, changes, by_ent, subject, rest, lw = ln.text, ln.changes, ln.by_ent, ln.subject, ln.rest, ln.lw
+    pairs, by_pct, by_at, tier, granted, fix_line = ln.pairs, ln.by_pct, ln.by_at, ln.tier, ln.granted, ln.fix_line
+    pool, ability_hits, result = ln.pool, ln.ability_hits, ln.result
     # an inline name or alias whose entity did not move at all still gets the whole-patch pass below (the Dash
     # ability had no change on 2026-07-28: "… ground dash time 0.7s to 0.72s" never reached it)
     inline = bool(subject) and subject.kind in ('alias_inline', 'name_inline')
@@ -1477,6 +839,16 @@ def annotate_line(text, changes, by_ent, idx, cat, tok, rescale=None, pools=None
             result['changes'] = [c.key]
             result['data'] = data_values(c, pairs)
             return result
+    ln.pool, ln.ability_hits = pool, ability_hits         # a pass over the whole patch keeps its pool
+    return None
+
+
+def _line_words(ln: _Line) -> dict:
+    """A line the numbers did not settle: its subject's fields by the words they share with it (a tier's, a
+    component list, a removal, the ability it names), else its mechanics."""
+    text, by_ent, idx, cat, subject, rest, lw = ln.text, ln.by_ent, ln.idx, ln.cat, ln.subject, ln.rest, ln.lw
+    pairs, by_pct, tier, result = ln.pairs, ln.by_pct, ln.tier, ln.result
+    pool, ability_hits, by_name = ln.pool, ln.ability_hits, ln.by_name
     if not subject:
         return _fix_or(result, text)
     if _FIX_RE.search(text):
@@ -1666,18 +1038,6 @@ def _link(result: dict, changes: list[MChange], text: str, status: str) -> dict:
     return result
 
 
-def general_line(text: str, changes: list[MChange], cat: dict | None = None) -> dict | None:
-    """Kept for callers/tests: global lines ('All move slow values reduced by ~20% globally')."""
-    covered = rules.global_line(text, changes, cat or {}, num)
-    if not covered:
-        return None
-    for c in covered:
-        if c.status == 'hidden':
-            c.status = 'described'
-        c.lines.append(text)
-    return {'status': 'described', 'changes': [c.key for c in covered]}
-
-
 def _fix_or(result: dict, text: str) -> dict:
     """Bug-fix lines rarely change data: tag them instead of calling them unmatched."""
     if result['status'] == 'unmatched' and _FIX_RE.search(text):
@@ -1687,9 +1047,6 @@ def _fix_or(result: dict, text: str) -> dict:
 
 # ---- output -----------------------------------------------------------------
 
-_SWAP_LINE = re.compile(r'changed from\s+["“]|\bnow\b.*\binstead of\b|\breplaced\b', re.I)
-
-
 def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = '',
                     siblings: list[MChange] | None = None) -> None:
     """A field that appeared with the value Valve says it was raised TO: before, the game used its
@@ -1698,12 +1055,19 @@ def _old_from_notes(c: MChange, pairs: list[tuple[float, float]], text: str = ''
     Not on a line that swaps one bonus for another ('T2 changed from "-12s Cooldown" to …'), nor when
     the entity lost a field holding that old value — then A belonged to the other field (audit
     2026-10-01: ~25 invented "was → now" such as "T2: Cooldown 12 → −15")."""
-    if c.op != 'add' or c.old is not None or c.meters or num(c.new) is None or _SWAP_LINE.search(text):
+    if c.op != 'add' or c.old is not None or c.meters or num(c.new) is None or _SWAP_LINE.search(text) \
+            or _CHANGED_FROM.search(text):
+        return
+    # a value the files write with its unit ("16m", Street Brawl radii) takes the old one in the same unit: a bare 20
+    # was read as engine units and shown 0.508m (Rule, Ratannia!, 2026-10-30)
+    suffix = re.sub(rf'^\s*{_NUM}\s*', '', c.new) if isinstance(c.new, str) else ''
+    if _METRES_ON_LINE.search(text) and suffix != 'm':
         return
     removed_values = {num(s.old) for s in siblings or () if s.eid == c.eid and s.op == 'remove' and num(s.old) is not None}
     olds = {a for a, b in pairs if abs(b - num(c.new)) < 1e-9 and a != b}
     if len(olds) == 1 and not any(abs(a - r) < 1e-9 for a in olds for r in removed_values):
-        c.old = olds.pop()
+        old = olds.pop()
+        c.old = f'{old:g}{suffix}' if suffix else old
         c.op = 'change'
 
 
@@ -1718,6 +1082,10 @@ def change_json(c: MChange) -> dict:
     shown = semantics.M_SPEED if c.speed_m and not c.meters else c.meters
     if not c.meters and semantics.length_in_units(c.path, c.unit, (c.old, c.new)):
         shown = True                  # a property length no build gave a unit: engine units, shown in metres
+    unit = c.unit
+    if not c.meters and c.old_unit is None and semantics.bare_engine_length(c.unit, (c.old, c.new)):
+        # the tooltip's "m" over bare engine units: converted, not "500m" (semantics.bare_engine_length)
+        shown, unit = (semantics.SPEED if c.unit == 'm/s' else True), ''
     magnitude = c.sign == '-'
     switched = c.old_unit is not None
     if switched:
@@ -1725,8 +1093,8 @@ def change_json(c: MChange) -> dict:
     return {
         'key': c.key, 'file': c.file, 'id': c.eid, 'path': c.path, 'op': c.op, 'cat': c.cat,
         'label': c.shown or c.label,
-        'old_s': semantics.show(old, shown, c.old_unit if switched else c.unit, c.invert, magnitude),
-        'new_s': semantics.show(new, shown, c.unit, c.invert, magnitude),
+        'old_s': semantics.show(old, shown, c.old_unit if switched else unit, c.invert, magnitude),
+        'new_s': semantics.show(new, shown, unit, c.invert, magnitude),
         'dir': dirn, 'pct': None if pct is None else round(pct, 1), 'grad': semantics.gradient(pct),
         'status': c.status, 'builds': sorted(set(c.builds)), 'shared': c.shared,
         'same': (semantics.reencoded(c.old, c.new, c.path) or (c.retyped and semantics.sign_flip(c.old, c.new))
@@ -1744,21 +1112,6 @@ ENTITY_EVENT_KINDS = {'hero', 'item', 'ability', 'weapon', 'trooper', 'building'
 # entry with gameplay fields (removed: a gameplay-like id). Not a hero's melee: its name is the shared
 # "Melee" string, and the hero and its gun already make the event
 EVENT_IF_NAMED = {'ability_other'}
-
-
-def event_name(e: dict, ce: dict) -> str | None:
-    """A removed ability loses its text in the build that removes it: the catalog keeps the name it
-    had in game (Witching Hour, Pulse Cannon — 29 events lost until review 2026-10-02)."""
-    name = e.get('name')
-    return ce.get('name') or name if not name or name == e['id'] else name
-
-
-def _gameplay_entity(e: dict) -> bool:
-    if e['file'] in ('misc.vdata', 'generic_data.vdata') and decor_entity(e['id']):
-        return False                    # the city's traffic, team colours, minimap offsets (classify)
-    if e['status'] == 'removed':        # a removed entity carries no fields: judge its id
-        return e['file'] != 'generic_data.vdata' or category(e['id'], None, None) in GAMEPLAY_CATS
-    return any(c.get('cat') in GAMEPLAY_CATS for c in e['changes'])
 
 
 def event_worthy(x: dict) -> bool:
@@ -2044,13 +1397,6 @@ def release_pass(heroes: list[str], changes: list[MChange], events: list[dict], 
         ev['change']['status'] = 'described' if f"{ev['file']}:{ev['id']}" in kit else 'hidden'
 
 
-# a hero is in the game from its release; pre-release (in the files, announced, not playable: Nurse Harrow on
-# 2026-10-16, due on 10-20) is still work before release — her boon tuning had the eye (data review 2026-10-17)
-RELEASED_STATES = ('EHeroDevState_Release',)
-# the states a hero is listed in (the old m_bPlayerSelectable said the same: `mark_availability_moves`)
-LISTED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
-
-
 def unreleased_heroes(commit: str) -> set[str]:
     """Heroes not playable at that build (in development / disabled / pre-release)."""
     heroes = cache.vdata(commit, tracker.SCRIPTS + 'heroes.vdata')
@@ -2067,142 +1413,6 @@ def unreleased_heroes(commit: str) -> set[str]:
         if not released:
             out.add(hid)
     return out
-SHARED_NAMES = {'heroes.vdata': 'All heroes', 'abilities.vdata': 'Many abilities & items',
-                'npc_units.vdata': 'Many units', 'misc.vdata': 'Many map objects', 'modifiers.vdata': 'Many modifiers'}
-KEY_KINDS = {'hero', 'ability', 'weapon', 'item', 'building', 'trooper', 'neutral', 'shared'}
-KEY_LIMIT = 24
-
-
-def sentence(name: str, c: dict) -> str:
-    """Valve-style line for a change: 'Abrams: Health increased from 780 to 800'."""
-    label = c.get('label') or ''
-    if c.get('path') == '@add':
-        return f'{name}: added to the game'
-    if c.get('path') == '@return':
-        return f'{name}: back in the game files'
-    if c.get('path') == '@remove':
-        return f'{name}: removed from the game'
-    # a sound, look or interface field keeps no value (diff.VALUELESS_CATS): "removed", not "removed (was —)"
-    if c['op'] == 'add':
-        new = c.get('new_s')
-        return f'{name}: {label} added ({new})' if new not in (None, '', '—') else f'{name}: {label} added'
-    if c['op'] == 'remove':
-        old = c.get('old_s')
-        return f'{name}: {label} removed (was {old})' if old not in (None, '', '—') else f'{name}: {label} removed'
-    try:
-        up = float(str(c.get('new_s')).rstrip('m%s')) > float(str(c.get('old_s')).rstrip('m%s'))
-        verb = 'increased' if up else 'reduced'
-    except ValueError:
-        verb = 'changed'
-    return f'{name}: {label} {verb} from {c.get("old_s", "")} to {c.get("new_s", "")}'
-
-
-KEY_MAX_PCT = 300          # bigger jumps are format changes (0.99 -> 99), not balance
-_TEST_ENTITY = re.compile(r'test|dummy|debug|_base$', re.I)
-
-
-def key_changes(ents: list[dict]) -> list[dict]:
-    """The biggest balance moves of the window (by |percent|) for a summary."""
-    rows = []
-    for e in ents:
-        if e.get('kind') not in KEY_KINDS or e.get('id') == '@shared' or _TEST_ENTITY.search(e.get('id', '')) \
-                or _TEST_ENTITY.search(e.get('name') or ''):
-            continue
-        for c in e['changes']:
-            if c.get('cat') == 'balance' and isinstance(c.get('pct'), (int, float)) \
-                    and 5 <= abs(c['pct']) <= KEY_MAX_PCT and c.get('dir') in ('buff', 'nerf') \
-                    and c.get('status') not in ('unreleased',):
-                rows.append({'entity': e['key'], 'name': e['name'], 'kind': e.get('kind'), 'owner': e.get('owner'),
-                             'change': c})
-    rows.sort(key=lambda r: -abs(r['change']['pct']))
-    return rows[:KEY_LIMIT]
-
-
-LOC_GROUPS = ('citadel_heroes', 'citadel_mods', 'citadel_attributes', 'citadel_main', 'citadel_seasonal',
-              'citadel_gc_mod_names', 'citadel_gc_hero_names')
-LOC_LIMIT = 400
-# console variables are kept whole (coverage audit 2026-10-05: the list stopped at 300 of City Never Sleeps' 510
-# without a word, and the Game section reads respawn times and soul rewards from them); the noted ones first
-_CONVAR_ORDER = {'documented': 0, 'described': 0, 'rounded': 0, 'mismatch': 0}
-_CONVAR_OP = {'change': 0, 'desc': 1, 'remove': 2, 'add': 3}
-
-
-def window_states(p: Patch) -> tuple[str | None, str | None]:
-    """(commit before the window's first build, commit of its last build): the game as a window found it and left
-    it — the old and new sides of its merged changes."""
-    if not p.builds:
-        return None, None
-    return load_record(p.builds[0]['file']).get('prev_commit'), load_record(p.builds[-1]['file']).get('commit')
-
-
-@lru_cache(maxsize=2)
-def _abilities_blob(blob: str) -> dict:
-    return cache.vdata_blob(blob)           # neighbouring windows share a state: one parse each
-
-
-def text_state(commit: str | None, keys: set[str]) -> dict | None:
-    """entity key -> {part: {token: value}} of the abilities and items in `keys` at `commit`
-    (pipeline.abilities.text_values); None when the build is not known."""
-    from .abilities import text_values
-    if not commit:
-        return None
-    blob = tracker.blob_id(commit, tracker.SCRIPTS + 'abilities.vdata')
-    if not blob:
-        return None
-    abilities, tok = _abilities_blob(blob), loc.tokens(commit)
-    out = {}
-    for k in keys:
-        file, _, eid = k.partition(':')
-        a = abilities.get(eid) if file == 'abilities.vdata' else None
-        if isinstance(a, dict):
-            out[k] = text_values(a, tok)
-    return out
-
-
-States = tuple[str | None, str | None]
-
-
-def texts_with_values(texts: list[dict], states: States | Callable[[], States] | None) -> list[dict]:
-    """The window's text changes with the values the game filled into their old and new sides
-    (`entity_texts.with_values`), read from the builds before and after the window. `states`: (before, after)
-    commits, or what gives them (`window_states`, asked only when a text holds a value)."""
-    from .entity_texts import needed, with_values
-    keys = needed(texts)
-    if not keys or not states:
-        return texts
-    before, after = states() if callable(states) else states
-    return with_values(texts, text_state(before, keys), text_state(after, keys))
-
-
-def slim_extras(extras: dict, cat: dict[str, dict] | None = None,
-                states: States | Callable[[], States] | None = None) -> dict:
-    """Patch pages show a capped list of text changes, every console variable and asset totals; the full
-    per-build detail stays on the build pages. `texts`: the name / description changes of the abilities, items
-    and heroes a page shows, uncapped (`pipeline/entity_texts.py`), with the values the game filled in at
-    `states` (`window_states`)."""
-    from .entity_texts import entity_texts
-    loc_rows = [x for x in extras['loc'] if x.get('group') in LOC_GROUPS]
-    totals: dict[str, dict[str, int]] = {}
-    hero_models: set[str] = set()
-    for a in extras['assets']:
-        for cat_, n in a.get('counts', {}).items():
-            t = totals.setdefault(cat_, {'added': 0, 'removed': 0, 'modified': 0})
-            for k in t:
-                t[k] += n.get(k, 0)
-        hero_models |= set(a.get('hero_models', {}))
-    # a hero's model rebuilt (its file several times bigger or smaller): a row of the hero's history (model_rows)
-    models = [{'ent': f"heroes.vdata:{m['hero']}", 'path': m['path'], 'old': m['old'], 'new': m['new'],
-               'build': a['build']}
-              for a in extras['assets'] for m in a.get('model_sizes') or () if m.get('hero')]
-    return {
-        'loc': loc_rows[:LOC_LIMIT], 'loc_total': len(loc_rows),
-        'texts': texts_with_values(entity_texts(extras['loc'], cat or {}), states),
-        'convars': sorted(extras['convars'], key=lambda x: (_CONVAR_ORDER.get(x.get('status'), 1),
-                                                            _CONVAR_OP.get(x.get('op'), 4), x.get('build') or 0)),
-        'convars_total': len(extras['convars']),
-        'assets': {'counts': dict(sorted(totals.items())), 'hero_models': sorted(hero_models)},
-        'models': models,
-    }
 
 
 def documented_lines(p: Patch, row: dict, cat: dict[str, dict]) -> int:
@@ -2242,114 +1452,6 @@ def reassign_ambiguous(patches: list[Patch], cat: dict[str, dict]) -> int:
     return moved
 
 
-# Notes sometimes precede the files: "Diviner's Kevlar: Cooldown Reduction reduced from 12% to 10%"
-# is in the 2024-12-06 notes, the value changed in a build of 2024-12-14 (the next window).
-LATE_DAYS = 14
-
-
-def _days(a: str, b: str) -> int:
-    from datetime import date
-    return (date.fromisoformat(b[:10]) - date.fromisoformat(a[:10])).days
-
-
-def _late_hit(later: list[tuple[Patch, dict]], p: Patch, subj: str, pairs, lw: set[str],
-              hero_name: dict[str, str]) -> tuple | None:
-    for q, qd in later:
-        if _days(p.date, q.date) > LATE_DAYS:
-            break
-        for e in qd['entities']:
-            names = {(e.get('name') or '').lower(), (hero_name.get(e.get('owner') or '') or '').lower()}
-            if subj not in names:
-                continue
-            for c in e['changes']:
-                # 'unannounced': the later build may be a notes-less window of its own (build-5433)
-                if c.get('status') not in ('hidden', 'unannounced') or c.get('shared') or c.get('cat') != 'balance':
-                    continue
-                # "damage" counts here ("Holliday: Base damage reduced from 22 to 18" is the gun's Bullet
-                # Damage two days later): the subject and the exact numbers already narrow it down
-                if not (rules.expand_label_words(words(c['label'])) | _tokens(c['label'])) & lw:
-                    continue
-                o, n = num(c.get('old_s')), num(c.get('new_s'))
-                if o is not None and n is not None and \
-                        any(value_matches(o, a, False) and value_matches(n, b, False) for a, b in pairs):
-                    return q, qd, c
-    return None
-
-
-def late_landings(results: list[tuple[Patch, dict]], cat: dict[str, dict]) -> int:
-    """Link a numbered line left unmatched in its own window to a still-hidden change
-    of the same subject within LATE_DAYS that has exactly its numbers and shares a
-    label word. The line becomes documented (with where it landed), the change too."""
-    hero_name = {e['id']: e.get('name') or '' for e in cat.values() if e['file'] == 'heroes.vdata'}
-    linked = 0
-    for i, (p, data) in enumerate(results):
-        for s in data['sections']:
-            for ln in s['lines']:
-                if ln['status'] != 'unmatched' or not ln.get('subject'):
-                    continue
-                rest = ln['text'].split(':', 1)[1] if ':' in ln['text'][:48] else ln['text']
-                pairs = parse_pairs(rest)
-                if not pairs:
-                    continue
-                subj = ln['subject'].lower()
-                lw = expand_words(words(rest)) | _tokens(rest)
-                hit = _late_hit(results[i + 1:], p, subj, pairs, lw, hero_name)
-                steps = [(p, data, None), hit] if hit else _chain_hit(data, results[i + 1:], p, subj, pairs, hero_name)
-                if not steps:
-                    continue
-                q = steps[-1][0]
-                ln['status'] = 'documented'
-                ln['changes'] = list(dict.fromkeys(st[2]['key'] for st in steps if st[2]))
-                ln['late'] = {'patch': q.id, 'title': q.title, 'builds': steps[-1][2].get('builds', [])}
-                for _, qd, c in steps:
-                    if c is None:
-                        continue
-                    qd['counts'][c['status']] -= 1
-                    qd['counts']['documented'] = qd['counts'].get('documented', 0) + 1
-                    c['status'] = 'documented'
-                    if qd is not data:
-                        c['noted_in'] = {'patch': p.id, 'title': p.title}
-                data['line_counts']['unmatched'] -= 1
-                data['line_counts']['documented'] = data['line_counts'].get('documented', 0) + 1
-                linked += 1
-    return linked
-
-
-def _subject_of(e: dict, subj: str, hero_name: dict[str, str]) -> bool:
-    return subj in {(e.get('name') or '').lower(), (hero_name.get(e.get('owner') or '') or '').lower()}
-
-
-def _chain_hit(data: dict, later: list[tuple[Patch, dict]], p: Patch, subj: str, pairs,
-               hero_name: dict[str, str]) -> list | None:
-    """The line's change shipped in two steps across a window edge: Valve hotfixed it an hour later
-    ("Lucky Shot: Damage reduced from 125% to 110%" = 125 -> 120 in build 5983, 120 -> 110 in 5984 of
-    the follow-up window, 2025-11-21). The field starts at A in the line's window and the same field
-    ends at B later (within LATE_DAYS), step by step: [(p, data, c0), (q, qd, c1)]."""
-    for e in data['entities']:
-        if not _subject_of(e, subj, hero_name):
-            continue
-        for c0 in e['changes']:
-            if c0.get('status') not in ('hidden', 'unannounced') or c0.get('cat') != 'balance' or c0.get('shared'):
-                continue
-            o0, n0 = num(c0.get('old_s')), num(c0.get('new_s'))
-            if o0 is None or n0 is None:
-                continue
-            for a, b in pairs:
-                if not value_matches(o0, a, False) or value_matches(n0, b, False):
-                    continue
-                for q, qd in later:
-                    if _days(p.date, q.date) > LATE_DAYS:
-                        break
-                    for e1 in qd['entities']:
-                        for c1 in e1['changes']:
-                            if c1.get('key') != c0.get('key') or c1.get('status') not in ('hidden', 'unannounced'):
-                                continue
-                            o1, n1 = num(c1.get('old_s')), num(c1.get('new_s'))
-                            if o1 is not None and n1 is not None and abs(o1 - n0) < 1e-9 and value_matches(n1, b, False):
-                                return [(p, data, c0), (q, qd, c1)]
-    return None
-
-
 # A notes-less window right after a changelog that carries this many of its numbered
 # lines exactly is that changelog's update shipping late (2024-12-06 notes: 81 lines landed
 # in the notes-less build 5433 of 12-14): merge the windows instead of calling it unannounced.
@@ -2387,75 +1489,6 @@ def absorb_late_windows(results: list[tuple[Patch, dict]], cat: dict[str, dict])
         out.append((p, data))
         i += 1
     return out, absorbed
-
-
-def repeated_lines(results: list[tuple[Patch, dict]]) -> int:
-    """Steam posts get edited: the 2026-03-06 post later carried the 03-21 lines too.
-    An unmatched line whose exact text is matched in a LATER patch's notes belongs
-    there: status 'repeated' with a pointer, not a matcher gap."""
-    later_home: dict[str, tuple[str, str]] = {}
-    moved = 0
-    for p, data in reversed(results):
-        for s in data['sections']:
-            for ln in s['lines']:
-                key = ln['text'].strip().lower()
-                if ln['status'] == 'unmatched' and key in later_home:
-                    pid, title = later_home[key]
-                    ln['status'] = 'repeated'
-                    ln['see'] = {'patch': pid, 'title': title}
-                    data['line_counts']['unmatched'] -= 1
-                    data['line_counts']['repeated'] = data['line_counts'].get('repeated', 0) + 1
-                    moved += 1
-        for s in data['sections']:
-            for ln in s['lines']:
-                if ln['status'] not in ('unmatched', 'repeated', 'heading', 'untracked', 'nodata'):
-                    later_home[ln['text'].strip().lower()] = (p.id, p.title)
-    return moved
-
-
-# stricter than _PRESENTATION_LINE: "slow effect now persists" is the game's code, not a visual
-_LOOK_LINE = re.compile(r'\b(sounds?|audio|sfx|vfx|visuals?|particles?|animations?|anims?|models?|icons?|'
-                        r'ui|hud|tooltips?|music|voice|looks?|looking)\b', re.I)
-_SOUND_WORD = re.compile(r'\b(sounds?|audio|sfx|music|voice)\b', re.I)
-_DIGIT = re.compile(r'\d')
-
-
-def code_lines(results: list[tuple[Patch, dict]]) -> int:
-    """A line about a hero, an ability or an item whose game files did not move in its window, nor in a
-    later one within LATE_DAYS, is a change in the game's code ("Vyper: Sliding uphill now allows for
-    lateral movement"): status 'code', not a matcher miss ('unmatched'). The `_quiet` marks go away."""
-    n = 0
-    for i, (p, data) in enumerate(results):
-        for s in data['sections']:
-            for ln in s['lines']:
-                about = ln.pop('_quiet', None)
-                if not about or ln['status'] != 'unmatched':
-                    continue
-                if _LOOK_LINE.search(ln['text']):
-                    # "Added cast and buff sounds", "Revision to buff and cast to look less modern"
-                    ln['status'] = 'untracked'
-                    ln['topic'] = 'sound' if _SOUND_WORD.search(ln['text']) else 'visual'
-                    data['line_counts']['unmatched'] -= 1
-                    data['line_counts']['untracked'] = data['line_counts'].get('untracked', 0) + 1
-                    continue
-                if _DIGIT.search(_TIER_NAME.sub('', ln['text'])):
-                    continue        # a line with numbers left unmatched is more likely a miss of ours
-                ids = set(about)
-                later = False
-                for q, qd in results[i + 1:]:
-                    if _days(p.date, q.date) > LATE_DAYS:
-                        break
-                    if any(f"{e['file']}:{e['id']}" in ids and any(c.get('cat') in GAMEPLAY_CATS for c in e['changes'])
-                           for e in qd.get('entities', [])):
-                        later = True
-                        break
-                if later:
-                    continue
-                ln['status'] = 'code'
-                data['line_counts']['unmatched'] -= 1
-                data['line_counts']['code'] = data['line_counts'].get('code', 0) + 1
-                n += 1
-    return n
 
 
 def run() -> None:

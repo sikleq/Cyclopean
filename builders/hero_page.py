@@ -1,6 +1,5 @@
-"""Hero page: portrait + key stats, the weapon block, ability cards (the in-game
-tooltip rebuilt from data), the remaining stats as compact panels, and the full
-history grouped by patch and by ability."""
+"""Hero page: portrait, the weapon block (the game's own panels), ability cards (the in-game
+tooltip rebuilt from data), and the full history grouped by patch and by ability."""
 from __future__ import annotations
 
 from functools import lru_cache
@@ -16,16 +15,11 @@ SLOT_ORDER = ('Weapon_Primary', 'Weapon_Secondary', 'Signature_1', 'Signature_2'
 SLOT_LABEL = {'Weapon_Primary': 'Weapon', 'Weapon_Secondary': 'Alt weapon', 'Signature_1': 'Ability 1',
               'Signature_2': 'Ability 2', 'Signature_3': 'Ability 3', 'Signature_4': 'Ultimate'}
 ULT_SLOT = 'Signature_4'    # its icon carries the ultimate's corner mark (cards.ability_plate)
-# the head strip: every main non-gun stat (survival, movement, melee, spirit growth); the rest of
-# the stats are open panels under the abilities, the gun's in the weapon block (user, 10-01; open 10-04)
-KEY_STATS = ('hp', 'hp_lvl', 'hp_regen', 'bullet_resist', 'spirit_resist', 'move', 'sprint', 'stamina',
-             'stamina_regen', 'ground_dash', 'air_dash', 'light_melee', 'heavy_melee', 'melee_lvl', 'spirit_lvl')
 # the same for every hero (Crouch Speed 4.75 on all 44): no hero's own number; its one step is in the history
 NOT_ON_HERO = ('crouch',)
 # the head chip of a hero whose skin base body is in the files (pipeline/cosmetics.py)
 SKIN_CHIP = 'skins in the works'
-WEAPON_GROUP = 'Damage'
-# the six numbers a player compares first: one row of equal tiles with one-line labels
+# the short labels of a gun's headline numbers (the alt fire's row, ALT_LABEL)
 WEAPON_TOP = {'dps': 'DPS', 'dps_max': 'Max DPS', 'bullet_dmg': 'Bullet dmg', 'bps': 'Bullets/s',
               'clip': 'Ammo', 'reload': 'Reload'}
 WEAPON_DIGITS = 2
@@ -110,52 +104,11 @@ def _stat_icon(key: str, rel: str) -> str:
     return f'<img class="si" src="{esc(src)}" alt="" loading="lazy">' if src else '<span class="si"></span>'
 
 
-KS_ROW_MAX = 8            # key stats a row holds on a desktop (13 → 7 a row, 15 → 8)
-KS_TABLET, KS_PHONE = 5, 3   # …a row under 980px and on a phone (styles.css .keystats)
-
-
-def lead_span(n: int, cols: int) -> int:
-    """How many columns the first tile (Health) spans so `n` tiles fill whole rows of `cols`: the headline stat
-    widens and every column lines up — 13 tiles at seven a row ended in a hole, then stretched 7 + 6 so the two rows'
-    columns missed each other, and a phone's lone 13th tile spanned the screen (visual pass 2026-10-17, round 2)."""
-    r = n % cols if cols > 0 else 0
-    return cols - r + 1 if r else 1
-
-
-def keystats_vars(n: int) -> str:
-    """The grid of the head's key stats as CSS variables: columns on a desktop (rows balanced, `KS_ROW_MAX` at most)
-    and the first tile's span there, under 980px and on a phone."""
-    cols = wb_per_row(n, KS_ROW_MAX)
-    return (f'--ks-c:{cols};--ks-s:{lead_span(n, cols)};--ks-s5:{lead_span(n, KS_TABLET)};'
-            f'--ks-s3:{lead_span(n, KS_PHONE)}')
-
-
-def key_stats(row: dict, cols: list[dict], name: str, rel: str = '../') -> str:
-    by_key = {c['key']: c for c in cols}
-    out = []
-    for k in KEY_STATS:
-        c = by_key.get(k)
-        v = row['values'].get(k)
-        if not c or v is None or (v == 0 and k.endswith('_resist')) or says_nothing(row, c):
-            continue                                     # base resists are 0 for most heroes
-        cls, attrs = _hist_attrs(row, c, name)
-        label, unit = _split_unit(c['label'])
-        out.append(f'<div class="keystat {cls}"{attrs}>{_stat_icon(k, rel)}<div class="v">{_fmt(row["values"][k], c["digits"])}'
-                   f'{_unit_html(unit)}</div><div class="l">{esc(label)}</div></div>')
-    return f'<div class="keystats" style="{keystats_vars(len(out))}">' + ''.join(out) + '</div>'
-
-
-def in_game_panels() -> tuple[str, ...]:
-    """The Hero Stats columns the game's panels and Boon Rewards card already show (builders/hero_panels.py)."""
-    from pipeline.hero_panels import BOON_ROWS, COLUMN
-    return tuple(COLUMN.values()) + tuple(r[2] for r in BOON_ROWS) + ('falloff_start', 'falloff_end')
-
-
 def more_stats(row: dict, cols: list[dict], name: str, rel: str) -> str:
-    """Secondary stats (per-boon growth of resists, dashes, collision…) as open panels below the abilities
-    (owner 2026-10-04: nothing folded by default — they sat two clicks deep); a hero with the game's panels has them
-    behind the Advanced switch instead (hero_panels.advanced)."""
-    panels = stat_tables(row, cols, name, rel, skip=(WEAPON_GROUP,), skip_keys=KEY_STATS + NOT_ON_HERO)
+    """A hero with a stats row but none of the game's panels (no hero today): every stat, the gun's included, as open
+    panels below the abilities (owner 2026-10-04: nothing folded by default); a hero with the game's panels has them
+    there and behind their Advanced switch (hero_panels.advanced)."""
+    panels = stat_tables(row, cols, name, rel, skip_keys=NOT_ON_HERO)
     if not panels:
         return ''
     return f'<h2>Stats</h2>{panels}'
@@ -201,28 +154,12 @@ def _unit_html(unit: str) -> str:
 
 def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: str, rel: str,
                  alt: dict | None = None, cards: list[dict] = ()) -> str:
-    """The gun is not an ability: its own block, first, with every Damage-group number. `alt`: the gun's alt fire
-    (a Weapon_Secondary card: the files give it no text) as a line in the block — what changed it lately, its
-    trail, its history (its rows are in the gun's group: hero_page.fold_alt) — over a compact row of its own numbers
-    (`alt_cells`, Hero Stats' `alt`). Without a stats row (a hero in
-    development) the block is the gun's name and that line, never an empty ability card."""
-    wcols = [c for c in cols if c['group'] == WEAPON_GROUP] if row else []
-    top_order = list(WEAPON_TOP)
-    top, rest = [], []
-    for c in sorted(wcols, key=lambda c: top_order.index(c['key']) if c['key'] in WEAPON_TOP else len(top_order)):
-        v = row['values'].get(c['key'])
-        if v is None or says_nothing(row, c):
-            continue
-        cls, attrs = _hist_attrs(row, c, name)
-        is_top = c['key'] in WEAPON_TOP
-        # the unit rides on the number for every tile ("RELOAD S" beside "Full Reload 3.88 s")
-        label, unit = (WEAPON_TOP[c['key']], _split_unit(c['label'])[1]) if is_top else _split_unit(c['label'])
-        # two decimals at most, like the game's panel: "Reload 1.0575" was a sum no screen prints (external
-        # audit 2026-10-04); the full value stays in the cell's history
-        cell = (f'<div class="wcell{" top" if is_top else ""} {cls}"{attrs}>{_stat_icon(c["key"], rel)}'
-                f'<span class="v">{_fmt(v, min(c["digits"], WEAPON_DIGITS))}{_unit_html(unit)}</span>'
-                f'<span class="l">{esc(label)}</span></div>')
-        (top if is_top else rest).append(cell)
+    """The gun is not an ability: its own block, first — the game's Weapon / Vitality / Spirit panels when the stats
+    row has them (`hero_panels.panels`). `alt`: the gun's alt fire (a Weapon_Secondary card: the files give it no text)
+    as a line in the block — what changed it lately, its trail, its history (its rows are in the gun's group:
+    hero_page.fold_alt) — over a compact row of its own numbers (`alt_cells`, Hero Stats' `alt`). Without a stats row
+    (a hero in development) the block is the gun's name and that line, never an empty ability card; with one but no
+    panels the gun's numbers are in the Stats panels (`more_stats`)."""
     wname = (card or {}).get('name') or (row or {}).get('weapon_name') or ''
     wid = (card or {}).get('id') or (row or {}).get('weapon')
     if not wid:
@@ -247,11 +184,8 @@ def weapon_block(card: dict | None, row: dict | None, cols: list[dict], name: st
         # the game's own Weapon / Vitality / Spirit Stats panels and its Boon Rewards card (owner 2026-10-22)
         from .hero_panels import panels
         return panels(row, cols, name, rel, list(cards), name_html, links + desc, lines)
-    if top or rest:
-        nums = f'<div class="wb-top">{"".join(top)}</div>{_more_weapon(rest)}'
-    else:
-        # Hero Stats lists playable heroes only (hero_table.PLAYABLE_STATES; a borrowed stand-in gun is no gun)
-        nums = '<div class="wb-none">Gun numbers come with Hero Stats once the hero is playable</div>'
+    # Hero Stats lists playable heroes only (hero_table.PLAYABLE_STATES; a borrowed stand-in gun is no gun)
+    nums = '' if row else '<div class="wb-none">Gun numbers come with Hero Stats once the hero is playable</div>'
     return (f'<section class="weapon-block px-frame" id="weapon"><div class="wb-id">{img(ic, "", "px", "abilities")}'
             f'<div><div class="wb-kicker">Weapon</div>{name_html}{links}{desc}</div></div>'
             f'<div class="wb-nums">{nums}{lines}</div></section>')
@@ -298,36 +232,6 @@ def _gun_links(aid: str, group: str, rel: str, history: bool = True) -> str:
     hist = f'<a class="ac-hist" href="#ab-{esc(group)}">History</a>' if history else ''
     return (f'<div class="wb-links">{last_change(aid, group)}{hist}'
             f'{trail_html("abilities.vdata:" + aid, None, rel, local=True)}</div>')
-
-
-WB_ROW_MAX = 8            # weapon numbers a row holds on a wide screen (styles.css .wb-cells: 4-5 under 1100px, 3 on a phone)
-WB_TABLET = (4, 5)        # under 1100px: whichever leaves the first tile the narrower (14 → 5 a row, 16 → 4)
-
-
-def fit_cols(n: int, options: tuple[int, ...]) -> int:
-    """Of `options`, the columns a row that leave the first tile the narrowest (`lead_span`), more columns on a tie."""
-    return min(options, key=lambda c: (lead_span(n, c), -c))
-
-
-def wb_per_row(n: int, most: int = WB_ROW_MAX) -> int:
-    """How many weapon numbers a row holds so the rows come out even: 14 → 7 + 7, not 8 + 6 (or 6 + 6 + 2, which left
-    a hole of four tiles); the first tile widens to fill a short row (`lead_span`)."""
-    if n <= 0:
-        return 1
-    rows = -(-n // most)
-    return -(-n // rows)
-
-
-def _more_weapon(cells: list[str]) -> str:
-    """Every other weapon number in whole rows under the six headline tiles — shown, not folded. A grid like the key
-    stats': the columns line up row to row and the first tile (the longest label, "+Bullet DMG / boon") widens so the
-    rows come out whole on every screen (a phone's 14 left two stretched tiles; visual pass 2026-10-17, round 2)."""
-    if not cells:
-        return ''
-    n, per = len(cells), wb_per_row(len(cells))
-    tab = fit_cols(n, WB_TABLET)
-    return (f'<div class="wb-cells" style="--wb-per:{per};--wb-s:{lead_span(n, per)};--wb-t:{tab};'
-            f'--wb-st:{lead_span(n, tab)};--wb-s3:{lead_span(n, KS_PHONE)}">{"".join(cells)}</div>')
 
 
 def prop_src(css: str | None, rel: str) -> str | None:
@@ -670,8 +574,8 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
     pic = (f'<img class="portrait px-frame" src="{esc(portrait)}" alt="{esc(name)}">' if portrait
            else img(None, name, 'portrait px-frame', 'hero'))
     head = (f'<div class="crumbs"><a href="index.html">Heroes</a> / {esc(name)}</div>'
-            # portrait, the name block and the key stats are the head grid's own items: under 980px the stats go below
-            # both and the portrait keeps the name beside it (styles.css .hero-head); a hero in development whose only
+            # portrait and the name block are the head grid's own items: under 980px the portrait keeps the name
+            # beside it (styles.css .hero-head); a hero in development whose only
             # picture is its name (extract_icons.name_placeholder) shows the hero glyph, not an empty frame
             f'<div class="hero-head">{pic}'
             f'<div class="hh-id"><h1>{esc(name)}</h1><div class="chips">{"".join(chips)}</div>'
@@ -679,9 +583,6 @@ def hero_page(h: dict, cards: dict, table_row: dict | None, cols: list[dict], en
             # the patch strip in the head, under the name (history_view.head_strip): the first screen shows what
             # changed (History sat at y=1365-2096); a phone gives it the head's whole width
             f'{head_strip(told)}'
-            # the stat tiles gave way to the game's panels under the head (weapon_block, owner 2026-10-22); a hero whose
-            # gun is borrowed or cut keeps them
-            f'{key_stats(table_row, cols, name, rel) if table_row and not game_panels else ""}'
             f'</div>')
     body = head + (f'<section class="now-open">{now}</section>' if now else '') + hist
     return page(name, body, rel, 'heroes', description=f'Deadlock {name}: every change to its stats and abilities',

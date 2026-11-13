@@ -4,7 +4,7 @@
 Vitality, the game's order), each category a catalog page — Weapon "Fairfax · Artillery bought and
 sold", Vitality "MPS · Mystic Pharmaceutical Stores", Spirit "Curiosity Catalog № 777". Code:
 `builders/game_shop.py` (tabs, catalogs, tooltips), `builders/shop_page.py` (the All Items tab),
-`site/styles.css` §12a, `site/scripts.js` (`gshop`).
+`site/css/13-shop.css`, `site/js/05-shop.js` (`gshop`).
 
 ## Where it comes from (tracker, `game/citadel/pak01_dir/panorama/`)
 
@@ -97,5 +97,5 @@ masks and `fetch` there, so the tabs and cards lose their shapes and the sounds 
 look changes; the fonts (VALVEOracle, VALVEPulp) are not in the VPK — Archivo Narrow and Fredoka stand in.
 It also writes the hero page's stat-panel art: `icons/shop/panel_{w,v,s}.webp` (catalog_tooltip_bg_modifies_*),
 `icons/shop/scale_spirit.webp` (keystat_spirit_arrow) and the Boon Rewards card's icons `icons/shop/boon_*.svg`
-(hud/unlock_icon, hud/ap_icon and the property icons of ability_property_icons.css; docs/architecture.md, hero page
+(hud/unlock_icon, hud/ap_icon and the property icons of ability_property_icons.css; docs/pages.md, Hero / unit
 stats).

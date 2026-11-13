@@ -1,0 +1,77 @@
+/* ---------- 17. change matrix: tiles and the hover card ---------- */
+/* a tile: stripes in tag colours, a pixel bevel, the number of changes in the corner */
+.dsq { position: relative; width: 28px; height: 28px;
+  box-shadow: inset 0 0 0 1px var(--bg-page), inset 2px 2px 0 var(--bone-08), inset -2px -2px 0 var(--shadow); }
+/* a tile of one tag is a class, not an inline gradient (dynamics_page._cell) */
+.dsq.s-new { background: var(--tag-new); }
+.dsq.s-rework { background: var(--tag-rework); }
+.dsq.s-buff { background: var(--tag-buff); }
+.dsq.s-nerf { background: var(--tag-nerf); }
+.dsq.s-del { background: var(--tag-del); }
+.dsq.s-on { background: var(--tag-on); }
+.dsq.s-off { background: var(--tag-off); }
+.dsq.s-mech { background: var(--tag-mech); }
+.dsq.s-changed { background: var(--tag-changed); }
+/* the count and the eye edge: the strip tile's (07a, `.ps-tile .dn, .dsq .dn`) */
+/* the orange top in words (dynamics_page.cap_key: a matrix's bar, an entity page's strip): a small tile with the top */
+.cap-key { display: inline-flex; align-items: center; gap: 6px; font: 500 var(--fs-xs)/1 var(--font-ui);
+  color: var(--text-dim); white-space: nowrap; }
+.cap-key .ck-tile { flex: none; width: 12px; height: 12px; background: var(--tag-changed); border-top: 3px solid var(--eye);
+  box-shadow: inset 0 0 0 1px var(--bg-page); }
+.dsq:hover { outline: 2px solid var(--text-bright); outline-offset: 1px; transform: translateY(-1px); }
+table.dyn th, table.dyn td { border-bottom: 1px solid var(--grid); }
+table.dyn thead tr.cats th { text-align: center; border-left: 1px solid var(--grid-strong); }
+table.dyn th.name { text-align: center; }
+/* 360px at least (inside a phone's screen): at 288px "Bullet Dance" and "Min Rounds Per Second" took two lines each
+   (review 2026-10-17) */
+.dyn-tip { position: fixed; z-index: var(--z-tooltip); display: none; min-width: min(360px, calc(100vw - 16px));
+  max-width: min(420px, calc(100vw - 16px)); padding: 10px 12px;
+  background: var(--bg-panel-3); pointer-events: none; font-size: var(--fs-sm); }
+.dyn-tip.on { display: block; }
+.dt-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+/* whole, never cropped: a Game system's tall mark is the same icon here as on its row (review 2026-10-17) */
+.dt-head img { width: 28px; height: 28px; object-fit: contain; background: var(--bg-panel-4); }
+.dt-name { font: 600 var(--fs-base)/1.1 var(--font-ui); color: var(--name); }
+.dt-patch { margin-left: auto; font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); }
+.dt-patch.named { color: var(--gold); }
+.dt-counts { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; }
+.dt-counts .pip { font-size: var(--fs-base); }
+.dt-counts .pip em { margin-left: 4px; font: 500 var(--fs-sm)/1 var(--font-ui); font-style: normal; color: var(--text-dim); }
+table.dt-rows { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+table.dt-rows td { padding: 4px 6px; text-align: center; border-top: 1px solid var(--grid); border-right: 1px solid var(--grid); }
+table.dt-rows td:last-child { border-right: 0; }
+.dt-what { color: var(--text-bright); font-weight: 600; }
+.dt-field { color: var(--text-dim); }
+/* values wrap between words: a REWORK's bonus lists kept on one line pushed the table past the card's right
+   edge. break-word, not anywhere: "anywhere" took the column's minimum width away and split numbers between
+   digits (Walker's "12880 → 8" + "000", review 2026-10-05); a word breaks only when it alone is too wide */
+.dt-vals { white-space: normal; overflow-wrap: break-word; color: var(--label); font-variant-numeric: tabular-nums; }
+.dt-vals i { font-style: normal; color: var(--arrow); padding: 0 3px; }
+.dt-vals b.t-buff { color: var(--tag-buff); }
+.dt-vals b.t-nerf { color: var(--tag-nerf); }
+.dt-vals b.t-new { color: var(--tag-new); }
+.dt-vals b.t-del { color: var(--tag-del); }
+.dt-vals b.t-rework { color: var(--tag-rework); }
+.dt-vals b { color: var(--text-bright); }
+.dt-foot { margin-top: 8px; font: 500 var(--fs-xs)/1 var(--font-ui); color: var(--text-dimmer); text-align: center; }
+/* an entity page's card (a strip tile / a trail square): the eye's count, rows grouped by ability, each with
+   its tag; a hidden row carries the eye. Label column left like every table's name column. */
+.dt-eye { display: flex; align-items: center; gap: 6px; margin: -2px 0 8px; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--eye); }
+.dt-eye .mark, .dt-e .mark, .dt-eye .mark::before, .dt-e .mark::before { width: 14px; height: 14px; flex: none; }
+.dt-e { display: inline-flex; vertical-align: -2px; margin-right: 4px; color: var(--eye); }
+table.dt-rows tr.dt-grp td { padding: 7px 6px 4px; text-align: left; font: 600 var(--fs-sm)/1 var(--font-ui); color: var(--name); border-right: 0; }
+/* a rule for all's own number in a strip tile's card (it is not in the tile's counts) */
+table.dt-rows tr.dt-grp .dt-every { margin-left: 8px; font-weight: 500; color: var(--text-dimmer); }
+.dt-ic { display: inline-flex; position: relative; width: 22px; height: 22px; padding: 2px; margin-right: 7px; vertical-align: -6px;
+  background: var(--bg-panel-4); box-shadow: 0 0 0 1px var(--frame-line); }
+.dt-ic img { width: 100%; height: 100%; object-fit: contain; }
+.dt-ic.ult::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 7px; height: 7px; background: var(--gold);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+table.dt-rows td.dt-tg { width: 1%; padding-left: 0; }
+/* the field gets a fair share of the card: "Min Sleep Time" wrapped in a cramped column while the values had ~200px to
+   spare, a rework's long list taking the width (visual pass 2026-10-17, round 2) */
+table.dt-rows td.dt-tg + td.dt-field { min-width: 10em; }
+table.dt-rows .tag { min-width: 58px; padding: 3px 5px 2px 7px; }
+table.dt-rows td.dt-field { text-align: left; }
+table.dt-rows tr.dt-hid td { background: var(--eye-06); }
+

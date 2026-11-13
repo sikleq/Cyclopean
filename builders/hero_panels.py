@@ -17,7 +17,6 @@ from .common import esc, icon, load_json
 # the game prints these to a set precision (Warden: "17.3 Bullet Damage" for 17.34, "290m/s", "66 DPS"); the rest
 # with two decimals at most, trailing zeros dropped ("3.81", "4.5s", "2")
 DIGITS = {'EBulletDamage': 1, 'EBulletSpeed': 0, 'EMaxHealth': 0, 'EWeaponDPS': 0, 'EClipSize': 0, 'EStamina': 0}
-PANEL_CLASS = {'weapon': 'w', 'vitality': 'v', 'spirit': 's'}
 BOONS_COL = {'key': 'boons', 'label': 'Boons', 'digits': 0, 'pol': 1}
 
 

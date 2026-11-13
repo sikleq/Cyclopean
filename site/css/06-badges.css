@@ -1,0 +1,138 @@
+/* ---------- 06. Badges & markers ---------- */
+/* Tag (render.tag_badge — the only markup): the tag's pixel icon and its word in the UI font, 600 11px
+   uppercase (pixel fonts read poorly at badge size; Sloppy's badges are 11px UI font too), a muted
+   tint of its colour with a 2px bar on the left, ONE width for every tag (--tag-w) and one fill — the size
+   of a change is the % beside it, never the badge (owner 2026-10-04: two shaded chips per row). No
+   clip-path: it cut the focus ring and the "chosen" ring of the filter buttons. */
+.tag {
+  --c: var(--tag-changed);
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  min-width: var(--tag-w);
+  /* CHANGED, the longest word, fits the width: at 8px / 6px and .03em it came to 82.6px and stood out of its column */
+  padding: 4px 5px 3px 7px;
+  font: 600 var(--fs-xs)/1 var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  color: color-mix(in srgb, var(--c) 85%, var(--text-main));
+  background:
+    linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat,
+    color-mix(in srgb, var(--c) 12%, var(--bg-panel));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent);
+  vertical-align: 1px;
+  white-space: nowrap;
+}
+button.tag { border: 0; cursor: pointer; }
+button.tag:hover { background: linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat,
+  color-mix(in srgb, var(--c) 22%, var(--bg-panel)); }
+/* a chosen filter tag: aria-pressed (the class "on" is the ON tag's colour — a chosen NERF turned green) */
+.tag[aria-pressed="true"] { color: var(--text-bright);
+  background: linear-gradient(var(--c), var(--c)) left / 2px 100% no-repeat, color-mix(in srgb, var(--c) 34%, var(--bg-panel));
+  box-shadow: inset 0 0 0 1px var(--c), 0 0 0 2px var(--text-bright); }
+.tag:focus-visible { outline: 2px solid var(--text-bright); outline-offset: 2px; }
+/* reached with the keyboard (scripts.js gives them the tab order): a value with a history, a sortable or
+   foldable header */
+[data-hist]:focus-visible, table.stats thead th[tabindex]:focus-visible {
+  outline: 2px solid var(--text-bright); outline-offset: -2px; }
+/* the tag's own pixel icon (builders/pixel_icons.py): a badge and a counter (.pip) draw it as a mask in their
+   own colour, so a page carries no SVG per badge (pixel_icons.tag_mask; tests keep these in sync). A tag
+   without art (a topic) gets no ::before. 10px: the art is a 10x10 grid. */
+.ti { display: inline-block; width: 10px; height: 10px; flex: none; }
+.tag::before { content: var(--ti-content, none); width: 10px; height: 10px; flex: none; background: currentColor;
+  -webkit-mask: var(--ti) center / 10px 10px no-repeat; mask: var(--ti) center / 10px 10px no-repeat; }
+.pip::before { content: var(--ti-content, none); width: 11px; height: 11px; flex: none; background: currentColor;
+  -webkit-mask: var(--ti) center / 100% 100% no-repeat; mask: var(--ti) center / 100% 100% no-repeat; }
+.tag.buff, .pip.buff { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM1 4h8v1h-8zM0 5h10v1h-10zM3 6h4v1h-4zM3 7h4v1h-4zM3 8h4v1h-4z'/%3E%3C/svg%3E"); }
+.tag.nerf, .pip.nerf { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 1h4v1h-4zM3 2h4v1h-4zM3 3h4v1h-4zM0 4h10v1h-10zM1 5h8v1h-8zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.new, .pip.new { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 0h2v1h-2zM4 1h2v1h-2zM3 2h4v1h-4zM2 3h6v1h-6zM0 4h10v1h-10zM0 5h10v1h-10zM2 6h6v1h-6zM3 7h4v1h-4zM4 8h2v1h-2zM4 9h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.del, .pip.del { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M0 0h2v1h-2zM8 0h2v1h-2zM0 1h3v1h-3zM7 1h3v1h-3zM1 2h3v1h-3zM6 2h3v1h-3zM2 3h6v1h-6zM3 4h4v1h-4zM3 5h4v1h-4zM2 6h6v1h-6zM1 7h3v1h-3zM6 7h3v1h-3zM0 8h3v1h-3zM7 8h3v1h-3zM0 9h2v1h-2zM8 9h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.rework, .pip.rework { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M5 0h2v1h-2zM5 1h3v1h-3zM0 2h9v1h-9zM5 3h3v1h-3zM5 4h2v1h-2zM3 5h2v1h-2zM2 6h3v1h-3zM1 7h9v1h-9zM2 8h3v1h-3zM3 9h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.mech, .pip.mech { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M3 0h4v1h-4zM1 1h1v1h-1zM3 1h4v1h-4zM8 1h1v1h-1zM1 2h8v1h-8zM0 3h4v1h-4zM6 3h4v1h-4zM0 4h3v1h-3zM7 4h3v1h-3zM0 5h3v1h-3zM7 5h3v1h-3zM0 6h4v1h-4zM6 6h4v1h-4zM1 7h8v1h-8zM1 8h1v1h-1zM3 8h4v1h-4zM8 8h1v1h-1zM3 9h4v1h-4z'/%3E%3C/svg%3E"); }
+.tag.changed, .pip.changed { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M2 2h1v1h-1zM7 2h1v1h-1zM1 3h2v1h-2zM7 3h2v1h-2zM0 4h10v1h-10zM0 5h10v1h-10zM1 6h2v1h-2zM7 6h2v1h-2zM2 7h1v1h-1zM7 7h1v1h-1z'/%3E%3C/svg%3E"); }
+.tag.up, .pip.up { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M4 2h2v1h-2zM3 3h4v1h-4zM2 4h2v1h-2zM6 4h2v1h-2zM1 5h2v1h-2zM7 5h2v1h-2zM0 6h2v1h-2zM8 6h2v1h-2zM0 7h1v1h-1zM9 7h1v1h-1z'/%3E%3C/svg%3E"); }
+.tag.down, .pip.down { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M0 2h1v1h-1zM9 2h1v1h-1zM0 3h2v1h-2zM8 3h2v1h-2zM1 4h2v1h-2zM7 4h2v1h-2zM2 5h2v1h-2zM6 5h2v1h-2zM3 6h4v1h-4zM4 7h2v1h-2z'/%3E%3C/svg%3E"); }
+.tag.on, .pip.on { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h8v1h-8zM1 2h1v1h-1zM8 2h1v1h-1zM1 3h1v1h-1zM6 3h3v1h-3zM1 4h2v1h-2zM5 4h3v1h-3zM9 4h1v1h-1zM1 5h5v1h-5zM8 5h1v1h-1zM1 6h1v1h-1zM3 6h2v1h-2zM8 6h1v1h-1zM1 7h1v1h-1zM8 7h1v1h-1zM1 8h8v1h-8z'/%3E%3C/svg%3E"); }
+.tag.off, .pip.off { --ti-content: ""; --ti: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10' shape-rendering='crispEdges'%3E%3Cpath d='M1 1h8v1h-8zM1 2h2v1h-2zM7 2h2v1h-2zM1 3h1v1h-1zM3 3h1v1h-1zM6 3h1v1h-1zM8 3h1v1h-1zM1 4h1v1h-1zM4 4h2v1h-2zM8 4h1v1h-1zM1 5h1v1h-1zM4 5h2v1h-2zM8 5h1v1h-1zM1 6h1v1h-1zM3 6h1v1h-1zM6 6h1v1h-1zM8 6h1v1h-1zM1 7h2v1h-2zM7 7h2v1h-2zM1 8h8v1h-8z'/%3E%3C/svg%3E"); }
+.pip { display: inline-flex; align-items: center; gap: 3px; }
+.ixs .pip::before { width: 12px; height: 12px; }
+.tag.buff, .pip.buff { --c: var(--tag-buff); }
+.tag.nerf, .pip.nerf { --c: var(--tag-nerf); }
+.tag.new, .pip.new { --c: var(--tag-new); }
+.tag.del, .pip.del { --c: var(--tag-del); }
+.tag.rework, .pip.rework { --c: var(--tag-rework); }
+.tag.changed, .pip.changed { --c: var(--tag-changed); }
+.tag.up, .pip.up, .tag.down, .pip.down { --c: var(--tag-changed); }
+.tag.mech, .pip.mech { --c: var(--tag-mech); }
+.tag.on, .pip.on { --c: var(--tag-on); }
+.tag.off, .pip.off { --c: var(--tag-off); }
+
+/* tag counters in an entity header: small tinted number squares in the tag colours */
+.tsum { display: inline-flex; gap: 3px; margin-left: 10px; vertical-align: 1px; }
+/* "▲3 ▼1 ✦2": coloured glyph counts, no boxes (same grammar as the patches index) */
+.pip {
+  --c: var(--tag-changed);
+  font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--c); white-space: nowrap;
+}
+.tsum { gap: 9px; }
+
+.mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; flex: none;
+  font: 500 var(--fs-sm)/1 var(--font-ui);
+}
+/* the mark's pixel shape is a mask (common.MARK_ART; tests/test_perf.py keeps these in sync): a page carries
+   no SVG per mark. The eye's glow sits on the mark itself — a filter on the masked ::before is masked away. */
+.mark::before { content: var(--mk-on, none); width: 16px; height: 16px; flex: none; background: currentColor;
+  -webkit-mask: var(--mk) center / 100% 100% no-repeat; mask: var(--mk) center / 100% 100% no-repeat; }
+.mark.code { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M4 4h2v1H4zM3 5h2v1H3zM2 6h2v1H2zM1 7h2v2H1zM2 9h2v1H2zM3 10h2v1H3zM4 11h2v1H4zM10 4h2v1h-2zM11 5h2v1h-2zM12 6h2v1h-2zM13 7h2v2h-2zM12 9h2v1h-2zM11 10h2v1h-2zM10 11h2v1h-2zM9 2h1v3H9zM8 5h1v3H8zM7 8h1v3H7zM6 11h1v3H6z'/%3E%3C/svg%3E"); }
+.mark.untracked, .mark.nodata { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M6 2h4v1H6zM4 3h2v1H4zM10 3h2v1h-2zM3 4h1v2H3zM12 4h1v2h-1zM2 6h1v4H2zM13 6h1v4h-1zM3 10h1v2H3zM12 10h1v2h-1zM4 12h2v1H4zM10 12h2v1h-2zM6 13h4v1H6zM10 5h1v1h-1zM9 6h1v1H9zM8 7h1v1H8zM7 8h1v1H7zM6 9h1v1H6zM5 10h1v1H5z'/%3E%3C/svg%3E"); }
+.mark.repeated, .mark.described { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M2 8h2v2H2zM4 6h3v2H4zM7 8h2v2H7zM9 8h3v2H9zM12 6h2v2h-2z'/%3E%3C/svg%3E"); }
+.mark.fix { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M10 2h3v1h-3zM9 3h2v3H9zM13 3h1v3h-1zM11 6h2v1h-2zM8 6h2v2H8zM6 8h2v2H6zM4 10h2v2H4zM2 12h2v2H2z'/%3E%3C/svg%3E"); }
+.mark.hidden { --mk-on: ""; --mk: var(--mask-eye); }
+.mark.unreleased { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v1H5zM6 3h1v4H6zM9 3h1v4H9zM5 7h1v1H5zM10 7h1v1h-1zM4 8h1v2H4zM11 8h1v2h-1zM3 10h1v3H3zM12 10h1v3h-1zM3 13h10v1H3zM4 11h8v2H4z'/%3E%3C/svg%3E"); }
+/* ONE icon for "not in patch notes": an update without notes has the eye too (review 2026-10-17) */
+.mark.unannounced { --mk-on: ""; --mk: var(--mask-eye); }
+.mark.documented, .mark.rounded { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M13 3h2v2h-2zM11 5h2v2h-2zM9 7h2v2H9zM7 9h2v2H7zM3 7h2v2H3zM5 9h2v2H5z'/%3E%3C/svg%3E"); }
+.mark.mismatch { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M7 2h2v8H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
+.mark.unmatched { --mk-on: ""; --mk: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Cpath d='M5 2h6v2H5zM4 3h1v2H4zM10 4h2v2h-2zM8 6h3v2H8zM7 8h2v2H7zM7 12h2v2H7z'/%3E%3C/svg%3E"); }
+.mark.hidden, .mark.unannounced { color: var(--eye); filter: drop-shadow(0 0 4px var(--eye-glow)); }
+/* the eye that opens its proof (builders/evidence.py: the build page of the files it came in) lights up */
+a.mark.hidden:hover, a.mark.hidden:focus-visible { color: var(--text-bright); }
+a.mark.unannounced:hover, a.mark.unannounced:focus-visible { color: var(--text-bright); }
+.mark.documented { color: var(--patina); }
+.mark.described { color: var(--text-dim); }
+.mark.mismatch { color: var(--tag-mismatch); }
+.mark.fix { color: var(--tag-rework); }
+.mark.rounded { color: var(--patina-dim); }
+.mark.unreleased { color: var(--dev); }
+.mark.code { color: var(--patina-dim); }   /* a real change, in the game's code rather than its data files */
+.chip.dev { color: var(--dev); background: var(--dev-10); }
+.chip .mark { width: 16px; height: 16px; margin-right: 3px; }
+.chip .mark::before { width: 12px; height: 12px; }
+
+.dir-buff { color: var(--tag-buff); }
+.dir-nerf { color: var(--tag-nerf); }
+.dir-changed, .dir-up, .dir-down { color: var(--tag-changed); }
+.arrow { color: var(--text-dimmer); padding: 0 4px; }
+/* old -> new, the key datum: old muted, new bold in the direction's colour, the change as a pill */
+.vals { font-size: var(--fs-base); font-variant-numeric: tabular-nums; }
+.vals .old { color: var(--label); }
+.vals .arrow { color: var(--arrow); }
+.vals .new { color: var(--name); font-weight: 600; }
+.vals .new.dir-buff { color: var(--tag-buff); }
+.vals .new.dir-nerf { color: var(--tag-nerf); }
+/* the % is coloured text, not a second box beside the tag (Sloppy's grammar, owner 2026-10-04); its ink
+   strength follows the size of the change (data-g 1..5): a 2% nudge is faint, a 60% swing is full colour */
+.pct { --c: var(--tag-changed); --ink: 80%; display: inline-block; min-width: 60px; margin-left: 8px;
+  text-align: right; font: 700 var(--fs-sm)/1.15 var(--font-ui); font-variant-numeric: tabular-nums;
+  color: color-mix(in srgb, var(--c) var(--ink), var(--text-dimmer)); }
+.pct[data-g="1"] { --ink: 55%; font-weight: 600; }
+.pct[data-g="2"] { --ink: 75%; }
+.pct[data-g="3"] { --ink: 90%; }
+.pct[data-g="4"] { --ink: 100%; }
+.pct[data-g="5"] { --ink: 100%; }
+.pct-pad { display: none; }
+.erow .vv .pct { width: 64px; min-width: 0; box-sizing: border-box; }
+.erow .vv .pct-pad { display: inline-block; width: 64px; margin-left: 8px; }
+.pct.dir-buff { --c: var(--tag-buff); }
+.pct.dir-nerf { --c: var(--tag-nerf); }
+

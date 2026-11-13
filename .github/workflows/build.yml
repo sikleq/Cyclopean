@@ -55,7 +55,7 @@ jobs:
           test -f dist/index.html
           test -f dist/tables/heroes.html
           test "$(ls dist/patches | wc -l)" -gt 10
-          test "$(wc -c < dist/styles.css)" -lt "$(wc -c < site/styles.css)"
+          test "$(wc -c < dist/styles.css)" -lt "$(cat site/css/*.css | wc -c)"
       - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:

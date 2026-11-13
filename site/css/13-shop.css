@@ -1,0 +1,156 @@
+/* ---------- 12. Items index: the game's shop — tabs, Fairfax / Curiosity / MPS catalogs, All Items ----------
+   Geometry in the game's design px (a catalog is 1120 x 960, builders/game_shop.py); --u turns one into
+   css px at the board's width, so the shop fills the page like the game's UI fills the screen. Narrow
+   boards stack the tiers at the cards' real size. Performance: hover changes the classes of a few cards
+   only; the rest dim under ONE overlay (not a filter on every card), cards are layout-contained. */
+.gshop { display: flex; align-items: flex-start; gap: 6px; margin-top: 8px; }
+.gs-tabs { flex: 0 0 66px; display: flex; flex-direction: column; gap: 8px; padding-top: 6px;
+  position: sticky; top: calc(var(--nav-h) + 8px); z-index: 2; }
+.gs-tab { --t: var(--gs-tab-all); --t2: var(--gs-tab-all-2); --th: var(--name); position: relative; width: 60px; height: 75px;
+  padding: 10px 0 0; border: 0; cursor: pointer; display: flex; justify-content: center; align-items: flex-start;
+  background: linear-gradient(90deg, var(--t2), var(--t));
+  -webkit-mask: url(icons/shop/tab_shape.webp) 0 0 / 60px 185px no-repeat; mask: url(icons/shop/tab_shape.webp) 0 0 / 60px 185px no-repeat;
+  transition: height .2s ease-in-out, width .2s ease-in-out; }
+.gs-tab img { width: 46px; height: 46px; }
+.gs-tab:hover { background: linear-gradient(90deg, var(--t), var(--th)); }
+.gs-tab.on { width: 66px; height: 200px; background: var(--t); }
+.gs-tab.w { --t: var(--gs-tab-w); --t2: var(--gs-tab-w-2); --th: var(--gs-tab-w-hi); }
+.gs-tab.s { --t: var(--gs-tab-s); --t2: var(--gs-tab-s-2); --th: var(--gs-tab-s-hi); }
+.gs-tab.v { --t: var(--gs-tab-v); --t2: var(--gs-tab-v-2); --th: var(--gs-tab-v-hi); }
+.gs-sound { width: 40px; height: 40px; margin: 4px 0 0 10px; padding: 9px; border: 0; cursor: pointer;
+  background: var(--bg-panel-2); color: var(--text-dim); box-shadow: 0 0 0 2px var(--frame-line); }
+.gs-sound svg { width: 22px; height: 22px; fill: currentColor; stroke: currentColor; stroke-width: 0; }
+.gs-sound svg .w { fill: none; stroke-width: 1.4; stroke-linecap: round; opacity: 0; }
+.gs-sound.on { color: var(--text-bright); }
+.gs-sound.on svg .w { opacity: 1; }
+/* a size container has no width of its own content: it takes the row's (width 100%, flex shrinks it) */
+.gs-pages { flex: 1 1 auto; width: 100%; min-width: 0; container: gshop / inline-size; }
+.gs-page { animation: gs-in .21s ease-out; }
+.gs-page[hidden] { display: none; }
+@keyframes gs-in { from { opacity: 0; transform: translateY(-20px); } }
+/* a board: the page's art in our frame; ::after is the one dimming layer of a hover */
+.gs-board { --u: calc(100cqw / 1120); position: relative; isolation: isolate; background: var(--bg-panel) 0 0 / 100% 100% no-repeat;
+  box-shadow: 0 0 0 var(--px) var(--frame-line), 0 10px 24px var(--shadow-deep); }
+.gs-board::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: var(--gs-dim);
+  opacity: 0; transition: opacity .1s; }
+.gs-board.hovering::after { opacity: 1; }
+.gs-board.cat { aspect-ratio: 1120 / 960; }
+.gs-page.w .gs-board { background-image: url(icons/shop/bg_w.webp); }
+.gs-page.s .gs-board { background-image: url(icons/shop/bg_s.webp); }
+.gs-page.v .gs-board { background-image: url(icons/shop/bg_v.webp); }
+.gs-tier { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u));
+  width: calc(var(--n) * 82 * var(--u)); display: flex; flex-wrap: wrap; }
+/* the price on the black tape painted into the page (CostLabel: VALVEPulp in shardColor) */
+.gs-price { position: absolute; left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u)); transform: translate(-50%, -50%);
+  font: 600 calc(var(--fs) * var(--u)) / 1 "Fredoka", var(--font-ui); color: var(--gs-price); pointer-events: none; }
+/* All Items (showingAllItems): header strip, three paper columns, a row per tier under its price sticker */
+.gs-board.all { background-image: url(icons/shop/bg_all.webp); padding: calc(8 * var(--u)) 0 calc(16 * var(--u)); }
+.ga-head { height: calc(90 * var(--u)); background: var(--gs-head-bg) url(icons/shop/all_head.webp) center / 98% 100% no-repeat; }
+.ga-row { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 calc(12 * var(--u));
+  padding-top: calc(var(--band, 0) * var(--u)); border-top: calc(2 * var(--u)) solid var(--gs-row-line); }
+.ga-head + .ga-row, .gs-board.extra .ga-row { border-top: 0; }
+.ga-price { position: absolute; left: calc(8 * var(--u)); top: calc(6 * var(--u)); width: calc(var(--pw) * var(--u)); height: auto;
+  transform: rotate(var(--rot)); pointer-events: none; }
+.ga-col { display: flex; flex-wrap: wrap; align-content: flex-start; padding: calc(6 * var(--u)) calc(11 * var(--u)); }
+.ga-flow { display: flex; flex-wrap: wrap; padding: calc(8 * var(--u)) calc(23 * var(--u)); }
+/* ours, below the game's page: Street Brawl's T5 and the items no longer sold */
+.ga-title { margin: 22px 0 10px; font-size: var(--fs-xl); }
+.ga-title small { font: 500 var(--fs-sm)/1 var(--font-ui); color: var(--label); margin-left: 8px; }
+.gs-board.extra { background: var(--bg-panel); content-visibility: auto; contain-intrinsic-size: auto 400px; }
+.gs-board.gone .gcard { opacity: .7; }
+/* a card (CitadelShopMod 76 x 114): paper of its category and tier cut to the torn silhouette, the item's
+   art on top (passive: square, torn edge; active: round under an arched card), the name below */
+.gcard { position: relative; flex: none; width: calc(76 * var(--u)); height: calc(114 * var(--u));
+  margin: calc(3 * var(--u)); border-radius: calc(2 * var(--u)); contain: layout style;
+  box-shadow: calc(2 * var(--u)) calc(2 * var(--u)) calc(12 * var(--u)) var(--gs-card-shadow); transition: transform .05s; }
+.gcard::before { content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--card) 0 0 / 100% 100%;
+  -webkit-mask: url(icons/shop/card_mask.webp) 0 0 / 100% 100%; mask: url(icons/shop/card_mask.webp) 0 0 / 100% 100%; }
+.gcard.act { border-radius: calc(50 * var(--u)) calc(50 * var(--u)) calc(2 * var(--u)) calc(2 * var(--u)); }
+.gcard.p-w1 { --card: url(icons/shop/card_w_t1.webp); } .gcard.p-w2 { --card: url(icons/shop/card_w_t2.webp); }
+.gcard.p-w3 { --card: url(icons/shop/card_w_t3.webp); } .gcard.p-w4 { --card: url(icons/shop/card_w_t4.webp); }
+.gcard.p-s1 { --card: url(icons/shop/card_s_t1.webp); } .gcard.p-s2 { --card: url(icons/shop/card_s_t2.webp); }
+.gcard.p-s3 { --card: url(icons/shop/card_s_t3.webp); } .gcard.p-s4 { --card: url(icons/shop/card_s_t4.webp); }
+.gcard.p-v1 { --card: url(icons/shop/card_v_t1.webp); } .gcard.p-v2 { --card: url(icons/shop/card_v_t2.webp); }
+.gcard.p-v3 { --card: url(icons/shop/card_v_t3.webp); } .gcard.p-v4 { --card: url(icons/shop/card_v_t4.webp); }
+.gc-ic { position: absolute; left: calc(3 * var(--u)); top: calc(3 * var(--u)); width: calc(70 * var(--u)); height: calc(70 * var(--u)); }
+.gc-ic img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.gc-ic .glyph { display: block; width: 60%; height: 60%; margin: 20%; color: var(--label); }
+.gcard.m1 .gc-ic img { -webkit-mask: url(icons/shop/mask_1.webp) 0 0 / 100% 100%; mask: url(icons/shop/mask_1.webp) 0 0 / 100% 100%; }
+.gcard.m2 .gc-ic img { -webkit-mask: url(icons/shop/mask_2.webp) 0 0 / 100% 100%; mask: url(icons/shop/mask_2.webp) 0 0 / 100% 100%; }
+.gcard.m3 .gc-ic img { -webkit-mask: url(icons/shop/mask_3.webp) 0 0 / 100% 100%; mask: url(icons/shop/mask_3.webp) 0 0 / 100% 100%; }
+.gcard.act .gc-ic img { border-radius: 50%; }
+/* the name keeps inside the card: words never break, a long one shrinks (scripts.js fit, the game's
+   text-overflow: shrink); clipped as the last resort */
+.gc-nm { position: absolute; left: 0; right: 0; bottom: 0; height: calc(40 * var(--u)); padding: 0 calc(3 * var(--u)) calc(2 * var(--u));
+  display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden;
+  overflow-wrap: normal; word-break: normal; hyphens: none;
+  font: 700 calc(15 * var(--u)) / .92 "Archivo Narrow", var(--font-ui); color: var(--gs-ink); }
+.gcard.p-w4 .gc-nm { color: var(--gs-w-t4); }
+.gcard.p-s4 .gc-nm { color: var(--gs-s-t4); }
+.gcard.p-v4 .gc-nm { color: var(--gs-v-t4); }
+.gc-imb { position: absolute; left: calc(3 * var(--u)); top: calc(57 * var(--u)); width: calc(70 * var(--u)); height: calc(16 * var(--u));
+  display: flex; align-items: center; justify-content: center; background: var(--gs-imbue-bg); color: var(--gs-imbue);
+  font: italic 700 calc(12 * var(--u)) / 1 "Archivo Narrow", var(--font-ui); letter-spacing: calc(1 * var(--u)); text-transform: uppercase; }
+/* hover (the game's HoveringItem): the rest dims under the board's layer; the hovered card, what it builds
+   from (lit, HoveredItemIsUpgrade) and what it builds into (pulsing, HoveredItemIsComponent) rise above it */
+.gcard.is-me, .gcard.is-comp, .gcard.is-up { z-index: 2; }
+.gcard.is-comp { filter: brightness(1.3); transform: scale(1.05); outline: calc(2 * var(--u)) solid var(--gs-outline); }
+.gcard.is-up { outline: calc(2 * var(--u)) solid var(--gs-outline); animation: gs-upgrade 2s infinite; }
+@keyframes gs-upgrade { 0%, 100% { transform: scale(1.1); } 50% { transform: scale(1.25); } }
+@media (prefers-reduced-motion: reduce) { .gcard.is-up { animation: none; transform: scale(1.1); } .gs-page { animation: none; } }
+/* the item tooltip (citadel_tooltip_mod_details): the category's header strip, then stats and sections */
+.gs-tip { position: fixed; z-index: var(--z-tooltip); width: 340px; max-width: calc(100vw - 16px); pointer-events: none; }
+.gs-tip[hidden] { display: none; }
+.gtip { background: var(--gs-tip-bg); color: var(--gs-tip-text); box-shadow: 0 0 0 var(--px) var(--frame-line), 0 10px 28px var(--shadow);
+  font: var(--fs-base)/1.4 var(--font-ui); }
+.gt-head { display: flex; flex-direction: column; justify-content: center; gap: 6px; min-height: 80px; padding: 14px 18px;
+  background: var(--bg-panel-3) center / cover no-repeat; }
+.gtip.w .gt-head { background-image: url(icons/shop/tip_w.webp); }
+.gtip.s .gt-head { background-image: url(icons/shop/tip_s.webp); }
+.gtip.v .gt-head { background-image: url(icons/shop/tip_v.webp); }
+.gt-name { font: 700 27px/1 "Archivo Narrow", var(--font-ui); color: var(--text-bright); text-shadow: 2px 2px 0 var(--shadow-soft); }
+.gt-cost { display: flex; align-items: center; gap: 5px; font: 600 19px/1 "Fredoka", var(--font-ui); color: var(--gs-price); }
+.gt-cost img { width: 14px; height: 18px; }
+.gt-body { padding: 4px 14px 12px; }
+.gt-bar { display: flex; justify-content: space-between; margin: 8px -14px 6px; padding: 6px 14px; background: var(--gs-tip-bar);
+  font: 700 var(--fs-sm)/1 var(--font-ui); text-transform: uppercase; letter-spacing: .06em; color: var(--text-bright); }
+.gt-bar.passive span:first-child { font-style: italic; opacity: .6; }
+.gt-cd { color: var(--gs-tip-text); }
+.gt-desc { margin: 4px 0 6px; white-space: pre-line; }     /* Valve's line breaks (Echo Shard) */
+.gtip table.kvt { width: 100%; font-size: var(--fs-sm); }
+.gt-stats { margin-top: 8px; }
+.gt-comp, .gt-last { margin-top: 8px; font-size: var(--fs-sm); }
+.gt-comp b, .gt-last b { margin-right: 4px; font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--label); }
+/* a narrow board (phones): no page art scaling, the tiers stack at the game's real card size */
+@container gshop (max-width: 820px) {     /* below this the names would drop under 11px */
+  .gs-board { --u: 1px; }
+  .gs-board.cat { aspect-ratio: auto; display: flex; flex-direction: column; padding: 6px 0 14px; }
+  .gs-page.w .gs-board { background: var(--gs-paper-w); }
+  .gs-page.s .gs-board { background: var(--gs-paper-s); }
+  .gs-page.v .gs-board { background: var(--gs-paper-v); }
+  .gs-price { position: static; transform: none; align-self: flex-start; margin: 12px 0 2px 10px; padding: 4px 12px;
+    font-size: 22px; background: var(--gs-ink); }
+  .gs-tier { position: static; width: auto; padding: 0 6px; }
+  .gs-tier:last-child { margin: 0 6px; padding: 6px 0; background: var(--gs-ink); }
+  .ga-head { display: none; }
+  .gs-board.all { background: var(--bg-panel); }
+  .ga-row { grid-template-columns: minmax(0, 1fr); padding-top: calc(var(--band, 0) * 1px); }
+  .gs-board.all .ga-col.w { background: var(--gs-paper-w); }
+  .gs-board.all .ga-col.s { background: var(--gs-paper-s); }
+  .gs-board.all .ga-col.v { background: var(--gs-paper-v); }
+  .ga-col::before { content: attr(data-label); flex: 0 0 100%; margin: 2px 3px 4px; font: 600 var(--fs-xs)/1 var(--font-ui);
+    text-transform: uppercase; letter-spacing: .08em; color: var(--gs-ink); }
+  .gs-board.extra .ga-col::before { color: var(--label); }     /* no paper under Street Brawl */
+}
+@media (max-width: 760px) {
+  .gshop { flex-direction: column; }
+  .gs-tabs { position: static; flex-direction: row; flex-basis: auto; align-items: flex-start; padding: 0 0 6px; }
+  .gs-tab { height: 56px; }
+  .gs-tab.on { width: 60px; height: 66px; }
+  .gs-sound { margin: 8px 0 0 4px; }
+}
+/* the "Active" chip of the items table (tables_pages.py) */
+/* the UI font's small caps (the tags' type) */
+.it-act { margin-top: 3px; padding: 1px 4px; font: 600 var(--fs-xs)/1 var(--font-ui); text-transform: uppercase; letter-spacing: .06em;
+  color: var(--text-dim); background: var(--bg-page); }
+

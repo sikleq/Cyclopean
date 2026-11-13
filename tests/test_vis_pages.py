@@ -1,5 +1,5 @@
 """Visual pass 2026-10-17, the "pages" track: the home page, the patch list and patch pages, the index grids, the hover
-cards on a touch screen. site/styles.css + site/scripts.js on the builders' own markup in a real browser (the `browser`
+cards on a touch screen. site/css + site/js on the builders' own markup in a real browser (the `browser`
 fixture of tests/conftest.py)."""
 from __future__ import annotations
 
@@ -8,27 +8,10 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import open_inline as _open
+
 ROOT = Path(__file__).resolve().parent.parent
 PHONE = {'width': 390, 'height': 844}
-
-
-def _open(browser, body: str, width: int = 1440, height: int = 900, touch: bool = False, init: str = '',
-          main: str = 'page'):
-    """A page of `body` with the site's CSS and JS inline; `touch`: a phone (is_mobile, has_touch: hover is none)."""
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
-    opts = {'viewport': {'width': width, 'height': height}}
-    if touch:
-        opts.update(is_mobile=True, has_touch=True)
-    ctx = browser.new_context(**opts)
-    page = ctx.new_page()
-    errors: list[str] = []
-    page.on('pageerror', lambda e: errors.append(str(e)))
-    head = f'<script>{init}</script>' if init else ''           # runs before the site's script
-    page.set_content(f'<!doctype html><html><head><meta charset="utf-8">'
-                     f'<meta name="viewport" content="width=device-width, initial-scale=1"><style>{css}</style>{head}</head>'
-                     f'<body><main class="{main}">{body}</main><script>{js}</script></body></html>')
-    return ctx, page, errors
 
 
 # ---- 1. the patch list: every number in its own place --------------------------------------------------------------
@@ -357,7 +340,7 @@ SHOP = ('<p id="away" style="height:100px">x</p><div class="gshop" data-sfx="" d
 
 def test_on_a_phone_a_shop_cards_first_tap_shows_its_tooltip_and_the_second_opens_it(browser):
     """Review 2026-10-17: a tap on a shop card opened the item at once; its tooltip was never seen."""
-    ctx, page, errors = _open(browser, SHOP, touch=True, init=SHOP_FETCH, **PHONE)
+    ctx, page, errors = _open(browser, SHOP, touch=True, head=f'<script>{SHOP_FETCH}</script>', **PHONE)
     card = page.locator('.gcard').first
     card.tap()
     page.wait_for_function("() => !document.querySelector('.gs-tip').hidden")

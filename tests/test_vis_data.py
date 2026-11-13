@@ -5,10 +5,12 @@ A hero's release build is a window of its own (Deadman Danny's release and the 1
 "not in patch notes"; pre-release heroes are work before release; a line naming an ability never falls back to the
 hero's base stats; Street Brawl values, a light melee's launch and an exponent read right; new heroes' parts carry
 the game's names."""
-from pipeline.match import (MChange, annotate, annotate_line, change_json, mark_availability_moves, parse_pairs,
+from pipeline.match import (annotate, annotate_line, change_json, mark_availability_moves, parse_pairs,
                             release_kit, release_pass)
 from pipeline.news import TITLE_ONLY, Notes, Section
 from pipeline.patches import Patch, group
+
+from tests.helpers import mc as _mc
 
 
 def _notes(date: str, title: str = 'Minor Update') -> Notes:
@@ -92,10 +94,6 @@ def test_a_build_record_says_which_heroes_it_releases():
              'cat': 'availability'}]}]}
     assert released_heroes(rec) == ['hero_artist']
     assert summary(rec, 'f')['released'] == ['hero_artist']
-
-
-def _mc(file, eid, path, old, new, label, op='change', cat='balance', kind='ability', owner=None, **kw) -> MChange:
-    return MChange(file, eid, path, op, old, new, cat, kind, owner, label, False, **kw)
 
 
 def test_a_release_windows_kit_is_announced_and_the_rest_hidden():

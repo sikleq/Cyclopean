@@ -14,6 +14,24 @@ DATA = ROOT / 'data'
 SITE = ROOT / 'site'
 ICONS = ROOT / 'icons'
 DIST = ROOT / 'dist'
+# the only sources of the site's styles and behaviour: their parts, joined in file-name order (NN-name) into
+# dist/styles.css and dist/scripts.js
+SITE_PARTS = {'styles.css': SITE / 'css', 'scripts.js': SITE / 'js'}
+
+
+def site_parts(name: str) -> list[Path]:
+    """The part files of 'styles.css' or 'scripts.js', in the order they are joined."""
+    return sorted(SITE_PARTS[name].glob('*' + Path(name).suffix))
+
+
+def site_source(name: str) -> bytes:
+    """'styles.css' or 'scripts.js' as one file: its parts joined byte for byte."""
+    return b''.join(p.read_bytes() for p in site_parts(name))
+
+
+def site_text(name: str) -> str:
+    """site_source as text, its line ends read the way open() reads a text file (CRLF and CR become LF)."""
+    return site_source(name).decode('utf-8').replace('\r\n', '\n').replace('\r', '\n')
 
 # Jersey 20: headings, names, big numbers (unambiguous pixel digits); IBM Plex Sans: body text,
 # labels, chips and table numbers (owner 2026-10-22: no small pixel font)
@@ -76,6 +94,9 @@ MARK_ART = {
             'M9 2h1v3H9zM8 5h1v3H8zM7 8h1v3H7zM6 11h1v3H6z',
 }
 
+# the site's one term (review 2026-10-17): "not in patch notes" for what the notes left out
+HIDDEN_WORDS = 'Not in patch notes'
+
 # status -> (its shape in MARK_ART, the tooltip)
 STATUS_MARK = {
     'code': ('code', "No game file of this changed in the update: the change is in the game's code, "
@@ -84,7 +105,7 @@ STATUS_MARK = {
     'nodata': ('na', 'No game files survive for this date — nothing to compare with'),
     'repeated': ('tilde', 'The post was edited later: this line belongs to a later update'),
     'fix': ('wrench', 'Bug fix in the patch notes'),
-    'hidden': ('eye', 'Not in patch notes — found only in the game files'),
+    'hidden': ('eye', f'{HIDDEN_WORDS} — found only in the game files'),
     'unreleased': ('flask', 'Hero still in development at this build — not in patch notes'),
     # ONE icon for "not in patch notes" (render.NOT_IN_NOTES): an update without notes has the eye too — its rows wore
     # a document glyph next to the eyes of every other update (review 2026-10-17); the words say which it is
@@ -412,7 +433,7 @@ def slug(file: str, eid: str) -> str:
 def asset_version() -> str:
     h = hashlib.sha1()
     for name in ('styles.css', 'scripts.js'):
-        h.update((SITE / name).read_bytes())
+        h.update(site_source(name))
     return h.hexdigest()[:10]
 
 
@@ -477,7 +498,7 @@ def page(title: str, body: str, rel: str = '', active: str = '', build: int | No
 <main class="{main_cls}">
 {body}
 </main>
-<footer class="site-foot">Data: SteamTracking GameTracking-Deadlock, Steam News, the official Deadlock forum; icons from the game files. Not affiliated with Valve. · <a href="{rel}patches/index.html">Patch archive</a> · <a href="{rel}changelog.html">Site changelog</a> · <a href="https://github.com/sikleq/Cyclopean" rel="noopener">Source</a></footer>
+<footer class="site-foot">Data: SteamTracking GameTracking-Deadlock, Steam News, the official Deadlock forum; icons from the game files. Not affiliated with Valve. <a href="{rel}patches/index.html">Patch archive</a>, <a href="{rel}builds/index.html">Builds</a>, <a href="{rel}changelog.html">Site changelog</a>, <a href="https://github.com/sikleq/Cyclopean" rel="noopener">Source</a></footer>
 <script src="{rel}scripts.js?v={ver}"></script>
 </body>
 </html>

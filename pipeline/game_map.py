@@ -111,7 +111,7 @@ def convar_start() -> int | None:
     """The first build with console variables (6395, 2026-03-10: the tracker began dumping them): a snapshot of all
     1,365 of them, not changes."""
     try:
-        index = json.loads((tracker.ROOT / 'data' / 'builds' / 'index.json').read_text(encoding='utf-8'))
+        index = json.loads((tracker.BUILDS_DIR / 'index.json').read_text(encoding='utf-8'))
     except FileNotFoundError:
         return None                         # no build records yet: nothing to skip
     return next((b['build'] for b in index if b.get('convars')), None)

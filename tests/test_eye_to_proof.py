@@ -16,17 +16,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.helpers import make_ch, site_css, site_js, write_site_assets
+
+ch = make_ch(builds=[100], key='heroes.vdata:hero_haze:x', file='heroes.vdata', id='hero_haze')
+
 ROOT = Path(__file__).resolve().parent.parent
 DANNY = ROOT / 'data' / 'builds' / '6785_c9e64807.json.gz'
 real_data = pytest.mark.skipif(not DANNY.exists(), reason='no build record')
-
-
-def ch(**kw):
-    base = {'op': 'change', 'cat': 'balance', 'label': 'Cooldown', 'old_s': '27', 'new_s': '29', 'dir': 'nerf',
-            'pct': 7.4, 'grad': 2, 'status': 'hidden', 'path': 'x', 'builds': [100],
-            'key': 'heroes.vdata:hero_haze:x', 'file': 'heroes.vdata', 'id': 'hero_haze'}
-    base.update(kw)
-    return base
 
 
 # ---- 1. the silent hotfix -----------------------------------------------------------------------------------------
@@ -198,8 +194,8 @@ def test_a_folded_row_has_no_source_and_a_new_entitys_fields_only_their_key_rows
 
 
 def _page_file(tmp_path: Path, html: str) -> Path:
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    css = site_css()
+    js = site_js()
     html = re.sub(r'<link rel="stylesheet" href="https://fonts[^>]*>|<noscript>.*?</noscript>', '', html)
     html = re.sub(r'<link rel="stylesheet" href="\.\./styles\.css[^"]*">', lambda m: f'<style>{css}</style>', html)
     html = re.sub(r'<script src="\.\./scripts\.js[^"]*"></script>', lambda m: f'<script>{js}</script>', html)
@@ -242,7 +238,7 @@ def test_arriving_at_a_row_opens_it_lit_and_clear_of_the_sticky_bars(browser, tm
 def test_one_icon_for_not_in_notes():
     from builders.common import STATUS_MARK, mark
     assert STATUS_MARK['unannounced'][0] == STATUS_MARK['hidden'][0] == 'eye'
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     assert '.mark.unannounced { --mk-on: ""; --mk: var(--mask-eye); }' in css
     assert '.mark.hidden, .mark.unannounced { color: var(--eye);' in css
     assert 'tabindex' not in mark('unannounced', 'w', '../builds/1.html')
@@ -250,7 +246,7 @@ def test_one_icon_for_not_in_notes():
 
 def test_an_all_hidden_bands_rows_keep_a_dimmed_eye_that_links():
     from builders.cards import row
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     assert '.hblocks .pblock.all-hidden .erow:not(.late) .st .mark { opacity: .7; }' in css
     assert 'visibility: hidden' not in re.search(r'\.pblock\.all-hidden \.erow[^{]*\{[^}]*\}', css).group(0)
     html = row('hidden', '', 'x', tip='Not in patch notes — build 6440', href='../builds/6440.html#r-1', late=False)
@@ -263,8 +259,8 @@ CHIP = ('<p style="height:200px">x</p><a class="chip eye-chip" href="#b6444" dat
 
 
 def _chip_page(browser, touch: bool):
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
-    js = (ROOT / 'site' / 'scripts.js').read_text(encoding='utf-8')
+    css = site_css()
+    js = site_js()
     ctx = (browser.new_context(viewport={'width': 390, 'height': 800}, is_mobile=True, has_touch=True) if touch
            else browser.new_context(viewport={'width': 1200, 'height': 800}))
     page = ctx.new_page()
@@ -320,7 +316,7 @@ def _luminance(rgb: tuple) -> float:
 
 def test_a_dimmed_eye_link_keeps_three_to_one_on_its_row():
     """An all-hidden band's row eye is a link: dimmed, it keeps 3:1 on the row's tint (.45 read 2.6:1)."""
-    css = (ROOT / 'site' / 'styles.css').read_text(encoding='utf-8')
+    css = site_css()
     opacity = float(re.search(r'\.pblock\.all-hidden \.erow:not\(\.late\) \.st \.mark \{ opacity: ([.\d]+); \}', css)
                     .group(1))
     eye, tint, panel = _token(css, 'eye'), _token(css, 'eye-06'), _token(css, 'bg-panel')
@@ -331,7 +327,6 @@ def test_a_dimmed_eye_link_keeps_three_to_one_on_its_row():
 
 def test_a_filter_renames_the_bands_chip_with_its_count(browser, tmp_path, monkeypatch):
     """The chip's name is "count — words"; a filter that recounts the band renames it (scripts.js hist-filter)."""
-    import shutil
     from builders import archive, evidence
     from builders.common import page
     from builders.history_view import history_table
@@ -342,8 +337,7 @@ def test_a_filter_renames_the_bands_chip_with_its_count(browser, tmp_path, monke
     key = 'heroes.vdata:hero_haze'
     rows = [ch(builds=[6440]), ch(builds=[6440], label='Range', dir='buff', pct=-5, key=f'{key}:y', path='y')]
     html = page('X', history_table([(key, 'Haze', None)], ['Haze'], {key: [(r1, rows)]}, {}, '../'), '../')
-    shutil.copy(ROOT / 'site' / 'styles.css', tmp_path / 'styles.css')
-    shutil.copy(ROOT / 'site' / 'scripts.js', tmp_path / 'scripts.js')
+    write_site_assets(tmp_path)
     (tmp_path / 'x').mkdir()
     (tmp_path / 'x' / 'page.html').write_text(html, encoding='utf-8')
     ctx = browser.new_context(viewport={'width': 1440, 'height': 900})

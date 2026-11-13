@@ -17,9 +17,10 @@ import html
 import json
 import re
 
-from . import cache, labels, loc, tracker
+from . import cache, labels, loc, semantics, tracker
 from .classify import ability_kind, hero_bound_abilities, is_template_entry, shared_abilities
 from .flatten import _id_case, _list_key
+from .loc import HTML_TAG
 from .semantics import SCALE_STAT_WORDS, describe, humanize, scale_stat, scaling_suffix
 
 OUT = tracker.ROOT / 'data' / 'abilities.json'
@@ -61,7 +62,6 @@ INLINE_ATTRIBUTE = 'citadel_inline_attribute'
 KEY_BINDING = 'citadel_binding'
 _SPACES_RE = re.compile(r'[ \t]{2,}')
 _TAG_RE = re.compile(r'<br\s*/?>', re.I)
-_HTML_RE = re.compile(r'<[^>]+>')
 _UNIT_AFTER = re.compile(r' ?(m/s|m|s|%|meters?|seconds?)(?![a-z])')
 
 
@@ -124,6 +124,11 @@ def fmt_prop(tok, prop, value, aid, bonus=False, magnitude=False) -> str:
         pre = pre.replace('{s:sign}', '' if v.startswith('-') else '+')
     # the value already carries the unit the postfix adds ("3m" + " m" printed "+3m m" on 47 rows)
     unit = post.strip()
+    if semantics.bare_engine_length(unit, (v,)):
+        # a bare engine number under the tooltip's "m": Flawless Advance T3 read "+550m", Time Wall "200m" (data audit
+        # 2026-11-13); converted like the history rows (semantics.bare_engine_length)
+        v = semantics.display_raw(v, semantics.SPEED if unit == 'm/s' else True)
+        v = re.sub(r'(m/s|m)$', '', v)          # the tooltip's own postfix writes the unit
     if unit and v.endswith(unit):
         post = ''
     elif unit and v[-1:].isalpha() and unit.startswith(v[-1]):      # "4m" + " m/s" -> "4m/s"
@@ -173,7 +178,7 @@ def fill(text: str | None, values: dict[str, str], tok: dict[str, str] | None = 
     t = _SPACES_RE.sub(' ', _G_RE.sub(glossary, t))
     t = _TAG_RE.sub('\n', t)
     # the text's entities as characters: the page escapes once ("Bullet, Spirit &amp;amp; Melee")
-    t = html.unescape(_HTML_RE.sub('', t))
+    t = html.unescape(HTML_TAG.sub('', t))
     return '\n'.join(ln.strip() for ln in t.splitlines() if ln.strip())
 
 
