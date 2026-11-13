@@ -340,7 +340,8 @@ def test_the_strip_labels_stay_inside_it_never_overlap_and_the_legend_sits_under
                     .paddingLeft),
                   labelMid: (label.top + label.bottom) / 2, tileMid: (tile.top + tile.bottom) / 2}; }""")
         labs = got['labs']
-        assert len(labs) >= 3 and all(lb['b'] <= got['stripB'] for lb in labs), got
+        # a phone fits ~6 tiles, one fewer on CI's Linux fonts (its wider "Patches" label): 2 month labels there
+        assert len(labs) >= (2 if phone else 3) and all(lb['b'] <= got['stripB'] for lb in labs), got
         assert all(a['r'] < b['l'] for a, b in zip(labs, labs[1:])), labs             # no two labels touch
         # under the labels, from the tiles' left edge (a short strip's legend sat 600px off at the head's right end)
         assert got['keyT'] >= max(lb['b'] for lb in labs) and got['stripL'] <= got['keyL'] <= got['tileL'] + 1
