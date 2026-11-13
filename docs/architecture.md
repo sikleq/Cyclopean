@@ -19,7 +19,9 @@ pipeline/semantics.py  a field's polarity and a change's direction (BUFF / NERF,
   field_units.py       engine units ↔ metres, lengths, speeds, the unit an engine number is shown in (imports no
                           other pipeline module)
   display_values.py    a value as the page prints it (sentinels, metres on one side, re-encoded values)
-  field_labels.py      a field's words: the game's labels and the hand tables for the fields it never labels
+  field_labels.py      a field's words: the game's labels, `describe`, `plain_label`, `context_label`; re-exports the tables
+  field_label_tables.py  the hand tables for the fields the game never labels (weapon, unit, ranked, level-up, custom
+                          stat labels, a trooper's fields against a boss)
 pipeline/catalog.py    -> data/entities.json  (every entity ever: kind, owner, first/last build, name)
 pipeline/abilities.py  -> data/abilities.json (current ability/item cards: the in-game tooltip rebuilt —
                           m_AbilityTooltipDetails / m_vecTooltipSectionInfo, labels, units, spirit scaling, T1-T3 text)
@@ -35,8 +37,11 @@ pipeline/patches.py    groups builds into patch windows (changelogs; notes-less 
 pipeline/match.py      -> data/patches/<id>.json.gz  notes lines ⇄ data changes; documented/described/hidden/mismatch/fix
                           (+ line statuses heading/untracked/nodata; change status unreleased; extras: every
                           console variable (noted ones first) and texts uncapped; loc rows cut at 400);
-                          annotate_line runs in steps over one `_Line` context; re-exports the three below
+                          holds the record's output, events, blanket lines, release and late-window passes;
+                          re-exports the modules below
   match_values.py      MChange, the numbers and words of a line, a number against a change
+  match_score.py       who a line names (Subject, name_index, resolve_subject), the score of a change for a line
+  match_lines.py       annotate / annotate_line: reading one line in steps over one `_Line` context, post_pass
   match_window.py      a window's builds merged into one change per field, its marks, lists re-keyed by id
   match_passes.py      key changes, the record's extras, lines landed later / repeated / about the code
 pipeline/match_rules.py  rules for lines over many entities (boons, "all …"), aliases, untracked topics
@@ -121,7 +126,7 @@ the workflow by hand with `alert_drill` fails on purpose, to check the whole pat
 | 6 | `pipeline/classify.py:hero_bound_abilities` / `shared_abilities` | Who owns an ability: the hero that binds it; abilities more than half the heroes bind belong to none. |
 | 7 | `pipeline/catalog.py:build` | `data/entities.json`: every entity ever, its kind, owner, names, first / last build. |
 | 8 | `pipeline/match_window.py:window_changes` | A patch window's builds merged into one change per field (`merge_ops`). |
-| 9 | `pipeline/match.py:annotate_line` | One patch-note line ⇄ the data changes: documented / described / mismatch / fix / code …; steps `_read_line` → `_line_subject` → `_line_aim` → `_line_numbers` → `_line_words` over one `_Line`. |
+| 9 | `pipeline/match_lines.py:annotate_line` | One patch-note line ⇄ the data changes: documented / described / mismatch / fix / code …; steps `_read_line` → `_line_subject` → `_line_aim` → `_line_numbers` → `_line_words` over one `_Line`. |
 | 10 | `pipeline/match.py:build_patch` | Writes `data/patches/<id>.json.gz` (statuses, unreleased heroes, `@shared` groups, counts). |
 | 11 | `builders/archive.py:patch` / `gameplay` | The patch archive read once a build and shared read-only by every builder. |
 | 12 | `builders/row_rules.py:gameplay_entities` | What a page lists of a patch: gameplay rows only, repeated variants merged. |

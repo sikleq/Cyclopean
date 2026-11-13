@@ -48,7 +48,7 @@ Mid-Boss 15%, neutrals 50-60% / 45-55%; Sight Range = m_flSightRangePlayers (tro
 
 ## Labels and units (`pipeline/semantics.py`, enrich 33)
 
-`field_labels.boss_field`: a trooper's flat fields against a boss in the m_VS words ("Damage Resist at most vs
+`field_label_tables.boss_field`: a trooper's flat fields against a boss in the m_VS words ("Damage Resist at most vs
 Guardian"; T1 Guardian, T2 Walker, T3 Patron, barracks = Base Guardian). `game_words`: "Phase 1", "Distance",
 "NPC", "AoE". An aura's container (`m_modifierProvidedByAura`) drops out; container / flag words match any
 case; CamelCase keys without m_ read as words.
@@ -67,7 +67,7 @@ value's %, a word inside the label "%"; values never scaled (fractions are `_FRA
 sounds (`Vol(ume)?Scale(Min|Max)`, `*ToPitchRemap`), `HUDSnippetName` (ui), `MaxMoveIterationScale` /
 `NpcAimingSpread` (technical), `*TimeTest` (meta).
 
-`match.flag_words`: a state's -ing word also reads as its verb ("slide" = SLIDING_DISABLED).
+`match_lines.flag_words`: a state's -ing word also reads as its verb ("slide" = SLIDING_DISABLED).
 
 Speeds in m/s (#13): an ability property ending in Speed / Velocity + Max / Min is a travel speed (`_PROP_SPEED`;
 Rain of Arrows' "Air Speed Max 150 → 161.42" = the notes' 3.8 → 4.1 m/s; "Fall" / "AirSpeed" left the not-travel

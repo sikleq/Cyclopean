@@ -164,7 +164,7 @@ Audit of the patch pages (2026-10-01):
 - a field added or removed with a 0 / "no" value changes nothing (`row_rules.is_noop`; a field tuned to 0
   inside a window kept its first category and showed "Explosion Radius 0 · NEW");
 - a field that appears with the value Valve says it was raised to takes the notes' old value
-  (`match._old_from_notes`: "Headshot stack count increased from +2 to +3" while the files only gained
+  (`match_lines._old_from_notes`: "Headshot stack count increased from +2 to +3" while the files only gained
   `HeadshotStacks = 3` is a BUFF 2 → 3, not a NEW);
 - a tier's scaling bonus names what it scales with (`field_labels.scaling_suffix`: "(weapon damage
   scaling)" for `EBaseWeaponDamageIncrease`, spirit otherwise); numbers below 1 keep 4 significant
@@ -358,7 +358,7 @@ Data-quality audit, part 2 (2026-10-04, enrich 30):
   `flags.enum_words`, also `render.readable_value` for EItemSlotType_*). `flags.direction` gives BUFF /
   NERF when every moved bit goes one way; the records carry `flag: true` and `render.tag_of` uses the
   direction even for a first bit added (op add). The matcher links a state mask only by the states that
-  moved (`match._STATE_MASK`), never by the modifier's container words. A flag field whose moved bits are all unlisted shows them the engine's
+  moved (`match_lines._STATE_MASK`), never by the modifier's container words. A flag field whose moved bits are all unlisted shows them the engine's
   way (`render.shown_pair`; they are Technical rows). A chip's colour is the side it moved the owner to
   (`.flag.good / .bad / .even`), not added / removed. The disabled-state mask has its own nouns
   (`flags.IMMUNITIES`: "Immune to +dash lockouts +disarm +slows"); *_Invalid / NONE enum values are no value
@@ -386,21 +386,21 @@ Data-quality audit, part 2 (2026-10-04, enrich 30):
   two rows).
 - "described another way" (owner 2026-10-30, the Halloween 2026 update: 136 hidden, 88 after; whole archive 8,139 →
   7,840): a line that tells a rework in words claims the fields of that entity that came or went in the window
-  (`match.post_pass`; one with a number of its own only on a "no longer / removed" line — "Baba's Brew - No longer
+  (`match_lines.post_pass`; one with a number of its own only on a "no longer / removed" line — "Baba's Brew - No longer
   has an initial brew time" is its three Lock Times; a new number stays hidden: Walker's 30% trooper factor); a tier
-  line "T3 no longer has …" what that tier lost; a sub-heading line inside a post ("Street Brawl:", `match._SUBHEAD`)
+  line "T3 no longer has …" what that tier lost; a sub-heading line inside a post ("Street Brawl:", `match_lines._SUBHEAD`)
   heads the lines below it, so that mode's lines answer with its Street Brawl numbers; "N% faster / slower" is a
   speed by that percent; a name that is also an alias brings the alias's entries ("Mid-Boss" + its Rejuvenator,
   `m_RejuvParams`, spelt "Rejuvinator" in the files); a DPS field is damage ("Haunts … Damage output increased by
   10%"). Audit: coverage 86 → 87%, real hidden kept 92 → 91%. Round 2 (same day, every version): a percent over
-  many values ("all abilities", "every", "~8%": `match._LOOSE_PCT`) accepts round values Valve put on a step of 5
-  (`match._rounded_to_five`; a line about one property stays exact — "Neutral bounty +5%" is not a trooper's 65 → 70),
+  many values ("all abilities", "every", "~8%": `match_score._LOOSE_PCT`) accepts round values Valve put on a step of 5
+  (`match_score._rounded_to_five`; a line about one property stays exact — "Neutral bounty +5%" is not a trooper's 65 → 70),
   and such a line takes every field that moved by it and names its property, tiers too (Mo & Krill's Combo 40 → 35);
-  "the old T2 … in the base" takes the base's fields that came from nothing (`match._OLD_TIER`); a words line naming an
+  "the old T2 … in the base" takes the base's fields that came from nothing (`match_lines._OLD_TIER`); a words line naming an
   ability takes the field whose value is the line's one number, in its unit and the line's tier (none: the base) —
   "previously launched at least 45° upward" is Guided Owl's Arrow Initial Pitch -45 → 89. Archive 7,851 → 7,714 hidden,
   1,570 → 1,538 unmatched lines; 2025-07-04's "~8%" alone 206 → 105.
-- matcher: `match.twin_hits` — a matched line also claims, in the entities it matched, a changed field of
+- matcher: `match_score.twin_hits` — a matched line also claims, in the entities it matched, a changed field of
   the line's tier that it names by a word and that moved by its exact numbers ("Ability Range" range AND
   radius multiplier, "damage and debuff resistance" bullet AND spirit resist); `match_values._aligned_pairs` —
   "from A … B … to C … D …" pairs numbers that have words between them when both sides read alike (not
@@ -599,7 +599,7 @@ Matching, third pass (2026-10-02, P12/P13): synonyms are looked up the way `word
 sound / interface / map topic before any rule (a fix stays a fix; "visuals" is no topic here: "splash
 range much larger than its visuals" is gameplay); the respawn and gun-damage families take a line with a
 number only (`NUMBER_FAMILIES`); an alias that IS a name the line uses stays an alias ("Base Guardian");
-a subject-less line that names an entity changed in the window (`match.inline_names`: not inside
+a subject-less line that names an entity changed in the window (`match_score.inline_names`: not inside
 parentheses, not a name shared by more than 6 entities, a unit with its bound abilities) is that
 entity's — its numbers need a word of the field, and failing a hit the whole patch is searched again
 (`name_inline`); a misspelt hero prefix finds its hero (`_close_hero`, "Vindcita"); a line naming one
