@@ -421,6 +421,12 @@ Coverage audit (2026-10-05, owner: "I want to see ALL changes to everything in t
   (`pipeline/shared_groups.py`): 'all' when its targets are `ALL_SHARE` (85%) or more of the entities of their
   kinds that the window could diff field by field, else 'some'. Before, 13,573 hero × row pairs and 278 hero
   patch bands were missing (Haze's Max Health 740 → 730 on 2026-05-22, Abrams' Ground Dash Duration 0.7s → 0.72s on 2026-07-28).
+- one edit in each entity's OWN modifier (`{modifier_x}` in the path, so not verbatim) on 6+ entities is a block too
+  (`match.alike_in_modifiers`, 2026-11-15): "+can't be purged" on 16 abilities in build 6711 is one row "Attributes"
+  with the chip "shared ×16 abilities". Only modifier keys are wildcarded; a property key names what moved.
+- a number list where exactly one element moved also offers that element as a pair (`MChange.steps`, `_one_moved`):
+  "from a final subrank decreased from 2000 to 1500" is m_vecSubRankXP (…, 2000) → (…, 1500) (Ranked Beta Season 2),
+  "2 hero soul split ratio 60% → 65%" the lane-phase share lists (2025-05-19). Two or more moved elements stay whole.
 - `scope` on abilities.vdata is measured per FIELD too (`shared_groups.UNION_FILES`, `_field_rules`): the blocks of a
   window on one ability property are counted together, and when their union is a rule for all, each block is 'all'.
   Channel Move Speed went from engine units to m/s on 2025-08-18 for every ability and item at once (491 targets
@@ -701,5 +707,8 @@ check line reads "N released with the hero" and "M other changes not in patch no
 also one without notes. `RELEASED_STATES` is Release only: a PreRelease hero is `unreleased` (`LISTED_STATES` keeps both
 for `mark_availability_moves`). The in-development flag that flips together with a release is marked `moved` and folded
 into the state row. A window that a release interrupts has a gap (`patches.gap_builds`): its before and after states
-include the gap builds' edits, so `match_window.rekey_lists` keys only the lists those builds did not move. Text rows' values in
-such a window still read those states; that is a known limit.
+include the gap builds' edits, so `match_window.rekey_lists` keys only the lists those builds did not move, and a text row
+whose entity a gap build changed reads its values at its own builds (`match_window.gap_text_states`, passed through
+`slim_extras` to `texts_with_values`). A hero that arrives already released (a new entry with the state Release) counts
+as a release too, and when several posts lie within the gap the one that names the hero (title or text, `names_hero`)
+wins over the nearest (2026-11-15).

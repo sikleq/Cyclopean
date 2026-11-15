@@ -302,6 +302,9 @@ def _describe(path: str, tok: dict[str, str], entity: str = '', kind: str = '', 
     return d
 
 
+_ALLY_PROC = re.compile(r'^m_AutoIntrinsicModifiers\{[^}]*\}\.m_bProcOnFriendlyBulletHits$')
+
+
 def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = '', token: str | None = None,
                   scale_parts=None) -> dict:
     if _RANKED_ENTITY.match(entity):
@@ -311,6 +314,10 @@ def _describe_raw(path: str, tok: dict[str, str], entity: str = '', kind: str = 
             band = '' if not where else ' (all ranks)' if where.group(1) == 'all' else f' (rank band {where.group(1)})'
             label = RANKED_FIELDS[leaf] + band
             return {'label': label, 'meters': False, 'group': 'ranked'}
+    if _ALLY_PROC.search(path):
+        # the item's watcher modifier is wiring ("headhunter watcher" is an internal name): the switch alone
+        # (Tech Overflow, Restorative Shot, Headhunter, AP Rounds; owner 2026-11-15)
+        return {'label': 'Procs on Bullet Hits on Allies', 'meters': False, 'group': 'other'}
     m = _CORRUPTED_RE.match(path)
     if m:
         prop = m.group(1).split('|')[0]

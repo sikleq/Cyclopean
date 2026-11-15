@@ -375,3 +375,15 @@ def test_a_replaced_bonus_with_another_unit_is_not_a_rename():
     renamed = [{'op': 'remove', 'label': 'DPS', 'path': p % 'DPS', 'old_s': '40'},
                {'op': 'add', 'label': 'DPS', 'path': p % 'DamagePerSecond', 'new_s': '40'}]
     assert merge_renames(renamed) == []                                       # a re-key with the same value
+
+
+def test_proc_on_ally_hits_is_gameplay_while_watcher_wiring_stays_technical():
+    """Tech Overflow, Restorative Shot (6711), Headhunter (6790), AP Rounds (6801) gained "procs on hits on allies"
+    inside m_AutoIntrinsicModifiers and showed nowhere as technical (owner 2026-11-15)."""
+    from pipeline.classify import category
+    flag = 'm_AutoIntrinsicModifiers{modifier_medic_bullets}.m_bProcOnFriendlyBulletHits'
+    assert category(flag, None, True) != 'technical'
+    assert category('m_AutoIntrinsicModifiers{modifier_medic_bullets}.m_flSomething', None, 1) == 'technical'
+    # its label names no internal modifier ("headhunter watcher")
+    from pipeline.field_labels import describe
+    assert describe(flag, {}, 'upgrade_medic_bullets')['label'] == 'Procs on Bullet Hits on Allies'

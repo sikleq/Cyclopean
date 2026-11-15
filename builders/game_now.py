@@ -78,6 +78,26 @@ def added_values(key: str, h: list) -> list[tuple[str, str, str]]:
     return [v for v in vals if not _ADDED_NOISE.search(v[0]) and not v[1].startswith(('-1', '−1'))][:NOW_ADDED_ROWS]
 
 
+@lru_cache(maxsize=1)
+def _snapshot() -> dict[str, list[list[str]]]:
+    """data/tables/now_entries.json (pipeline/now_entries.py): every number of the entries of the files where the
+    history alone falls short (Ranked seasons); {} before it was first written."""
+    try:
+        return load_json('tables/now_entries.json')
+    except FileNotFoundError:
+        return {}
+
+
+def snapshot_values(key: str, h: list) -> list[tuple[str, str, str]]:
+    """(label, value, date of its last move or '') of every number the entry has now, in the file's order — not only
+    the ones Valve tuned since the tracking began (Season 1's "Wins to Play Ranked 60"). [] for other entries."""
+    rows = _snapshot().get(key)
+    if not rows:
+        return []
+    moved = {label: date for label, _, date in entry_values(h)}
+    return [(label, value, moved.get(label, '')) for label, value in rows]
+
+
 def entry_panels(groups: list[list[tuple]], hist: dict, cat: dict) -> list[tuple[list[str], list[tuple[str, str, str]]]]:
     """([names], values) of the system's entries that have numbers today, in part order (`groups`: each part's
     [(key, name, icon kind)]); entries with the same numbers are one panel (twelve breakables share one edit); the
@@ -87,12 +107,13 @@ def entry_panels(groups: list[list[tuple]], hist: dict, cat: dict) -> list[tuple
         for key, name, _ in got:
             if key.startswith('game:') or (cat.get(key) or {}).get('alive') is False:
                 continue
-            vals = entry_values(hist.get(key, ()))[:NOW_ROWS] or added_values(key, hist.get(key, ()))
+            h = hist.get(key, ())
+            vals = snapshot_values(key, h) or entry_values(h)[:NOW_ROWS] or added_values(key, h)
             if not vals:
                 continue
             same = tuple((k, v) for k, v, _ in vals)          # the same numbers, whenever each last moved
             names, first, newest = panels.get(same, ([], vals, ''))
-            panels[same] = (names + [name], first, max(newest, vals[0][2]))
+            panels[same] = (names + [name], first, max(newest, *(d for _, _, d in vals)))
     keep = sorted(panels, key=lambda k: panels[k][2], reverse=True)[:NOW_PANELS]
     return [(names, vals) for k, (names, vals, _) in panels.items() if k in keep]
 

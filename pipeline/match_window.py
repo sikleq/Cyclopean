@@ -349,6 +349,25 @@ RELEASED_STATES = ('EHeroDevState_Release',)
 LISTED_STATES = ('EHeroDevState_Release', 'EHeroDevState_PreRelease')
 
 
+def gap_text_states(p: Patch):
+    """For a window a hero's release interrupts: row -> (commit before its first build, commit of its last build) for
+    a text change whose entity a release build in the gap also changed, else None. The window's edges hold that
+    build's edits too: Violet's Homing Brush T1 (text of 6796) read its values after Nurse Harrow's release (6801) in
+    the 10-14 window (2026-11-15). None when the window has no gap."""
+    gap = patches_mod.gap_builds(p)
+    if not gap:
+        return None
+    touched = {f"{e['file']}:{e['id']}" for row in gap for e in load_record(row['file'])['entities']}
+    files = {b['build']: b['file'] for b in p.builds}
+
+    def own(row: dict) -> tuple[str | None, str | None] | None:
+        builds = [files[b] for b in sorted(row.get('builds') or ()) if b in files]
+        if row.get('ent') not in touched or not builds:
+            return None
+        return load_record(builds[0]).get('prev_commit'), load_record(builds[-1]).get('commit')
+    return own
+
+
 def window_states(p: Patch) -> tuple[str | None, str | None]:
     """(commit before the window's first build, commit of its last build): the game as a window found it and left
     it — the old and new sides of its merged changes."""

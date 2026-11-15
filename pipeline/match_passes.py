@@ -113,20 +113,38 @@ def text_state(commit: str | None, keys: set[str]) -> dict | None:
 States = tuple[str | None, str | None]
 
 
-def texts_with_values(texts: list[dict], states: States | Callable[[], States] | None) -> list[dict]:
+def texts_with_values(texts: list[dict], states: States | Callable[[], States] | None,
+                      own: Callable[[], Callable[[dict], States | None] | None] | None = None) -> list[dict]:
     """The window's text changes with the values the game filled into their old and new sides
     (`entity_texts.with_values`), read from the builds before and after the window. `states`: (before, after)
-    commits, or what gives them (`window_states`, asked only when a text holds a value)."""
+    commits, or what gives them (`window_states`, asked only when a text holds a value). `own`: gives the rows
+    that read their own builds instead (`match_window.gap_text_states`: a window a release interrupts)."""
     from .entity_texts import needed, with_values
     keys = needed(texts)
     if not keys or not states:
         return texts
-    before, after = states() if callable(states) else states
-    return with_values(texts, text_state(before, keys), text_state(after, keys))
+    per_row = own() if own else None
+    groups: dict[States, list[int]] = {}
+    window: States | None = None
+    for i, row in enumerate(texts):
+        st = per_row(row) if per_row else None
+        if st is None:
+            if window is None:
+                window = states() if callable(states) else states
+            st = window
+        groups.setdefault(st, []).append(i)
+    out = list(texts)
+    for (before, after), idx in groups.items():
+        rows = [texts[i] for i in idx]
+        ks = needed(rows)
+        filled = with_values(rows, text_state(before, ks), text_state(after, ks)) if ks else rows
+        for i, row in zip(idx, filled):
+            out[i] = row
+    return out
 
 
 def slim_extras(extras: dict, cat: dict[str, dict] | None = None,
-                states: States | Callable[[], States] | None = None) -> dict:
+                states: States | Callable[[], States] | None = None, own=None) -> dict:
     """Patch pages show a capped list of text changes, every console variable and asset totals; the full
     per-build detail stays on the build pages. `texts`: the name / description changes of the abilities, items
     and heroes a page shows, uncapped (`pipeline/entity_texts.py`), with the values the game filled in at
@@ -147,7 +165,7 @@ def slim_extras(extras: dict, cat: dict[str, dict] | None = None,
               for a in extras['assets'] for m in a.get('model_sizes') or () if m.get('hero')]
     return {
         'loc': loc_rows[:LOC_LIMIT], 'loc_total': len(loc_rows),
-        'texts': texts_with_values(entity_texts(extras['loc'], cat or {}), states),
+        'texts': texts_with_values(entity_texts(extras['loc'], cat or {}), states, own),
         'convars': sorted(extras['convars'], key=lambda x: (_CONVAR_ORDER.get(x.get('status'), 1),
                                                             _CONVAR_OP.get(x.get('op'), 4), x.get('build') or 0)),
         'convars_total': len(extras['convars']),

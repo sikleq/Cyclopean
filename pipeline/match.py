@@ -25,6 +25,7 @@ from . import cache, catalog, jsonio, loc, semantics, tracker
 from . import flags as flag_rules
 from . import match_rules as rules
 from . import patches as patches_mod
+from .diff import SHARED_MIN
 from .classify import GAMEPLAY_CATS
 from .patches import Patch, group
 from .shared_groups import SharedGroups, window_of
@@ -42,7 +43,7 @@ from .match_values import (ALIGNED_MAX, APPROX, EXACT, GENERIC_WORDS, HERO_STAT_
                            shown_in_meters, topic_words, two_sided, value_matches, words)
 from .match_window import (BUILDS, LISTED_STATES, LIST_FILES, LIST_IDS, RELEASED_STATES, _BASE_LINK, _DEV_STATE,  # noqa: F401
                            _IN_DEV, _LIST_INDEX, _PROVIDED_TYPE, _SELECTABLE, _TRUTHY, _gameplay_entity, _state,
-                           _window_change, event_name, keyed_list, load_record, mark_availability_moves, mark_dud_guns,
+                           _window_change, event_name, gap_text_states, keyed_list, load_record, mark_availability_moves, mark_dud_guns,
                            mark_inherited_defaults, mark_retyped, merge_ops, nameless_part, rekey_lists,
                            window_changes, window_states)
 from .match_passes import (KEY_KINDS, KEY_LIMIT, KEY_MAX_PCT, LATE_DAYS, LOC_GROUPS, LOC_LIMIT, SHARED_NAMES, States,  # noqa: F401
@@ -245,6 +246,53 @@ def count_statuses(changes: list[MChange], events: list[dict]) -> dict[str, int]
     return counts
 
 
+_MODIFIER_KEY = re.compile(r'\{modifier_[^}]*\}')
+# a modifier's own switches, wherever the entity keeps the modifier (m_UIRecastModifier, m_PickUpAura.…ByAura)
+_MODIFIER_TAIL = re.compile(r'(?:^|\.)(m_nAttributes)$')
+
+
+def _alike_path(path: str) -> str | None:
+    """The path an edit shares with the same edit in other entities' modifiers, or None: a modifier key wildcarded
+    ({modifier_x} -> {*}), or a modifier switch alone (m_UIRecastModifier.m_nAttributes -> m_nAttributes)."""
+    tail = _MODIFIER_TAIL.search(path)
+    if tail:
+        return tail.group(1)
+    return _MODIFIER_KEY.sub('{*}', path) if _MODIFIER_KEY.search(path) else None
+
+
+def alike_in_modifiers(changes: list[MChange]) -> dict[int, tuple]:
+    """id(change) -> its '@shared' signature for an edit repeated in the modifiers of many entities: each ability keeps
+    its own modifier ({modifier_medic_bullets}, m_UIRecastModifier), so the record's verbatim match
+    (diff.collapse_shared) misses it — "+can't be purged" on many abilities and items in build 6711 were a row each
+    (todo 2026-10-17, done 2026-11-15). Only the modifier is wildcarded: a property key ({HealPctVsHeroes}) names WHAT
+    moved, and six of them are six changes."""
+    groups: dict[tuple, list[MChange]] = {}
+    # a record's own '@shared' block (the same modifier path in 7 map objects) counts and joins too: misc.vdata's
+    # block of 7 and its 4 rows under other modifiers were two things on the 2026-09-29 page
+    for c in changes:
+        path = None if c.file == 'convars' else _alike_path(c.path)
+        if path is None:
+            continue
+        sig = (c.file, path, repr(c.old), repr(c.new), c.moved)
+        groups.setdefault(sig, []).append(c)
+    out: dict[int, tuple] = {}
+    for sig, cs in groups.items():
+        if len({c.eid for c in cs}) >= SHARED_MIN:
+            out.update({id(c): sig for c in cs})
+    return out
+
+
+def modifier_block_json(c: MChange, path: str) -> dict:
+    """The block's row: the field without the first target's modifier ("Proc Notification › Attributes" was one
+    ability's modifier name, the block's row is "Attributes"; "Pick Up Aura effect" one map object's, the row of a
+    bare switch is the switch's own label)."""
+    from .field_labels import describe
+    row = change_json(c)
+    label = describe(path, {})['label'] if _MODIFIER_TAIL.fullmatch(path) else row['label'].rsplit('›', 1)[-1].strip()
+    row.update(path=path, shared=True, label=label)
+    return row
+
+
 def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
     commit = None
     if p.builds:
@@ -275,12 +323,17 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         # a hero's release post is the window's notes: what it left out is hidden (release_pass)
         cv['status'] = cv_status.get(cv['name'], 'unannounced' if not p.notes and not p.release else 'hidden')
     shared = SharedGroups()
+    alike = alike_in_modifiers(changes)
     for c in changes:
         if c.file == 'convars':
             continue
         name = (loc.plain(loc.hero_name(tok, c.eid) if c.file == 'heroes.vdata'
                           else loc.entity_name(tok, c.eid, cat.get(ent_key(c), {}).get('owner')))
                 if c.eid else c.eid)
+        if id(c) in alike:
+            sig = alike[id(c)]
+            shared.add(sig, modifier_block_json(c, sig[1]) if sig not in shared else None, name, ent_key(c), c.status)
+            continue
         if c.shared:
             # one edit copied into many entities (a global rule): one block, not N — with the keys of the
             # entities it hit, so their pages show it (pipeline/shared_groups.py)
@@ -320,7 +373,7 @@ def build_patch(p: Patch, cat: dict[str, dict]) -> dict:
         'sections': sections,
         'entities': ents,
         'key_changes': key_changes(ents),
-        'extras': slim_extras(extras, cat, lambda: window_states(p)),
+        'extras': slim_extras(extras, cat, lambda: window_states(p), lambda: gap_text_states(p)),
         'counts': counts,
         'line_counts': line_counts,
         **({'release': list(p.release)} if p.release else {}),

@@ -1,0 +1,110 @@
+{
+ "ranked_seasons.vdata:season_1": [
+  [
+   "Wins to Play Ranked",
+   "60"
+  ],
+  [
+   "Heroes to Unlock",
+   "3"
+  ],
+  [
+   "Placement Matches",
+   "8"
+  ],
+  [
+   "Party Sizes",
+   "1, 2"
+  ],
+  [
+   "Hero Wins to Unlock a Hero",
+   "15"
+  ],
+  [
+   "Rank Points per Match",
+   "300"
+  ],
+  [
+   "Highest Placement Rank",
+   "86"
+  ],
+  [
+   "Season Number",
+   "1"
+  ],
+  [
+   "Leaderboard",
+   "1001"
+  ],
+  [
+   "Points per Subrank (all ranks)",
+   "1000, 1000, 1000, 1000, 1000, 2000"
+  ],
+  [
+   "Last Rank (rank band 1)",
+   "111"
+  ],
+  [
+   "Badge Shields (rank band 1)",
+   "5"
+  ],
+  [
+   "Subrank Shields (rank band 1)",
+   "2"
+  ]
+ ],
+ "ranked_seasons.vdata:season_2": [
+  [
+   "Wins to Play Ranked",
+   "60"
+  ],
+  [
+   "Heroes to Unlock",
+   "3"
+  ],
+  [
+   "Placement Matches",
+   "8"
+  ],
+  [
+   "Party Sizes",
+   "1, 2"
+  ],
+  [
+   "Hero Points to Unlock a Hero",
+   "35"
+  ],
+  [
+   "Rank Points per Match",
+   "350"
+  ],
+  [
+   "Highest Placement Rank",
+   "101"
+  ],
+  [
+   "Season Number",
+   "2"
+  ],
+  [
+   "Leaderboard",
+   "1002"
+  ],
+  [
+   "Points per Subrank (all ranks)",
+   "1000, 1000, 1000, 1000, 1000, 1500"
+  ],
+  [
+   "Last Rank (rank band 1)",
+   "91"
+  ],
+  [
+   "Badge Shields (rank band 1)",
+   "3"
+  ],
+  [
+   "Subrank Shields (rank band 1)",
+   "1"
+  ]
+ ]
+}

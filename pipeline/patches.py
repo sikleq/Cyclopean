@@ -216,7 +216,25 @@ def group(notes: list[Notes] | None = None, builds: list[dict] | None = None) ->
     return ([pre] if pre.builds else []) + patches
 
 
-def release_windows(builds: list[dict], changelogs: list[Notes], posts: list[Notes]) -> list[Patch]:
+def hero_names() -> dict[str, str]:
+    """hero id -> its name in the game (data/entities.json, written by catalog.build before matching); {} before the
+    first catalog."""
+    from . import catalog
+    try:
+        cat = catalog.load()
+    except FileNotFoundError:
+        return {}
+    return {e['id']: e['name'] for k, e in cat.items() if k.startswith('heroes.vdata:') and e.get('name')}
+
+
+def names_hero(post: Notes, heroes: list[str], names: dict[str, str]) -> bool:
+    """Does the post's title or text name one of these heroes (by the game's name, as a whole word)?"""
+    text = ' '.join([post.title] + [ln for _, ln in post.all_lines()])
+    return any(re.search(rf'\b{re.escape(names[h])}\b', text, re.I) for h in heroes if names.get(h))
+
+
+def release_windows(builds: list[dict], changelogs: list[Notes], posts: list[Notes],
+                    names: dict[str, str] | None = None) -> list[Patch]:
     """A build that releases a hero (`history.released_heroes`, the index row's 'released') and has the hero's own
     announcement within `ANNOUNCEMENT_GAP` is a window of its own, named after that post ("Mind the Birds!") — unless
     a changelog is dated the build's own day (then those notes are the release's: 01-17-2025's four heroes). Any build
@@ -232,7 +250,11 @@ def release_windows(builds: list[dict], changelogs: list[Notes], posts: list[Not
         near = [a for a in posts if abs(t - _dt(a.date)) <= ANNOUNCEMENT_GAP]
         if not near:
             continue
-        a = min(near, key=lambda a: abs(t - _dt(a.date)))
+        # a post that names the hero before the nearest one: two posts within the gap (another hero's reveal, a
+        # balance announcement) took the nearest unchecked (2026-11-15; every release so far had one post)
+        if names is None and len(near) > 1:
+            names = hero_names()
+        a = min(near, key=lambda a: (not names_hero(a, b['released'], names or {}), abs(t - _dt(a.date))))
         out.append(Patch(f'build-{b["build"]}', a.title, b['date'], None, [b], link=a.url, release=list(b['released'])))
     return out
 

@@ -566,6 +566,14 @@ def test_a_windows_states_are_the_builds_before_and_after_it(monkeypatch):
     assert got[0]['vals'] == {'old': {'AbilityCooldown': '30'}, 'new': {'AbilityCooldown': '28'}}
     assert 'vals' not in got[1]
     assert match.text_state(None, {'abilities.vdata:ability_x'}) is None
+    # a text whose entity a release in the gap also changed reads its own builds (c0 -> c1), not the window's end:
+    # the release's 28 is not this text's (2026-11-15)
+    blobs['c1'] = 'b1'
+    files['b1'] = {'ability_x': {'m_mapAbilityProperties': {'AbilityCooldown': {'m_strValue': '25'}}}}
+    got = match.texts_with_values(rows, lambda: match.window_states(p),
+                                  lambda: (lambda row: ('c0', 'c1') if row['ent'].startswith('abilities') else None))
+    assert got[0]['vals'] == {'old': {'AbilityCooldown': '30'}, 'new': {'AbilityCooldown': '25'}}
+    assert 'vals' not in got[1]
 
 
 def test_text_changes_are_rows_of_the_entity_never_counted():
@@ -689,3 +697,37 @@ def test_a_ranked_seasons_fields_have_names_and_no_seconds():
     assert d['label'] == 'Rank Points per Match' and not d.get('unit')
     assert not describe('m_vecIntervals[0].m_unInterval', {}, 'season_2').get('unit')
     assert describe('m_vecRankInfo{1}.m_nBadgeShields', {}, 'season_2')['label'] == 'Badge Shields (rank band 1)'
+
+
+def test_a_period_and_its_pulses_are_one_plain_row():
+    """Build 6698: souls ticks period 3s -> 2s and pulses per period 3 -> 2 read as two income changes (todo
+    2026-10-17, done 2026-11-15); a lone period change stays its own row."""
+    from builders.game_systems import convar_changes
+    flags = 'developmentonly gamedll'
+    rows = [{'name': 'citadel_tick_gold_period_duration_s', 'op': 'change', 'old': '3', 'new': '2', 'build': 6698,
+             'flags': flags},
+            {'name': 'citadel_tick_gold_pulse_per_period', 'op': 'change', 'old': '3', 'new': '2', 'build': 6698,
+             'flags': flags}]
+    got = convar_changes(rows, None)
+    assert len(got) == 1
+    assert (got[0]['old_s'], got[0]['new_s'], got[0]['dir']) == ('3 pulses every 3s', '2 pulses every 2s', 'changed')
+    alone = convar_changes(rows[:1], None)
+    assert len(alone) == 1 and alone[0]['label'] == 'citadel_tick_gold_period_duration_s'
+
+
+def test_ranked_current_values_list_numbers_that_never_moved(monkeypatch):
+    """Season 1's Current values had no "Wins to Play Ranked 60": copied from default_ranked when the file came, it
+    never moved, so no history row held it (todo 2026-11-13, done 2026-11-15)."""
+    from builders import game_now
+    from pipeline.now_entries import entry_rows
+    season = {'m_eRankedType': 'k_eCitadelRankedType_Normal', 'm_unMinWins': 60, 'm_vecValidPartySizes': [1, 2],
+              '_multibase': ['default_ranked'], 'm_strSeasonLocName': '#Citadel_RankedSeasonName_BetaSeason1',
+              'm_unBaseWinLossPointGrant': 300}
+    rows = entry_rows('season_1', season, {})
+    assert ['Wins to Play Ranked', '60'] in rows and ['Party Sizes', '1, 2'] in rows
+    assert not any('Loc' in label or 'Multibase' in label or 'Ranked Type' in label for label, _ in rows)
+    monkeypatch.setattr(game_now, '_snapshot', lambda: {'ranked_seasons.vdata:season_1': rows})
+    moved = [({'date': '2026-11-05'}, [ch(label='Rank Points per Match', old_s='250', new_s='300', op='change')])]
+    got = game_now.snapshot_values('ranked_seasons.vdata:season_1', moved)
+    assert ('Wins to Play Ranked', '60', '') in got
+    assert game_now.snapshot_values('misc.vdata:x', moved) == []

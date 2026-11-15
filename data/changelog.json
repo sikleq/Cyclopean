@@ -1,5 +1,17 @@
 [
   {
+    "date": "2026-11-15",
+    "title": "Ranked values, fewer repeated rows",
+    "items": [
+      "Ranked: a season's Current values list every number it has now (wins to play, placement matches, party sizes), not only the ones Valve has changed.",
+      "Ranked Beta Season 2: the line about 2000 → 1500 points to reach a new badge now points at its field; so does an old line about the 2-hero soul split (2025-05-19).",
+      "One edit to many modifiers is one row: “can't be purged” added to 11 map objects and 10 modifiers on 2026-09-29 reads as two rows, not 21.",
+      "Items show when they started to proc on bullet hits on allies: Tech Overflow and Restorative Shot (2026-09-29), Headhunter (2026-10-16), AP Rounds (2026-10-20).",
+      "The souls tick period and its pulses are one row: 3 pulses every 3s → 2 pulses every 2s.",
+      "Text changes in a window a hero release interrupts show the values of their own build (Violet's Homing Brush)."
+    ]
+  },
+  {
     "date": "2026-11-13",
     "title": "Ranked, bigger patch tiles, a build picker",
     "items": [

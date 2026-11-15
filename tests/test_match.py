@@ -761,3 +761,42 @@ def test_data_audit_2026_11_13_units_direction_and_text():
     tok = {'bonustechpower_label': 'Spirit Power while Pathing', '@items:bonustechpower_label': 'Spirit Power'}
     assert s._loc_label(tok, 'BonusTechPower', 'upgrade_ethereal_shift') == 'Spirit Power'
     assert s._loc_label(tok, 'BonusTechPower', 'ability_x') == 'Spirit Power while Pathing'
+
+
+def test_one_moved_element_of_a_number_list_matches_a_single_pair():
+    """Ranked Beta Season 2 (2026-11-15): "points … from a final subrank decreased from 2000 to 1500" is the last
+    element of m_vecSubRankXP (1000 ×5, 2000) -> (1000 ×5, 1500); a list where two elements moved stays whole."""
+    from pipeline.match import annotate_line
+    xp = MChange('ranked_seasons.vdata', 'season_2', 'm_vecRankInfo{all}.m_vecSubRankXP', 'change',
+                 [1000] * 5 + [2000], [1000] * 5 + [1500], 'mechanic', 'global', None,
+                 'Points per Subrank (all ranks)', False)
+    text = ('Ranking Up: The points required to reach a new badge from a final subrank have been decreased from '
+            '2000 to 1500. The points between subranks remain unchanged at 1000.')
+    res = annotate_line(text, [xp], {'ranked_seasons.vdata:season_2': [xp]}, {}, {}, {})
+    assert res['changes'] == [xp.key] and res['status'] == 'documented'
+    two = MChange('x.vdata', 'y', 'm_vecList', 'change', [1, 2000], [2, 1500], 'mechanic', 'global', None,
+                  'Points per Subrank', False)
+    assert (2000, 1500) not in two.steps()
+
+
+def test_one_edit_in_the_modifiers_of_many_abilities_is_one_block():
+    """Build 6711: "+can't be purged" in each ability's own modifier ({modifier_x}) was 16 rows (todo 2026-10-17,
+    done 2026-11-15); a property key is what moved, so six different properties stay six changes."""
+    from pipeline.match import alike_in_modifiers, modifier_block_json
+    def mk(eid, path):
+        return MChange('abilities.vdata', eid, path, 'add', None, 'MODIFIER_ATTRIBUTE_CANNOT_BE_PURGED', 'mechanic',
+                       'ability', None, f'{eid} Watcher › Attributes', False)
+    mods = [mk(f'a{i}', f'm_AutoIntrinsicModifiers{{modifier_a{i}}}.m_bProcOnFriendlyBulletHits') for i in range(6)]
+    props = [mk(f'b{i}', f'm_vecAbilityUpgrades[0].m_vecPropertyUpgrades{{Prop{i}}}.m_strBonus') for i in range(6)]
+    got = alike_in_modifiers(mods + props + mods[:1])
+    assert {id(c) for c in mods} <= set(got) and not {id(c) for c in props} & set(got)
+    assert got[id(mods[0])][1] == 'm_AutoIntrinsicModifiers{*}.m_bProcOnFriendlyBulletHits'
+    row = modifier_block_json(mods[0], got[id(mods[0])][1])
+    assert row['label'] == 'Attributes' and row['shared'] is True
+    assert alike_in_modifiers(mods[:5]) == {}
+    # a modifier the entity keeps under a field of its own: the switch alone is the shared path
+    paths = ['m_UIRecastModifier.m_nAttributes', 'm_PickUpAura.m_modifierProvidedByAura.m_nAttributes',
+             'm_KillCheckModifier.m_nAttributes', 'm_InShopModifier.m_nAttributes', 'm_nAttributes',
+             'm_GraveStoneModifier.m_modifierProvidedByAura.m_nAttributes']
+    got = alike_in_modifiers([mk(f'c{i}', p) for i, p in enumerate(paths)])
+    assert len(got) == 6 and {s[1] for s in got.values()} == {'m_nAttributes'}

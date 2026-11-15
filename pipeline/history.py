@@ -170,10 +170,11 @@ def released_heroes(rec: dict) -> list[str]:
     """Heroes this build ships as released: their development state turned Release (the field exists since build
     6711, 2026-09-29; before it heroes came with changelogs). pipeline.patches gives such a build a window of its
     own: Deadman Danny's release (6779) and the 10-14 balance build (6785) were one window, his kit "added, then
-    tuned" read as one NEW row and nine of his note lines found nothing (data review 2026-10-17)."""
+    tuned" read as one NEW row and nine of his note lines found nothing (data review 2026-10-17). A hero that
+    arrives already released (a new entry with the state Release) is a release too: it had no window (2026-11-15)."""
     out = []
     for e in rec['entities']:
-        if e['file'] != 'heroes.vdata' or e['status'] != 'changed' or not e['id'].startswith('hero_'):
+        if e['file'] != 'heroes.vdata' or e['status'] not in ('changed', 'added') or not e['id'].startswith('hero_'):
             continue
         if any(c['path'] == 'm_eHeroDevelopmentState' and c.get('new') == RELEASED_STATE
                and c.get('old') != RELEASED_STATE for c in e['changes']):

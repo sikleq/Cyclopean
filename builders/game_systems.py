@@ -296,6 +296,36 @@ def convar_changes(rows: list[dict], start_build: int | None) -> list[dict]:
         op = 'add' if old is None else 'remove' if new is None else 'change'
         builds = sorted({cv.get('build') for cv in rows if cv.get('name') == name and cv.get('build')})
         out.append(convar_change(name, op, old, new, a.get('status') or b.get('status'), builds))
+    return pair_convars(out)
+
+
+# console variables that only read together: a period and the payouts inside it. Souls ticks of build 6698, period
+# 3s -> 2s with pulses 3 -> 2, were two rows that each looked like a change of income (todo 2026-10-17, done 11-15)
+CONVAR_PAIRS = ((re.compile(r'^(?P<root>.+)_period_duration_s$'), '{root}_pulse_per_period', '{n} pulses every {t}'),)
+
+
+def pair_convars(rows: list[dict]) -> list[dict]:
+    """Rows of a patch with each `CONVAR_PAIRS` pair that both changed as ONE row: "3 pulses every 3s → 2 pulses
+    every 2s", direction CHANGED (which way it goes for a player is the pair's, not either number's). Its key is
+    the period's; its status the first of the two that is not hidden."""
+    by_name = {r['id']: r for r in rows}
+    gone: set[str] = set()
+    out = []
+    for r in rows:
+        if r['id'] in gone:
+            continue
+        for rx, mate_fmt, text in CONVAR_PAIRS:
+            m = rx.match(r['id'])
+            mate = by_name.get(mate_fmt.format(**m.groupdict())) if m else None
+            if not mate or r['op'] != 'change' or mate['op'] != 'change':
+                continue
+            gone.add(mate['id'])
+            r = {**r, 'label': f"{r['id']} + {mate['id']}", 'dir': 'changed', 'pct': None,
+                 'old_s': text.format(n=mate['old_s'], t=r['old_s']), 'new_s': text.format(n=mate['new_s'], t=r['new_s']),
+                 'builds': sorted(set(r['builds']) | set(mate['builds'])),
+                 'status': r['status'] if r['status'] != 'hidden' else mate['status']}
+            break
+        out.append(r)
     return out
 
 

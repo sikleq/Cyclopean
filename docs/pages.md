@@ -134,6 +134,9 @@ a hover card is `contain` as well.
   the band, the Game index card, the matrix (`dynamics_page`), the home icon (`home_page._feed_rows`) and the patch's
   count (`patch_counts._placed_rows`, as a Game row like the console variables). Placed by the config's subject
   `brawl:draft_weights` (part modes.brawl).
+- **Console variables that read together are one row** (`game_systems.CONVAR_PAIRS`, `pair_convars`): a period and the
+  payouts inside it ("3 pulses every 3s → 2 pulses every 2s", souls ticks of build 6698), direction CHANGED, key the
+  period's. A lone change of either stays its own row.
 - **No card is a name over nothing** (`cards.writes_rows`, `patches_pages.shown_entities`): a build page's event row
   has its path (`@add` / `@return` / `@remove`, as in a patch record) — without one `is_noop` read "Removed from game
   data" with no value as an empty removal (199 empty cards on 40 build pages); an entity whose rows are all no-ops has

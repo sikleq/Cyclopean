@@ -128,3 +128,19 @@ def test_a_steam_post_the_notes_do_not_hold_starts_a_data_run():
     feed = {'appnews': {'newsitems': [{'gid': '1'}, {'gid': '2'}]}}
     assert nsp.new_ids(feed, [{'gid': '1'}]) == ['2']
     assert nsp.new_ids({}, []) == []                                  # an outage starts nothing
+
+
+def test_release_window_prefers_the_post_that_names_the_hero_and_counts_heroes_added_released():
+    """2026-11-15: a release window took the nearest post within two days unchecked; a hero that arrived already
+    released (a new entry with the state Release) had no window at all."""
+    from pipeline.history import released_heroes
+    from pipeline.news import Notes, Section
+    from pipeline.patches import release_windows
+    other = Notes('Another hero arrives', '2026-01-10T21:00:00+00:00', 'u1', 'steam', [Section('', ['Meet Haze'])])
+    own = Notes('A new face', '2026-01-09T12:00:00+00:00', 'u2', 'steam', [Section('', ['Violet joins the fight'])])
+    build = {'build': 1, 'date': '2026-01-10T21:00:00Z', 'released': ['hero_artist']}
+    got = release_windows([build], [], [other, own], {'hero_artist': 'Violet', 'hero_haze': 'Haze'})
+    assert [p.link for p in got] == ['u2']
+    rec = {'entities': [{'file': 'heroes.vdata', 'id': 'hero_new', 'status': 'added', 'changes': [
+        {'path': 'm_eHeroDevelopmentState', 'op': 'add', 'old': None, 'new': 'EHeroDevState_Release'}]}]}
+    assert released_heroes(rec) == ['hero_new']

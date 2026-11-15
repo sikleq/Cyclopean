@@ -137,7 +137,24 @@ class MChange:
             # the patch rescaled every per-boon value (rules.boon_rescale): the notes quote the new value
             # in the old scale ("Kelvin: Bullet damage growth 1.2 -> 0.9" is 1.2 -> 0.707 in the files)
             pairs += [(o, num(n) / self.scale) for o, n in pairs if num(n) is not None]
+        pairs += _one_moved(pairs)
         return pairs
+
+
+def _one_moved(pairs: list[tuple]) -> list[tuple]:
+    """The one element that moved in a number list: "points to reach a new badge from a final subrank decreased
+    from 2000 to 1500" is m_vecSubRankXP (1000 ×5, 2000) -> (1000 ×5, 1500), the last element alone (Ranked Beta
+    Season 2, unmatched until 2026-11-15). A list with two or more moved elements stays whole: which one a single
+    pair names would be a guess."""
+    out = []
+    for o, n in pairs:
+        a, b = _number_list(o), _number_list(n)
+        if not a or not b or len(a) != len(b):
+            continue
+        moved = [(x, y) for x, y in zip(a, b) if x != y]
+        if len(moved) == 1 and moved[0] not in out:
+            out.append(moved[0])
+    return out
 
 
 def num(v):

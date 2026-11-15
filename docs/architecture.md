@@ -47,6 +47,8 @@ pipeline/match.py      -> data/patches/<id>.json.gz  notes lines ⇄ data change
 pipeline/match_rules.py  rules for lines over many entities (boons, "all …"), aliases, untracked topics
 pipeline/shared_groups.py  a patch's '@shared' blocks: target_keys, scope (all / some), target_status
 pipeline/entity_texts.py   a patch's name / description changes of abilities, items and heroes (extras.texts)
+pipeline/now_entries.py    every number of a Game system's entries at the tracker head, for files whose history alone
+                           misses the never-moved ones (Ranked seasons) -> data/tables/now_entries.json (game_now)
 data/tracker_head.txt  last processed tracker commit: update-data.yml checks it against `git ls-remote`
                           every 15 min and only clones + rebuilds when the tracker moved. GitHub skips
                           most of those cron runs (1 of ~40 overnight on 2026-10-01), so a fallback runs

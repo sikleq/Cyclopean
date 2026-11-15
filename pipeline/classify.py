@@ -69,7 +69,10 @@ TECHNICAL_RE = re.compile(
     # a modifier's state mask is not here: "ignored by NPC targeting", "unstoppable" are gameplay
     # (pipeline.flags says which states, external audit 2026-10-04)
     r'm_bits\w*Mask|m_UsageFlags|m_ValueType|'
-    r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|m_AutoIntrinsicModifiers|'
+    r'm_strCancelAbilityKey|m_vecAutoRegisterModifierValueFromAbilityPropertyName|'
+    # the item's own watcher modifiers are wiring, but whether it procs on hits on allies is gameplay: Tech
+    # Overflow and Restorative Shot (6711), Headhunter (6790), AP Rounds (6801) showed nowhere (owner 2026-11-15)
+    r'm_AutoIntrinsicModifiers(?!.*\.m_bProcOnFriendlyBulletHits$)|'
     r'm_strAG2SourceName|m_nShopVersion|m_strSelectionNameOverride|m_eShopFilters|m_eAdditionalShopFilters|'
     # the shop's search filters an item leaves out, and the key of a trooper's weapon against bosses (its numbers
     # are the "(Boss)" rows): "Disable Shop Filters: +eshopfilterspiritdamage", "Boss Weapon Name added (boss)" sat
