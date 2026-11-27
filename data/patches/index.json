@@ -2773,11 +2773,11 @@
   "id": "2026-11-26",
   "title": "Minor Update - 11-26-2026",
   "date": "2026-11-26",
-  "builds": 1,
+  "builds": 3,
   "counts": {
    "documented": 142,
    "described": 140,
-   "hidden": 141,
+   "hidden": 142,
    "unannounced": 0,
    "unreleased": 3
   },
