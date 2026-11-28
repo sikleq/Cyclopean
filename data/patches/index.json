@@ -2773,21 +2773,40 @@
   "id": "2026-11-26",
   "title": "Minor Update - 11-26-2026",
   "date": "2026-11-26",
-  "builds": 5,
+  "builds": 1,
   "counts": {
    "documented": 142,
    "described": 140,
-   "hidden": 143,
+   "hidden": 141,
    "unannounced": 0,
    "unreleased": 3
   },
   "line_counts": {
-   "unmatched": 40,
+   "unmatched": 41,
    "described": 66,
    "documented": 80,
    "fix": 25,
    "untracked": 30,
-   "code": 38
+   "code": 37
+  },
+  "has_notes": true
+ },
+ {
+  "id": "2026-11-27",
+  "title": "Minor Update - 11-27-2026",
+  "date": "2026-11-27",
+  "builds": 5,
+  "counts": {
+   "documented": 9,
+   "described": 0,
+   "hidden": 3,
+   "unannounced": 0,
+   "unreleased": 0
+  },
+  "line_counts": {
+   "unmatched": 1,
+   "documented": 8,
+   "described": 1
   },
   "has_notes": true
  }
